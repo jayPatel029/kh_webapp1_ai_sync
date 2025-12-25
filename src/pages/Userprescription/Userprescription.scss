@@ -1,0 +1,12 @@
+.Userprescription {
+    display: flex;
+
+    .UserprescriptionContainer {
+        flex: 5;
+    }
+    img{
+        width: 75px;
+        height: 75px;
+        margin: 3px;
+    }
+}

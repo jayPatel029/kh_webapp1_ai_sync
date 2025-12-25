@@ -1,0 +1,6 @@
+.userProgramSelection {
+  display: flex;
+}
+.userProgramSelection .userProgramSelectionContainer {
+  flex: 5;
+}/*# sourceMappingURL=userProgramSelection.css.map */

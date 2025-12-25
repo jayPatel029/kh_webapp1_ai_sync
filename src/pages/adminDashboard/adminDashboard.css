@@ -1,0 +1,6 @@
+.admindashboard {
+  display: flex;
+}
+.admindashboard .admindashboardContainer {
+  flex: 5;
+}/*# sourceMappingURL=adminDashboard.css.map */

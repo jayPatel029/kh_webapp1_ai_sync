@@ -1,0 +1,6 @@
+.ShowAlarms {
+  display: flex;
+}
+.ShowAlarms .ShowAlarmsContainer {
+  flex: 5;
+}/*# sourceMappingURL=ShowAlarms.css.map */

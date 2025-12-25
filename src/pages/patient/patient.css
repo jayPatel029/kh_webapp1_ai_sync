@@ -1,0 +1,6 @@
+.patient {
+  display: flex;
+}
+.patient .patientContainer {
+  flex: 5;
+}/*# sourceMappingURL=patient.css.map */

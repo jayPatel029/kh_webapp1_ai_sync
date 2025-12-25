@@ -1,0 +1,10 @@
+node_modules
+build
+npm-debug.log
+.git
+.env.local
+.env.development
+.cache
+src/
+public/
+README.md

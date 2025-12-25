@@ -1,0 +1,6 @@
+.dailyReadings {
+  display: flex;
+}
+.dailyReadings .dailyReadingsContainer {
+  flex: 5;
+}/*# sourceMappingURL=dialysisReadings.css.map */

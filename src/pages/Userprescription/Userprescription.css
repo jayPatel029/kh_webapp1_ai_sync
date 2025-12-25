@@ -1,0 +1,11 @@
+.Userprescription {
+  display: flex;
+}
+.Userprescription .UserprescriptionContainer {
+  flex: 5;
+}
+.Userprescription img {
+  width: 75px;
+  height: 75px;
+  margin: 3px;
+}/*# sourceMappingURL=Userprescription.css.map */

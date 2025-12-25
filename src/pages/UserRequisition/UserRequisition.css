@@ -1,0 +1,6 @@
+.UserRequisition {
+  display: flex;
+}
+.UserRequisition .UserRequisitionContainer {
+  flex: 5;
+}/*# sourceMappingURL=UserRequisition.css.map */

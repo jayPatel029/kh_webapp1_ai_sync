@@ -1,0 +1,6 @@
+.adminChat {
+  display: flex;
+}
+.adminChat .adminChatContainer {
+  flex: 5;
+}/*# sourceMappingURL=AdminChat.css.map */
