@@ -1,4 +1,5 @@
 import "./App.css";
+import "./Styles/variables.css"; // Import design token CSS variables
 import AdminDashboard from "./pages/adminDashboard/AdminDashboard";
 import AdminManagement from "./pages/adminManagement/AdminManagement";
 import AlimentMaster from "./pages/alimentMaster/AlimentMaster";

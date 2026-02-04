@@ -1,0 +1,396 @@
+/**
+ * Input Semantic Styles
+ * Consumes CSS variables only - no Tailwind utilities
+ * 
+ * File: src/design-system/styles/input.css
+ */
+
+/* ==================== BASE INPUT STYLES ==================== */
+
+.input {
+  width: 100%;
+  min-width: 0;
+  outline: none;
+  position: relative;
+  appearance: none;
+  box-sizing: border-box;
+  
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text);
+  
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-lg);
+  
+  transition: var(--transition-fast);
+}
+
+.input::placeholder {
+  color: var(--color-placeholder);
+}
+
+.input:hover {
+  border-color: var(--color-gray-300);
+}
+
+.input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.input:disabled,
+.input[disabled],
+.input--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background-color: var(--color-gray-100);
+}
+
+.input[readonly],
+.input--readonly {
+  cursor: default;
+  background-color: var(--color-gray-50);
+}
+
+/* ==================== SIZE VARIANTS ==================== */
+
+.input--xs {
+  height: 24px;
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-sm);
+}
+
+.input--sm {
+  height: 32px;
+  padding-left: var(--space-3);
+  padding-right: var(--space-3);
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-sm);
+}
+
+.input--md {
+  height: 40px;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  font-size: var(--font-size-md);
+  border-radius: var(--radius-md);
+}
+
+.input--lg {
+  height: 48px;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  font-size: var(--font-size-lg);
+  border-radius: var(--radius-md);
+}
+
+/* ==================== VISUAL VARIANTS ==================== */
+
+/* Outline (Default) */
+.input--outline {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border-input);
+}
+
+.input--outline:hover {
+  border-color: var(--color-gray-300);
+}
+
+.input--outline:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+/* Filled */
+.input--filled {
+  background-color: var(--color-gray-100);
+  border: 2px solid transparent;
+}
+
+.input--filled:hover {
+  background-color: var(--color-gray-200);
+}
+
+.input--filled:focus {
+  background-color: var(--color-white);
+  border-color: var(--color-primary);
+}
+
+/* Flushed */
+.input--flushed {
+  background-color: transparent;
+  border-radius: 0;
+  border-width: 0;
+  border-bottom: 1px solid var(--color-border-input);
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.input--flushed:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 1px 0 0 var(--color-primary);
+}
+
+/* Unstyled */
+.input--unstyled {
+  background: transparent;
+  border: none;
+  padding: 0;
+  height: auto;
+}
+
+.input--unstyled:focus {
+  box-shadow: none;
+}
+
+/* Main (Project custom) */
+.input--main {
+  background-color: transparent;
+  border: 1px solid var(--color-secondary-gray-100);
+  border-radius: var(--radius-2xl);
+}
+
+.input--main:focus {
+  border-color: var(--color-primary);
+  box-shadow: none;
+}
+
+/* Auth (Project custom) */
+.input--auth {
+  background-color: var(--color-secondary-gray-300);
+  border: 1px solid var(--color-secondary-gray-100);
+  border-radius: var(--radius-2xl);
+}
+
+.input--auth:focus {
+  border-color: var(--color-primary);
+  box-shadow: none;
+}
+
+/* ==================== STATE VARIANTS ==================== */
+
+/* Invalid/Error State */
+.input--invalid,
+.input--error {
+  border-color: var(--color-error);
+}
+
+.input--invalid:focus,
+.input--error:focus {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 1px var(--color-error);
+}
+
+/* Success State */
+.input--success {
+  border-color: var(--color-success);
+}
+
+.input--success:focus {
+  border-color: var(--color-success);
+  box-shadow: 0 0 0 1px var(--color-success);
+}
+
+/* ==================== INPUT GROUP ==================== */
+
+.input-group {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.input-group > .input {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0%;
+  width: 100%;
+}
+
+/* Input Group Elements (icons) */
+.input-group__element {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 100%;
+  color: var(--color-gray-500);
+  pointer-events: none;
+}
+
+.input-group__element--left {
+  left: 0;
+}
+
+.input-group__element--right {
+  right: 0;
+}
+
+/* Adjust input padding when elements are present */
+.input-group--has-left > .input {
+  padding-left: 40px;
+}
+
+.input-group--has-right > .input {
+  padding-right: 40px;
+}
+
+/* Input Group Addons */
+.input-group__addon {
+  display: flex;
+  align-items: center;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  background-color: var(--color-gray-100);
+  border: 1px solid var(--color-border-input);
+  color: var(--color-gray-600);
+  white-space: nowrap;
+}
+
+.input-group__addon--left {
+  border-right: 0;
+  border-top-left-radius: var(--radius-md);
+  border-bottom-left-radius: var(--radius-md);
+}
+
+.input-group__addon--right {
+  border-left: 0;
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+
+.input-group--has-addon-left > .input {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.input-group--has-addon-right > .input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* ==================== TEXTAREA ==================== */
+
+.textarea {
+  width: 100%;
+  min-width: 0;
+  outline: none;
+  position: relative;
+  appearance: none;
+  box-sizing: border-box;
+  resize: vertical;
+  
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text);
+  
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-lg);
+  
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  
+  transition: var(--transition-fast);
+}
+
+.textarea::placeholder {
+  color: var(--color-placeholder);
+}
+
+.textarea:hover {
+  border-color: var(--color-gray-300);
+}
+
+.textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.textarea:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background-color: var(--color-gray-100);
+}
+
+.textarea--invalid {
+  border-color: var(--color-error);
+}
+
+.textarea--invalid:focus {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 1px var(--color-error);
+}
+
+/* ==================== SELECT ==================== */
+
+.select {
+  width: 100%;
+  min-width: 0;
+  outline: none;
+  position: relative;
+  appearance: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text);
+  
+  background-color: var(--color-white);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-lg);
+  
+  padding-right: 2.5rem;
+  
+  transition: var(--transition-fast);
+}
+
+.select:hover {
+  border-color: var(--color-gray-300);
+}
+
+.select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background-color: var(--color-gray-100);
+}
+
+.select--sm {
+  height: 32px;
+  padding-left: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.select--md {
+  height: 40px;
+  padding-left: var(--space-4);
+  font-size: var(--font-size-md);
+}
+
+.select--lg {
+  height: 48px;
+  padding-left: var(--space-4);
+  font-size: var(--font-size-lg);
+}
+
+.select--invalid {
+  border-color: var(--color-error);
+}

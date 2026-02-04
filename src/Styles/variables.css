@@ -1,0 +1,128 @@
+/* Design Tokens - CSS Variables */
+/* Generated from Figma design system */
+/* File: src/Styles/variables.css */
+
+:root {
+  /* Colors */
+  --color-primary: #4164df;
+  --color-primary-dark: #004c6d;
+  --color-accent: #5886a5;
+  --color-link: #6466f2;
+  --color-danger: #de425b;
+  --color-success: #00c008;
+  --color-warning: #ff9800;
+  --color-info: #00cccc;
+  --color-overlay: rgba(234, 234, 234, 0.4);
+  --color-text: #393939;
+  --color-text-muted: #989898;
+  --color-border: #5886a5;
+  --color-border-light: #d9d9d9;
+  --color-divider: #989898;
+  --color-background: #ffffff;
+  --color-background-alt: #f5f5f5;
+  --color-surface: #fafafa;
+  --color-surface-alt: #efefef;
+  --color-error: #ff5252;
+  --color-disabled: #cccccc;
+  --color-placeholder: #999999;
+  --color-black: #000000;
+
+  /* Fonts */
+  --font-primary: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-semi-bold: 600;
+  --font-weight-bold: 700;
+
+  /* Typography */
+  --typography-h1-font-size: 24px;
+  --typography-h1-font-weight: 700;
+  --typography-h1-line-height: 32px;
+
+  --typography-h2-font-size: 21px;
+  --typography-h2-font-weight: 700;
+  --typography-h2-line-height: 28px;
+
+  --typography-h3-font-size: 18px;
+  --typography-h3-font-weight: 700;
+  --typography-h3-line-height: 24px;
+
+  --typography-body-large-font-size: 16px;
+  --typography-body-large-font-weight: 600;
+  --typography-body-large-line-height: 20px;
+
+  --typography-body-font-size: 14px;
+  --typography-body-font-weight: 400;
+  --typography-body-line-height: 18px;
+
+  --typography-button-font-size: 16px;
+  --typography-button-font-weight: 600;
+  --typography-button-line-height: 20px;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-xxl: 24px;
+  --spacing-10: 10px;
+  --spacing-15: 15px;
+  --spacing-30: 30px;
+  --spacing-42: 42px;
+  --spacing-48: 48px;
+  --spacing-50: 50px;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 20px;
+  --radius-round: 50%;
+
+  /* Shadows */
+  --shadow-1: 2px 2px 4px 0px rgba(0, 0, 0, 0.1);
+  --shadow-2: inset -2px -2px 4px 0px rgba(0, 0, 0, 0.05);
+}
+
+/* Typography Utility Classes */
+.typography-h1 {
+  font-family: var(--font-primary);
+  font-size: var(--typography-h1-font-size);
+  font-weight: var(--typography-h1-font-weight);
+  line-height: var(--typography-h1-line-height);
+}
+
+.typography-h2 {
+  font-family: var(--font-primary);
+  font-size: var(--typography-h2-font-size);
+  font-weight: var(--typography-h2-font-weight);
+  line-height: var(--typography-h2-line-height);
+}
+
+.typography-h3 {
+  font-family: var(--font-primary);
+  font-size: var(--typography-h3-font-size);
+  font-weight: var(--typography-h3-font-weight);
+  line-height: var(--typography-h3-line-height);
+}
+
+.typography-body-large {
+  font-family: var(--font-primary);
+  font-size: var(--typography-body-large-font-size);
+  font-weight: var(--typography-body-large-font-weight);
+  line-height: var(--typography-body-large-line-height);
+}
+
+.typography-body {
+  font-family: var(--font-primary);
+  font-size: var(--typography-body-font-size);
+  font-weight: var(--typography-body-font-weight);
+  line-height: var(--typography-body-line-height);
+}
+
+.typography-button {
+  font-family: var(--font-primary);
+  font-size: var(--typography-button-font-size);
+  font-weight: var(--typography-button-font-weight);
+  line-height: var(--typography-button-line-height);
+}

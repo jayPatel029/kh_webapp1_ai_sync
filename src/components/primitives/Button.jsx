@@ -1,0 +1,240 @@
+/**
+ * Button Component
+ * Primitive button with design system styling
+ * 
+ * @file src/components/primitives/Button.jsx
+ */
+
+import React, { forwardRef } from 'react';
+import PropTypes from 'prop-types';
+import clsx from 'clsx';
+
+/**
+ * Button Component
+ * 
+ * @example
+ * <Button variant="primary" size="md">Click Me</Button>
+ * <Button variant="outline" leftIcon={<Icon />}>With Icon</Button>
+ */
+export const Button = forwardRef(({
+  children,
+  variant = 'primary',
+  size = 'md',
+  isLoading = false,
+  isDisabled = false,
+  isFullWidth = false,
+  leftIcon,
+  rightIcon,
+  loadingText,
+  type = 'button',
+  className,
+  ...props
+}, ref) => {
+  const disabled = isDisabled || isLoading;
+
+  const buttonClasses = clsx(
+    'btn',
+    `btn--${size}`,
+    `btn--${variant}`,
+    {
+      'btn--loading': isLoading,
+      'btn--disabled': disabled,
+      'btn--full-width': isFullWidth,
+    },
+    className
+  );
+
+  return (
+    <button
+      ref={ref}
+      type={type}
+      className={buttonClasses}
+      disabled={disabled}
+      aria-disabled={disabled}
+      aria-busy={isLoading}
+      {...props}
+    >
+      {isLoading && (
+        <span className="btn__spinner">
+          <Spinner size={size === 'lg' ? 'md' : 'sm'} />
+        </span>
+      )}
+      
+      <span className={clsx('btn__content', { 'opacity-0': isLoading && !loadingText })}>
+        {leftIcon && (
+          <span className="btn__icon btn__icon--left">
+            {leftIcon}
+          </span>
+        )}
+        
+        {isLoading && loadingText ? loadingText : children}
+        
+        {rightIcon && (
+          <span className="btn__icon btn__icon--right">
+            {rightIcon}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+});
+
+Button.displayName = 'Button';
+
+Button.propTypes = {
+  /** Button content */
+  children: PropTypes.node,
+  /** Visual variant */
+  variant: PropTypes.oneOf([
+    'primary',
+    'secondary',
+    'outline',
+    'ghost',
+    'link',
+    'danger',
+    'danger-outline',
+    'success',
+    'warning',
+    'brand',
+    'dark-brand',
+    'light-brand',
+    'gray',
+    'navy',
+  ]),
+  /** Size variant */
+  size: PropTypes.oneOf(['xs', 'sm', 'md', 'lg']),
+  /** Loading state */
+  isLoading: PropTypes.bool,
+  /** Disabled state */
+  isDisabled: PropTypes.bool,
+  /** Full width */
+  isFullWidth: PropTypes.bool,
+  /** Icon on the left */
+  leftIcon: PropTypes.node,
+  /** Icon on the right */
+  rightIcon: PropTypes.node,
+  /** Text shown while loading */
+  loadingText: PropTypes.string,
+  /** Button type */
+  type: PropTypes.oneOf(['button', 'submit', 'reset']),
+  /** Additional CSS classes */
+  className: PropTypes.string,
+};
+
+/**
+ * Simple Spinner Component for loading states
+ */
+const Spinner = ({ size = 'sm' }) => {
+  const sizeClasses = {
+    xs: 'w-3 h-3',
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6',
+  };
+
+  return (
+    <svg
+      className={clsx('animate-spin', sizeClasses[size])}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+};
+
+/**
+ * IconButton Component
+ * Button variant optimized for icons only
+ */
+export const IconButton = forwardRef(({
+  icon,
+  'aria-label': ariaLabel,
+  size = 'md',
+  variant = 'ghost',
+  className,
+  ...props
+}, ref) => {
+  return (
+    <Button
+      ref={ref}
+      size={size}
+      variant={variant}
+      className={clsx('btn--icon', className)}
+      aria-label={ariaLabel}
+      {...props}
+    >
+      {icon}
+    </Button>
+  );
+});
+
+IconButton.displayName = 'IconButton';
+
+IconButton.propTypes = {
+  /** Icon element */
+  icon: PropTypes.node.isRequired,
+  /** Accessible label (required for accessibility) */
+  'aria-label': PropTypes.string.isRequired,
+  /** Size variant */
+  size: PropTypes.oneOf(['xs', 'sm', 'md', 'lg']),
+  /** Visual variant */
+  variant: PropTypes.string,
+  /** Additional CSS classes */
+  className: PropTypes.string,
+};
+
+/**
+ * ButtonGroup Component
+ * Group related buttons together
+ */
+export const ButtonGroup = forwardRef(({
+  children,
+  isAttached = false,
+  spacing = 2,
+  className,
+  ...props
+}, ref) => {
+  const groupClasses = clsx(
+    'btn-group',
+    {
+      'btn-group--attached': isAttached,
+    },
+    !isAttached && `gap-${spacing}`,
+    className
+  );
+
+  return (
+    <div ref={ref} role="group" className={groupClasses} {...props}>
+      {children}
+    </div>
+  );
+});
+
+ButtonGroup.displayName = 'ButtonGroup';
+
+ButtonGroup.propTypes = {
+  /** Button children */
+  children: PropTypes.node.isRequired,
+  /** Attach buttons together */
+  isAttached: PropTypes.bool,
+  /** Spacing between buttons */
+  spacing: PropTypes.oneOf([0, 1, 2, 3, 4]),
+  /** Additional CSS classes */
+  className: PropTypes.string,
+};
+
+export default Button;

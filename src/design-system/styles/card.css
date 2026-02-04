@@ -1,0 +1,282 @@
+/**
+ * Card & Container Semantic Styles
+ * Consumes CSS variables only - no Tailwind utilities
+ * 
+ * File: src/design-system/styles/card.css
+ */
+
+/* ==================== BASE CARD STYLES ==================== */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  
+  background-color: var(--color-white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  
+  overflow: hidden;
+  transition: var(--transition-normal);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* No hover effect variant */
+.card--static {
+  cursor: default;
+}
+
+.card--static:hover {
+  box-shadow: var(--shadow-card);
+}
+
+/* ==================== SIZE VARIANTS ==================== */
+
+.card--sm {
+  padding: var(--space-4);
+}
+
+.card--md {
+  padding: var(--space-6);
+}
+
+.card--lg {
+  padding: var(--space-8);
+}
+
+/* ==================== VISUAL VARIANTS ==================== */
+
+/* Elevated (Default) */
+.card--elevated {
+  box-shadow: var(--shadow-card);
+}
+
+/* Outline */
+.card--outline {
+  box-shadow: none;
+  border: 1px solid var(--color-border-light);
+}
+
+.card--outline:hover {
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+
+/* Filled */
+.card--filled {
+  box-shadow: none;
+  background-color: var(--color-surface-alt);
+}
+
+/* Unstyled */
+.card--unstyled {
+  box-shadow: none;
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+
+/* ==================== CARD PARTS ==================== */
+
+.card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.card__body {
+  flex: 1;
+  padding: var(--space-6);
+}
+
+.card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--color-border-light);
+}
+
+/* Compact card parts */
+.card--compact .card__header,
+.card--compact .card__body,
+.card--compact .card__footer {
+  padding: var(--space-3) var(--space-4);
+}
+
+/* ==================== INTERACTIVE CARD ==================== */
+
+.card--clickable {
+  cursor: pointer;
+}
+
+.card--clickable:hover {
+  transform: translateY(-2px);
+}
+
+.card--clickable:active {
+  transform: translateY(0);
+}
+
+/* Selected state */
+.card--selected {
+  border: 2px solid var(--color-primary);
+}
+
+/* ==================== CONTAINER ==================== */
+
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+
+.container--sm {
+  max-width: var(--container-sm);
+}
+
+.container--md {
+  max-width: var(--container-md);
+}
+
+.container--lg {
+  max-width: var(--container-lg);
+}
+
+.container--xl {
+  max-width: var(--container-xl);
+}
+
+.container--full {
+  max-width: 100%;
+}
+
+/* Centered content container */
+.container--center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ==================== DIVIDER ==================== */
+
+.divider {
+  border: 0;
+  opacity: 0.6;
+}
+
+.divider--horizontal {
+  width: 100%;
+  height: 1px;
+  background-color: var(--color-divider);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.divider--vertical {
+  width: 1px;
+  height: 100%;
+  background-color: var(--color-divider);
+  margin-left: var(--space-4);
+  margin-right: var(--space-4);
+}
+
+/* ==================== SPACER ==================== */
+
+.spacer {
+  flex: 1;
+}
+
+.spacer--xs {
+  height: var(--space-xs);
+  min-height: var(--space-xs);
+}
+
+.spacer--sm {
+  height: var(--space-sm);
+  min-height: var(--space-sm);
+}
+
+.spacer--md {
+  height: var(--space-md);
+  min-height: var(--space-md);
+}
+
+.spacer--lg {
+  height: var(--space-lg);
+  min-height: var(--space-lg);
+}
+
+.spacer--xl {
+  height: var(--space-xl);
+  min-height: var(--space-xl);
+}
+
+/* ==================== CENTER ==================== */
+
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==================== SIMPLE GRID ==================== */
+
+.simple-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.simple-grid--cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.simple-grid--cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.simple-grid--cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.simple-grid--cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.simple-grid--cols-5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.simple-grid--cols-6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+/* Auto-fit grid */
+.simple-grid--auto {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* Gap variants */
+.simple-grid--gap-sm {
+  gap: var(--space-2);
+}
+
+.simple-grid--gap-md {
+  gap: var(--space-4);
+}
+
+.simple-grid--gap-lg {
+  gap: var(--space-6);
+}
+
+.simple-grid--gap-xl {
+  gap: var(--space-8);
+}
