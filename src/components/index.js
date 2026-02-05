@@ -78,5 +78,33 @@ export {
   GridItem,
 } from './layout';
 
+// ==================== COMPONENT LIBRARY (Unified) ====================
+export {
+  // Modal Wrappers
+  BaseModal,
+  ConfirmModal,
+  FormModal,
+  
+  // Feedback
+  Alert,
+  Toast,
+  Spinner,
+  Skeleton,
+  SkeletonText,
+  SkeletonCircle,
+  
+  // Navigation
+  Navbar,
+  NavbarBrand,
+  NavbarContent,
+  NavbarActions,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarItem,
+  SidebarGroup,
+  NavLink,
+} from '../component-library';
+
 // ==================== THEME ====================
 export { ThemeProvider, useTheme, useThemeColors, useThemeTypography, ThemeContext } from './ThemeProvider';

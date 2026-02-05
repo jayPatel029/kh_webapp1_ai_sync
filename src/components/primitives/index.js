@@ -58,6 +58,8 @@ export {
   CardFooter 
 } from './Card';
 
+export { Chart } from './Chart';
+
 // ==================== TYPOGRAPHY ====================
 export { 
   Text, 

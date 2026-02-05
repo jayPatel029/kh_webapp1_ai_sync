@@ -1099,13 +1099,14 @@ function UserProfile({ patient }) {
                               questionTitle.slice(systolicEndIndex);
 
                             componentToRender = (
-                              <LineChartDialysisSys
-                                aspect={2 / 1}
-                                questionId={question.id}
-                                user_id={userData.id}
-                                title={questionTitle}
-                                unit={question.unit}
-                              />
+                              // <LineChartDialysisSys
+                              //   aspect={2 / 1}
+                              //   questionId={question.id}
+                              //   user_id={userData.id}
+                              //   title={questionTitle}
+                              //   unit={question.unit}
+                              // />
+                              <></>
                             );
                           } else {
                             componentToRender = (

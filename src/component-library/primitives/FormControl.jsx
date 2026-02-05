@@ -39,7 +39,7 @@ export const FormControl = forwardRef(({
   className,
   ...props
 }, ref) => {
-  const controlId = id || React.useId?.() || `field-${Math.random().toString(36).substr(2, 9)}`;
+  const controlId = id || `field-${Math.random().toString(36).substr(2, 9)}`;
 
   const contextValue = {
     isDisabled,
