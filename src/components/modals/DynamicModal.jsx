@@ -41,6 +41,7 @@ const DynamicModal = ({
       })
       .finally(() => {
         setIsLoading(false);
+        closeModal();
       });
   };
 

@@ -6,18 +6,19 @@
  */
 
 import React, { useState } from 'react';
-import { Card, CardBody } from './primitives/Card';
-import { Text, Heading } from './primitives/Typography';
-import { Button } from './primitives/Button';
-import { Badge } from './primitives/Badge';
-import { Flex, Box, Divider } from './layout/Layout';
-import { Chart } from './primitives/Chart';
+import { Card, CardBody, CardHeader } from '../component-library/primitives/Card';
+import clsx from 'clsx';
+import { Text, Heading } from '../component-library/primitives/Typography';
+import { Button } from '../component-library/primitives/Button';
+import { Badge } from '../component-library/primitives/Badge';
+import { Flex, Box, Divider } from '../component-library/layout/Layout';
+import { Chart } from '../component-library/primitives/Chart';
 import { colors, spacing } from '../design-system/tokens';
+import upIcon from '../assets/up.png';
 
 export const ParameterSection = ({
   title,
-  sectionTitle,
-  parameters = [],
+  isGraph = true,
   chartImageUrl,
   onUploadData,
   onUpdateRange,
@@ -25,193 +26,185 @@ export const ParameterSection = ({
   onEnterReading,
   readings = [],
   onDeleteReading,
+  noResponse = false,
+  children,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [selectedFilters, setSelectedFilters] = useState([]);
-
-  const toggleFilter = (filter) => {
-    setSelectedFilters((prev) =>
-      prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]
-    );
-  };
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <Box className="w-full space-y-8">
-      <Card variant="elevated" className="w-full">
-        <CardBody className="p-12">
+    <Box className="w-full">
+      <Card
+        variant="elevated"
+        className="w-full"
+        style={{
+          borderRadius: '12px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+        }}
+      >
+        <CardBody >
           {/* Header */}
-          <Flex
-            justify="between"
-            align="center"
-            gap={4}
-            className="mb-8"
-          >
-            <Heading
-              size="lg"
-              weight="bold"
-              color="text.DEFAULT"
-            >
-              {title || 'Sleep'}
+          <Flex justify="between" align="center" gap={4} >
+            <Heading as="h5" size="md" weight="semibold"  style={{ color: '#333' }}>
+              {title}
             </Heading>
             <Button
               variant="ghost"
               onClick={() => setIsExpanded(!isExpanded)}
-              style={{ padding: '8px 12px' }}
+              className="p-1 h-8 w-8 min-w-0"
             >
-              {isExpanded ? '▼' : '▶'}
+              <Box className={clsx("transition-transform duration-200", isExpanded ? 'rotate-90' : '')}>
+                <img src={upIcon} alt='up'/>
+              </Box>
             </Button>
           </Flex>
 
           {isExpanded && (
-            <>
-              {/* Control Bar */}
-              <Flex
-                justify="between"
-                align="center"
-                gap={4}
-                className="mb-8"
-              >
-                <Flex gap={3} align="center">
-                  {/* Legend badges */}
-                  <Badge
-                    variant="subtle"
-                    colorScheme="info"
-                    isPill
-                    className="cursor-pointer"
-                    onClick={() => toggleFilter('real')}
-                    style={{
-                      opacity: selectedFilters.includes('real') ? 1 : 0.5,
-                    }}
-                  >
-                    ● Real
-                  </Badge>
-                  <Badge
-                    variant="subtle"
-                    colorScheme="warning"
-                    isPill
-                    className="cursor-pointer"
-                    onClick={() => toggleFilter('orange')}
-                    style={{
-                      opacity: selectedFilters.includes('orange') ? 1 : 0.5,
-                    }}
-                  >
-                    ● Orange
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedFilters([]);
-                      onClearFilters?.();
-                    }}
-                    style={{ color: colors.danger.DEFAULT }}
-                  >
-                    Cancel
-                  </Button>
-                </Flex>
+            <Box className="space-y-6">
+              {/* Control Bar (Only if it has actions) */}
+              {(onClearFilters || onUpdateRange || onEnterReading) && (
+                <Flex justify="between" align="center" gap={4} className="flex-wrap">
+                  <Flex gap={4} align="center">
+                    <Box
+                      className="p-1 rounded-full flex items-center justify-center text-sm"
+                      style={{ background: '#f1f5f9', width: '28px', height: '28px' }}
+                    >
+                      📅
+                    </Box>
+                    <Flex gap={3} align="center">
+                      <Flex align="center" gap={1.5}>
+                        <Box
+                          className="rounded-full"
+                          style={{ width: '10px', height: '10px', background: '#ef4444' }}
+                        />
+                        <Text size="xs" weight="semibold" className="text-slate-500">
+                          Red
+                        </Text>
+                      </Flex>
+                      <Flex align="center" gap={1.5}>
+                        <Box
+                          className="rounded-full"
+                          style={{ width: '10px', height: '10px', background: '#f59e0b' }}
+                        />
+                        <Text size="xs" weight="semibold" className="text-slate-500">
+                          Orange
+                        </Text>
+                      </Flex>
+                    </Flex>
+                    {onClearFilters && (
+                      <button
+                        onClick={onClearFilters}
+                        className="text-red-500 text-xs font-semibold hover:underline"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </Flex>
 
-                <Flex gap={3} align="center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onUpdateRange}
-                    style={{
-                      color: colors.primary.DEFAULT,
-                      textDecoration: 'underline',
-                    }}
-                  >
-                    Update range
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onEnterReading}
-                  >
-                    Enter reading
-                  </Button>
+                  <Flex gap={4} align="center">
+                    {onUpdateRange && (
+                      <button
+                        onClick={onUpdateRange}
+                        className="text-primary text-xs font-semibold hover:underline"
+                      >
+                        Update range
+                      </button>
+                    )}
+                    {onEnterReading && (
+                      <Button
+                        variant="outline"
+                        onClick={onEnterReading}
+                        className="h-8 px-4 text-xs rounded-md"
+                        style={{ borderColor: '#4164df', color: '#4164df' }}
+                      >
+                        Enter reading
+                      </Button>
+                    )}
+                  </Flex>
                 </Flex>
-              </Flex>
+              )}
 
-              {/* Chart area */}
-              {chartImageUrl && (
-                <Box className="mb-8 rounded-lg overflow-hidden">
-                  <Chart height={300} width="100%">
+              {/* Content area: Graph, Table, or Children */}
+              <Box className="w-full">
+                {children ? (
+                  children
+                ) : isGraph && chartImageUrl ? (
+                  <Box className="bg-white rounded-lg overflow-hidden flex justify-center">
                     <img
                       src={chartImageUrl}
                       alt="Chart"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{ maxWidth: '100%', height: 'auto' }}
                     />
-                  </Chart>
-                </Box>
-              )}
-
-              {/* Readings table */}
-              <Box className="mt-8">
-                <Divider className="mb-4" />
-
-                {/* Table header */}
-                <Flex
-                  justify="between"
-                  align="center"
-                  className="mb-4 px-6 py-4 bg-gray-100 rounded"
-                  style={{ background: '#eceef2' }}
-                >
-                  <Text weight="semibold" size="sm" color="text.muted">
-                    Date
-                  </Text>
-                  <Text weight="semibold" size="sm" color="text.muted">
-                    Reading
-                  </Text>
-                </Flex>
-
-                {/* Table rows */}
-                {readings && readings.length > 0 ? (
-                  readings.map((reading, idx) => (
-                    <Flex
-                      key={idx}
-                      justify="between"
-                      align="center"
-                      className="mb-2 px-6 py-3 bg-white rounded border border-gray-200"
-                    >
-                      <Text size="sm" color="text.muted">
-                        {reading.date || '2025-05-20'}
-                      </Text>
-                      <Flex gap={2} align="center">
-                        {reading.imageThumbnail && (
-                          <Box
-                            as="img"
-                            src={reading.imageThumbnail}
-                            alt="Reading"
-                            style={{ width: '40px', height: '40px', objectFit: 'cover' }}
-                          />
-                        )}
+                  </Box>
+                ) : (
+                  <Box className="space-y-4">
+                    {onUploadData && (
+                      <Flex justify="end">
                         <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDeleteReading?.(reading.id)}
-                          style={{ color: colors.danger.DEFAULT }}
+                          variant="outline"
+                          onClick={onUploadData}
+                          className="h-8 px-4 text-xs rounded-md"
+                          style={{ borderColor: '#4164df', color: '#4164df' }}
                         >
-                          ✕
+                          Upload data
                         </Button>
                       </Flex>
-                    </Flex>
-                  ))
-                ) : (
-                  <Text size="sm" color="text.muted" className="text-center py-4">
-                    No readings available.
-                  </Text>
-                )}
+                    )}
 
-                {/* Upload button */}
-                <Button
-                  variant="outline"
-                  onClick={onUploadData}
-                  className="mt-4"
-                >
-                  Upload data
-                </Button>
+                    {/* Table styling matched to Figma but more compact */}
+                    <Box className="w-full overflow-hidden rounded-md border border-slate-100">
+                      <Flex
+                        justify="between"
+                        align="center"
+                        className="px-8 py-3 bg-slate-50"
+                      >
+                        <Text size="xs" weight="bold" className="text-slate-500 uppercase">
+                          Date
+                        </Text>
+                        <Text size="xs" weight="bold" className="text-slate-500 uppercase">
+                          Reading
+                        </Text>
+                      </Flex>
+
+                      {readings.length > 0 ? (
+                        readings.map((reading, idx) => (
+                          <Flex
+                            key={idx}
+                            justify="between"
+                            align="center"
+                            className="bg-white px-8 py-3 border-t border-slate-50"
+                          >
+                            <Text size="sm" className="text-slate-600">{reading.date}</Text>
+                            <Flex align="center" gap={3}>
+                              {reading.image && (
+                                <Box
+                                  as="img"
+                                  src={reading.image}
+                                  alt="reading"
+                                  className="h-12 w-auto rounded object-contain"
+                                />
+                              )}
+                              <Button
+                                variant="ghost"
+                                onClick={() => onDeleteReading?.(reading.id)}
+                                className="text-red-400 hover:text-red-600 p-1"
+                              >
+                                ✕
+                              </Button>
+                            </Flex>
+                          </Flex>
+                        ))
+                      ) : (
+                        <Box className="px-12 py-8 text-center bg-white">
+                          <Text style={{ color: '#989898' }}>
+                            {noResponse ? 'No response' : 'No readings available.'}
+                          </Text>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                )}
               </Box>
-            </>
+            </Box>
           )}
         </CardBody>
       </Card>

@@ -80,6 +80,13 @@
   justify-content: center;
 }
 
+/* ensure spinner appears left of center by default and scales with size */
+.btn__spinner {
+  left: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 /* Full width */
 .btn--full-width {
   width: 100%;
@@ -124,18 +131,43 @@
 /* Primary/Brand Variant */
 .btn--primary,
 .btn--brand {
-  background-color: var(--color-primary);
-  color: var(--color-white);
+  background-color: var(--color-primary-500);
+  color: var(--color-primary-700);
 }
 
+/* Primary hover/focus - match Figma filled CTA look (bigger pill, strong contrast) */
 .btn--primary:hover,
-.btn--brand:hover {
+.btn--brand:hover,
+.btn--primary:focus,
+.btn--brand:focus,
+.btn--primary:focus-visible,
+.btn--brand:focus-visible {
   background-color: var(--color-primary-600);
+  color: var(--color-white);
+  box-shadow: 0 6px 18px rgba(65,100,223,0.12);
+  transform: translateY(-1px);
 }
 
 .btn--primary:active,
 .btn--brand:active {
   background-color: var(--color-primary-700);
+  transform: translateY(0);
+}
+
+/* Larger visual weight for primary when used as a main CTA */
+.btn--primary.btn--lg,
+.btn--brand.btn--lg {
+  border-radius: var(--radius-pill);
+  padding-left: var(--space-8);
+  padding-right: var(--space-8);
+  font-weight: var(--font-weight-semi-bold);
+}
+
+/* Icon sizing inside primary buttons */
+.btn--primary .btn__icon svg,
+.btn--brand .btn__icon svg {
+  width: 28px;
+  height: 28px;
 }
 
 /* Secondary Variant */

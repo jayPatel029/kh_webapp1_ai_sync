@@ -6,64 +6,88 @@
  */
 
 import React from 'react';
-import { Button } from './primitives/Button';
-import { Flex, Box } from './layout/Layout';
-import { colors, spacing } from '../design-system/tokens';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '../component-library/primitives/Button';
+import { Flex, Box } from '../component-library/layout/Layout';
+import { Badge } from '../component-library/primitives/Badge';
+import { colors } from '../design-system/tokens';
+import alarmIcon from '../assets/alarm.svg';
+import dietIcon from '../assets/Healthy_Eating.svg';
+import chatIcon from '../assets/Chat.svg';
+import labIcon from '../assets/lab_Report.svg';
+import prescIcon from '../assets/prescription.svg';
+import reqIcon from '../assets/Requsition_report.svg';
+import manageIcon from '../assets/admin_management.png';
 
 export const PatientNavTabs = ({
-  tabs = [
-    { id: 'alarms', label: 'Alarms', icon: '🔔' },
-    { id: 'diet', label: 'Diet details', icon: '🍽️' },
-    { id: 'chats', label: 'Chats', icon: '💬' },
-    { id: 'labs', label: 'Lab reports', icon: '📊' },
-    { id: 'prescriptions', label: 'Prescriptions', icon: '💊' },
-    { id: 'requisition', label: 'Requisition report', icon: '📋' },
-  ],
-  activeTab,
-  onTabChange,
-  unreadCounts = {},
+  patientId,
+  userData,
+  unreadAdminCount = 0,
+  unreadDoctorCount = 0,
+  role,
 }) => {
+  const navigate = useNavigate();
+
+  const tabs = [
+    { id: 'adminChat', label: 'ADMIN CHAT', path: `/adminChat/${patientId}`, unread: unreadAdminCount, visible: !(role?.role_name === 'Dialysis Technician' || role?.role_name === 'Medical Staff') },
+    { id: 'doctorChat', label: 'DOCTOR CHAT', path: `/doctorChat/${patientId}`, unread: unreadDoctorCount, visible: !(role?.role_name === 'Medical Staff' || role?.role_name === 'Dialysis Technician') },
+    { id: 'prescriptions', label: 'PRESCRIPTIONS', path: `/userPrescription/${patientId}`, state: userData, visible: true },
+    { id: 'labs', label: 'LAB REPORTS', path: `/UserLabReports/${patientId}`, state: userData, visible: true },
+    { id: 'diet', label: 'DIET DETAILS', path: `/UserDietDetails/${patientId}`, state: userData, visible: !(role?.role_name === 'Dialysis Technician') },
+    { id: 'requisition', label: 'REQUISITION REPORTS', path: `/UserRequisition/${patientId}`, state: userData, visible: true },
+    { id: 'alarms', label: 'ALARMS', path: `/ShowAlarms/${patientId}`, visible: !(role?.role_name === 'Dialysis Technician') },
+    { id: 'manage', label: 'MANAGE PARAMETERS', path: `/manageparameters/${patientId}`, state: userData, visible: role?.role_name === 'Admin' },
+    { id: 'kfre', label: 'KFRE', path: `/kfre/${patientId}`, state: userData, visible: role?.patients && !userData?.ailments?.includes('Hemo Dialysis') && !userData?.ailments?.includes('Peritoneal Dialysis') },
+  ];
+
+  const icons = {
+    adminChat: manageIcon,
+    doctorChat: chatIcon,
+    prescriptions: prescIcon,
+    labs: labIcon,
+    diet: dietIcon,
+    requisition: reqIcon,
+    alarms: alarmIcon,
+    manage: manageIcon,
+    kfre: manageIcon,
+  };
+
   return (
     <Flex
-      gap={0}
+      gap={3}
       align="center"
       justify="start"
-      className="px-10 py-6 border-b"
-      style={{
-        borderBottom: `1px solid ${colors.border.DEFAULT}`,
-        boxShadow: '2px 0px 8px rgba(0,0,0,0.15)',
-      }}
+      className="px-6 py-4 overflow-x-auto shadow-sm bg-white sticky top-0 z-10 no-scrollbar"
+      style={{ borderBottom: `1px solid ${colors.border.DEFAULT}` }}
     >
-      {tabs.map((tab) => (
+      {tabs.filter(tab => tab.visible).map((tab) => (
         <Button
           key={tab.id}
-          variant={activeTab === tab.id ? 'solid' : 'ghost'}
-          onClick={() => onTabChange?.(tab.id)}
-          className="px-6 py-3 h-12 flex items-center gap-2 rounded-none"
+          variant="outline"
+          onClick={() => navigate(tab.path, { state: tab.state })}
+          className="h-10 px-4 rounded-[12px] flex items-center gap-3 shrink-0 border bg-white"
           style={{
-            background: activeTab === tab.id ? colors.primary.DEFAULT : 'transparent',
-            color: activeTab === tab.id ? 'white' : colors.text.DEFAULT,
-            borderBottomWidth: activeTab === tab.id ? '3px' : '0px',
-            borderBottomColor: colors.primary.DEFAULT,
+            borderColor: '#656565',
+            color: '#656565',
+            fontSize: '13px',
+            fontWeight: 700,
+            minWidth: 150
           }}
         >
-          <span>{tab.icon}</span>
-          <span>{tab.label}</span>
-          {unreadCounts[tab.id] > 0 && (
-            <Box
-              className="rounded-full text-xs font-bold text-white"
-              style={{
-                background: colors.danger.DEFAULT,
-                width: '20px',
-                height: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {unreadCounts[tab.id]}
+          <Flex align="center" gap={2} className="w-full justify-start">
+            <Box className="flex items-center justify-center" style={{ width: 34, height: 34 }}>
+              <img src={icons[tab.id]} alt="" style={{ width: 18, height: 18 }} />
             </Box>
-          )}
+            <span className="truncate">{tab.label}</span>
+            <Box className="ml-auto flex items-center gap-2">
+              {tab.unread > 0 && (
+                <Badge colorScheme="error" isPill size="sm" className="bg-red-600 text-white">
+                  {tab.unread}
+                </Badge>
+              )}
+              {tab.id === 'doctorChat' && <span style={{ fontSize: 12 }}>▾</span>}
+            </Box>
+          </Flex>
         </Button>
       ))}
     </Flex>

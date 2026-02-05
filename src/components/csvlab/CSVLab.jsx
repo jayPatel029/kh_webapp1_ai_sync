@@ -6,6 +6,11 @@ import {
 } from "react-papaparse";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
+import { Button } from "../../component-library/primitives/Button";
+import { Select } from "../../component-library/primitives/Select";
+import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
+import { VStack, Box, SimpleGrid } from "../../component-library/layout/Layout";
+import { Heading } from "../../component-library/primitives/Typography";
 
 const GREY = "#CCC";
 const GREY_LIGHT = "rgba(255, 255, 255, 0.4)";
@@ -199,8 +204,8 @@ export default function CSVReader({ setData, setSuccess, success, patientId }) {
           </div>
 
           {headData.length > 0 && (
-            <div>
-              <h2 className="text-xl font-bold mb-4">First Five Entries</h2>
+            <Box>
+              <Heading as="h2" size="lg" className="mb-4">First Five Entries</Heading>
               <table className="table-auto">
                 <thead>
                   <tr>
@@ -223,19 +228,17 @@ export default function CSVReader({ setData, setSuccess, success, patientId }) {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </Box>
           )}
 
           {headData.length > 0 && (
-            <div>
-              <h2 className="text-xl font-bold mt-8 mb-4">Match the Columns</h2>
-              <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Box className="mt-8">
+              <Heading as="h2" size="lg" className="mb-4">Match the Columns</Heading>
+              <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap={4}>
                 {Object.entries(columnMappings).map(([key, value]) => (
-                  <li key={key}>
-                    <label htmlFor={key} className="block font-semibold">
-                      {key}
-                    </label>
-                    <select
+                  <FormControl key={key}>
+                    <FormLabel htmlFor={key}>{key}</FormLabel>
+                    <Select
                       id={key}
                       value={value}
                       onChange={(e) =>
@@ -244,7 +247,6 @@ export default function CSVReader({ setData, setSuccess, success, patientId }) {
                           [key]: e.target.value,
                         })
                       }
-                      className="border border-gray-300 rounded px-3 py-2 mt-1 focus:outline-none focus:border-blue-500"
                     >
                       <option value="">Select Column</option>
                       {columnOptions.map((column, index) => (
@@ -252,19 +254,16 @@ export default function CSVReader({ setData, setSuccess, success, patientId }) {
                           {column}
                         </option>
                       ))}
-                    </select>
-                  </li>
+                    </Select>
+                  </FormControl>
                 ))}
-              </ul>
-              <div className="mt-4">
-                <button
-                  onClick={handleSubmit}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                >
-                  Submit edited
-                </button>
-              </div>
-            </div>
+              </SimpleGrid>
+              <Box className="mt-4">
+                <Button onClick={handleSubmit} variant="primary">
+                  Submit
+                </Button>
+              </Box>
+            </Box>
           )}
         </div>
       )}

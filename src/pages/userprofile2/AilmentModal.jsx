@@ -2,21 +2,31 @@ import React, { useState, useEffect } from "react";
 import { server_url } from "../../constants/constants";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { useNavigate } from "react-router-dom";
+import {
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+} from "../../component-library/primitives/Modal";
+import { Button } from "../../component-library/primitives/Button";
+import { Input } from "../../component-library/primitives/Input";
+import { Checkbox } from "../../component-library/primitives/Checkbox";
+import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
 
 const AilmentModal = ({
   initialAilments,
   user_id,
   closeEditalimentsModal,
-  updateData,
   onSuccess
 }) => {
-  const [ailmentOptions, setAilmentOptions] = useState(initialAilments || []);
-  const [selOptions, setSelOptions] = useState([]);
+  const [ailmentOptions, setAilmentOptions] = useState([]);
   const [egfr, setEGFR] = useState("");
   const [gfr, setGFR] = useState("");
   const [dryWeight, setDryWeight] = useState("");
   const [kfre, setKFRE] = useState("");
-  const navigate = useNavigate();
   const [showDryWeightInput, setShowDryWeightInput] = useState(false);
   const [showEGFRInput, setShowEGFRInput] = useState(false);
   const [showKEFRInput, setShowKEFRInput] = useState(false);
@@ -39,36 +49,20 @@ const AilmentModal = ({
     };
 
     fetchAilments();
-  }, []);
+  }, [initialAilments]);
+
   const handleCheckboxChange = (index) => {
     setAilmentOptions((prevOptions) =>
       prevOptions.map((option, i) => {
-        
         if (i === index) {
-          // if (option.label === "Hemo Dialysis" && !option.selected) {
-          //   // If Hemo Dialysis is selected, unselect Peritoneal Dialysis
-          //   return {
-          //     ...option,
-          //     selected: true,
-          //   };
-          // } else if (option.label === "Peritoneal Dialysis" && !option.selected) {
-          //   // If Peritoneal Dialysis is selected, unselect Hemo Dialysis
-          //   return {
-          //     ...option,
-          //     selected: true,
-          //   };
-          // } else {
-            // Toggle the selected state of the current option
-            return {
-              ...option,
-              selected: !option.selected,
-            };
-          // }
+          return {
+            ...option,
+            selected: !option.selected,
+          };
         } else if (
           (option.label === "Hemo Dialysis" || option.label === "Peritoneal Dialysis") &&
           (prevOptions[index].label === "Hemo Dialysis" || prevOptions[index].label === "Peritoneal Dialysis")
         ) {
-          // Unselect other dialysis options if one of them is selected
           return {
             ...option,
             selected: false,
@@ -78,7 +72,6 @@ const AilmentModal = ({
       })
     );
   };
-  
 
   const handleUpdate = async () => {
     const selectedAilments = ailmentOptions
@@ -86,7 +79,7 @@ const AilmentModal = ({
       .map((ailment) => ailment.id);
 
     const updatedUserData = {
-      changeBy:localStorage.getItem("email"),
+      changeBy: localStorage.getItem("email"),
       id: user_id,
       aliments: selectedAilments,
       eGFR: egfr,
@@ -117,24 +110,16 @@ const AilmentModal = ({
     }
   };
 
-  const handleCancel = () => {
-    closeEditalimentsModal();
-  };
-
   useEffect(() => {
-    // Check if any of the ailment labels match the conditions
     const hasCKD = ailmentOptions.some(
       (ailment) => ailment.label === "CKD" && ailment.selected
     );
-
     const hasHemoDialysis = ailmentOptions.some(
       (ailment) => ailment.label === "Hemo Dialysis" && ailment.selected
     );
-
     const hasPeritonealDialysis = ailmentOptions.some(
       (ailment) => ailment.label === "Peritoneal Dialysis" && ailment.selected
     );
-
     const hasDialysis = ailmentOptions.some(
       (ailment) =>
         (ailment.label === "Hemo Dialysis" ||
@@ -142,109 +127,102 @@ const AilmentModal = ({
         ailment.selected
     );
 
-    // Set the state based on the result
     setShowDryWeightInput(hasHemoDialysis);
     setShowEGFRInput(hasCKD || hasHemoDialysis || hasPeritonealDialysis);
     setShowKEFRInput(hasCKD && !hasDialysis);
   }, [ailmentOptions]);
-console.log(gfr)
+
   return (
-    <>
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50 bg-black">
-        <div className="p-7 ml-4 mr-4 mt-4 w-2/5 bg-white shadow-md border-t-4 border-primary rounded z-50 overflow-y-auto">
-          <div className="header flex justify-between items-center border-b pb-2 mb-4">
-            <h2 className="text-2xl font-bold">Update Ailments</h2>
-          </div>
-          <div className="p-4">
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-semibold mb-2">
-                Ailments:
-              </label>
+    <Modal isOpen={true} onClose={closeEditalimentsModal} size="lg">
+      <ModalOverlay />
+      <ModalContent className="border-t-4 border-primary">
+        <ModalHeader className="border-b pb-2 mb-4">
+          <h2 className="text-2xl font-bold">Update Ailments</h2>
+        </ModalHeader>
+        <ModalCloseButton />
+
+        <ModalBody className="py-4">
+          <FormControl className="mb-6">
+            <FormLabel className="text-gray-700 text-sm font-semibold mb-2">
+              Ailments:
+            </FormLabel>
+            <div className="space-y-2 mt-2">
               {ailmentOptions.map((ailment, index) => (
-                <div key={index} className="flex items-center mb-2">
-                  <input
-                    type="checkbox"
-                    id={ailment.id}
-                    checked={ailment.selected}
+                <div key={ailment.id}>
+                  <Checkbox
+                    id={`ailment-${ailment.id}`}
+                    isChecked={ailment.selected}
                     onChange={() => handleCheckboxChange(index)}
-                    className="mr-2"
-                  />
-                  <label htmlFor={ailment.label}>{ailment.label}</label>
+                  >
+                    {ailment.label}
+                  </Checkbox>
                 </div>
               ))}
             </div>
-            {showDryWeightInput && (
-              <>
-                <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-semibold mb-2">
-                    Dry Weight:
-                  </label>
-                  <input
-                    type="text"
-                    value={dryWeight}
-                    onChange={(e) => setDryWeight(e.target.value)}
-                    className="w-full border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                  />
-                </div>
-              </>
-            )}
-            {showEGFRInput && (
-              <>
-                <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-semibold mb-2">
-                    GFR:
-                  </label>
-                  <input
-                    type="text"
-                    value={gfr}
-                    onChange={(e) => setGFR(e.target.value)}
-                    className="w-full border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-semibold mb-2">
-                    eGFR:
-                  </label>
-                  <input
-                    type="text"
-                    value={egfr}
-                    onChange={(e) => setEGFR(e.target.value)}
-                    className="w-full border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                  />
-                </div>
-              </>
-            )}
-            {showKEFRInput && (
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-semibold mb-2">
-                  KFRE:
-                </label>
-                <input
-                  type="text"
-                  value={kfre}
-                  onChange={(e) => setKFRE(e.target.value)}
-                  className="w-full border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          </FormControl>
+
+          {showDryWeightInput && (
+            <FormControl className="mb-4">
+              <FormLabel className="text-gray-700 text-sm font-semibold mb-2">
+                Dry Weight:
+              </FormLabel>
+              <Input
+                value={dryWeight}
+                onChange={(e) => setDryWeight(e.target.value)}
+                placeholder="Enter dry weight"
+              />
+            </FormControl>
+          )}
+
+          {showEGFRInput && (
+            <div className="space-y-4">
+              <FormControl>
+                <FormLabel className="text-gray-700 text-sm font-semibold mb-2">
+                  GFR:
+                </FormLabel>
+                <Input
+                  value={gfr}
+                  onChange={(e) => setGFR(e.target.value)}
+                  placeholder="Enter GFR"
                 />
-              </div>
-            )}
-          </div>
-          <div className="flex justify-end p-4">
-            <button
-              onClick={handleUpdate}
-              className="bg-primary text-white py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            >
-              UPDATE
-            </button>
-            <button
-              onClick={handleCancel}
-              className="border-2 border-primary text-primary py-2 px-4 rounded focus:outline-none focus:shadow-outline ml-2"
-            >
-              CANCEL
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
+              </FormControl>
+              <FormControl>
+                <FormLabel className="text-gray-700 text-sm font-semibold mb-2">
+                  eGFR:
+                </FormLabel>
+                <Input
+                  value={egfr}
+                  onChange={(e) => setEGFR(e.target.value)}
+                  placeholder="Enter eGFR"
+                />
+              </FormControl>
+            </div>
+          )}
+
+          {showKEFRInput && (
+            <FormControl className="mt-4">
+              <FormLabel className="text-gray-700 text-sm font-semibold mb-2">
+                KFRE:
+              </FormLabel>
+              <Input
+                value={kfre}
+                onChange={(e) => setKFRE(e.target.value)}
+                placeholder="Enter KFRE"
+              />
+            </FormControl>
+          )}
+        </ModalBody>
+
+        <ModalFooter className="flex justify-end gap-3 p-4">
+          <Button variant="outline" onClick={closeEditalimentsModal}>
+            CANCEL
+          </Button>
+          <Button variant="solid" onClick={handleUpdate}>
+            UPDATE
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 };
 

@@ -1,4 +1,3 @@
-import "./linechart.scss";
 import React, { useEffect, useRef, useState } from "react";
 import {
   LineChart,
@@ -20,6 +19,11 @@ import { getAlertColor } from "./utils";
 import EditIcon from "@mui/icons-material/Edit";
 import { DateRangePicker } from "react-date-range";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import { Button } from "../../component-library/primitives/Button";
+import { Checkbox } from "../../component-library/primitives/Checkbox";
+import { Box, HStack, VStack, Flex } from "../../component-library/layout/Layout";
+import { Heading, Text, Link } from "../../component-library/primitives/Typography";
+import { Alert } from "../../component-library/feedback/Alert";
 
 const LineChartComponentLab = ({
   aspect,
@@ -835,9 +839,9 @@ const LineChartComponentLab = ({
       question_id: questionId,
       user_id: user_id,
     };
-    console.log("params: " ,params);
+    console.log("params: ", params);
     axiosInstance
-      .get(`${server_url}/labreport/responses`,{params})
+      .get(`${server_url}/labreport/responses`, { params })
       .then((response) => {
         console.log('Response data:', response.data.data);
 
@@ -911,19 +915,123 @@ const LineChartComponentLab = ({
   };
 
   return (
-    <div className="line" ref={dateRangeRef}>
-      <div className="flex flex-row justify-evenly">
-        {role?.canEditPatients && (
-          <button
-            className="block rounded-lg text-primary border-2 border-primary w-40 py-2"
+    <div ref={dateRangeRef}>
+      <div className="w-full flex items-center justify-between mb-2">
+        <Flex align="center" gap={3} className="items-center">
+          <Box className="relative">
+            <Button
+              variant="ghost"
+              aria-label="Toggle date range picker"
+              onClick={() => setShowDateRangePicker(!showDateRangePicker)}
+              className="w-10 h-10 rounded-lg shadow-sm"
+            >
+              <CalendarMonthIcon style={{ color: "#4A90E2" }} className="w-5 h-5" />
+            </Button>
+
+            {showDateRangePicker && (
+              <div className="absolute z-50">
+                <DateRangePicker ranges={[selectionRange]} onChange={handleSelect} />
+                <div className="flex flex-row mt-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setShowDateRangePicker(false);
+                      filterDataByTimeRange(patientData);
+                    }}
+                  >
+                    Apply Filter
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="ml-2"
+                    onClick={() => {
+                      setShowDateRangePicker(false);
+                      setIsCheckedOrange(false);
+                      setIsCheckedRed(false);
+                      setPatientData(originalData);
+                    }}
+                  >
+                    Clear Filter
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Box>
+
+          <Box
+            as="button"
+            type="button"
+            aria-pressed={isCheckedRed}
             onClick={() => {
-              setIsUpdate(false);
-              openModalEnterReadings();
+              setIsCheckedRed(!isCheckedRed);
+              setTrigger(!trigger);
+            }}
+            className={`flex items-center focus:outline-none ${isCheckedRed ? '' : ''}`}
+          >
+            <Box className={`w-3 h-3 rounded-full mr-2 ${isCheckedRed ? 'bg-blue-700' : 'bg-gray-300'}`} />
+            <Text size="sm" className="mr-4">Red</Text>
+          </Box>
+
+          <Box
+            as="button"
+            type="button"
+            aria-pressed={isCheckedOrange}
+            onClick={() => {
+              setIsCheckedOrange(!isCheckedOrange);
+              setTrigger(!trigger);
+            }}
+            className={`flex items-center focus:outline-none ${isCheckedOrange ? '' : ''}`}
+          >
+            <Box className={`w-3 h-3 rounded-full mr-2 ${isCheckedOrange ? 'bg-orange-500 border-orange-500' : 'border-gray-300 bg-white border-2'}`} />
+            <Text size="sm" className="mr-4">Orange</Text>
+          </Box>
+
+          <Link
+            href="#"
+            className="text-red-600 underline font-semibold"
+            onClick={(e) => {
+              e.preventDefault();
+              setIsCheckedOrange(false);
+              setIsCheckedRed(false);
+              setSelectionRange({ startDate: new Date(), endDate: new Date(), key: 'selection' });
+              setPatientData(originalData);
             }}
           >
-            Enter Readings
-          </button>
-        )}
+            Clear filters
+          </Link>
+        </Flex>
+
+        <Flex align="center" gap={3}>
+          {role?.canEditPatients && (
+            <Link
+              href="#"
+              className="text-blue-600 underline font-semibold mr-2"
+              onClick={(e) => {
+                e.preventDefault();
+                openModalUpdateRange();
+              }}
+            >
+              Update range
+            </Link>
+          )}
+
+          {role?.canEditPatients && (
+            <Button
+              variant="outline"
+              size="md"
+              className="rounded-full px-6 py-2 border-2 border-blue-600 text-blue-600"
+              onClick={() => {
+                setIsUpdate(false);
+                openModalEnterReadings();
+              }}
+            >
+              Enter reading
+            </Button>
+          )}
+        </Flex>
+
         {showModalEnterReadings && (
           <EnterReadingsModel
             closeModal={closeModalEnterReadings}
@@ -940,7 +1048,7 @@ const LineChartComponentLab = ({
           onClick={() => openModalUpdateRange()}
         >
           Update Range
-        </button>
+        </button> */}
         {showModalUpdateRange && (
           <UpdateRangeModel
             closeModal={closeModalUpdateRange}
@@ -953,7 +1061,7 @@ const LineChartComponentLab = ({
             lr1={lowRange}
             lr2={lowRange2}
           />
-        )} */}
+        )}
 
         {/* <div className="cursor-pointer bg-blue-200 p-2 rounded-md transition-transform transform-gpu hover:scale-105"
           onClick={() => { setIsUpdate(true); openModalEnterReadings(); }}>
@@ -969,111 +1077,32 @@ const LineChartComponentLab = ({
           <option value="month">Last Month</option>
           <option value="6month">Last 6 month</option>
         </select> */}
-
-        <div>
-          <div
-            className="w-10 h-10 bg-gray-200 rounded-lg shadow-lg flex items-center justify-center hover:transform hover:scale-110 transition-transform duration-300"
-            onClick={() => setShowDateRangePicker(!showDateRangePicker)}
-          >
-            <CalendarMonthIcon
-              style={{ color: "#4A90E2" }}
-              className="w-6 h-6"
-            />
-          </div>
-          {showDateRangePicker && (
-            <div className="absolute z-50">
-              <DateRangePicker
-                ranges={[selectionRange]}
-                onChange={handleSelect}
-              />
-              <div className="flex flex-row mt-2">
-                <div
-                  className="bg-blue-500 text-white px-4 py-2 rounded-md mr-2 cursor-pointer hover:bg-blue-600"
-                  onClick={() => {
-                    setShowDateRangePicker(false);
-                    filterDataByTimeRange(patientData);
-                  }}
-                >
-                  Apply Filter
-                </div>
-                <div
-                  className="bg-red-500 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-red-600"
-                  onClick={() => {
-                    setShowDateRangePicker(false);
-                    setIsCheckedOrange(false);
-                    setIsCheckedRed(false);
-                    setPatientData(originalData);
-                  }}
-                >
-                  Clear Filter
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            checked={isCheckedRed}
-            onChange={handleCheckboxChangeRed}
-            className="form-checkbox h-5 w-5 accent-red-700"
-          />
-          <label className="ml-2">Red</label>
-        </div>
-
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            checked={isCheckedOrange}
-            onChange={handleCheckboxChangeOrange}
-            className="form-checkbox h-5 w-5 accent-orange-600"
-          />
-          <label className="ml-2">Orange</label>
-        </div>
-
-        <div>
-          <button
-            className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
-            onClick={() => {
-              setIsCheckedOrange(false);
-              setIsCheckedRed(false);
-              setPatientData(originalData);
-            }}
-          >
-            Clear Filter
-          </button>
-        </div>
       </div>
+
+
+
       {numberOfAbnormalReadings > 0 && (
-        <div className="text-center mt-4">
-          <div className="inline-block bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-md">
-            <span className="font-bold text-xl animate-pulse">
-              {numberOfAbnormalReadings}
-            </span>
-             Abnormal Readings between
-            {selectionRange.startDate.toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-            and
-            {selectionRange.endDate.toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </div>
-        </div>
+        <Box className="text-center mt-4">
+          <Alert variant="danger">
+            <HStack align="center" justify="center" gap={3}>
+              <Heading as="span" size="lg" className="font-bold animate-pulse">
+                {numberOfAbnormalReadings}
+              </Heading>
+              <Text>
+                Abnormal Readings between {selectionRange.startDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} and {selectionRange.endDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+              </Text>
+            </HStack>
+          </Alert>
+        </Box>
       )}
 
-      <div className="flex justify-center">
+      <Box className="flex justify-center">
         {patientData.length === 0 && (
-          <div className="text-center mt-4 border border-gray-300 rounded-md p-4 bg-gray-100 inline-block">
-            No Readings Present
-          </div>
+          <Box className="text-center mt-4 border border-gray-300 rounded-md p-4 bg-gray-100 inline-block">
+            <Text>No Readings Present</Text>
+          </Box>
         )}
-      </div>
+      </Box>
 
       <ResponsiveContainer width="100%" height="100%" aspect={aspect}>
         <LineChart
@@ -1114,6 +1143,7 @@ const LineChartComponentLab = ({
           />
         </LineChart>
       </ResponsiveContainer>
+      <div className="h-1 bg-cyan-200 mt-4 w-full" />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../sidebar/Sidebar";
 import { TiThMenu } from "react-icons/ti";
 import kifayti_logo from "../../assets/kifayti_logo.png";
+import dummyadmin from "../../assets/dummyadmin.png";
 
 const Navbar = () => {
   const [uname, setUname] = useState("");
@@ -25,12 +26,24 @@ const Navbar = () => {
   return (
     <>
       <div className="hidden md:block">
-        <div className="navbar items-center justify-end pr-10 bg-white">
-          <span className="text-xl">{uname}</span>
-          <BsPower
-            className="text-red-900 ml-5 text-2xl font-extrabold cursor-pointer"
-            onClick={logout}
-          />
+        <div className="navbar items-center justify-between pr-6 pl-6 bg-white">
+          <div className="flex items-center gap-4">
+            <TiThMenu className="text-primary text-2xl cursor-pointer" onClick={() => { /* reserved for desktop menu toggle */ }} />
+            <Link to="/" className="flex items-center gap-2">
+              <img src={kifayti_logo} alt="Logo" className="h-8 w-auto" />
+              <span className="text-base font-semibold text-slate-700">Kifayti</span>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span className="text-base text-slate-800">{uname || 'User'}</span>
+            <img
+              src={dummyadmin}
+              alt="profile"
+              className="h-9 w-9 rounded-full cursor-pointer border border-slate-100"
+              onClick={logout}
+            />
+          </div>
         </div>
       </div>
       <div className="block md:hidden">
@@ -53,8 +66,10 @@ const Navbar = () => {
 
 
           <div className="items-center justify-end flex text-xl w-[50%]">
-            <BsPower
-              className="text-red-900 ml-5 text-2xl font-extrabold cursor-pointer inline-block"
+            <img
+              src={dummyadmin}
+              alt="profile"
+              className="h-9 w-9 rounded-full cursor-pointer inline-block border border-slate-100"
               onClick={logout}
             />
           </div>
