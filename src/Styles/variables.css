@@ -6,9 +6,9 @@
   /* ==================== COLORS ==================== */
 
   /* Primary Brand Colors */
-  --color-primary:#4164df;
+  --color-primary: #4164df;
   --color-primary-dark: #004c6d;
-    --color-primary-50: #F5F3FF;
+  --color-primary-50: #F5F3FF;
     --color-primary-100: #E9E3FF;
     --color-primary-200: #422AFB;
     --color-primary-300: #422AFB;
@@ -454,6 +454,7 @@
   /* ==================== COLORS ==================== */
 
   /* Primary Brand Colors */
+  --color-primary: #4164df;
   --color-primary-dark: #004c6d;
   --color-primary-50: #F5F3FF;
   --color-primary-100: #E9E3FF;

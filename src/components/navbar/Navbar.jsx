@@ -36,16 +36,15 @@ const Navbar = () => {
 
     return (
         <>
-            <div className="sticky top-0 left-0 right-0 w-full px-2 z-[9999]">
+            <div className="sticky top-0 left-0 right-0 w-full px-2 z-[100]">
                 <Flex align="center" justify="between" className="bg-white h-14">
                     <Flex align="center" gap={4}>
 
-                        {/* <IconButton variant="outline" textColor="black" className="text-black" onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-                            <TiThMenu /> 
-                        </IconButton> */}
-                        <div onClick={toggleCollapse} className="text-black text-2xl  border border-black p-1 rounded-xl cursor-pointer">
+                        <IconButton variant="outline" icon={<TiThMenu />} onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+                        </IconButton>
+                        {/* <div onClick={toggleCollapse} className="text-black text-2xl  border border-black p-1 rounded-xl cursor-pointer">
                             <TiThMenu />
-                        </div>
+                        </div> */}
 
 
                     </Flex>

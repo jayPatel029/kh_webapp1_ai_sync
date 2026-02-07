@@ -53,7 +53,7 @@ const Spinner = ({ size = 'sm' }) => {
  */
 export const Button = forwardRef(({
   children,
-  variant = 'primary',
+  variant = 'solid',
   size = 'md',
   isLoading = false,
   isDisabled = false,
@@ -67,10 +67,13 @@ export const Button = forwardRef(({
 }, ref) => {
   const disabled = isDisabled || isLoading;
 
+  // Map 'primary' to 'solid' for backward compatibility
+  const effectiveVariant = variant === 'primary' ? 'solid' : variant;
+
   const buttonClasses = clsx(
     'btn',
     `btn--${size}`,
-    `btn--${variant}`,
+    `btn--${effectiveVariant}`,
     {
       'btn--loading': isLoading,
       'btn--disabled': disabled,
@@ -89,12 +92,6 @@ export const Button = forwardRef(({
       aria-busy={isLoading}
       {...props}
     >
-      {isLoading && (
-        <span className="btn__spinner">
-          <Spinner size={size === 'lg' ? 'md' : 'sm'} />
-        </span>
-      )}
-      
       <span className={clsx('btn__content', { 'opacity-0': isLoading && !loadingText })}>
         {leftIcon && (
           <span className="btn__icon btn__icon--left">
@@ -102,7 +99,14 @@ export const Button = forwardRef(({
           </span>
         )}
         
-        {isLoading && loadingText ? loadingText : children}
+        {isLoading && loadingText ? (
+          <span className="inline-flex items-center gap-2">
+            <Spinner size="xs" />
+            {loadingText}
+          </span>
+        ) : (
+          children
+        )}
         
         {rightIcon && (
           <span className="btn__icon btn__icon--right">
@@ -110,6 +114,12 @@ export const Button = forwardRef(({
           </span>
         )}
       </span>
+
+      {isLoading && !loadingText && (
+        <span className="btn__spinner">
+          <Spinner size={size === 'lg' ? 'md' : 'sm'} />
+        </span>
+      )}
     </button>
   );
 });
@@ -119,10 +129,12 @@ Button.displayName = 'Button';
 Button.propTypes = {
   children: PropTypes.node,
   variant: PropTypes.oneOf([
-    'primary',
+    'solid',
+    'primary', // Deprecated, maps to solid
     'secondary',
     'outline',
     'ghost',
+    'glass',
     'link',
     'danger',
     'danger-outline',

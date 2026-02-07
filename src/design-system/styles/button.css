@@ -19,25 +19,32 @@
   outline: none;
   border: none;
   cursor: pointer;
-  
+
   font-family: var(--font-primary);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
   line-height: 1.2;
   text-decoration: none;
-  
-  border-radius: var(--radius-2xl);
-  box-shadow: var(--shadow-button);
-  transition: var(--transition-fast);
+
+  border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
+  overflow: hidden;
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
-.btn:focus {
+/* .btn:focus {
   outline: none;
-  box-shadow: none;
+  box-shadow: 0 0 0 3px var(--color-white), 0 0 0 6px var(--color-primary-200);
 }
 
+*/
 .btn:active {
-  box-shadow: none;
+  transform: translateY(0) scale(0.96);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn:disabled,
@@ -128,34 +135,36 @@
 
 /* ==================== VISUAL VARIANTS ==================== */
 
-/* Primary/Brand Variant */
-.btn--primary,
+/* Solid/Brand Variant - Increased specificity to override Tailwind preflight */
+button.btn--solid,
+.btn--solid,
+button.btn--brand,
 .btn--brand {
-  background-color: var(--color-primary);
-  color: var(--color-primary);
+  background-color: var(--color-primary, #3311DB) !important;
+    color: var(--color-white) !important;
+    border: 1px solid transparent !important;
+  }
+button.btn--solid:hover,
+.btn--solid:hover,
+button.btn--brand:hover,
+.btn--brand:hover {
+  background-color: var(--color-primary-600) !important;
+    color: var(--color-white) !important;
+    box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+    transform: translateY(-1px);
 }
 
-/* Primary hover/focus - match Figma filled CTA look (bigger pill, strong contrast) */
-.btn--primary:hover,
-.btn--brand:hover,
-.btn--primary:focus,
-.btn--brand:focus,
-.btn--primary:focus-visible,
-.btn--brand:focus-visible {
-  background-color: var(--color-primary-500);
-  color: var(--color-white);
-  box-shadow: 0 6px 18px rgba(65,100,223,0.12);
-  transform: translateY(-1px);
-}
-
-.btn--primary:active,
+button.btn--solid:active,
+.btn--solid:active,
+button.btn--brand:active,
 .btn--brand:active {
-  background-color: var(--color-primary-700);
+  background-color: var(--color-primary-600) !important;
   transform: translateY(0);
+  box-shadow: none !important;
 }
 
-/* Larger visual weight for primary when used as a main CTA */
-.btn--primary.btn--lg,
+/* Larger visual weight for solid when used as a main CTA */
+.btn--solid.btn--lg,
 .btn--brand.btn--lg {
   border-radius: var(--radius-pill);
   padding-left: var(--space-8);
@@ -163,8 +172,8 @@
   font-weight: var(--font-weight-semi-bold);
 }
 
-/* Icon sizing inside primary buttons */
-.btn--primary .btn__icon svg,
+/* Icon sizing inside solid buttons */
+.btn--solid .btn__icon svg,
 .btn--brand .btn__icon svg {
   width: 28px;
   height: 28px;
@@ -172,24 +181,26 @@
 
 /* Secondary Variant */
 .btn--secondary {
-  background-color: var(--color-gray-100);
-  color: var(--color-gray-700);
-  border: 1px solid var(--color-border-light);
+  background-color: var(--color-white);
+    color: var(--color-gray-800);
+    border: 1px solid var(--color-gray-200);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .btn--secondary:hover {
-  background-color: var(--color-gray-200);
+  background-color: var(--color-gray-50);
+    border-color: var(--color-gray-300);
 }
 
 .btn--secondary:active {
-  background-color: var(--color-gray-300);
+  background-color: var(--color-gray-100);
 }
 
 /* Outline Variant */
 .btn--outline {
   background-color: transparent;
-  border: 1px solid var(--color-primary);
-  color: var(--color-primary);
+  border: 1px solid var(--color-primary-dark);
+    color: var(--color-primary-dark);
 }
 
 .btn--outline:hover {
@@ -205,6 +216,7 @@
   background-color: transparent;
   color: var(--color-primary);
   border: none;
+  box-shadow: none;
 }
 
 .btn--ghost:hover {
@@ -215,6 +227,20 @@
   background-color: var(--color-primary-100);
 }
 
+/* Glass Variant */
+.btn--glass {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: var(--color-white);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.btn--glass:hover {
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
 /* Link Variant */
 .btn--link {
   background-color: transparent;
@@ -236,16 +262,17 @@
 
 /* Danger Variant */
 .btn--danger {
-  background-color: var(--color-danger);
+  background: linear-gradient(135deg, var(--color-danger) 0%, var(--color-danger-dark) 100%);
   color: var(--color-white);
 }
 
 .btn--danger:hover {
-  background-color: var(--color-danger-dark);
+  background: linear-gradient(135deg, #f05a74 0%, var(--color-danger) 100%);
+    box-shadow: 0 8px 20px rgba(222, 66, 91, 0.25);
 }
 
 .btn--danger:active {
-  background-color: #C53030;
+  background-color: var(--color-danger-dark);
 }
 
 /* Danger Outline */
@@ -261,22 +288,24 @@
 
 /* Success Variant */
 .btn--success {
-  background-color: var(--color-success);
+  background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-dark) 100%);
   color: var(--color-white);
 }
 
 .btn--success:hover {
-  background-color: var(--color-success-dark);
+  background: linear-gradient(135deg, #28e030 0%, var(--color-success) 100%);
+    box-shadow: 0 8px 20px rgba(0, 192, 8, 0.25);
 }
 
 /* Warning Variant */
 .btn--warning {
-  background-color: var(--color-warning);
+  background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-dark) 100%);
   color: var(--color-white);
 }
 
 .btn--warning:hover {
-  background-color: var(--color-warning-dark);
+  background: linear-gradient(135deg, #ffb33b 0%, var(--color-warning) 100%);
+    box-shadow: 0 8px 20px rgba(255, 152, 0, 0.25);
 }
 
 /* ==================== COLOR SCHEME VARIANTS ==================== */
@@ -353,17 +382,17 @@
   display: inline-flex;
 }
 
-.btn-group > .btn:not(:first-child) {
+.btn-group>.btn:not(:first-child) {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
 
-.btn-group > .btn:not(:last-child) {
+.btn-group>.btn:not(:last-child) {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
   border-right-width: 0;
 }
 
-.btn-group--attached > .btn {
+.btn-group--attached>.btn {
   margin: 0;
 }
