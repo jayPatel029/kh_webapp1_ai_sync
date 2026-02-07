@@ -18,3 +18,19 @@ code {
   font-family: var(--font-mono);
 }
 
+/* Hide scrollbar but keep scrolling */
+.noscrollbar {
+  overflow: auto;
+  /* or scroll */
+
+  /* For Internet Explorer, Edge */
+  -ms-overflow-style: none;
+
+  /* For Firefox */
+  scrollbar-width: none;
+}
+
+/* For Chrome, Safari, and Opera */
+.noscrollbar::-webkit-scrollbar {
+  display: none;
+}

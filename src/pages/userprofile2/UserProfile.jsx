@@ -229,7 +229,7 @@ function UserProfile() {
 
   return (
     <ThemeProvider>
-      <Box className="flex min-h-screen bg-[#F8F9FA]">
+      <Box className="flex min-h-screen ">
         <Box className="flex-shrink-0">
           {role?.role_name === "Doctor" ? <SideBarDoctor /> : <Sidebar />}
         </Box>
@@ -237,16 +237,20 @@ function UserProfile() {
         <Box className="flex-1 flex flex-col min-w-0">
           <Navbar />
 
-          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto space-y-4">
-            {/* Header */}
-            <PageHeader
-              title="Patient Profile"
-              breadcrumbs={[
-                { label: "Patient", path: "/patient" },
-                { label: "Patient Profile", active: true }
-              ]}
-              onBack={() => navigate("/patient")}
-            />
+          {/* Sticky Header Section */}
+          <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+            <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+              {/* Header with Breadcrumbs */}
+              <PageHeader
+                title="Patient Profile"
+                breadcrumbs={[
+                  { label: "All Patients", path: "/patient" },
+                  { label: "Patient", path: `/userProfile/${id}`, active: false },
+                  { label: "Patient Profile", active: true }
+                ]}
+                onBack={() => navigate("/patient")}
+              />
+            </Container>
 
             {/* Navigation Tabs */}
             <PatientNavTabs
@@ -256,7 +260,9 @@ function UserProfile() {
               unreadDoctorCount={totalUnreadCountDoc}
               role={role}
             />
+          </Box>
 
+          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto space-y-4">
             {/* Profile Card */}
             <PatientProfileCard
               userData={userData}

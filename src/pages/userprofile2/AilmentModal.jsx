@@ -138,8 +138,8 @@ const AilmentModal = ({
       <ModalContent className="border-t-4 border-primary">
         <ModalHeader className="border-b pb-2 mb-4">
           <h2 className="text-2xl font-bold">Update Ailments</h2>
-        </ModalHeader>
         <ModalCloseButton />
+        </ModalHeader>
 
         <ModalBody className="py-4">
           <FormControl className="mb-6">

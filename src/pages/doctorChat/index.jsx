@@ -8,9 +8,12 @@ import { MdSend } from "react-icons/md";
 import dummyAdmin from "../../assets/dummyadmin.png";
 import { getUsers } from "../../ApiCalls/authapis";
 import { getPatientById } from "../../ApiCalls/patientAPis";
-import { useParams,Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { identifyRole } from "../../ApiCalls/authapis";
 import { getDoctors, getDoctorsChat } from "../../ApiCalls/doctorApis";
+import { Button, Input, Badge, Card } from "../../component-library";
+import PageHeader from "../../components/PageHeader";
+import { Container, Box } from "../../component-library";
 
 import {
   getChatId,
@@ -21,6 +24,8 @@ import {
   getSWMessages,
 } from "../../ApiCalls/chatApis";
 import ReactLoading from "react-loading";
+import PatientNavTabs from "../../components/PatientNavTabs";
+
 
 const ChatApp = () => {
   const { pid } = useParams();
@@ -203,306 +208,359 @@ const ChatApp = () => {
     }
   };
   console.log(patient);
+  const navigate = useNavigate();
+  
   return (
-    <div className="userProfile md:flex block">
+    <div className="userProfile md:flex block bg-gray-50 min-h-screen">
       <div className="md:flex-1 hidden md:flex sticky top-0 h-screen overflow-y-auto">
         <Sidebar />
       </div>
-      <div className="md:flex-[5] block w-screen">
+      <div className="md:flex-[5] block w-full">
         <div className="sticky top-0 z-10">
           <Navbar />
         </div>
-        <div className="bg-gray-100 p-4">
-       <Link to={`/userProfile/${pid}`} className="text-primary border-b-2 border-primary">
-                go back
-                </Link>
-       </div>
-        <div className="bg-gray-100 min-h-screen md:py-10 md:px-40 ">
-          <div className=" w-full bg-white h-[80vh] rounded-lg border-t-4 border-primary shadow-2xl">
-            <div className="flex bg-white h-[8vh] border-b-2 border-gray-300">
-              <div className="w-[35%] h-full flex items-center px-8">
-                <span className="text-2xl font-bold text-primary">
-                  Doctor Chats
-                </span>
-              </div>
-              <div className=" flex items-center justify-end w-[65%] px-8 h-full">
-                {patient?.name}
+
+        {/* Sticky Header Section */}
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+            {/* Header with Breadcrumbs */}
+            <PageHeader
+              title="Doctor Chat"
+              breadcrumbs={[
+                { label: "All Patients", path: "/patient" },
+                { label: patient?.name || "Patient", path: `/userProfile/${pid}`, active: false },
+                { label: "Doctor Chat", active: true }
+              ]}
+              onBack={() => navigate(`/userProfile/${pid}`)}
+            />
+          </Container>
+
+          {/* Navigation Tabs */}
+          <PatientNavTabs
+            patientId={pid}
+            userData={patient}
+            unreadAdminCount={0}
+            unreadDoctorCount={chats?.reduce((s, c) => s + (c.unreadCount || 0), 0)}
+            role={{ role_name: role }}
+          />
+        </Box>
+
+        <div className="bg-gray-50 min-h-[calc(100vh-320px)] ">
+          <Card className="w-full h-[80vh] rounded-2xl shadow-lg border-0">
+            {/* Header Section */}
+            <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50 h-20 px-8 border-b border-gray-200 rounded-t-2xl">
+              <h1 className="text-2xl font-bold text-gray-800">
+                Doctor Chat
+              </h1>
+              <div className="flex items-center gap-4">
+                <span className="text-gray-700 font-medium">{patient?.name}</span>
                 <img
-                  className="inline-block h-10 w-10 mx-4 rounded-full"
+                  className="h-12 w-12 rounded-full object-cover border-2 border-blue-200"
                   src={
                     patient?.profile_photo ? patient?.profile_photo : dummyAdmin
                   }
+                  alt="Patient"
                 />
               </div>
             </div>
-            <div className="flex h-[72vh]">
-              {role !== "Admin" && role!=="PSadmin"? (
-                <div className="bg-white w-[35%] rounded-bl-lg h-full border-r-2 border-gray-300 overflow-y-scroll">
-                  {chats.map((chat, index) => {
-                    return (
+
+            {/* Main Chat Area */}
+            <div className="flex h-[calc(100%-80px)]">
+              {/* Chat List Sidebar */}
+              {role !== "Admin" && role !== "PSadmin" ? (
+                <div className="w-[35%] bg-white border-r border-gray-200 overflow-y-auto rounded-bl-2xl">
+                  {chats.length > 0 || users.length > 0 ? (
+                    <>
+                      {chats.map((chat, index) => {
+                        const isActive = chat.receiverEmail === activeReciever;
+                        return (
+                          <div
+                            key={index}
+                            onClick={async () => {
+                              serActiveReciever(chat.receiverEmail);
+                              setLoading(true);
+                              loadMessages(chat.id).then((res) => {
+                                setLoading(false);
+                              });
+                            }}
+                            className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${
+                              isActive
+                                ? "bg-blue-50 border-l-4 border-l-blue-600"
+                                : "hover:bg-gray-50"
+                            }`}
+                          >
+                            <img
+                              className="h-12 w-12 rounded-full object-cover flex-shrink-0"
+                              src={dummyAdmin}
+                              alt={chat.firstname}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-800 truncate">
+                                {chat.firstname} {chat.lastname}
+                              </p>
+                            </div>
+                            {chat.unreadCount > 0 && (
+                              <Badge className="bg-blue-600 text-white font-bold">
+                                {chat.unreadCount}
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {users.map((user, index) => (
+                        <div
+                          key={index}
+                          onClick={async () => {
+                            serActiveReciever(user.email);
+                            setLoading(true);
+                            setChatId(null);
+                            loadChats(user.email).then((res) => {
+                              setLoading(false);
+                            });
+                          }}
+                          className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${
+                            user.email === activeReciever
+                              ? "bg-blue-50 border-l-4 border-l-blue-600"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <img
+                            className="h-12 w-12 rounded-full object-cover flex-shrink-0"
+                            src={dummyAdmin}
+                            alt={user.firstname}
+                          />
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-800">
+                              {user.firstname} {user.lastname}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      No chats available
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="w-[35%] bg-white border-r border-gray-200 overflow-y-auto rounded-bl-2xl">
+                  {doctors.length > 0 ? (
+                    doctors.map((doc, index) => (
                       <div
                         key={index}
-                        className={
-                          chat.receiverEmail === activeReciever
-                            ? "w-full p-3 border-b-2  border-gray-300 bg-gray-100"
-                            : "w-full p-3 border-b-2 cursor-pointer border-gray-300 bg-white"
-                        }
                         onClick={async () => {
-                          serActiveReciever(chat.receiverEmail);
+                          setSender(doc.email);
+                          serActiveReciever("");
                           setLoading(true);
-                          loadMessages(chat.id).then((res) => {
+                          loadSWChats(doc.email).then((res) => {
                             setLoading(false);
                           });
                         }}
+                        className="flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-all"
                       >
                         <img
-                          className="inline-block h-12 w-12 mx-4"
+                          className="h-12 w-12 rounded-full object-cover flex-shrink-0"
                           src={dummyAdmin}
+                          alt={doc.name}
                         />
-                        {chat.firstname} {chat.lastname}
-                        {chat.unreadCount > 0 && (
-                          <span className=" rounded-full inline-flex justify-center w-6 h-6 items-center text-xs p-0 text-center ml-2 bg-primary text-white">
-                            {chat.unreadCount}
-                          </span>
-                        )}
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800">
+                            {doc.name}
+                          </p>
+                        </div>
                       </div>
-                    );
-                  })}
-                  {users.map((user, index) => (
-                    <div
-                      key={index}
-                      className={
-                        user.email === activeReciever
-                          ? "w-full p-3 border-b-2  border-gray-300 bg-gray-100"
-                          : "w-full p-3 border-b-2 cursor-pointer border-gray-300 bg-white"
-                      }
-                      onClick={async () => {
-                        serActiveReciever(user.email);
-                        setLoading(true);
-                        setChatId(null);
-                        loadChats(user.email).then((res) => {
-                          setLoading(false);
-                        });
-                      }}
-                    >
-                      <img
-                        className="inline-block h-12 w-12 mx-4"
-                        src={dummyAdmin}
-                      />
-                      {user.firstname} {user.lastname}{" "}
+                    ))
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      No doctors available
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-white w-[35%] rounded-bl-lg h-full border-r-2 border-gray-300 overflow-y-scroll">
-                  {doctors.map((doc, index) => (
-                    <div
-                      key={index}
-                      className="w-full p-3 border-b-2 cursor-pointer border-gray-300 bg-white"
-                      onClick={async () => {
-                        setSender(doc.email);
-                        serActiveReciever("");
-                        setLoading(true);
-                        loadSWChats(doc.email).then((res) => {
-                          setLoading(false);
-                        });
-                      }}
-                    >
-                      <img
-                        className="inline-block h-12 w-12 mx-4"
-                        src={dummyAdmin}
-                      />
-                      {doc.name}
-                    </div>
-                  ))}
+                  )}
                 </div>
               )}
-              <div className="items-center justify-center w-[65%] bg-gradient-to-br from-gray-200 to-white rounded-br-lg h-full">
-                {role === "Admin" || role==="PSadmin"? (
-                  <>
-                    <div className="w-full h-[88%] overflow-y-scroll p-2">
-                      {chats.map((chat, index) => (
-                        <details
-                          key={index}
-                          class="group text-lg py-5 w-full p-3 border-b-2 cursor-pointer border-gray-300 bg-white"
-                        >
-                          <summary class="flex cursor-pointer flex-row items-center marker:[font-size:0px]">
-                            <svg
-                              class="h-6 w-6 rotate-0 transform text-gray-400 group-open:rotate-180"
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke-width="2"
-                              stroke="currentColor"
-                              aria-hidden="true"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M19 9l-7 7-7-7"
-                              ></path>
-                            </svg>{" "}
-                            <img
-                              className="inline-block h-12 w-12 mx-4"
-                              src={dummyAdmin}
-                            />
-                            {chat.firstname} {chat.lastname}
-                          </summary>
-                          <div className="overflow-y-scroll h-[88%] p-8">
-                            {loading ? (
-                              <div className="h-full w-full flex justify-center items-center">
-                                <ReactLoading
-                                  type="bubbles"
-                                  color={"#19b9d4"}
-                                  height={100}
-                                  width={100}
-                                />
-                              </div>
-                            ) : (
-                              chat.messages.map((message, index) => {
-                                const sent_at = new Date(message.sent_at);
-                                const options = {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  year: "numeric",
-                                };
-                                const timeopts = {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                };
 
-                                return (
-                                  <div
-                                    key={index}
-                                    className={
-                                      message.sender === sender
-                                        ? "w-full flex justify-end py-2"
-                                        : "w-full flex py-2"
-                                    }
-                                  >
-                                    <div>
-                                      <div className="px-2 text-gray-500">
-                                        {message.firstname} {message.lastname}
-                                      </div>
-                                      <div
-                                        className={
-                                          message.sender === sender
-                                            ? "p-4 rounded-t-xl rounded-bl-xl bg-yellow-300"
-                                            : "p-4 rounded-t-xl rounded-br-xl bg-blue-300"
-                                        }
-                                      >
-                                        {message.message}
-                                      </div>
-                                      <div className="px-2 text-gray-500">
-                                        {sent_at.toLocaleDateString(
-                                          "en-GB",
-                                          options
-                                        )}{" "}
-                                        {sent_at.toLocaleTimeString(
-                                          "en-GB",
-                                          timeopts
-                                        )}
-                                      </div>
-                                    </div>
+              {/* Messages Area */}
+              <div className="w-[65%] flex flex-col bg-gradient-to-br from-gray-50 to-white rounded-br-2xl">
+                {role === "Admin" || role === "PSadmin" ? (
+                  <>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                      {chats.length > 0 ? (
+                        chats.map((chat, index) => (
+                          <Card key={index} className="p-4 border border-gray-200">
+                            <details className="group">
+                              <summary className="flex items-center gap-3 cursor-pointer font-semibold text-gray-800 hover:text-blue-600">
+                                <svg
+                                  className="h-5 w-5 rotate-0 transform group-open:rotate-180 transition-transform"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  strokeWidth="2"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
+                                <img
+                                  className="h-10 w-10 rounded-full object-cover flex-shrink-0"
+                                  src={dummyAdmin}
+                                  alt={chat.firstname}
+                                />
+                                {chat.firstname} {chat.lastname}
+                              </summary>
+                              <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
+                                {loading ? (
+                                  <div className="flex justify-center py-8">
+                                    <ReactLoading
+                                      type="bubbles"
+                                      color={"#3b82f6"}
+                                      height={40}
+                                      width={40}
+                                    />
                                   </div>
-                                );
-                              })
-                            )}
-                          </div>
-                        </details>
-                      ))}
+                                ) : chat.messages && chat.messages.length > 0 ? (
+                                  chat.messages.map((message, msgIndex) => {
+                                    const sent_at = new Date(message.sent_at);
+                                    const isOwn = message.sender === sender;
+                                    return (
+                                      <div
+                                        key={msgIndex}
+                                        className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                                      >
+                                        <div className={`max-w-xs ${isOwn ? "items-end" : "items-start"}`}>
+                                          <p className="text-xs text-gray-600 px-2 mb-1">
+                                            {message.firstname} {message.lastname}
+                                          </p>
+                                          <div
+                                            className={`px-4 py-2 rounded-lg text-sm ${
+                                              isOwn
+                                                ? "bg-blue-500 text-white rounded-br-none"
+                                                : "bg-gray-200 text-gray-800 rounded-bl-none"
+                                            }`}
+                                          >
+                                            {message.message}
+                                          </div>
+                                          <p className="text-xs text-gray-500 px-2 mt-1">
+                                            {sent_at.toLocaleTimeString("en-GB", {
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                            })}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  <p className="text-center text-gray-400 text-sm">No messages</p>
+                                )}
+                              </div>
+                            </details>
+                          </Card>
+                        ))
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-gray-400">
+                          <p>No conversations available</p>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (
                   <div
-                    className="w-full h-[88%] overflow-y-scroll p-8"
+                    className="flex-1 overflow-y-auto p-6 space-y-4"
                     style={{ transform: "scaleY(-1)" }}
                   >
                     {loading ? (
-                      <div className="h-full w-full flex justify-center items-center">
+                      <div className="flex justify-center items-center h-full">
                         <ReactLoading
                           type="bubbles"
-                          color={"#19b9d4"}
-                          height={100}
-                          width={100}
+                          color={"#3b82f6"}
+                          height={80}
+                          width={80}
                         />
                       </div>
-                    ) : (
+                    ) : messages.length > 0 ? (
                       messages.map((message, index) => {
                         const sent_at = new Date(message.sent_at);
-                        const options = {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        };
-                        const timeopts = {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        };
+                        const isOwn = message.sender === sender;
+
                         return (
                           <div
                             key={index}
-                            className={
-                              message.sender === sender
-                                ? "w-full flex justify-end py-2"
-                                : "w-full flex py-2"
-                            }
+                            className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
                             style={{ transform: "scaleY(-1)" }}
                           >
-                            <div>
-                              <div className="px-2 text-gray-500">
+                            <div className={`max-w-xs lg:max-w-md ${isOwn ? "items-end" : "items-start"}`}>
+                              <p className="text-xs text-gray-600 px-2 mb-1">
                                 {message.firstname} {message.lastname}
-                              </div>
+                              </p>
                               <div
-                                className={
-                                  message.sender === sender
-                                    ? "p-4 rounded-t-xl rounded-bl-xl bg-yellow-300"
-                                    : "p-4 rounded-t-xl rounded-br-xl bg-blue-300"
-                                }
+                                className={`px-4 py-3 rounded-2xl text-gray-800 ${
+                                  isOwn
+                                    ? "bg-blue-500 text-white rounded-br-none"
+                                    : "bg-white border border-gray-200 rounded-bl-none shadow-sm"
+                                }`}
                               >
                                 {message.message}
                               </div>
-                              <div className="px-2 text-gray-500">
-                                {sent_at.toLocaleDateString("en-GB", options)}{" "}
-                                {sent_at.toLocaleTimeString("en-GB", timeopts)}
-                              </div>
+                              <p className="text-xs text-gray-500 px-2 mt-1">
+                                {sent_at.toLocaleTimeString("en-GB", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
                             </div>
                           </div>
                         );
                       })
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-gray-400">
+                        <p>No messages yet. Start a conversation!</p>
+                      </div>
                     )}
                   </div>
                 )}
 
-                <div className="w-full h-[12%] bg-white flex justify-center items-center p-2">
-                  {activeReciever !== "" && role !== "Admin" && (
-                    <>
-                      <input
+                {/* Message Input Area */}
+                <div className="bg-white border-t border-gray-200 p-4 rounded-br-2xl">
+                  {activeReciever !== "" && role !== "Admin" && role !== "PSadmin" ? (
+                    <div className="flex items-center gap-3">
+                      <Input
                         type="text"
-                        placeholder="Enter your message here..."
+                        placeholder="Type your message here..."
                         value={currentMessage}
                         onChange={(e) => {
                           setCurrentMessage(e.target.value);
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
                             sendCurrentMessage();
                           }
                         }}
-                        className="border border-gray-300 text-gray-500 text-md rounded-lg block w-[85%] p-2 focus:outline-primary"
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
-                      <button
+                      <Button
                         onClick={sendCurrentMessage}
-                        className="bg-primary text-white rounded-lg w-[8%] mx-2 p-2 flex justify-center items-center"
+                        variant="primary"
+                        size="md"
+                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 flex items-center justify-center"
                       >
-                        <MdSend className="text-2xl" />
-                      </button>
-                    </>
+                        <MdSend className="text-xl" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-center text-gray-500 py-4">
+                      {role === "Admin" || role === "PSadmin"
+                        ? "Select a doctor to view conversations"
+                        : "Select a chat to start messaging"}
+                    </p>
                   )}
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>

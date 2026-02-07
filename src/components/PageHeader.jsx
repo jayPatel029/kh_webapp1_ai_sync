@@ -24,10 +24,7 @@ export const PageHeader = ({
 
   return (
     <Box
-      className="w-full px-0 py-2"
-      style={{
-        borderBottom: `0px solid ${colors.border.DEFAULT}`,
-      }}
+      className="w-full px-0 py-2 noscrollbar" 
     >
       <Flex direction="column" gap={2}>
         <Flex gap={2} align="center">
@@ -62,7 +59,7 @@ export const PageHeader = ({
           {title}
         </Heading>
       </Flex>
-    </Box>
+    </Box >
   );
 };
 

@@ -61,7 +61,7 @@ export const BaseModal = ({
           <ModalHeader>
             <Flex justify="between" align="center">
               <Heading as="h3" size="lg">{title}</Heading>
-              {showCloseButton && <ModalCloseButton />}
+              {/* {showCloseButton && <ModalCloseButton />} */}
             </Flex>
           </ModalHeader>
         )}

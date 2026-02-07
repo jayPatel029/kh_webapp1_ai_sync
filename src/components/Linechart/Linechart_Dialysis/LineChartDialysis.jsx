@@ -1084,11 +1084,11 @@ const LineChartDialysis = ({
             </Link>
           )}
 
-          {role?.canEditPatients && (
+          {/* {role?.canEditPatients && (
             <Button
               variant="outline"
               size="md"
-              className="rounded-full px-6 py-2 border-2 border-blue-600 text-blue-600"
+              className="rounded-full px-6 py-2 "
               onClick={() => {
                 setIsUpdate(false);
                 openModalEnterReadings();
@@ -1096,7 +1096,7 @@ const LineChartDialysis = ({
             >
               Enter reading
             </Button>
-          )}
+          )} */}
         </Flex>
       </Flex>
       {numberOfAbnormalReadings > 0 && (

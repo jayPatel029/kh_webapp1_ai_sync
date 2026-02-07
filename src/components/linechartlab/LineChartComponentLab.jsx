@@ -1021,7 +1021,7 @@ const LineChartComponentLab = ({
             <Button
               variant="outline"
               size="md"
-              className="rounded-full px-6 py-2 border-2 border-blue-600 text-blue-600"
+              className="rounded-full px-6 py-2 border-2 "
               onClick={() => {
                 setIsUpdate(false);
                 openModalEnterReadings();

@@ -111,10 +111,9 @@ export const ParameterSection = ({
                     )}
                     {onEnterReading && (
                       <Button
-                        variant="outline"
+                        // variant="pr"
                         onClick={onEnterReading}
-                        className="h-8 px-4 text-xs rounded-md"
-                        style={{ borderColor: '#4164df', color: '#4164df' }}
+                        // className="h-8 px-4 text-xs rounded-md"
                       >
                         Enter reading
                       </Button>

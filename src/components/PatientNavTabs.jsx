@@ -57,15 +57,14 @@ export const PatientNavTabs = ({
       gap={3}
       align="center"
       justify="start"
-      className="px-6 py-4 overflow-x-auto shadow-sm bg-white sticky top-0 z-10 no-scrollbar"
-      style={{ borderBottom: `1px solid ${colors.border.DEFAULT}` }}
+      className="noscrollbar px-6 py-4 overflow-x-auto shadow-sm bg-white sticky top-0"
     >
       {tabs.filter(tab => tab.visible).map((tab) => (
         <Button
           key={tab.id}
           variant="outline"
           onClick={() => navigate(tab.path, { state: tab.state })}
-          className="h-10 px-4 rounded-[12px] flex items-center gap-3 shrink-0 border bg-white"
+          className="h-10 px-4 rounded-[12px] flex items-center gap-3 shrink-0  bg-white"
           style={{
             borderColor: '#656565',
             color: '#656565',

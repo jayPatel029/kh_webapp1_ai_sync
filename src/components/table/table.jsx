@@ -81,7 +81,7 @@ const Table = ({
         <div className="mb-4">
           <label htmlFor="">Enter Reading/ Data</label>
           <button
-            className="block rounded-lg text-primary border-2 border-primary w-40 py-2"
+            className="block rounded-lg text-primary  w-40 py-2"
             onClick={openModal}
           >
             Enter Reading

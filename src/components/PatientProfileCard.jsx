@@ -116,7 +116,7 @@ export const PatientProfileCard = ({
           <Box className="flex-1 w-full">
             <Box className="space-y-4">
               <Box className="flex items-center gap-4">
-                <Box className="h-8 w-1 bg-[#4164df] rounded-full" />
+                <Box className="h-8 w-1  rounded-full" />
                 <Heading size="sm" weight="bold" className="text-2xl font-bold text-[#333]">Ailment Details</Heading>
               </Box>
 

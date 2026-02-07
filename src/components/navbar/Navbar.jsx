@@ -1,85 +1,65 @@
+
+
+
 import { useEffect, useState } from "react";
-import "./navbar.scss";
-import { BsPower } from "react-icons/bs";
 import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../sidebar/Sidebar";
 import { TiThMenu } from "react-icons/ti";
 import kifayti_logo from "../../assets/kifayti_logo.png";
 import dummyadmin from "../../assets/dummyadmin.png";
+import { Flex, Button, IconButton } from "../../component-library";
 
 const Navbar = () => {
-  const [uname, setUname] = useState("");
-  const [dropdownVisible, setDDVisible] = useState(false);
-  const theNavigate = useNavigate();
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("firstname");
-    theNavigate("/doctorLogin");
-  };
-  useEffect(() => {
-    const u = localStorage.getItem("firstname");
-    setUname(u);
-  }, []);
+    const [uname, setUname] = useState("");
+    const [dropdownVisible, setDDVisible] = useState(false);
+    const navigate = useNavigate();
 
+    const logout = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("firstname");
+        navigate("/doctorLogin");
+    };
 
+    useEffect(() => {
+        const u = localStorage.getItem("firstname");
+        setUname(u);
+    }, []);
 
-  return (
-    <>
-      <div className="hidden md:block">
-        <div className="navbar items-center justify-between pr-6 pl-6 bg-white">
-          <div className="flex items-center gap-4">
-            <TiThMenu className="text-primary text-2xl cursor-pointer" onClick={() => { /* reserved for desktop menu toggle */ }} />
-            <Link to="/" className="flex items-center gap-2">
-              <img src={kifayti_logo} alt="Logo" className="h-8 w-auto" />
-              <span className="text-base font-semibold text-slate-700">Kifayti</span>
-            </Link>
-          </div>
+    return (
+        <>
+            <div className="sticky top-0 left-0 right-0 w-full px-2 z-[9999]">
+                <Flex align="center" justify="between" className="bg-white h-14">
+                    <Flex align="center" gap={4}>
+                        {/* mobile menu button */}
+                        <IconButton
+                            aria-label="menu"
+                            onClick={() => setDDVisible(!dropdownVisible)}
+                            className="text-primary text-3xl md:hidden"
+                        >
+                            <TiThMenu />
+                        </IconButton>
 
-          <div className="flex items-center gap-4">
-            <span className="text-base text-slate-800">{uname || 'User'}</span>
-            <img
-              src={dummyadmin}
-              alt="profile"
-              className="h-9 w-9 rounded-full cursor-pointer border border-slate-100"
-              onClick={logout}
-            />
-          </div>
-        </div>
-      </div>
-      <div className="block md:hidden">
-        <div className="navbar items-center justify-end pr-10 bg-white">
-          <div className="items-center justify-start px-3 flex text-xl w-[50%]">
-            <TiThMenu
-              className="text-primary ml-2 text-4xl font-extrabold cursor-pointer inline-block"
-              onClick={() => { setDDVisible(!dropdownVisible); }}
-            />
-          </div>
-          
-          <Link to="/">
-            <img
-              src={kifayti_logo}
-              alt="Logo"
-              className="h-12 w-auto ml-3 cursor-pointer"
-            />
-          </Link>
-          
+                        <Link to="/" className="flex items-center gap-2">
+                            <img src={kifayti_logo} alt="Logo" className="h-8 w-auto" />
+                            <span className="text-base font-semibold text-slate-700">Kifayti</span>
+                        </Link>
+                    </Flex>
 
+                    <Flex align="center" gap={4}>
+                        <span className="text-base text-slate-800 hidden md:inline">{uname || 'User'}</span>
+                        <Button variant="ghost" onClick={logout} className="p-0">
+                            <img src={dummyadmin} alt="profile" className="h-9 w-9 rounded-full border border-slate-100" />
+                        </Button>
+                    </Flex>
+                </Flex>
+            </div>
 
-          <div className="items-center justify-end flex text-xl w-[50%]">
-            <img
-              src={dummyadmin}
-              alt="profile"
-              className="h-9 w-9 rounded-full cursor-pointer inline-block border border-slate-100"
-              onClick={logout}
-            />
-          </div>
-        </div>
-        <div className={dropdownVisible ? "block" : "hidden"}>
-          <Sidebar mobile />
-        </div>
-      </div>
-    </>
-  );
+            {/* Mobile sidebar */}
+            <div className={dropdownVisible ? "block md:hidden" : "hidden md:hidden"}>
+                <Sidebar mobile />
+            </div>
+        </>
+    );
 };
 
 export default Navbar;

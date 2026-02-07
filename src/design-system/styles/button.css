@@ -131,8 +131,8 @@
 /* Primary/Brand Variant */
 .btn--primary,
 .btn--brand {
-  background-color: var(--color-primary-500);
-  color: var(--color-primary-700);
+  background-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 /* Primary hover/focus - match Figma filled CTA look (bigger pill, strong contrast) */
@@ -142,7 +142,7 @@
 .btn--brand:focus,
 .btn--primary:focus-visible,
 .btn--brand:focus-visible {
-  background-color: var(--color-primary-600);
+  background-color: var(--color-primary-500);
   color: var(--color-white);
   box-shadow: 0 6px 18px rgba(65,100,223,0.12);
   transform: translateY(-1px);
