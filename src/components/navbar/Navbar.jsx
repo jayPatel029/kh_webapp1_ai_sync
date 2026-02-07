@@ -1,6 +1,3 @@
-
-
-
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../sidebar/Sidebar";
@@ -11,6 +8,7 @@ import { Flex, Button, IconButton } from "../../component-library";
 
 const Navbar = () => {
     const [uname, setUname] = useState("");
+    const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
     const [dropdownVisible, setDDVisible] = useState(false);
     const navigate = useNavigate();
 
@@ -25,27 +23,35 @@ const Navbar = () => {
         setUname(u);
     }, []);
 
+    // toggle sidebar collapsed state and notify other components
+    const toggleCollapse = () => {
+        const next = !isCollapsed;
+        setIsCollapsed(next);
+        try {
+            localStorage.setItem('sidebarCollapsed', next ? 'true' : 'false');
+        } catch (e) { }
+        // dispatch custom event so Sidebar can listen
+        window.dispatchEvent(new CustomEvent('sidebar:toggle', { detail: { isCollapsed: next } }));
+    };
+
     return (
         <>
             <div className="sticky top-0 left-0 right-0 w-full px-2 z-[9999]">
                 <Flex align="center" justify="between" className="bg-white h-14">
                     <Flex align="center" gap={4}>
-                        {/* mobile menu button */}
-                        <IconButton
-                            aria-label="menu"
-                            onClick={() => setDDVisible(!dropdownVisible)}
-                            className="text-primary text-3xl md:hidden"
-                        >
-                            <TiThMenu />
-                        </IconButton>
 
-                        <Link to="/" className="flex items-center gap-2">
-                            <img src={kifayti_logo} alt="Logo" className="h-8 w-auto" />
-                            <span className="text-base font-semibold text-slate-700">Kifayti</span>
-                        </Link>
+                        {/* <IconButton variant="outline" textColor="black" className="text-black" onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+                            <TiThMenu /> 
+                        </IconButton> */}
+                        <div onClick={toggleCollapse} className="text-black text-2xl  border border-black p-1 rounded-xl cursor-pointer">
+                            <TiThMenu />
+                        </div>
+
+
                     </Flex>
 
                     <Flex align="center" gap={4}>
+
                         <span className="text-base text-slate-800 hidden md:inline">{uname || 'User'}</span>
                         <Button variant="ghost" onClick={logout} className="p-0">
                             <img src={dummyadmin} alt="profile" className="h-9 w-9 rounded-full border border-slate-100" />

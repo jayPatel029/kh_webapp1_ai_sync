@@ -132,7 +132,9 @@ export const SidebarItem = forwardRef(({
   }
 
   return (
-    <li ref={ref} className={itemClasses} onClick={onClick} {...props}>
+    <li ref={ref}
+      className={itemClasses}
+      onClick={onClick} {...props}>
       {content}
     </li>
   );

@@ -12,7 +12,7 @@ function DoctorReport() {
     return (
         <div className="md:flex block">
             {/* Sidebar */}
-            <div className="md:flex-1 hidden md:flex sticky top-0 h-screen overflow-y-auto">
+            <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
                 <Sidebar />
             </div>
 

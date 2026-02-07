@@ -140,7 +140,7 @@ const UserLabReports = () => {
 
   return (
     <div className="UserLabReports md:flex block">
-      <div className="md:flex-1 hidden md:flex sticky top-0 h-screen overflow-y-auto">
+      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
         <Sidebar />
       </div>
       <div className="md:flex-[5] block w-screen">
