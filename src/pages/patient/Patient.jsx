@@ -1,17 +1,24 @@
-import React from "react";
-import "./patient.scss";
+/**
+ * Patient Page Component
+ * Main container for patient management interface
+ * Refactored to use component library and design system
+ * 
+ * @file src/pages/patient/Patient.jsx
+ */
+
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import Sidebar from "../../components/sidebar/Sidebar";
 import Navbar from "../../components/navbar/Navbar";
 import PatientList from "./PatientDetails/PatientList";
-import { useState, useEffect } from "react";
 import { server_url } from "../../constants/constants";
 import axiosInstance from "../../helpers/axios/axiosInstance";
-import { useParams } from "react-router-dom";
+import { Flex, Box, Container } from "../../component-library/layout/Layout";
 
 function Patient() {
   const [patientData, setPatientData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const {id} = useParams();
+  const { id } = useParams();
 
   useEffect(() => {
     axiosInstance
@@ -26,32 +33,57 @@ function Patient() {
         setLoading(false);
       });
   }, []);
-console.log(patientData)
+
+  console.log(patientData);
+
   return (
-    <div className="md:flex block">
+    <Flex className="w-full h-screen">
       {/* Sidebar */}
-      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
+      <Box
+        style={{
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+          overflowY: 'auto'
+        }}
+      >
         <Sidebar />
-      </div>
+      </Box>
 
       {/* Main Content */}
-      <div className="md:flex-[5] block w-screen">
-        <div className="sticky top-0 z-10">
+      <Flex
+        direction="column"
+        className="flex-1"
+        style={{
+          minWidth: 0,
+          overflowX: 'hidden'
+        }}
+      >
+        {/* Navbar */}
+        <Box
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 10
+          }}
+        >
           <Navbar />
-        </div>
-        <div className="container flex justify-center overflow-x-hidden bg-blue-100">
-          <PatientList
-              data={patientData}
-              patientId={id}
-            />
-          </div>
-        
-      </div>
-    </div>
+        </Box>
 
-  )
+        {/* Patient List Content */}
+        <Container
+          style={{
+            flex: 1,
+            backgroundColor: 'white',
+            padding: '50px',
+            overflowY: 'auto'
+          }}
+        >
+          <PatientList data={patientData} patientId={id} />
+        </Container>
+      </Flex>
+    </Flex>
+  );
 }
-
-
 
 export default Patient;
