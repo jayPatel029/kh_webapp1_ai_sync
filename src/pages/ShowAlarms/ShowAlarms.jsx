@@ -1,32 +1,64 @@
+/**
+ * ShowAlarms Page - Redesigned
+ * Following Figma design with component library and design system
+ * 
+ * @file src/pages/ShowAlarms/ShowAlarms.jsx
+ */
+
 import React, { useState, useEffect } from "react";
-import "./ShowAlarms.scss";
+import { useNavigate, useParams } from "react-router-dom";
+import { useSelector } from "react-redux";
+
+// Component Library
+import {
+  Box,
+  Flex,
+  Container,
+} from "../../component-library";
+import { Button } from "../../component-library/primitives/Button";
+
+// Components
 import Sidebar from "../../components/sidebar/Sidebar";
 import Navbar from "../../components/navbar/Navbar";
-import { useParams, Link } from "react-router-dom";
+import SideBarDoctor from "../../components/sidebarDoctor/SideBarDoctor";
+import PageHeader from "../../components/PageHeader";
+import PatientNavTabs from "../../components/PatientNavTabs";
+import ThemeProvider from "../../components/ThemeProvider";
 import AlarmModal from "./AlarmModal";
-import { server_url } from "../../constants/constants";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { BsTrash, BsPencilSquare, BsKey } from "react-icons/bs";
 import EditAlarmModal from "./EditAlarmModal";
 import DoctorAlarmModal from "./DoctorAlarmModal";
 
-function ShowAlarms() {
+// APIs and Helpers
+import axiosInstance from "../../helpers/axios/axiosInstance";
+import { server_url } from "../../constants/constants";
+import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
+
+// Icons
+import { BsTrash, BsPencilSquare } from "react-icons/bs";
+
+// Import design system styles
+import "../../design-system/styles/index.css";
+
+const ShowAlarms = () => {
   const [showModal, setShowModal] = useState(false);
-  const { pid } = useParams();
   const [userAlarmData, setUserAlarmData] = useState([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editData, setEditData] = useState(null);
   const [openAlarmId, setOpenAlarmId] = useState(null);
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [dosesData, setDosesData] = useState(null);
+  const [isDoctor, setIsDoctor] = useState(false);
+  const [userData, setUserData] = useState({});
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  const openModal = () => {
-    setShowModal(true);
-  };
+  const { pid } = useParams();
+  const navigate = useNavigate();
+  const role = useSelector((state) => state.permission);
 
-  const closeModal = (data) => {
-    setShowModal(false);
-  };
+  const openModal = () => setShowModal(true);
+  const closeModal = () => setShowModal(false);
 
   const openEditModal = (data) => {
     setEditData(data);
@@ -34,20 +66,22 @@ function ShowAlarms() {
     setShowEditModal(true);
   };
 
-  const closeEditModal = (data) => {
-    setShowEditModal(false);
+  const closeEditModal = () => setShowEditModal(false);
+
+  const openDoctorModal = (data) => {
+    setEditData(data);
+    setShowDoctorModal(true);
   };
+
+  const closeDoctorModal = () => setShowDoctorModal(false);
+
   const deleteAlarm = async (id) => {
     const isConfirmed = window.confirm(
       "Are you sure you want to delete this alarm?"
     );
     if (isConfirmed) {
       try {
-        console.log(id);
-        const result = await axiosInstance.delete(`${server_url}/alarms/${id}`);
-
-        console.log("Response:", result.data);
-        // Update the UI by filtering out the deleted alarm
+        await axiosInstance.delete(`${server_url}/alarms/${id}`);
         setUserAlarmData((prevData) =>
           prevData.filter((alarm) => alarm.id !== id)
         );
@@ -58,21 +92,11 @@ function ShowAlarms() {
     }
   };
 
-  const openDoctorModal = (data) => {
-    setEditData(data);
-    setShowDoctorModal(true);
-  };
-  const closeDoctorModal = (data) => {
-    setShowDoctorModal(false);
-  };
-  const [isDoctor, setIsDoctor] = useState(false);
-
   const approveAlarm = async (id, status) => {
     const reqbody = {
       alarmId: id,
       status: status,
     };
-    console.log("status:",status)
     const result = await axiosInstance.put(
       `${server_url}/alerts/approveOrDisapprovePrescription`,
       reqbody
@@ -86,17 +110,37 @@ function ShowAlarms() {
     }
   };
 
-  useEffect(() => {
-    const getData = async () => {
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const dateObject = new Date(dateString);
+    const year = dateObject.getFullYear();
+    const month = String(dateObject.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObject.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const fetchData = async () => {
+    try {
       const result = await axiosInstance.get(
         `${server_url}/alarms/byPatientId/${pid}`
       );
-      console.log(result.data.data);
-      await setUserAlarmData(result.data.data);
-      console.log(userAlarmData);
+      setUserAlarmData(result.data.data);
       setDosesData(result.data.doses);
-      return result;
-    };
+    } catch (error) {
+      console.error("Error fetching alarm data:", error);
+    }
+  };
+
+  const fetchPatientData = async () => {
+    try {
+      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${pid}`);
+      setUserData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching patient data:", error);
+    }
+  };
+
+  useEffect(() => {
     const isDoctorfunc = async () => {
       const response = await axiosInstance.get(`${server_url}/roles/isDoctor`, {
         headers: {
@@ -106,174 +150,203 @@ function ShowAlarms() {
       setIsDoctor(response.data.data);
     };
 
-    getData();
+    fetchData();
+    fetchPatientData();
     isDoctorfunc();
   }, [showModal, showEditModal, showDoctorModal]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-    const dateObject = new Date(dateString);
-    const day = String(dateObject.getDate()).padStart(2, "0");
-    const month = String(dateObject.getMonth() + 1).padStart(2, "0"); // Months are zero-based
-    const year = dateObject.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
+  useEffect(() => {
+    const getUnreadMessagesFromAdmin = async () => {
+      try {
+        const chatResult = await getAllChatsAdmin(pid);
+        if (chatResult.success) {
+          const unreadMsgs = chatResult.data.filter((chat) => chat.unreadCount > 0);
+          setTotalUnreadCount(unreadMsgs.reduce((acc, chat) => acc + chat.unreadCount, 0));
+        }
+      } catch (error) {
+        console.error("Error fetching unread messages from admin:", error);
+      }
+    };
+    getUnreadMessagesFromAdmin();
+  }, [pid]);
 
-  function AlarmCard({ alarm, onDelete, onApprove, onReject }) {
-    console.log(alarm);
+  const AlarmRow = ({ alarm }) => {
     const alarmId = localStorage.getItem("alarmId");
     const isHighlighted = alarmId && parseInt(alarmId) === alarm.id;
-    return (
-      <tr
-        key={alarm.id}
-        className={`${
-          isHighlighted ? "bg-green-100" : ""
-        } border-b border-gray-200`}>
-        <td>{formatDate(alarm.dateadded)}</td>
-        <td>{alarm.type ? alarm.type : "No type available"}</td>
 
-        <td
-          // align the text in center
-          className="text-center">
-          {alarm.time}
-        </td>
-        <td>{alarm.timesamonth ? alarm.timesamonth : "Not specified"}</td>
-        <td>{alarm.status}</td>
-        {isDoctor  ? (
-          <></>
-        ) : (
-          <td className="align-middle">
-            <button
-              className="text-[#87ca9c] inline-block mx-2 text-2xl"
-              onClick={() => openEditModal(alarm)}>
-              <BsPencilSquare />
-            </button>
-            <button
-              className="text-[#ff0000] inline-block mx-2 text-2xl"
-              onClick={() => deleteAlarm(alarm.id)}>
-              <BsTrash />
-            </button>
-          </td>
-        )}
-      </tr>
+    return (
+      <Box
+        className={`bg-white border-b border-gray-100 px-[50px] py-5 hover:bg-gray-50 transition-colors ${isHighlighted ? "bg-green-50" : ""
+          }`}
+      >
+        <Flex justify="between" align="center">
+          <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
+            {formatDate(alarm.dateadded)}
+          </Box>
+          <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
+            {alarm.type || "No type available"}
+          </Box>
+          <Box style={{ flex: "0 0 150px", textAlign: "center" }} className="text-[16px] font-semibold text-[#989898]">
+            {alarm.time}
+          </Box>
+          <Box style={{ flex: "0 0 100px" }} className="text-[16px] font-semibold text-[#989898]">
+            {alarm.timesamonth || "Not specified"}
+          </Box>
+          <Box style={{ flex: "0 0 100px" }} className="text-[16px] font-semibold text-[#989898]">
+            {alarm.status}
+          </Box>
+          {!isDoctor && (
+            <Box style={{ flex: "0 0 100px" }} className="flex justify-center gap-2">
+              <button
+                className="text-[#87ca9c] hover:text-[#6bb382] transition-colors"
+                onClick={() => openEditModal(alarm)}
+              >
+                <BsPencilSquare size={20} />
+              </button>
+              <button
+                className="text-[#de425b] hover:text-[#c93850] transition-colors"
+                onClick={() => deleteAlarm(alarm.id)}
+              >
+                <BsTrash size={20} />
+              </button>
+            </Box>
+          )}
+        </Flex>
+      </Box>
     );
+  };
+
+  if (loading) {
+    return <Box className="p-20 text-center">Loading...</Box>;
   }
 
   return (
-    <div className="ShowAlarms md:flex block">
-      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-        <Sidebar />
-      </div>
-      <div className="md:flex-[5] block w-screen">
-        <div className="sticky top-0 z-10">
-          <Navbar />
-        </div>
-        <div className="container">
-          <div className="bg-gray-100 min-h-screen sm:py-10 sm:px-20 ">
-            <div className="w-full p-7 bg-white shadow-md border-t-4 border-primary">
-              <Link
-                to={`/userProfile/${pid}`}
-                className="text-primary border-b-2 border-primary">
-                go back
-              </Link>
-              <div className="mt-4 mb-4 flex items-center justify-end">
-                {/* <h1 className="text-2xl">Dr. {localStorage.getItem("firstname")}</h1> */}
-                {/* <img src="" alt="f" className="rounded-full h-12 w-12" /> */}
-              </div>
-              <div className="flex justify-between items-center border-b pb-2 mb-4">
-                <h2 className="text-2xl font-bold">Alarms</h2>
-                <div className="flex items-center justify-end">
-                  <button
-                    className="block rounded-lg text-primary border-2 border-primary w-40 py-2"
-                    onClick={() => openModal()}>
-                    Add Alarm
-                  </button>
-                  {showModal && (
-                    <AlarmModal closeModal={closeModal} pid={pid} />
-                  )}
-                  {showEditModal && !isDoctor && (
-                    <EditAlarmModal
-                      closeModal={closeEditModal}
-                      alarmData={editData}
-                      pid={pid}
-                      dosesData={dosesData}
-                    />
-                  )}
-                  {showDoctorModal && isDoctor && (
-                    <DoctorAlarmModal
-                      closeModal={closeModal}
-                      alarmData={editData}
-                      pid={pid}
-                    />
-                  )}
-                </div>
-              </div>
+    <ThemeProvider>
+      <Box className="flex min-h-screen">
+        <Box className="flex-shrink-0">
+          {role?.role_name === "Doctor" ? <SideBarDoctor /> : <Sidebar />}
+        </Box>
 
-              <div className=" overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead className="bg-white text-gray-700">
-                    <tr className="border-b-2 border-black">
-                      <th className="py-3 px-4 text-left">Date</th>
-                      <th className="py-1 px-1 w-32 text-left">Alarm Type</th>
-                      <th className="py-3 px-4 text-Left">Time Duration</th>
-                      <th className="py-3 px-4 text-left">Monthly</th>
-                      <th className="py-3 px-4 text-left">Status</th>
-                      {isDoctor ? (
-                        <></>
-                      ) : (
-                        <th className="py-3 px-4 text-left">Action</th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {userAlarmData ? (
-                      // <tr>
-                      //   <td>{userAlarmData.dateadded.slice(0,10)}</td>
-                      //   <td>{userAlarmData.type}</td>
-                      //   <td
-                      //   // align the text in center
-                      //     className="text-center"
-                      //   >{userAlarmData.time}</td>
-                      //   <td>{userAlarmData.timesamonth}</td>
-                      //   <td>{userAlarmData.status}</td>
-                      //   <td
-                      //    className="align-middle"
-                      //   >
-                      //     <button
-                      //     className="text-[#ff0000] inline-block mx-2
-                      //     text-2xl"
-                      //     onClick={() => deleteAlarm(userAlarmData.id)}
-                      //     >
-                      //     <BsTrash  />
-                      //     </button>
-                      //   </td>
-                      // </tr>
-                      // map it
+        <Box className="flex-1 flex flex-col min-w-0">
+          <Navbar />
+
+          {/* Sticky Header Section */}
+          <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+            <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+              {/* Header with Breadcrumbs */}
+              <PageHeader
+                title="Patient Profile"
+                breadcrumbs={[
+                  { label: "All Patients", path: "/patient" },
+                  { label: "Patient", path: `/userProfile/${pid}`, active: false },
+                  { label: "Alarms", active: true }
+                ]}
+                onBack={() => navigate("/patient")}
+              />
+            </Container>
+
+            {/* Navigation Tabs */}
+            <PatientNavTabs
+              patientId={pid}
+              userData={userData}
+              unreadAdminCount={totalUnreadCount}
+              unreadDoctorCount={totalUnreadCountDoc}
+              role={role}
+            />
+          </Box>
+
+          {/* Main Content */}
+          <Box className="flex-1 bg-[#fafafa]">
+            <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
+              <Box className="bg-white rounded-[15px] shadow-md p-8">
+                {/* Header Section */}
+                <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
+                  <Box>
+                    <h2 className="text-[18px] font-bold text-[#393939]">Alarms</h2>
+                  </Box>
+                  <Flex align="center" gap={3}>
+                    <Box className="flex items-center gap-2">
+                      <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-gray-700">
+                          {userData?.name?.charAt(0)?.toUpperCase() || "P"}
+                        </span>
+                      </Box>
+                      <span className="text-[18px] text-[#393939]">{userData?.name || "Patient"}</span>
+                    </Box>
+                  </Flex>
+                </Flex>
+
+                {/* Add Alarm Button */}
+                <Flex justify="end" align="center" className="mb-6">
+                  <Button
+                    variant="solid"
+                    onClick={openModal}
+                    className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9] flex items-center gap-2"
+                  >
+                    Add alarm
+                    <span className="text-xl">+</span>
+                  </Button>
+                </Flex>
+
+                {/* Table */}
+                <Box className="overflow-x-auto">
+                  {/* Table Header */}
+                  <Box className="bg-[#5886a5] rounded-[5px] px-[50px] py-4 mb-0">
+                    <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
+                      <Box style={{ flex: "0 0 150px" }}>Date</Box>
+                      <Box style={{ flex: "0 0 150px" }}>Type</Box>
+                      <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Duration</Box>
+                      <Box style={{ flex: "0 0 100px" }}>Monthly</Box>
+                      <Box style={{ flex: "0 0 100px" }}>Status</Box>
+                      {!isDoctor && <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>}
+                    </Flex>
+                  </Box>
+
+                  {/* Table Body */}
+                  <Box>
+                    {userAlarmData.length > 0 ? (
                       userAlarmData.map((alarm) => (
-                        <AlarmCard
+                        <AlarmRow
                           key={alarm.id}
                           alarm={alarm}
-                          onDelete={deleteAlarm}
-                          onApprove={approveAlarm}
-                          onReject={approveAlarm}
                         />
                       ))
                     ) : (
-                      <tr>
-                        <td colSpan="4" className="text-left italic font-light">
-                          No Alarms found
-                        </td>
-                      </tr>
+                      <Box className="bg-white px-[50px] py-8 text-center">
+                        <p className="text-[#989898] text-[16px] italic">No Alarms found</p>
+                      </Box>
                     )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+                  </Box>
+                </Box>
+              </Box>
+            </Container>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Modals */}
+      {showModal && (
+        <AlarmModal closeModal={closeModal} pid={pid} />
+      )}
+
+      {showEditModal && !isDoctor && (
+        <EditAlarmModal
+          closeModal={closeEditModal}
+          alarmData={editData}
+          pid={pid}
+          dosesData={dosesData}
+        />
+      )}
+
+      {showDoctorModal && isDoctor && (
+        <DoctorAlarmModal
+          closeModal={closeDoctorModal}
+          alarmData={editData}
+          pid={pid}
+        />
+      )}
+    </ThemeProvider>
   );
-}
+};
 
 export default ShowAlarms;

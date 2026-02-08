@@ -1,5 +1,28 @@
-// Import React and useState
+/**
+ * AlarmModal Component - Redesigned
+ * Following component library and design system patterns
+ * 
+ * @file src/pages/ShowAlarms/AlarmModal.jsx
+ */
+
 import React, { useState, useEffect } from "react";
+import { FaFilePdf } from "react-icons/fa6";
+
+// Component Library
+import {
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+} from "../../component-library/primitives/Modal";
+import { Button } from "../../component-library/primitives/Button";
+import { Box, Flex, VStack, HStack } from "../../component-library/layout/Layout";
+import { Heading, Text } from "../../component-library/primitives/Typography";
+
+// APIs
 import { getPatientMedicalTeam } from "../../ApiCalls/patientAPis";
 import { getPrescriptionByPatient } from "../../ApiCalls/prescriptionApis";
 import { alarmTypeOptions, timing, dosesOptions } from "./consts";
@@ -8,15 +31,13 @@ import {
   getDailyReadings,
   getDialysisReadings,
 } from "../../ApiCalls/readingsApis";
-import { FaFilePdf } from "react-icons/fa6";
 
-// Define the AlarmModal component
+// Import design system styles
+import "../../design-system/styles/index.css";
+
 const AlarmModal = ({ closeModal, pid }) => {
-  // Define alarmTypeOptions and state variables
-
   const [selectedAlarmType, setSelectedAlarmType] = useState("Dialysis");
   const [selectedHealthParameter, setSelectedHealthParameter] = useState("");
-
   const [selectTimings, setSelectTimings] = useState("Daily/Weekly");
   const [description, setDescription] = useState("");
   const [weekdays, setweekdays] = useState([]);
@@ -34,6 +55,7 @@ const AlarmModal = ({ closeModal, pid }) => {
   const [messageToDoctor, setMessageToDoctor] = useState("");
   const [doses, setDoses] = useState([]);
   const [doseUnit, setDoseUnit] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCheck = (event) => {
     var updatedList = [...weekdays];
@@ -106,62 +128,14 @@ const AlarmModal = ({ closeModal, pid }) => {
     return true;
   };
 
-  // Define handleSubmit function
-  // const handleSubmit = async () => {
-  //   if (validate()) {
-  //     const payload = {
-  //       doctorId: doctorid,
-  //       type: selectedAlarmType,
-  //       parameter: selectedHealthParameter,
-  //       description: description,
-  //       message: messageToDoctor,
-  //       frequency: selectTimings,
-  //       status: "Pending",
-  //       reason: "",
-  //       pid: pid,
-  //       prescriptionid: null,
-  //       doses: null,
-  //       doseUnit: null,
-  //     };
-  //     if (selectedAlarmType === "Prescription") {
-  //       payload.prescriptionid = selectedPrescription;
-  //       payload.doses = doses.map((dose, index) => {
-  //         return {
-  //           dose: dose,
-  //           doseUnit: doseUnit[index],
-  //           time: timings[index],
-  //         };
-  //       });
-  //     }
-
-  //     if (selectTimings === "Daily/Weekly") {
-  //       payload.weekdays = weekdays.toString();
-  //       payload.timesaday = timesaday;
-  //       payload.time = timings.toString();
-  //     } else if (selectTimings === "Monthly") {
-  //       payload.dateofmonth = dateOfMonth.toString();
-  //       payload.timesamonth = timesaday;
-  //       payload.time = timings.toString();
-  //     }
-  //     const res = await insertAlarm(payload);
-  //     if (res.success) {
-  //       console.log("Alarm inserted successfully");
-  //       closeModal();
-  //     } else {
-  //       console.log("Error inserting alarm", res);
-  //       setMsg("Error inserting alarm");
-  //     }
-  //   }
-  // };
-
   const handleSubmit = async () => {
     if (validate()) {
+      setIsSubmitting(true);
       let missingFields = [];
 
       // Common required fields
       if (!doctorid) missingFields.push("Doctor ID");
       if (!selectedAlarmType) missingFields.push("Alarm Type");
-      // if (!description) missingFields.push("Description");
       if (!selectTimings) missingFields.push("Timing Selection");
       if (!pid) missingFields.push("Patient ID");
 
@@ -189,11 +163,11 @@ const AlarmModal = ({ closeModal, pid }) => {
               ", "
             )}`
           );
+          setIsSubmitting(false);
           return;
         }
       }
 
-    
       if (selectTimings === "Daily/Weekly") {
         let dailyMissingFields = [];
         if (!weekdays.length) dailyMissingFields.push("Weekdays");
@@ -206,6 +180,7 @@ const AlarmModal = ({ closeModal, pid }) => {
               ", "
             )}`
           );
+          setIsSubmitting(false);
           return;
         }
       } else if (selectTimings === "Monthly") {
@@ -220,6 +195,7 @@ const AlarmModal = ({ closeModal, pid }) => {
               ", "
             )}`
           );
+          setIsSubmitting(false);
           return;
         }
       }
@@ -229,6 +205,7 @@ const AlarmModal = ({ closeModal, pid }) => {
         setMsg(
           `Please fill in all required fields: ${missingFields.join(", ")}`
         );
+        setIsSubmitting(false);
         return;
       }
 
@@ -271,20 +248,25 @@ const AlarmModal = ({ closeModal, pid }) => {
       }
 
       // Submit the alarm
-      const res = await insertAlarm(payload);
-      if (res.success) {
-        console.log("Alarm inserted successfully");
-        console.log(payload);
-        closeModal();
-      } else {
-        console.log("Error inserting alarm", res);
+      try {
+        const res = await insertAlarm(payload);
+        if (res.success) {
+          console.log("Alarm inserted successfully");
+          closeModal();
+        } else {
+          console.log("Error inserting alarm", res);
+          setMsg("Error inserting alarm");
+        }
+      } catch (error) {
+        console.error("Error inserting alarm:", error);
         setMsg("Error inserting alarm");
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
 
   useEffect(() => {
-    // Fetch patient data from the server
     const fetchPatientData = async () => {
       const result = await getDailyReadings();
       const DirResult = await getDialysisReadings();
@@ -310,7 +292,6 @@ const AlarmModal = ({ closeModal, pid }) => {
       const responsePres = await getPrescriptionByPatient(pid);
       if (responsePres.success) {
         setPrescription(responsePres.data.data);
-        console.log("object123", prescription);
         setSelectedPrescription(responsePres.data?.data[0]?.id);
       }
     };
@@ -320,86 +301,31 @@ const AlarmModal = ({ closeModal, pid }) => {
   const renderComponent = () => {
     if (selectTimings === "Daily/Weekly") {
       return (
-        <div>
-          <div className="mb-4">
-            <h1>Select Week Days*</h1>
-            <input
-              type="checkbox"
-              id="Mon"
-              className="mx-2"
-              value="Mon"
-              onChange={handleCheck}
-            />
-            <label htmlFor="Mon" className="mr-2">
-              Mon
-            </label>
-            <input
-              type="checkbox"
-              id="Tues"
-              className="mr-2"
-              value="Tues"
-              onChange={handleCheck}
-            />
-            <label htmlFor="Tues" className="mr-2">
-              Tues
-            </label>
-            <input
-              type="checkbox"
-              id="Wed"
-              className="mr-2"
-              value="Wed"
-              onChange={handleCheck}
-            />
-            <label htmlFor="Wed" className="mr-2">
-              Wed
-            </label>
-            <input
-              type="checkbox"
-              id="Thurs"
-              className="mr-2"
-              value="Thurs"
-              onChange={handleCheck}
-            />
-            <label htmlFor="Thurs" className="mr-2">
-              Thurs
-            </label>
-            <input
-              type="checkbox"
-              id="Fri"
-              className="mr-2"
-              value="Fri"
-              onChange={handleCheck}
-            />
-            <label htmlFor="Fri" className="mr-2">
-              Fri
-            </label>
-            <input
-              type="checkbox"
-              id="Sat"
-              className="mr-2"
-              value="Sat"
-              onChange={handleCheck}
-            />
-            <label htmlFor="Sat" className="mr-2">
-              Sat
-            </label>
-            <input
-              type="checkbox"
-              id="Sun"
-              className="mr-2"
-              value="Sun"
-              onChange={handleCheck}
-            />
-            <label htmlFor="Sun" className="mr-2">
-              Sun
-            </label>
-          </div>
+        <VStack spacing={4} align="stretch">
+          <Box>
+            <Text weight="semibold" className="mb-3 text-[#393939]">Select Week Days*</Text>
+            <Flex gap={3} wrap="wrap">
+              {["Mon", "Tues", "Wed", "Thurs", "Fri", "Sat", "Sun"].map((day) => (
+                <label key={day} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    value={day}
+                    onChange={handleCheck}
+                    className="w-4 h-4 text-[#4164df] border-gray-300 rounded focus:ring-[#4164df]"
+                  />
+                  <span className="text-sm text-gray-700">{day}</span>
+                </label>
+              ))}
+            </Flex>
+          </Box>
 
-          <div>
-            <label className="py-2 mb-4">How Many Times A Day*</label>
+          <Box>
+            <label className="block text-sm font-semibold text-[#393939] mb-2">
+              How Many Times A Day*
+            </label>
             <select
               value={timesaday}
-              className="w-full border-2 mb-2 mt-2 py-2 px-3 rounded focus:outline-none focus:border-primary"
+              className="w-full px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df] text-gray-700"
               onChange={(e) => {
                 setTimings(Array(parseInt(e.target.value)));
                 setTimesaday(e.target.value);
@@ -414,24 +340,24 @@ const AlarmModal = ({ closeModal, pid }) => {
                 </option>
               ))}
             </select>
-          </div>
-          <div className="mb-2">
-            <label htmlFor="time" className="block mb-2">
+          </Box>
+
+          <Box>
+            <label className="block text-sm font-semibold text-[#393939] mb-2">
               Time*
             </label>
-            {Array.from(Array(parseInt(timesaday))).map((_, index) => {
-              return (
-                <div>
+            <VStack spacing={3} align="stretch">
+              {Array.from(Array(parseInt(timesaday))).map((_, index) => (
+                <Flex key={index} gap={2} align="center">
                   <input
                     type="time"
-                    key={index}
                     value={timings[index]}
                     onChange={(e) => {
                       let temp = [...timings];
                       temp[index] = e.target.value;
                       setTimings(temp);
                     }}
-                    className=" w-1/4 border-2 py-2 px-3 mb-2 rounded focus:outline-none focus:border-primary"
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df]"
                   />
                   {selectedAlarmType === "Prescription" && (
                     <>
@@ -444,12 +370,11 @@ const AlarmModal = ({ closeModal, pid }) => {
                           temp[index] = e.target.value;
                           setDoses(temp);
                         }}
-                        className="ml-2 w-1/5 border-2 py-2 px-3 mb-2 rounded focus:outline-none focus:border-primary"
+                        className="w-24 px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df]"
                       />
                       <select
                         name="doseUnit"
-                        id="doseUnit"
-                        className="ml-2 w-1/5 border-2 py-2 px-3 mr-2 mb-2 rounded focus:outline-none focus:border-primary"
+                        className="w-28 px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df]"
                         value={doseUnit[index]}
                         onChange={(e) => {
                           let temp = [...doseUnit];
@@ -466,17 +391,18 @@ const AlarmModal = ({ closeModal, pid }) => {
                       </select>
                     </>
                   )}
-                </div>
-              );
-            })}
-          </div>
-          <div>
-            <label className="mb-2">Select Doctor For Approval*</label>
+                </Flex>
+              ))}
+            </VStack>
+          </Box>
+
+          <Box>
+            <label className="block text-sm font-semibold text-[#393939] mb-2">
+              Select Doctor For Approval*
+            </label>
             <select
-              className="w-full border-2 mb-2 mt-2 py-2 px-3 rounded focus:outline-none focus:border-primary"
-              onChange={(e) => {
-                setDoctorid(e.target.value);
-              }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df] text-gray-700"
+              onChange={(e) => setDoctorid(e.target.value)}
             >
               {consultDoctor.map((doc, index) => (
                 <option key={index} value={doc.id}>
@@ -484,17 +410,19 @@ const AlarmModal = ({ closeModal, pid }) => {
                 </option>
               ))}
             </select>
-          </div>
-        </div>
+          </Box>
+        </VStack>
       );
     } else if (selectTimings === "Monthly") {
       return (
-        <div>
-          <div>
-            <label className="py-2 mb-4">How Many Times A Month*</label>
+        <VStack spacing={4} align="stretch">
+          <Box>
+            <label className="block text-sm font-semibold text-[#393939] mb-2">
+              How Many Times A Month*
+            </label>
             <select
               value={timesaday}
-              className="w-full border-2 mb-2 mt-2 py-2 px-3 rounded focus:outline-none focus:border-primary"
+              className="w-full px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df] text-gray-700"
               onChange={(e) => {
                 setTimings(Array(parseInt(e.target.value)));
                 setTimesaday(e.target.value);
@@ -509,117 +437,126 @@ const AlarmModal = ({ closeModal, pid }) => {
                 </option>
               ))}
             </select>
-          </div>
+          </Box>
 
-          {Array.from(Array(parseInt(timesaday))).map((_, index) => {
-            return (
-              <div key={index}>
-                <label className="block">Date Of The Month*</label>
-                <select
-                  name="dateOfMonth"
-                  id="dateOfMonth"
-                  className="w-1/5 border-2 py-2 px-3 mr-2 mb-2 rounded focus:outline-none focus:border-primary"
-                  value={dateOfMonth[index]}
-                  onChange={(e) => {
-                    let temp = [...dateOfMonth];
-                    temp[index] = e.target.value;
-                    setDOM(temp);
-                  }}
-                >
-                  {/* Generate options for numbers 1 to 30 */}
-                  {Array.from({ length: 30 }, (_, i) => i + 1).map(
-                    (number, index) => (
-                      <option key={index} value={number}>
-                        {number}
-                      </option>
-                    )
-                  )}
-                </select>
-
-                <input
-                  type="time"
-                  value={timings[index]}
-                  onChange={(e) => {
-                    let temp = [...timings];
-                    temp[index] = e.target.value;
-                    setTimings(temp);
-                  }}
-                  className=" w-1/5 border-2 py-2 px-3 mb-2 rounded focus:outline-none focus:border-primary"
-                />
-                {selectedAlarmType === "Prescription" && (
-                  <>
-                    <input
-                      type="number"
-                      value={doses[index]}
-                      placeholder="Dose"
-                      onChange={(e) => {
-                        let temp = [...doses];
-                        temp[index] = e.target.value;
-                        setDoses(temp);
-                      }}
-                      className="ml-2 w-1/5 border-2 py-2 px-3 mb-2 rounded focus:outline-none focus:border-primary"
-                    />
-                    <select
-                      name="doseUnit"
-                      id="doseUnit"
-                      className="ml-2 w-1/5 border-2 py-2 px-3 mr-2 mb-2 rounded focus:outline-none focus:border-primary"
-                      value={doseUnit[index]}
-                      onChange={(e) => {
-                        let temp = [...doseUnit];
-                        temp[index] = e.target.value;
-                        setDoseUnit(temp);
-                      }}
-                    >
-                      <option value={null}>Unit</option>
-                      {dosesOptions.map((option, index) => (
-                        <option key={index} value={option.value}>
-                          {option.label}
+          <VStack spacing={3} align="stretch">
+            {Array.from(Array(parseInt(timesaday))).map((_, index) => (
+              <Box key={index}>
+                <label className="block text-sm font-semibold text-[#393939] mb-2">
+                  Date Of The Month*
+                </label>
+                <Flex gap={2} align="center">
+                  <select
+                    name="dateOfMonth"
+                    className="w-24 px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df]"
+                    value={dateOfMonth[index]}
+                    onChange={(e) => {
+                      let temp = [...dateOfMonth];
+                      temp[index] = e.target.value;
+                      setDOM(temp);
+                    }}
+                  >
+                    {Array.from({ length: 30 }, (_, i) => i + 1).map(
+                      (number, index) => (
+                        <option key={index} value={number}>
+                          {number}
                         </option>
-                      ))}
-                    </select>
-                  </>
-                )}
-              </div>
-            );
-          })}
-          <div>
-            <label className="mb-2">Select Doctor For Approval*</label>
-            <select className="w-full border-2 mb-2 mt-2 py-2 px-3 rounded focus:outline-none focus:border-primary">
+                      )
+                    )}
+                  </select>
+
+                  <input
+                    type="time"
+                    value={timings[index]}
+                    onChange={(e) => {
+                      let temp = [...timings];
+                      temp[index] = e.target.value;
+                      setTimings(temp);
+                    }}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df]"
+                  />
+                  {selectedAlarmType === "Prescription" && (
+                    <>
+                      <input
+                        type="number"
+                        value={doses[index]}
+                        placeholder="Dose"
+                        onChange={(e) => {
+                          let temp = [...doses];
+                          temp[index] = e.target.value;
+                          setDoses(temp);
+                        }}
+                        className="w-24 px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df]"
+                      />
+                      <select
+                        name="doseUnit"
+                        className="w-28 px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df]"
+                        value={doseUnit[index]}
+                        onChange={(e) => {
+                          let temp = [...doseUnit];
+                          temp[index] = e.target.value;
+                          setDoseUnit(temp);
+                        }}
+                      >
+                        <option value={null}>Unit</option>
+                        {dosesOptions.map((option, index) => (
+                          <option key={index} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                </Flex>
+              </Box>
+            ))}
+          </VStack>
+
+          <Box>
+            <label className="block text-sm font-semibold text-[#393939] mb-2">
+              Select Doctor For Approval*
+            </label>
+            <select className="w-full px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df] text-gray-700">
               {consultDoctor.map((doc, index) => (
                 <option key={index} value={doc.id}>
                   {doc.name}
                 </option>
               ))}
             </select>
-          </div>
-        </div>
+          </Box>
+        </VStack>
       );
     }
-    // Default case
     return null;
   };
 
-  // JSX structure of AlarmModal component
   return (
-    <>
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50 bg-black overflow-y-auto">
-        <div className="p-7 mt-4 bg-white shadow-md border-t-4 w-1/2 border-primary rounded z-50 overflow-y-auto h-3/4">
-          <div className="header flex justify-between items-center border-b pb-2 mb-4">
-            <h2 className="text-2xl font-bold">Alarms</h2>
-          </div>
-          <div className="p-4">
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-semibold mb-2">
+    <Modal isOpen={true} onClose={closeModal} size="4xl" isCentered>
+      <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
+      <ModalContent className="rounded-2xl overflow-hidden" style={{ maxHeight: '90vh' }}>
+        <ModalHeader className="border-b bg-gray-50/50 py-4 px-6">
+          <HStack justify="between" align="center">
+            <Heading size="md" weight="bold" className="text-[#393939]">
+              Add Alarm
+            </Heading>
+            <ModalCloseButton className="static p-0 hover:bg-gray-100 rounded-full" />
+          </HStack>
+        </ModalHeader>
+
+        <ModalBody className="p-6 overflow-y-auto">
+          <VStack spacing={4} align="stretch">
+            {/* Alarm Type */}
+            <Box>
+              <label className="block text-sm font-semibold text-[#393939] mb-2">
                 Alarm Type*
               </label>
               <select
-                id="alarmType"
                 onChange={(e) => {
                   setSelectedAlarmType(e.target.value);
                   setSelectedHealthParameter("");
                 }}
                 value={selectedAlarmType}
-                className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:border-primary"
+                className="w-full px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df] text-gray-700"
               >
                 <option className="text-gray-400">Select Alarm Type</option>
                 {alarmTypeOptions.map((type, index) => (
@@ -628,13 +565,14 @@ const AlarmModal = ({ closeModal, pid }) => {
                   </option>
                 ))}
               </select>
-            </div>
-            {/* health parameter's section */}
+            </Box>
+
+            {/* Health Parameter */}
             {selectedAlarmType !== "Diet Details" &&
               selectedAlarmType !== "Prescription" &&
               selectedAlarmType !== "Dialysis" && (
-                <div className="mb-4">
-                  <label className="block text-gray-700 text-sm font-semibold mb-2">
+              <Box>
+                <label className="block text-sm font-semibold text-[#393939] mb-2">
                     {selectedAlarmType &&
                       alarmTypeOptions.find(
                         (type) => type.label === selectedAlarmType
@@ -644,9 +582,9 @@ const AlarmModal = ({ closeModal, pid }) => {
                     value={selectedHealthParameter}
                     onChange={(e) => setSelectedHealthParameter(e.target.value)}
                     disabled={!selectedAlarmType}
-                    className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:border-primary"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df] text-gray-700"
                   >
-                    <option className="text-gray-100">Select Parameter</option>
+                  <option>Select Parameter</option>
                     {selectedAlarmType === "Dialysis"
                       ? dirOptions.map((option, index) => (
                           <option key={index} value={option.value}>
@@ -659,47 +597,35 @@ const AlarmModal = ({ closeModal, pid }) => {
                           </option>
                         ))}
                   </select>
-                </div>
+              </Box>
               )}
 
-            {/* description section */}
+            {/* Prescription Selection */}
             {selectedAlarmType === "Prescription" && (
-              <div className="my-2">
-                <label>Select Prescription*</label>
-                <table className=" w-full text-sm text-left rtl:text-right text-gray-800 ">
-                  <thead className="text-sm text-gray-700 border-b-2 border-gray-800 ">
-                    <tr>
-                      <th scope="col" className="px-6 py-3">
-                        Image
-                      </th>
-                      <th scope="col" className="px-6 py-3 ">
-                        Date
-                      </th>
-                      <th scope="col" className="px-6 py-3 ">
-                        Select
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {prescription.map((pres, index) => {
-                      return (
-                        <tr key={index} className="my-4">
-                          <td className="px-6 py-4 text-3xl">
+              <Box>
+                <label className="block text-sm font-semibold text-[#393939] mb-2">
+                  Select Prescription*
+                </label>
+                <Box className="border border-gray-200 rounded-[10px] overflow-hidden">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-sm text-gray-700 border-b-2 border-gray-200 bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3">Image</th>
+                        <th className="px-6 py-3">Date</th>
+                        <th className="px-6 py-3">Select</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {prescription.map((pres, index) => (
+                        <tr key={index} className="border-b border-gray-100">
+                          <td className="px-6 py-4">
                             {pres.Prescription?.endsWith(".pdf") ? (
-                              <FaFilePdf
-                                className="w-20 h-16 cursor-pointer py-3 text-red-500"
-                                // onClick={() =>
-                                //   openFileModal(
-                                //     pres.Prescription?.id,
-                                //     pres.Prescription?.Prescription
-                                //   )
-                                // }
-                              />
+                              <FaFilePdf className="w-12 h-12 text-red-500" />
                             ) : (
                               <img
                                 src={pres.Prescription}
-                                alt="image"
-                                className="inline h-12 w-12 mx-10"
+                                  alt="prescription"
+                                  className="h-12 w-12 object-cover rounded cursor-pointer"
                                 onClick={() => {
                                   if (viewPrescription === index + 1) {
                                     setViewPrescription(null);
@@ -710,10 +636,10 @@ const AlarmModal = ({ closeModal, pid }) => {
                               />
                             )}
                           </td>
-                          <td className="px-6 py-4 text-md">
+                          <td className="px-6 py-4 text-gray-700">
                             {new Date(pres.Date).toDateString()}
                           </td>
-                          <td className="px-6 py-4 text-3xl">
+                          <td className="px-6 py-4">
                             <input
                               type="radio"
                               name="prescription"
@@ -721,99 +647,99 @@ const AlarmModal = ({ closeModal, pid }) => {
                               onChange={(e) => {
                                 setSelectedPrescription(e.target.value);
                               }}
+                              className="w-4 h-4 text-[#4164df] border-gray-300 focus:ring-[#4164df]"
                             />
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </Box>
+              </Box>
             )}
-            {selectedAlarmType === "Diet Details" ||
-            selectedAlarmType === "Prescription" ||
-            selectedAlarmType === "Dialysis" ? (
-              <div className="mb-4">
-                <label>Short Description*</label>
+
+            {/* Description */}
+            {(selectedAlarmType === "Diet Details" ||
+              selectedAlarmType === "Prescription" ||
+              selectedAlarmType === "Dialysis") && (
+                <Box>
+                  <label className="block text-sm font-semibold text-[#393939] mb-2">
+                    Short Description*
+                  </label>
                 <input
                   type="text"
                   value={description}
-                  className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:border-primary "
+                  className="w-full px-4 py-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-[#4164df]"
                   onChange={(e) => setDescription(e.target.value)}
                 />
-              </div>
-            ) : null}
+                </Box>
+              )}
 
-            {/* {selectedAlarmType === "Diet Details" ||
-            selectedAlarmType === "Prescription" ? (
-              <div className="mb-4">
-                <label>Message to Doctor*</label>
-                <input
-                  type="text"
-                  value={messageToDoctor}
-                  className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:border-primary "
-                  onChange={(e) => setMessageToDoctor(e.target.value)}
-                />
-              </div>
-            ) : null} */}
+            {/* Frequency Selection */}
+            <Box>
+              <label className="block text-sm font-semibold text-[#393939] mb-3">
+                Frequency*
+              </label>
+              <Flex gap={6}>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    name="regularity"
+                    type="radio"
+                    value="Daily/Weekly"
+                    checked={selectTimings === "Daily/Weekly"}
+                    onChange={(e) => setSelectTimings(e.target.value)}
+                    className="w-4 h-4 text-[#4164df] border-gray-300 focus:ring-[#4164df]"
+                  />
+                  <span className="text-sm text-gray-700">Daily/Weekly</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    name="regularity"
+                    type="radio"
+                    value="Monthly"
+                    checked={selectTimings === "Monthly"}
+                    onChange={(e) => setSelectTimings(e.target.value)}
+                    className="w-4 h-4 text-[#4164df] border-gray-300 focus:ring-[#4164df]"
+                  />
+                  <span className="text-sm text-gray-700">Monthly</span>
+                </label>
+              </Flex>
+            </Box>
 
-            <div className="flex">
-              <div className="mb-4 mr-4">
-                <input
-                  name="regularity"
-                  type="radio"
-                  id="dailyWeekly"
-                  value="Daily/Weekly"
-                  checked={selectTimings === "Daily/Weekly"}
-                  onChange={(e) => setSelectTimings(e.target.value)}
-                />
-                <label htmlFor="dailyWeekly">Daily/Weekly</label>
-              </div>
-              <div className="mb-4">
-                <input
-                  name="regularity"
-                  type="radio"
-                  id="monthly"
-                  value="Monthly"
-                  checked={selectTimings === "Monthly"}
-                  onChange={(e) => setSelectTimings(e.target.value)}
-                />
-                <label htmlFor="monthly">Monthly</label>
-              </div>
-            </div>
-            <div className="mb-4 mr-4">{renderComponent()}</div>
-            <div className="text-[#ff0000]">{msg}</div>
-          </div>
+            {/* Dynamic Component */}
+            {renderComponent()}
 
-          <div className="flex justify-end p-4">
-            <button
+            {/* Error Message */}
+            {msg && (
+              <Box className="p-3 bg-red-50 border border-red-200 rounded-[10px]">
+                <Text size="sm" className="text-red-600">{msg}</Text>
+              </Box>
+            )}
+          </VStack>
+        </ModalBody>
+
+        <ModalFooter className="border-t bg-gray-50/50 px-6 py-4">
+          <HStack spacing={3} justify="end">
+            <Button
+              variant="outline"
+              onClick={closeModal}
+              className="px-6 py-2 rounded-[10px] border-gray-300 text-gray-700 hover:bg-gray-100"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="solid"
               onClick={handleSubmit}
-              className="bg-primary text-white py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+              isLoading={isSubmitting}
+              className="px-6 py-2 rounded-[10px] bg-[#4164df] text-white hover:bg-[#3451c9]"
             >
               Submit
-            </button>
-            <button
-              onClick={() => {
-                closeModal();
-              }}
-              className="border-2 border-primary text-primary py-2 px-4 rounded focus:outline-none focus:shadow-outline ml-2"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-        {viewPrescription && (
-          <div className="p-7 mt-4 bg-white shadow-md border-t-4 w-1/4 border-primary rounded z-50 overflow-y-auto h-3/4">
-            <img
-              src={prescription[viewPrescription - 1].Prescription}
-              className="w-full"
-            />
-          </div>
-        )}
-      </div>
-    </>
+            </Button>
+          </HStack>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 };
 
-// Export the AlarmModal component
 export default AlarmModal;
