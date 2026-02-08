@@ -1,7 +1,7 @@
 import React,{useState} from 'react'
  
-import { server_url } from '../../constants/constants';
-import { insertAlert } from '../../ApiCalls/appAlerts';
+import { server_url } from "../../../constants/constants";
+import { insertAlert } from "../../../ApiCalls/appAlerts";
 
 const SendMessage = ({closeModal,patientid}) => {
     const [message,setMessage] = useState("");

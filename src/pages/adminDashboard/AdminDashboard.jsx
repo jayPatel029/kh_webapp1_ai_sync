@@ -1,206 +1,282 @@
-import React from "react";
-import "./adminDashboard.scss";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
-import { useState, useEffect } from "react";
+/**
+ * Admin Dashboard - Redesigned
+ * Following Figma design with integrated legacy logic
+ * 
+ * @file src/pages/adminDashboard/AdminDashboard.jsx
+ */
+
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { Heading, Text } from "../../component-library/primitives/Typography";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import {
   getTotalUsers,
   getUsersThisWeek,
   getAlerts,
-  getDoctorAlerts,
   getUsersThisWeekSub,
 } from "../../ApiCalls/adminDashApis";
-import AdminContainer from "./AdminContainer";
-import DoctorContainer from "./DoctorContainer";
-import { useNavigate } from "react-router-dom";
+import { getDoctorComments } from "../../ApiCalls/GetComments";
 
-function AdminDashboard() {
-  // Separate doctor alerts and patient alerts
-  const [patientAlertsData, setPatientAlertsData] = useState([]);
-  // Placeholder data for new users and total users
-  const [newUsers, setNewUsers] = useState(0);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [NewUsersSub, setNewUsersSub] = useState(0);
-  const [isDoctor, setIsDoctor] = useState(false);
-  const [allAlerts, setAllAlerts] = useState([]);
-  const [doctorAlerts, setDoctorAlerts] = useState([]);
-  const [patientAlerts, setPatientAlerts] = useState([]);
+// Components
+import Sidebar from "../../components/sidebar/Sidebar";
+import Navbar from "../../components/navbar/Navbar";
+import PatientAlertCard from "./components/PatientAlertCard";
+import PrescriptionModal from "./components/ApprovePrescriptionModal";
+import CommentContainer from "./components/CommentContainer";
+import AlertModal from "./components/AlertModal";
+import DiaAlertModal from "./components/DialysisTechModal";
 
+// Styles
+import "./AdminDashboard.css";
+
+const AdminDashboard = () => {
   const navigate = useNavigate();
+  const [userName, setUserName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [isDoctor, setIsDoctor] = useState(false);
 
-  // Redirect to login page if token is not present or expired
+  // Data State
+  const [patients, setPatients] = useState([]);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    newUsers: 0,
+  });
+
+  // Modal State
+  const [modals, setModals] = useState({
+    prescription: false,
+    comment: false,
+    alert: false,
+    dialysis: false,
+  });
+  const [selectedPatient, setSelectedPatient] = useState(null);
+
+  // Initial Auth and Role Checks
   useEffect(() => {
-    getAdminid();
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-    }
-    const role = localStorage.getItem("role");
-    // console.log("object");
-    if (role == "Dialysis Technician") {
-      navigate("/patient");
+    const init = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      const role = localStorage.getItem("role");
+      if (role === "Dialysis Technician") {
+        navigate("/patient");
+        return;
+      }
+
+      const email = localStorage.getItem("email");
+      setUserName(localStorage.getItem("name") || "User");
+
+      // Get Admin ID and set to localStorage
+      try {
+        const idRes = await axiosInstance.post(`${server_url}/users/byEmail/id`, { email });
+        localStorage.setItem("id", idRes.data.id);
+      } catch (err) {
+        console.error("Error getting admin id:", err);
+      }
+
+      // Check if Doctor
+      try {
+        const docRes = await axiosInstance.get(`${server_url}/roles/isDoctor`);
+        setIsDoctor(docRes.data.data);
+        localStorage.setItem("isDoctor", docRes.data.data);
+      } catch (err) {
+        console.error("Error checking isDoctor:", err);
+      }
+
+      fetchDashboardData();
+    };
+
+    init();
+  }, [navigate]);
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const email = localStorage.getItem("email");
+      const adminId = localStorage.getItem("id");
+      const isDoc = localStorage.getItem("isDoctor") === "true";
+
+      // Fetch Stats
+      const [total, newU, newUSub] = await Promise.all([
+        getTotalUsers(),
+        getUsersThisWeek(),
+        getUsersThisWeekSub()
+      ]);
+      setStats({
+        totalUsers: total || 0,
+        newUsers: adminId === "1" ? (newU || 0) : (newUSub || 0)
+      });
+
+      // Fetch Alerts
+      let alerts = [];
+      if (isDoc) {
+        // Doctor specific alerts
+        const doctorIdRes = await axiosInstance.post(`${server_url}/doctor/byEmail/id`, { email });
+        const doctorId = doctorIdRes.data.data;
+        const alertsRes = await axiosInstance.get(`${server_url}/sortAlerts/doctor/${doctorId}`);
+        alerts = alertsRes.data || [];
+      } else {
+        // Admin alerts
+        const alertsRes = await getAlerts();
+        alerts = (alertsRes.data || []).reverse();
+      }
+
+      // Group alerts by Patient
+      const patientMap = new Map();
+
+      for (const alert of alerts) {
+        const pId = alert.patientId;
+        if (!pId) continue;
+
+        if (!patientMap.has(pId)) {
+          patientMap.set(pId, {
+            id: pId,
+            name: alert.name || "Unknown Patient",
+            avatar: alert.patientProfilePhoto,
+            prescriptionAlerts: [],
+            commentAlerts: [],
+            alertAlerts: [],
+            dialysisAlerts: [],
+            prescriptionCount: 0,
+            commentCount: 0,
+            alertCount: 0,
+            dialysisCount: 0,
+          });
+        }
+
+        const pData = patientMap.get(pId);
+
+        // Categorize based on type or category
+        const type = (alert.type || "").toLowerCase();
+        const category = (alert.category || "").toLowerCase();
+
+        if (type.includes("prescription") || category.includes("prescription")) {
+          pData.prescriptionAlerts.push(alert);
+          pData.prescriptionCount++;
+        } else if (type.includes("dialysis tech") || category.includes("dialysis tech")) {
+          pData.dialysisAlerts.push(alert);
+          pData.dialysisCount++;
+        } else {
+          // General alerts (might be read or unread)
+          pData.alertAlerts.push(alert);
+          if (alert.isRead === 0 || alert.isRead === false) {
+            pData.alertCount++;
+          }
+        }
+      }
+
+      // Fetch Comments separately (as per legacy logic in DoctorContainer)
+      if (isDoc) {
+        const patientPromises = Array.from(patientMap.values()).map(async (p) => {
+          try {
+            const commentRes = await getDoctorComments(email, p.name);
+            const comments = commentRes.comments || [];
+            p.commentAlerts = comments.sort((a, b) => new Date(b.date) - new Date(a.date));
+            p.commentCount = comments.filter(c => !c.isRead).length;
+          } catch (e) {
+            console.error(`Error fetching comments for ${p.name}:`, e);
+          }
+        });
+        await Promise.all(patientPromises);
+      }
+
+      setPatients(Array.from(patientMap.values()));
+    } catch (error) {
+      console.error("Dashboard data fetch error:", error);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const getAdminid = async () => {
-    const email = localStorage.getItem("email");
-    const id = await axiosInstance.post(`${server_url}/users/byEmail/id`, {
-      email: email,
-    });
-    localStorage.setItem("id", id.data.id);
+  const handleAction = (patient, type) => {
+    setSelectedPatient(patient);
+
+    // Store data in localStorage as required by legacy modals
+    if (type === 'prescription') {
+      localStorage.setItem("prescriptionAlerts", JSON.stringify(patient.prescriptionAlerts));
+    } else if (type === 'alert') {
+      localStorage.setItem("alertAlerts", JSON.stringify(patient.alertAlerts));
+    } else if (type === 'dialysis') {
+      localStorage.setItem("Dialysis_updates", JSON.stringify(patient.dialysisAlerts));
+    }
+
+    setModals(prev => ({ ...prev, [type]: true }));
   };
-  useEffect(() => {
-    // setTimeout(() => {
-    //   window.location.reload();
-    // }, 300000);
-    const getTotalUsersData = async () => {
-      var total = await getTotalUsers();
-      if (!total) total = 0;
-      setTotalUsers(total);
-    };
 
-    const getNewUsersData = async () => {
-      var newU = await getUsersThisWeek();
-      if (!newU) newU = 0;
-      setNewUsers(newU);
-    };
-
-    const isDoctorfunc = async () => {
-      try {
-        const response = await axiosInstance.get(
-          `${server_url}/roles/isDoctor`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
-        setIsDoctor(response.data.data);
-        localStorage.setItem("isDoctor", response.data.data);
-      } catch (error) {
-        console.log("Error fetching Doctor: ", error);
-      }
-    };
-
-    const getPatientAlertsData = async () => {
-      try {
-        const response = await axiosInstance.get(
-          `${server_url}/alerts/byType/patient`
-        );
-        setPatientAlertsData(response.data);
-        console.log("Patient Alerts: ", response.data);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-
-    const getDoctorAlertsData = async () => {
-      try {
-        const response = await axiosInstance.get(
-          `${server_url}/alerts/byType/doctor`
-        );
-        setDoctorAlerts(response.data);
-        console.log("Doctor Alerts: ", response.data);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-
-    const getAllAlerts = async () => {
-      if (isDoctor) {
-        return;
-      } else {
-        try {
-          getAlerts()
-            .then((response) => {
-              // console.log("Doctor Alerts: ", response.data);
-              setAllAlerts(response.data);
-              setPatientAlerts(
-                response.data
-                  .filter(
-                    (alert) =>
-                      alert.type0 === "patient" || alert.type === "patient"
-                  )
-                  .reverse()
-              );
-            })
-            .catch((error) => {
-              console.log("Error fetching alerts: ", error);
-            });
-        } catch (error) {
-          console.log(error);
-        }
-      }
-    };
-    const getNewUsersDataSub = async () => {
-      var newU = await getUsersThisWeekSub();
-      console.log("New Users Sub: ", newU);
-      if (!newU) newU = 0;
-      setNewUsersSub(newU);
-    };
-    const getAllData = async () => {
-      await getTotalUsersData();
-      await getNewUsersData();
-      await isDoctorfunc();
-      await getPatientAlertsData();
-      await getAllAlerts();
-      await getDoctorAlertsData();
-      await getNewUsersDataSub();
-    };
-    getAllData();
-    // const interval = setInterval(() => {
-    //   getAllData();
-    // }, 300000);
-    // return () => clearInterval(interval);
-
-    // call getallData() every 5 minutes
-
-    const interval = setInterval(() => {
-      getAllData();
-    }, 300000);
-
-    return () => clearInterval(interval);
-  }, [totalUsers, isDoctor]);
-
-  // useEffect(() => {
-  //   console.log("Updated patientAlertsData: ", patientAlertsData);
-  // }, [patientAlertsData]);
+  const closeModal = (type) => {
+    setModals(prev => ({ ...prev, [type]: false }));
+    // Refresh data if something was read/updated
+    if (type === 'alert' || type === 'comment') {
+      fetchDashboardData();
+    }
+  };
 
   return (
-    <div className="md:flex block">
-      {/* Sidebar */}
-      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-        <Sidebar />
-      </div>
+    <div className="dashboard-page overflow-hidden h-screen w-full">
+      <Sidebar />
 
-      {/* Main Content */}
-      <div className="md:flex-[5] block w-screen">
-        <div className="sticky top-0 z-10">
-          <Navbar />
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        <Navbar />
+
+        <div className="dashboard-content">
+          <div className="dashboard-header">
+            <Heading as="h1" size="2xl" className="dashboard-title">
+              My Dashboard
+            </Heading>
+          </div>
+
+          <div className="alerts-section">
+            <Heading as="h2" size="xl" className="section-title">
+              Important Alerts
+            </Heading>
+
+            {loading ? (
+              <div className="loading-state">
+                <Text size="md">Loading alerts...</Text>
+              </div>
+            ) : patients.length === 0 ? (
+              <div className="empty-state">
+                <Text size="md">No alerts at this time</Text>
+              </div>
+            ) : (
+                  <div className="patient-alerts-list">
+                    {patients.map((patient) => (
+                      <React.Fragment key={patient.id}>
+                        <PatientAlertCard
+                          patient={patient}
+                          onAction={handleAction}
+                        />
+                      <div className="alert-divider" />
+                    </React.Fragment>
+                  ))}
+                  </div>
+            )}
+          </div>
         </div>
-
-        {isDoctor ? (
-          <DoctorContainer />
-        ) : localStorage.getItem("id") == 1 ? (
-          <AdminContainer
-            newUsers={newUsers}
-            totalUsers={totalUsers}
-            doctorAlerts={doctorAlerts}
-            patientAlerts={patientAlertsData}
-          />
-        ) : (
-          <AdminContainer
-            newUsers={NewUsersSub}
-            totalUsers={totalUsers}
-            doctorAlerts={doctorAlerts}
-            patientAlerts={patientAlerts}
-          />
-        )}
       </div>
+
+      {/* Modals */}
+      {modals.prescription && (
+        <PrescriptionModal closeModal={() => closeModal('prescription')} />
+      )}
+      {modals.comment && (
+        <CommentContainer
+          comments={selectedPatient.commentAlerts}
+          closeModal={() => closeModal('comment')}
+        />
+      )}
+      {modals.alert && (
+        <AlertModal closeModal={() => closeModal('alert')} />
+      )}
+      {modals.dialysis && (
+        <DiaAlertModal closeModal={() => closeModal('dialysis')} />
+      )}
     </div>
   );
-}
+};
 
 export default AdminDashboard;

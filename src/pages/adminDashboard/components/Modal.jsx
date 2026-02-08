@@ -1,6 +1,6 @@
 import React, { useState,useEffect } from "react";
  
-import { dissapproveAlert,dissapproveAllAlerts } from "../../ApiCalls/alertsApis";
+import { dissapproveAlert,dissapproveAllAlerts } from "../../../ApiCalls/alertsApis";
 
 
 const Modal = ({ closeModal,disAll,item,presId}) => {

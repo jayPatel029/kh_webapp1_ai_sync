@@ -1,14 +1,14 @@
 import React, { useRef, useState, useEffect } from "react";
 
-import postToCloudinaryImage from "../../helpers/postToCloudinaryImage";
+import postToCloudinaryImage from "../../../helpers/postToCloudinaryImage";
 import Webcam from "react-webcam";
-import { server_url } from "../../constants/constants";
-import { uploadFile } from "../../ApiCalls/dataUpload";
-import { approveAlert, approveAllAlerts } from "../../ApiCalls/alertsApis";
+import { server_url } from "../../../constants/constants";
+import { uploadFile } from "../../../ApiCalls/dataUpload";
+import { approveAlert, approveAllAlerts } from "../../../ApiCalls/alertsApis";
 import HighlightOffIcon from "@mui/icons-material/HighlightOff";
 import Modal from "./Modal";
 import { Link } from "react-router-dom";
-import UploadedFileModal from "../Userprescription/UploadedFileModal";
+
 
 
 const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {

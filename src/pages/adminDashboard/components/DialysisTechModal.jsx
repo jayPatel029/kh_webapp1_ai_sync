@@ -1,9 +1,9 @@
 import React from "react";
 import { useRef, useState, useEffect } from "react";
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import axiosInstance from "../../../helpers/axios/axiosInstance";
 import SimpleModal from "./SimpleModal";
-import { server_url } from "../../constants/constants";
-import { insertAlert } from "../../ApiCalls/appAlerts";
+import { server_url } from "../../../constants/constants";
+import { insertAlert } from "../../../ApiCalls/appAlerts";
 import { Link, useNavigate } from "react-router-dom";
 import GraphModal from "./graphModal";
 import InsertChartIcon from "@mui/icons-material/InsertChart";
@@ -15,7 +15,7 @@ import SendMessage from "./SendMessage";
 import { FaFilePdf } from "react-icons/fa6";
 import ThumbnailModal from "./ThumbnailModal";
 
-const AlertModal = ({ closeModal }) => {
+const DiaAlertModal = ({ closeModal }) => {
   const [alerts, setAlerts] = useState([]);
   const [openSimpleModal, setOpenSimpleModal] = useState(false);
   const [openGraphModal, setOpenGraphModal] = useState(false);
@@ -83,7 +83,8 @@ const AlertModal = ({ closeModal }) => {
   };
 
   useEffect(() => {
-    const alertAlerts = localStorage.getItem("alertAlerts");
+    const alertAlerts = localStorage.getItem("Dialysis_updates");
+    console.log(alertAlerts);
     setAlerts(JSON.parse(alertAlerts));
   }, []);
 
@@ -122,10 +123,10 @@ const AlertModal = ({ closeModal }) => {
       const category = "Consult Doctor";
       const mess = "";
       await insertAlert(doctorEmail, patientId, category, mess);
-      alert("Your Message has been sent for immediate consultation");
+      alert("Your Message has been sent for immediate consultation")
     } catch (error) {
       console.error("Error inserting alert:", error);
-      alert("something Went wrong please try again");
+      alert("something Went wrong please try again")
     }
   };
 
@@ -175,38 +176,12 @@ const AlertModal = ({ closeModal }) => {
       <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50 bg-black overflow-y-auto">
         <div className="p-7 ml-4 mr-4 mt-4 bg-white shadow-md border-t-4 border-primary rounded z-50 w-max lg:w-[80%] h-[100vh] overflow-y-auto ">
           <div className="header flex justify-between border-b pb-2 mb-4 flex-col lg:flex-row">
-            <h2 className="text-2xl font-bold text-center ">
-              Important Alerts
-            </h2>
+            <h2 className="text-2xl font-bold text-center ">Important Alerts</h2>
             <div className="flex flex-col lg:flex-row gap-2">
-              <div className="flex lg:flex-row gap-2">
-                <div
-                  className="rounded-lg text-primary border-2 border-primary w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-gray-300 hover:text-gray-900 transition duration-300 ease-in-out transform hover:scale-105"
-                  onClick={viewProfile}
-                  style={{
-                    cursor: "pointer",
-                  }}
-                >
-                  View Profile
-                </div>
-                <div
-                  className="rounded-lg text-white bg-red-900 border-red-900 w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-red-600 hover:text-white transition duration-300 ease-in-out transform hover:scale-105"
-                  onClick={consultDoctor}
-                >
-                  Consult Doctor
-                </div>
-              </div>
+              
 
               <div className="flex lg:flex-row gap-2">
-                <div
-                  className="rounded-lg text-white border-2 bg-primary border-primary w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-primary-dark hover:text-white transition duration-300 ease-in-out transform hover:scale-105"
-                  style={{
-                    cursor: "pointer",
-                  }}
-                  onClick={openSendMessage}
-                >
-                  Send Message
-                </div>
+               
                 <div
                   className="rounded-lg text-red-900 border-2 border-red-900 w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-red-200 hover:text-red-900 transition duration-300 ease-in-out transform hover:scale-105"
                   onClick={onClose}
@@ -224,11 +199,11 @@ const AlertModal = ({ closeModal }) => {
             <SimpleModal closeModal={closeModalSimple} image={imgUrl} />
           )}
           {smessage && (
-            <SendMessage
-              closeModal={closeSendMessage}
-              patientid={alerts[0].patientId}
-            />
-          )}
+          <SendMessage
+            closeModal={closeSendMessage}
+            patientid={alerts[0].patientId}
+          />
+        )}
 
           <div className="overflow-y-auto">
             {Array.isArray(alerts) ? (
@@ -325,4 +300,4 @@ const AlertModal = ({ closeModal }) => {
   );
 };
 
-export default AlertModal;
+export default DiaAlertModal;

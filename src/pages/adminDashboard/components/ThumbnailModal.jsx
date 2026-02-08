@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { addComment } from "../../ApiCalls/commentApi";
+import { addComment } from "../../../ApiCalls/commentApi";
 import { useLocation } from "react-router-dom";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
-import MyPDFViewer from "../../components/pdf/MyPDFViewer";
+import axiosInstance from "../../../helpers/axios/axiosInstance";
+import { server_url } from "../../../constants/constants";
+import MyPDFViewer from "../../../components/pdf/MyPDFViewer";
 
 const ThumbnailModal = ({ closeModal, image, comment }) => {
   

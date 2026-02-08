@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react'
-import LineChartComponent from '../../components/Linechart/LineChartComponent'
-import LineChartComponentSys from '../../components/linecomponent-sys-dys/LineChartComponentSys'
-import Table from '../../components/table/table'
-import DialysisTable from '../../components/table/DialysisTable'
+import LineChartComponent from "../../../components/Linechart/LineChartComponent"
+import LineChartComponentSys from "../../../components/linecomponent-sys-dys/LineChartComponentSys"
+import Table from "../../../components/table/table"
+import DialysisTable from "../../../components/table/DialysisTable"
 
 const TableModal = ({ closeModal, patientId, questionId, dailyordia, isGraph, questionTitle, questionUnit }) => {
     // console.log(patientId, questionId, dailyordia, isGraph)

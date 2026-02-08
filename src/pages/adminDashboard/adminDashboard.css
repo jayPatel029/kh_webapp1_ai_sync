@@ -1,6 +1,212 @@
-.admindashboard {
+/**
+ * Dashboard Page Styles
+ * Uses design-system CSS variables for consistency
+ * 
+ * @file src/pages/adminDashboard/DashboardPage.css
+ */
+
+/* ==================== LAYOUT ==================== */
+
+.dashboard-page {
   display: flex;
+  min-height: 100vh;
+  background-color: var(--color-white, #ffffff);
 }
-.admindashboard .admindashboardContainer {
-  flex: 5;
-}/*# sourceMappingURL=adminDashboard.css.map */
+
+/* Sidebar is now handled by the standard Sidebar component */
+
+/* ==================== MAIN CONTENT ==================== */
+
+.dashboard-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--space-12, 3rem);
+  background-color: var(--color-white, #ffffff);
+  overflow-y: auto;
+}
+
+.dashboard-header {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid #00cccc;
+  margin-bottom: var(--space-8, 2rem);
+}
+
+.dashboard-title {
+  font-family: 'Sora', sans-serif;
+  font-weight: var(--font-weight-bold, 700);
+  font-size: var(--font-size-2xl, 1.5rem);
+  color: #32617d;
+  margin: 0;
+}
+
+/* ==================== ALERTS SECTION ==================== */
+
+.alerts-section {
+  padding-bottom: var(--space-8, 2rem);
+}
+
+.section-title {
+  font-family: 'Sora', sans-serif;
+  font-weight: var(--font-weight-bold, 700);
+  font-size: var(--font-size-xl, 1.25rem);
+  color: var(--color-black, #000000);
+  margin-bottom: var(--space-6, 1.5rem);
+}
+
+.patient-alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ==================== PATIENT ALERT CARD ==================== */
+
+.patient-alert-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6, 1.5rem);
+  padding: var(--space-6, 1.5rem) var(--space-4, 1rem);
+  background-color: var(--color-white, #ffffff);
+  cursor: pointer;
+  transition: var(--transition-normal, all 0.2s ease);
+}
+
+.patient-alert-card:hover {
+  background-color: var(--color-gray-50, #f9fafb);
+}
+
+.patient-avatar {
+  flex-shrink: 0;
+}
+
+.avatar-image {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-full, 50%);
+  object-fit: cover;
+  border: 2px solid var(--color-gray-200, #e5e7eb);
+}
+
+.patient-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 1rem);
+}
+
+.patient-name {
+  font-family: 'Sora', sans-serif;
+  font-weight: var(--font-weight-semibold, 600);
+  font-size: var(--font-size-xl, 1.25rem);
+  color: var(--color-black, #000000);
+  margin: 0;
+}
+
+.patient-actions {
+  display: flex;
+  gap: var(--space-4, 1rem);
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  font-family: 'Sora', sans-serif;
+  font-weight: var(--font-weight-bold, 700);
+  font-size: var(--font-size-sm, 0.875rem);
+  padding: var(--space-4, 1rem) var(--space-6, 1.5rem);
+  border-radius: var(--radius-sm, 4px);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-normal, all 0.2s ease);
+  white-space: nowrap;
+}
+
+.action-btn--prescription {
+  background-color: #00cccc !important;
+  color: var(--color-white, #ffffff) !important;
+}
+
+.action-btn--prescription:hover {
+  background-color: #00b3b3 !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.action-btn--comment {
+  background-color: #00c008 !important;
+  color: var(--color-white, #ffffff) !important;
+}
+
+.action-btn--comment:hover {
+  background-color: #00a807 !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.action-btn--alert {
+  background-color: #fd0000 !important;
+  color: var(--color-white, #ffffff) !important;
+}
+
+.action-btn--alert:hover {
+  background-color: #e00000 !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md, 0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.no-alerts-badge {
+  background-color: #989898 !important;
+  color: var(--color-white, #ffffff) !important;
+  padding: var(--space-4, 1rem) var(--space-6, 1.5rem);
+  border-radius: var(--radius-sm, 4px);
+  font-family: 'Sora', sans-serif;
+  font-weight: var(--font-weight-bold, 700);
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+/* Alert Divider */
+.alert-divider {
+  height: 2px;
+  background-color: var(--color-gray-200, #e5e7eb);
+  margin: var(--space-6, 1.5rem) 0;
+}
+
+/* ==================== LOADING & EMPTY STATES ==================== */
+
+.loading-state,
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12, 3rem);
+  color: var(--color-text-muted, #6b7280);
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+  .dashboard-content {
+    padding: 0 var(--space-4, 1rem);
+  }
+
+  .nav-label {
+    display: none;
+  }
+
+  .patient-alert-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4, 1rem);
+  }
+
+  .patient-actions {
+    width: 100%;
+  }
+
+  .action-btn {
+    flex: 1;
+    min-width: 0;
+  }
+}

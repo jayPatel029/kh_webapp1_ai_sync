@@ -2,13 +2,13 @@ import React from "react";
 import ThumbnailModal from "./ThumbnailModal";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
-import { insertAlert } from "../../ApiCalls/appAlerts";
+import axiosInstance from "../../../helpers/axios/axiosInstance";
+import { server_url } from "../../../constants/constants";
+import { insertAlert } from "../../../ApiCalls/appAlerts";
 import SendMessage from "./SendMessage";
-import { checkURl, isValidHttpUrl } from "../../helpers/utils";
+import { checkURl, isValidHttpUrl } from "../../../helpers/utils";
 
-const CommentConatainer = ({ comments, closeModal }) => {
+const CommentContainer = ({ comments, closeModal }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [image, setImage] = useState("");
   const [comment, setComment] = useState(null);
@@ -51,16 +51,16 @@ const CommentConatainer = ({ comments, closeModal }) => {
 
   var reversedComments = comments.reverse();
   console.log(reversedComments);
-  var coms = reversedComments.filter(function(comment) {
+  var coms = reversedComments.filter(function (comment) {
     console.log("comment url")
     console.log(comment.url, isValidHttpUrl(comment.url));
-    
+
     return isValidHttpUrl(comment.url);
-});
+  });
 
-// console.log(checkURl("https://kifaytidata2024.s3.amazonaws.com/7036_3D_ETRX_17_KAUSTUBH_GHARAT%20(2).jpg"))
+  // console.log(checkURl("https://kifaytidata2024.s3.amazonaws.com/7036_3D_ETRX_17_KAUSTUBH_GHARAT%20(2).jpg"))
 
-// var coms = comments.reverse();
+  // var coms = comments.reverse();
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50 bg-black overflow-y-auto">
       <div className="p-7 ml-4 mr-4 mt-4 bg-white shadow-md border-t-4 border-primary rounded z-50 w-max lg:w-[80%] h-[100vh] overflow-y-auto">
@@ -160,4 +160,4 @@ const CommentConatainer = ({ comments, closeModal }) => {
   );
 };
 
-export default CommentConatainer;
+export default CommentContainer;

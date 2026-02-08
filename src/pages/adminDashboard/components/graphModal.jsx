@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import LineChartComponent from '../../components/Linechart/LineChartComponent'
-import LineChartComponentSys from '../../components/linecomponent-sys-dys/LineChartComponentSys'
-import Table from '../../components/table/table'
-import LineChartDialysis from '../../components/Linechart/Linechart_Dialysis/LineChartDialysis'
-import LineChartDialyisisSys from '../../components/Linechart/Linechart_Dialysis/LineChartDialyisisSys'
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from '../../constants/constants'
+import LineChartComponent from "../../../components/Linechart/LineChartComponent"
+import LineChartComponentSys from "../../../components/linecomponent-sys-dys/LineChartComponentSys"
+import Table from "../../../components/table/table"
+import LineChartDialysis from "../../../components/Linechart/Linechart_Dialysis/LineChartDialysis"
+import LineChartDialyisisSys from "../../../components/Linechart/Linechart_Dialysis/LineChartDialyisisSys"
+import axiosInstance from "../../../helpers/axios/axiosInstance";
+import { server_url } from "../../../constants/constants"
 
 const GraphModal = ({ closeModal, patientId, questionId, dailyordia, isGraph, questionTitle, questionUnit }) => {
     // console.log(patientId, questionId, dailyordia, isGraph)

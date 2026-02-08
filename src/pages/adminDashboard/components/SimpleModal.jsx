@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import MyPDFViewer from "../../components/pdf/MyPDFViewer";
+import MyPDFViewer from "../../../components/pdf/MyPDFViewer";
 
 const SimpleModal = ({ closeModal, image }) => {
   const [loading, setLoading] = useState(true);
