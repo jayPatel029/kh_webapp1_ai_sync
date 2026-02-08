@@ -31,7 +31,7 @@ export const PatientNavTabs = ({
   const tabs = [
     { id: 'adminChat', label: 'ADMIN CHAT', path: `/adminChat/${patientId}`, unread: unreadAdminCount, visible: !(role?.role_name === 'Dialysis Technician' || role?.role_name === 'Medical Staff') },
     { id: 'doctorChat', label: 'DOCTOR CHAT', path: `/doctorChat/${patientId}`, unread: unreadDoctorCount, visible: !(role?.role_name === 'Medical Staff' || role?.role_name === 'Dialysis Technician') },
-    { id: 'prescriptions', label: 'PRESCRIPTIONS', path: `/userPrescription/${patientId}`, state: userData, visible: true },
+    { id: 'prescriptions', label: 'PRESCRIPTIONS', path: `/Userprescription/${patientId}`, state: userData, visible: true },
     { id: 'labs', label: 'LAB REPORTS', path: `/UserLabReports/${patientId}`, state: userData, visible: true },
     { id: 'diet', label: 'DIET DETAILS', path: `/UserDietDetails/${patientId}`, state: userData, visible: !(role?.role_name === 'Dialysis Technician') },
     { id: 'requisition', label: 'REQUISITION REPORTS', path: `/UserRequisition/${patientId}`, state: userData, visible: true },
