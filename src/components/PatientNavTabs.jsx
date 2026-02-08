@@ -58,11 +58,12 @@ export const PatientNavTabs = ({
       align="center"
       justify="start"
       className="noscrollbar px-6 py-4 overflow-x-auto shadow-sm bg-white sticky top-0"
+      aria-label="Patient Navigation Tabs"
     >
       {tabs.filter(tab => tab.visible).map((tab) => (
         <Button
           key={tab.id}
-          variant="outline"
+          variant={tab.path === window.location.pathname ? 'secondary' : 'outline'}
           onClick={() => navigate(tab.path, { state: tab.state })}
           className="h-10 px-4 rounded-[12px] flex items-center gap-3 shrink-0  bg-white"
           style={{
@@ -72,10 +73,21 @@ export const PatientNavTabs = ({
             fontWeight: 700,
             minWidth: 150
           }}
+          aria-label={tab.label}
         >
           <Flex align="center" gap={2} className="w-full justify-start">
             <Box className="flex items-center justify-center" style={{ width: 34, height: 34 }}>
-              <img src={icons[tab.id]} alt="" style={{ width: 18, height: 18 }} />
+              <img
+                src={icons[tab.id]}
+                alt={tab.label}
+                style={{
+                  width: 18,
+                  height: 18,
+                  filter: tab.path === window.location.pathname
+                    ? 'brightness(0) invert(1)' // White
+                    : 'brightness(0) saturate(100%) invert(39%) sepia(0%) saturate(0%) hue-rotate(173deg) brightness(95%) contrast(87%)' // #656565
+                }}
+              />
             </Box>
             <span className="truncate">{tab.label}</span>
             <Box className="ml-auto flex items-center gap-2">
