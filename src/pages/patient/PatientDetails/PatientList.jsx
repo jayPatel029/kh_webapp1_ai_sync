@@ -29,6 +29,7 @@ import { Alert } from '../../../component-library/feedback/Alert';
 import SearchIcon from '../../../assets/icons/search.svg';
 import DownloadIcon from '../../../assets/icons/download.svg';
 import TrashIcon from '../../../assets/icons/trash.svg';
+import PlusIcon from '../../../assets/icons/plus.svg';
 
 const PatientList = ({ data, patientId }) => {
   const navigate = useNavigate();
@@ -258,6 +259,26 @@ const PatientList = ({ data, patientId }) => {
           <Button
             variant="solid"
             size="lg"
+            onClick={() => navigate("/Addpatient")}
+            style={{
+              backgroundColor: '#4164df',
+              borderRadius: '10px',
+              fontFamily: 'Sora, sans-serif',
+              fontSize: '16px',
+              fontWeight: '600',
+              padding: '9px 15px',
+              width: '160px'
+            }}
+          >
+            <Flex gap={2} align="center">
+              <img src={PlusIcon} alt="Add" style={{ width: '18px' }} />
+              <Text style={{ color: 'white', fontWeight: '600' }}>Add Patient</Text>
+            </Flex>
+          </Button>
+
+          <Button
+            variant="solid"
+            size="lg"
             onClick={handleExportAll}
             style={{
               backgroundColor: '#4164df',
@@ -278,26 +299,27 @@ const PatientList = ({ data, patientId }) => {
       <VStack spacing={0} align="stretch" className="w-full">
         {/* Table Header */}
         <Flex
-          justify="space-between"
+          justify="between"
           align="center"
-          className="px-5 py-4"
+          className="px-5 py-4 bg-primary-dark border-xl fonr-Sora font-bold text-white"
           style={{
             backgroundColor: '#5886a5',
             borderRadius: '5px',
             fontFamily: 'Sora, sans-serif',
             fontSize: '16px',
             fontWeight: '600',
-            color: 'white'
+            color: 'white',
+
           }}
         >
-          <Text style={{ minWidth: '111px' }}>Profile</Text>
-          <Text style={{ minWidth: '107px' }}>Name</Text>
-          <Text style={{ minWidth: '125px' }}>Number</Text>
-          <Text style={{ minWidth: '202px' }}>Registration Date</Text>
-          <Text style={{ minWidth: '129px' }}>Program</Text>
-          <Text style={{ minWidth: '170px' }}>Medical team</Text>
-          <Text style={{ minWidth: '157px' }}>Assigned to</Text>
-          <Text style={{ minWidth: '90px' }}>Actions</Text>
+          <Text className="min-w-[111px] text-white font-bold">Profile</Text>
+          <Text className="min-w-[107px] text-white font-bold">Name</Text>
+          <Text className="min-w-[125px] text-white font-bold">Number</Text>
+          <Text className="min-w-[202px] text-white font-bold">Registration Date</Text>
+          <Text className="min-w-[129px] text-white font-bold">Program</Text>
+          <Text className="min-w-[170px] text-white font-bold">Medical team</Text>
+          <Text className="min-w-[157px] text-white font-bold">Assigned to</Text>
+          <Text className="min-w-[90px] text-white font-bold">Actions</Text>
         </Flex>
 
         {/* Rows */}
