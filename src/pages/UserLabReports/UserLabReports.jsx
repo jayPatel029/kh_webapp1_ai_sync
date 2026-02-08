@@ -1,296 +1,430 @@
+/**
+ * User Lab Reports Page
+ * Following Figma design with component library and design system
+ * Matches Userprescription.jsx design patterns
+ * 
+ * @file src/pages/UserLabReports/UserLabReports.jsx
+ */
+
 import React, { useState, useEffect } from "react";
-import "./UserLabReports.scss";
-import Sidebar from "../../components/sidebar/Sidebar";
+import { useParams, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+
+// Component Library
+import {
+  Button,
+  Box,
+  Flex,
+  Container,
+} from "../../component-library";
+import { Text, Heading } from "../../component-library/primitives/Typography";
+import { Card } from "../../component-library/primitives/Card";
+
+// Components
 import Navbar from "../../components/navbar/Navbar";
+import Sidebar from "../../components/sidebar/Sidebar";
+import SideBarDoctor from "../../components/sidebarDoctor/SideBarDoctor";
+import PageHeader from "../../components/PageHeader";
+import PatientNavTabs from "../../components/PatientNavTabs";
+import ThemeProvider from "../../components/ThemeProvider";
+
+// Modals
 import MyModal from "./ShowModal";
-import { useLocation } from "react-router-dom";
+import FileViewModal from "../../components/modals/FileViewModal";
+
+// APIs and Helpers
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
-import { BsTrash } from "react-icons/bs";
-import { useParams, Link } from "react-router-dom";
-import UploadedFileModal from "./UploadedFileModal";
-import { FaFilePdf } from "react-icons/fa6";
-import CSVLab2 from "../../components/csvLab2/CSVLab2";
-import CSVReader from "../../components/csvlab/CSVLab";
-import { da } from "date-fns/locale";
-import { useSelector } from "react-redux";
+import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
+
+// Icons
+import sortIcon from "../../assets/Sort_Amount_Up.svg";
+import deleteIcon from "../../assets/Delete.svg";
+import expandIcon from "../../assets/Expand.svg";
+import closeIcon from "../../assets/Close.svg";
 
 const UserLabReports = () => {
   const [showModal, setShowModal] = useState(false);
   const [labReportData, setLabReportData] = useState([]);
+  const [filteredReportData, setFilteredReportData] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [csvData, setCsvData] = useState();
-  const [success, setSuccess] = useState(false);
-  const { id } = useParams();
-  const [patients, setPatients] = useState([]);
-  const [viewPrescription, setViewPrescription] = useState(false);
-  const email = localStorage.getItem("email");
-  const role = useSelector((state) => state.permission);
+  const [userData, setUserData] = useState(null);
+  const [medicalTeam, setMedicalTeam] = useState([]);
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
+  const [selectedFilter, setSelectedFilter] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const [patientData, setPatientData] = useState([
-    {
-      selectedPatient: null,
-      Gfr: "",
-      acr: "",
-      calcium: "",
-      phosphorous: "",
-      bicarbonate: "",
-      albumin: "",
-      gender: "",
-    },
-  ]);
-  // const { name } = useParams();
-  const openModal = () => {
-    setShowModal(true);
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const role = useSelector((state) => state.permission);
+  const email = localStorage.getItem("email");
+
+  const openModal = () => setShowModal(true);
+  const closeModal = () => setShowModal(false);
+
+  const openFileModal = (fileId, imageUrl) => {
+    setUploadedFile({ id: fileId, imageUrl });
   };
 
-  useEffect(() => {
-    // console.log('================================');
-    // console.log(patientOptions)
-    // console.log(patientData)
-    console.log("my role is", role);
-    if (csvData) {
-      const formattedData = csvData;
-      setPatientData(formattedData);
-      console.log("Formatted Data from KFRE List:", formattedData);
-    }
-  }, [success]);
+  const closeFileModal = () => setUploadedFile(null);
 
   const formatDate = (dateString) => {
     if (!dateString) return "";
     const dateObject = new Date(dateString);
-    const day = String(dateObject.getDate()).padStart(2, "0");
-    const month = String(dateObject.getMonth() + 1).padStart(2, "0"); // Months are zero-based
     const year = dateObject.getFullYear();
-    return `${day}-${month}-${year}`;
+    const month = String(dateObject.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObject.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
-  const closeModal = (data) => {
-    setShowModal(false);
-    // if (data) {
-    //   setLabReportData(data);
-    // }
+  const fetchPatientData = async () => {
+    try {
+      const response = await axiosInstance.get(
+        `${server_url}/patient/getPatient/${id}`
+      );
+      setUserData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching patient data:", error);
+    }
   };
 
-  // const openFileModal = (user_id, file) => {
-  //   setUploadedFile({ closeFileModal, user_id, file });
-  // };
-  const openFileModal = (id, imageUrl, comment) => {
-    setUploadedFile({ id, imageUrl, comment });
+  const fetchMedicalTeam = async () => {
+    try {
+      const response = await axiosInstance.get(
+        `${server_url}/patient/getMedicalTeam/${id}`
+      );
+      setMedicalTeam(response.data.data);
+    } catch (error) {
+      console.error("Error fetching medical team:", error);
+    }
   };
 
-  const closeFileModal = () => {
-    setUploadedFile(null);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const response = await axiosInstance.get(
+        `${server_url}/labreport/getLabReports/${id}`
+      );
+      setLabReportData(response.data.data);
+      setFilteredReportData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching lab report data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteLabReport = async (id, email) => {
+  useEffect(() => {
+    const getUnreadMessages = async () => {
+      try {
+        const chatResult = await getAllChatsAdmin(id);
+        if (chatResult.success) {
+          const unreadMsgs = chatResult.data.filter((chat) => chat.unreadCount > 0);
+          setTotalUnreadCount(unreadMsgs.reduce((acc, chat) => acc + chat.unreadCount, 0));
+        }
+      } catch (error) {
+        console.error("Error fetching unread messages:", error);
+      }
+    };
+    getUnreadMessages();
+  }, [id]);
+
+  useEffect(() => {
+    fetchData();
+    fetchPatientData();
+    fetchMedicalTeam();
+  }, [id, showModal]);
+
+  const deleteLabReport = async (reportId, email) => {
     const isConfirmed = window.confirm(
       "Are you sure you want to delete this lab report?"
     );
     if (isConfirmed) {
       try {
-        console.log(id);
-        const response = await axiosInstance.delete(
-          `${server_url}/labreport/deleteLabReport/${id}`,
+        await axiosInstance.delete(
+          `${server_url}/labreport/deleteLabReport/${reportId}`,
           { data: { email } }
         );
-        console.log(response);
-
-        // Fetch the updated data to refresh the state
-        await fetchData();
+        fetchData();
       } catch (error) {
         console.error("Error deleting lab report:", error);
         alert("Failed to delete lab report. Please try again.");
       }
     }
   };
-  const location = useLocation();
 
-  const fetchData = async () => {
-    const patient_id = id;
-    try {
-      const response = await axiosInstance.get(
-        `${server_url}/labreport/getLabReports/${patient_id}`
-      );
-      setLabReportData(response.data.data);
-      console.log(response.data.data);
-      console.log(localStorage.getItem("labReportId"));
-    } catch (error) {
-      console.error("Error fetching lab report data:", error);
+  const handleSelectChange = (e) => {
+    const filter = e.target.value;
+    setSelectedFilter(filter);
+
+    if (!filter || filter === "Select") {
+      setFilteredReportData(labReportData);
+      return;
     }
+
+    const filtered = labReportData.filter(
+      (report) => report.Report_Type === filter
+    );
+    setFilteredReportData(filtered);
   };
 
-  useEffect(() => {
-    fetchData();
-    console.log(labReportData);
-    console.log("pat data", patientData);
-  }, [showModal]);
-
-  const handleDelete = async (id) => {
-    try {
-      await axiosInstance.delete(
-        `${server_url}/labreport/deleteLabReport/${id}`
-      );
-      // Update the userRequisitionData state to reflect the deletion
-      setLabReportData(labReportData.filter((patient) => patient.id !== id));
-    } catch (error) {
-      console.error("Error deleting requisition:", error);
-    }
+  const handleClearFilters = () => {
+    setSelectedFilter("");
+    setFilteredReportData(labReportData);
   };
 
   return (
-    <div className="UserLabReports md:flex block">
-      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-        <Sidebar />
-      </div>
-      <div className="md:flex-[5] block w-screen">
-        <div className="sticky top-0 z-10">
-          <Navbar />
-        </div>
-        <div className="container">
-          <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-            <div className="manage-roles-container p-7 ml-4 mr-4 mt-4 bg-white max-w-7xl shadow-md border-t-4 border-primary">
-              <Link
-                to={`/userProfile/${id}`}
-                className="text-primary border-b-2 border-primary"
+    <ThemeProvider>
+      <Flex className="min-h-screen bg-[#fafafa]">
+        {/* Sidebar */}
+        <Box className="hidden md:block flex-none sticky top-0 h-screen overflow-y-auto">
+          {role?.role_name === "Doctor" ? <SideBarDoctor /> : <Sidebar />}
+        </Box>
+
+        {/* Main Content Area */}
+        <Box className="flex-1 w-full flex flex-col min-w-0">
+          {/* Navbar */}
+          <Box className="sticky top-0 z-30">
+            <Navbar />
+          </Box>
+
+          {/* Sticky Header Section */}
+          <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+            <Container className="py-4 px-4 md:px-6 max-w-full lg:max-w-[1440px] mx-auto">
+              {/* Header with Breadcrumbs */}
+              <PageHeader
+                title="Patient Profile"
+                breadcrumbs={[
+                  { label: "All Patients", path: "/patient" },
+                  { label: "Patient", path: `/userProfile/${id}`, active: false },
+                  { label: "Patient Profile", active: true }
+                ]}
+                onBack={() => navigate("/patient")}
+              />
+            </Container>
+
+            {/* Navigation Tabs */}
+            <PatientNavTabs
+              patientId={id}
+              userData={userData}
+              unreadAdminCount={totalUnreadCount}
+              unreadDoctorCount={totalUnreadCountDoc}
+              role={role}
+            />
+          </Box>
+
+          {/* Main Content */}
+          <Box className="flex-1 overflow-y-auto">
+            <Container className="py-8 px-4 md:px-8 lg:px-12 max-w-full lg:max-w-[1440px] mx-auto">
+              <Card
+                className="bg-white rounded-[15px] p-8"
+                style={{
+                  boxShadow: '-2px -2px 8px 0px rgba(0,0,0,0.1), 2px 2px 8px 0px rgba(0,0,0,0.15)'
+                }}
               >
-                go back
-              </Link>
-              <div className="mt-4 mb-4 flex items-center justify-end">
-                <h1 className="text-xl text-bold">{location?.state?.name}</h1>
-                {/* <img src="" alt="f" className="rounded-full h-12 w-12" /> */}
-              </div>
-              <div className="flex justify-between items-center border-b pb-2 mb-4">
-                <h2 className="text-2xl font-bold">User Lab Report</h2>
-                <div className="flex items-center justify-end">
-                  {role.role_name != "Dialysis Technician" && (
+                {/* Top Panel - Avatar and Name */}
+                <Flex
+                  justify="between"
+                  align="center"
+                  className="pb-4 border-b border-gray-200 mb-6"
+                >
+                  <Heading
+                    size="lg"
+                    weight="bold"
+                    style={{ color: '#393939', fontSize: '18px' }}
+                  >
+                    Lab reports
+                  </Heading>
+
+                  <Flex align="center" gap={3}>
+                    <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
+                      <span className="text-sm font-semibold text-gray-700 uppercase">
+                        {userData?.name?.charAt(0) || "P"}
+                      </span>
+                    </Box>
+                    <Text
+                      size="md"
+                      weight="normal"
+                      style={{ color: '#393939', fontSize: '18px' }}
+                    >
+                      {userData?.name || "Patient"}
+                    </Text>
                     <button
-                      className="block rounded-lg text-primary border-2 border-primary w-40 py-2"
-                      onClick={() => openModal()}
+                      className="ml-8 w-9 h-9 flex items-center justify-center cursor-pointer hover:opacity-70 transition-opacity"
+                      onClick={() => navigate(`/userProfile/${id}`)}
+                    >
+                      <img src={closeIcon} alt="Close" className="w-full h-full" />
+                    </button>
+                  </Flex>
+                </Flex>
+
+                {/* Filter and Action Bar */}
+                <Flex justify="between" align="center" className="mb-8">
+                  <Flex align="center" gap={4}>
+                    <Box className="relative">
+                      <select
+                        value={selectedFilter}
+                        onChange={handleSelectChange}
+                        className="h-[50px] pl-4 pr-10 rounded-[10px] border border-[#5886a5] bg-white text-[#5886a5] text-[16px] font-normal appearance-none cursor-pointer focus:outline-none"
+                        style={{ minWidth: '158px' }}
+                      >
+                        <option value="">Sort by</option>
+                        {["Lab", "Ultrasound", "X-Ray", "Echo", "MRI", "Angiography", "CT Scan"].map((type) => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                      <Box className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <img src={sortIcon} alt="Sort" className="w-[15px] h-[15px]" />
+                      </Box>
+                    </Box>
+
+                    <button
+                      onClick={handleClearFilters}
+                      className="text-[16px] font-semibold text-[#5886a5] underline hover:text-primary transition-colors cursor-pointer"
+                    >
+                      Clear filters
+                    </button>
+                  </Flex>
+
+                  {role?.role_name !== "Dialysis Technician" && (
+                    <Button
+                      variant="solid"
+                      className="h-[50px] px-8 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3453c1] transition-colors"
+                      onClick={openModal}
                     >
                       Upload Lab Report
-                    </button>
+                    </Button>
                   )}
+                </Flex>
 
-                  {showModal && (
-                    <MyModal
-                      closeModal={closeModal}
-                      user_id={location.state.id}
-                      onSuccess={fetchData}
-                    />
-                  )}
-                  {uploadedFile && (
-                    <UploadedFileModal
-                      closeModal={closeFileModal}
-                      user_id={location.state.id}
-                      file_id={uploadedFile.id}
-                      file={uploadedFile}
-                      patient_id={id}
-                    />
-                  )}
-                </div>
-              </div>
-              <CSVLab2
-                patientId={id}
-                setData={setCsvData}
-                setSuccess={setSuccess}
-                success={success}
-              />
-              <div className=" overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead className="bg-white text-gray-700">
-                    <tr className="border-b-2 border-black">
-                      <th className="py-3 px-4 text-left">Date</th>
-                      <th className="py-3 px-4 text-center">Report Type</th>
-                      <th className="py-3 px-4 text-center">Lab Reports</th>
-                      <th className="py-3 px-4 text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.isArray(labReportData) &&
-                      labReportData.map((labReportsItem, index) => (
-                        <tr
+                {/* Table Layout */}
+                <Box className="border border-gray-100 rounded-[5px] overflow-hidden">
+                  {/* Table Header */}
+                  <Flex
+                    className="bg-[#5886a5] text-white py-4 px-6 md:px-12"
+                    justify="between"
+                  >
+                    <Box style={{ flex: '1', minWidth: '120px' }}>
+                      <Text size="md" weight="semibold">Date</Text>
+                    </Box>
+                    <Box style={{ flex: '1', minWidth: '150px' }}>
+                      <Text size="md" weight="semibold">Report Type</Text>
+                    </Box>
+                    <Box style={{ flex: '1', minWidth: '150px' }} className="text-center">
+                      <Text size="md" weight="semibold">Lab Reports</Text>
+                    </Box>
+                    <Box style={{ flex: '0 0 100px' }} className="text-center">
+                      <Text size="md" weight="semibold">Actions</Text>
+                    </Box>
+                  </Flex>
+
+                  {/* Table Body */}
+                  <Box className="bg-white">
+                    {loading ? (
+                      <Box className="py-20 text-center">
+                        <Text className="text-gray-500">Loading lab reports...</Text>
+                      </Box>
+                    ) : filteredReportData.length > 0 ? (
+                      filteredReportData.map((report, index) => (
+                        <Flex
                           key={index}
-                          className={`
-                         ${
-                           localStorage.getItem("labReportId") ===
-                           String(labReportsItem.id)
-                             ? "bg-green-100"
-                             : ""
-                         }
-                         border-b border-gray-200 
-                        `}
+                          className="border-b border-gray-100 py-6 px-6 md:px-12 hover:bg-gray-50 transition-colors"
+                          justify="between"
+                          align="center"
                         >
-                          <td>
-                            {
-                              (labReportsItem.date = formatDate(
-                                labReportsItem?.Date
-                              ))
-                            }
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            {labReportsItem.Report_Type}
-                          </td>
-                          <td className="flex justify-center">
-                            {labReportsItem.Lab_Report &&
-                            labReportsItem.Lab_Report.endsWith(".pdf") ? (
-                              <FaFilePdf
-                                className="w-20 h-16 cursor-pointer py-3 text-red-500"
-                                onClick={() =>
-                                  openFileModal(
-                                    labReportsItem.id,
-                                    labReportsItem.Lab_Report
-                                  )
-                                }
-                              />
-                            ) : (
-                              <img
-                                src={labReportsItem.Lab_Report}
-                                alt="Lab Report"
-                                className="h-20 w-20 inline-block"
-                                style={{ cursor: "pointer" }}
-                                onClick={() =>
-                                  openFileModal(
-                                    labReportsItem.id,
-                                    labReportsItem.Lab_Report
-                                    // labReportsItem.Comments
-                                  )
-                                }
-                              />
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <button
-                              className="text-red-500 "
-                              style={{ fontSize: "1.5rem" }}
-                              onClick={() =>
-                                deleteLabReport(labReportsItem.id, email)
-                              }
+                          <Box style={{ flex: '1', minWidth: '120px' }}>
+                            <Text
+                              size="md"
+                              weight="semibold"
+                              style={{ color: '#989898' }}
                             >
-                              <BsTrash />
-                              {/* <button
-                                className="text-green-600 inline-block mx-2 text-m"
-                                // onClick={}
-                              >
-                                comment
-                              </button> */}
+                              {formatDate(report.date || report.Date)}
+                            </Text>
+                          </Box>
+                          <Box style={{ flex: '1', minWidth: '150px' }}>
+                            <Text
+                              size="md"
+                              weight="semibold"
+                              style={{ color: '#989898' }}
+                            >
+                              {report.Report_Type}
+                            </Text>
+                          </Box>
+                          <Box
+                            style={{ flex: '1', minWidth: '150px' }}
+                            className="flex justify-center"
+                          >
+                            <Box
+                              className="relative cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => openFileModal(report.id, report.Lab_Report)}
+                            >
+                              <Box className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden">
+                                <Box
+                                  className="rotate-90"
+                                  style={{ width: '80px', height: '56.534px' }}
+                                >
+                                  <img
+                                    src={report.Lab_Report}
+                                    alt="Lab Report"
+                                    className="w-full h-full object-cover opacity-70"
+                                  />
+                                </Box>
+                              </Box>
+                              <Box className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                                <img src={expandIcon} alt="Expand" className="w-5 h-5" />
+                              </Box>
+                            </Box>
+                          </Box>
+                          <Box
+                            style={{ flex: '0 0 100px' }}
+                            className="flex justify-center"
+                          >
+                            <button
+                              onClick={() => deleteLabReport(report.id, email)}
+                              className="w-8 h-8 flex items-center justify-center cursor-pointer hover:opacity-70 transition-opacity"
+                            >
+                              <img src={deleteIcon} alt="Delete" className="w-full h-full" />
                             </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-                {!Array.isArray(labReportData) && (
-                  <div className="text-left italic font-light">
-                    No data present
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+                          </Box>
+                        </Flex>
+                      ))
+                      ) : (
+                        <Box className="py-20 text-center">
+                          <Text size="md" weight="normal" className="italic text-gray-400">
+                            No lab reports found
+                          </Text>
+                        </Box>
+                    )}
+                  </Box>
+                </Box>
+              </Card>
+            </Container>
+          </Box>
+        </Box>
+      </Flex>
+
+      {/* Modals */}
+      {showModal && (
+        <MyModal
+          closeModal={closeModal}
+          user_id={id}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {uploadedFile && (
+        <FileViewModal
+          isOpen={!!uploadedFile}
+          onClose={closeFileModal}
+          fileUrl={uploadedFile.imageUrl}
+          fileId={uploadedFile.id}
+          patientId={id}
+          fileType="Lab Report"
+          title="Lab Report View"
+        />
+      )}
+    </ThemeProvider>
   );
 };
 
