@@ -1,215 +1,313 @@
+/**
+ * Diet Details Page - Redesigned
+ * Following Figma design with component library and design system
+ * 
+ * @file src/pages/UserDietDetails/UserDietDetails.jsx
+ */
+
 import React, { useState, useEffect } from "react";
-import "./UserDietDetails.scss";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
-import DietModal from "./DietModal";
-import { useLocation, useParams, Link } from "react-router-dom";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
-import { BsTrash } from "react-icons/bs";
-// import { Location } from "react-router-dom";
-import UploadedFileModal from "./UploadedFileModal";
-import { FaFilePdf } from "react-icons/fa6";
+import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
-function UserDietDetails() {
+// Component Library
+import {
+  Box,
+  Flex,
+  Container,
+} from "../../component-library";
+import { Button } from "../../component-library/primitives/Button";
+
+// Components
+import Sidebar from "../../components/sidebar/Sidebar";
+import Navbar from "../../components/navbar/Navbar";
+import SideBarDoctor from "../../components/sidebarDoctor/SideBarDoctor";
+import PageHeader from "../../components/PageHeader";
+import PatientNavTabs from "../../components/PatientNavTabs";
+import ThemeProvider from "../../components/ThemeProvider";
+import DietModal from "./DietModal";
+import FileViewModal from "../../components/modals/FileViewModal";
+
+// APIs and Helpers
+import axiosInstance from "../../helpers/axios/axiosInstance";
+import { server_url } from "../../constants/constants";
+import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
+
+// Icons
+import { BsTrash } from "react-icons/bs";
+import { FaFilePdf } from "react-icons/fa6";
+
+// Import design system styles
+import "../../design-system/styles/index.css";
+
+const UserDietDetails = () => {
   const [showModal, setShowModal] = useState(false);
-  const [dietData, setDietData] = useState(null);
+  const [dietData, setDietData] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
-  // const location = useLocation();
-  const pid = useParams().id;
+  const [loading, setLoading] = useState(false);
+  const [userData, setUserData] = useState({});
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
 
-  // const { name } = useParams();
-  const openModal = () => {
-    setShowModal(true);
-  };
-
-  const closeModal = (data) => {
-    setShowModal(false);
-    // if (data) {
-    //   setDietData(data);
-    // }
-  };
-  const location = useLocation();
-
-  const openFileModal = (id, imageUrl, comment) => {
-    setUploadedFile({ id, imageUrl, comment });
-  };
-
-  const closeFileModal = () => {
-    setUploadedFile(null);
-  };
+  const { id } = useParams();
+  const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
 
-  const deleteDietDetails = async (id) => {
-    const isConfirmed = window.confirm(
-      "Are you sure you want to delete these diet details?"
-    );
-    if (isConfirmed) {
-      try {
-        const result = await axiosInstance.delete(
-          `${server_url}/dietdetails/deleteDietDetails/${id}`
-        );
+  const openModal = () => setShowModal(true);
+  const closeModal = () => setShowModal(false);
 
-        console.log("Response:", result.data);
-        await fetchData(); // Refresh the data to update the state
-      } catch (error) {
-        console.error("Error:", error.message);
-        alert("Failed to delete diet details. Please try again.");
-      }
-    }
+  const openFileModal = (fileId, fileUrl) => {
+    setUploadedFile({ fileId, fileUrl });
+  };
+
+  const closeFileModal = () => setUploadedFile(null);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const dateObject = new Date(dateString);
+    const year = dateObject.getFullYear();
+    const month = String(dateObject.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObject.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
   const fetchData = async () => {
     try {
       const result = await axiosInstance.get(
-        `${server_url}/dietdetails/getPatientDietDetailsAdmin/${pid}`
+        `${server_url}/dietdetails/getPatientDietDetailsAdmin/${id}`
       );
-      console.log("Response:", result.data.data);
-      setDietData(result.data.data);
+      setDietData(result.data.data || []);
     } catch (error) {
-      console.error("Error:", error.message);
+      console.error("Error fetching diet data:", error);
+    }
+  };
+
+  const fetchPatientData = async () => {
+    try {
+      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${id}`);
+      setUserData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching patient data:", error);
     }
   };
 
   useEffect(() => {
+    const getUnreadMessagesFromAdmin = async () => {
+      try {
+        const chatResult = await getAllChatsAdmin(id);
+        if (chatResult.success) {
+          const unreadMsgs = chatResult.data.filter((chat) => chat.unreadCount > 0);
+          setTotalUnreadCount(unreadMsgs.reduce((acc, chat) => acc + chat.unreadCount, 0));
+        }
+      } catch (error) {
+        console.error("Error fetching unread messages from admin:", error);
+      }
+    };
+    getUnreadMessagesFromAdmin();
+  }, [id]);
+
+  useEffect(() => {
     fetchData();
-    console.log("role", role);
-  }, [showModal]);
+    fetchPatientData();
+  }, [id]);
+
+  const deleteDietDetails = async (dietId) => {
+    const isConfirmed = window.confirm(
+      "Are you sure you want to delete these diet details?"
+    );
+    if (isConfirmed) {
+      try {
+        await axiosInstance.delete(
+          `${server_url}/dietdetails/deleteDietDetails/${dietId}`
+        );
+        await fetchData(); // Refresh the data
+      } catch (error) {
+        console.error("Error deleting diet details:", error);
+        alert("Failed to delete diet details. Please try again.");
+      }
+    }
+  };
+
+  if (loading) {
+    return <Box className="p-20 text-center">Loading...</Box>;
+  }
+
   return (
-    <>
-      <div className="UserDietDetails md:flex block">
-        <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-          <Sidebar />
-        </div>
-        <div className="md:flex-[5] block w-screen">
-          <div className="sticky top-0 z-10">
-            <Navbar />
-          </div>
-          <div className="container">
-            <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-              <div className="manage-roles-container p-7 ml-4 mr-4 mt-4 bg-white shadow-md border-t-4 border-primary">
-                <Link
-                  to={`/userProfile/${pid}`}
-                  className="text-primary border-b-2 border-primary"
-                >
-                  go back
-                </Link>
-                <div className="mt-4 mb-4 flex items-center justify-end">
-                  <h1 className="text-xl text">{location.state.name}</h1>
-                  {/* <img src="" alt="f" className="rounded-full h-12 w-12" /> */}
-                </div>
+    <ThemeProvider>
+      <Box className="flex min-h-screen">
+        <Box className="flex-shrink-0">
+          {role?.role_name === "Doctor" ? <SideBarDoctor /> : <Sidebar />}
+        </Box>
 
-                {role.role_name === "Doctor" ? null : (
-                  <div className="flex justify-between items-center border-b pb-2 mb-4">
-                    <h2 className="text-2xl font-bold">Diet Details</h2>
-                    <div className="flex items-center justify-end">
-                      <button
-                        className="block rounded-lg text-primary border-2 border-primary w-40 py-2"
-                        onClick={() => openModal()}
-                      >
-                        Upload Diet Details
-                      </button>
-                      {showModal && (
-                        <DietModal
-                          closeModal={closeModal}
-                          user_id={location.state.id}
-                          onSuccess={fetchData}
-                        />
-                      )}
-                      {uploadedFile && (
-                        <UploadedFileModal
-                          closeModal={closeFileModal}
-                          user_id={location.state.id}
-                          file_id={uploadedFile.id}
-                          file={uploadedFile}
-                        />
-                      )}
-                    </div>
-                  </div>
-                )}
+        <Box className="flex-1 flex flex-col min-w-0">
+          <Navbar />
 
-                <div className=" overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead className="bg-white text-gray-700">
-                      <tr className="border-b-2 border-black">
-                        <th className="py-3 px-4 text-left">Date</th>
-                        <th className="py-3 px-4 text-left">Report Type</th>
-                        <th className="py-3 px-4 text-left">Description</th>
-                        <th className="py-3 px-4 text-left">Image</th>
-                        <th className="py-3 px-4 text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dietData ? (
-                        dietData.map((data) => (
-                          <tr
-                            key={data.id}
-                            className="border-b hover:bg-gray-100"
-                          >
-                            <td className="py-3 px-4 text-left">{data.Date}</td>
-                            <td className="py-3 px-4 text-left">
+          {/* Sticky Header Section */}
+          <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+            <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+              {/* Header with Breadcrumbs */}
+              <PageHeader
+                title="Patient Profile"
+                breadcrumbs={[
+                  { label: "All Patients", path: "/patient" },
+                  { label: "Patient", path: `/userProfile/${id}`, active: false },
+                  { label: "Patient Profile", active: true }
+                ]}
+                onBack={() => navigate("/patient")}
+              />
+            </Container>
+
+            {/* Navigation Tabs */}
+            <PatientNavTabs
+              patientId={id}
+              userData={userData}
+              unreadAdminCount={totalUnreadCount}
+              unreadDoctorCount={totalUnreadCountDoc}
+              role={role}
+            />
+          </Box>
+
+          {/* Main Content */}
+          <Box className="flex-1 bg-[#fafafa]">
+            <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
+              <Box className="bg-white rounded-[15px] shadow-md p-8">
+                {/* Header Section */}
+                <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
+                  <Box>
+                    <h2 className="text-[18px] font-bold text-[#393939]">Diet reports</h2>
+                  </Box>
+                  <Flex align="center" gap={3}>
+                    <Box className="flex items-center gap-2">
+                      <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-gray-700">
+                          {userData?.name?.charAt(0)?.toUpperCase() || "P"}
+                        </span>
+                      </Box>
+                      <span className="text-[18px] text-[#393939]">{userData?.name || "Patient"}</span>
+                    </Box>
+                  </Flex>
+                </Flex>
+
+                {/* Filter and Upload Section */}
+                <Flex justify="between" align="center" className="mb-6">
+                  <Flex gap={4} align="center">
+                    {/* Placeholder for filters - hidden per Figma design */}
+                    <Box className="opacity-0">
+                      <select className="h-[50px] px-4 pr-10 rounded-[10px] border border-[#5886a5]">
+                        <option>Sort by</option>
+                      </select>
+                    </Box>
+                  </Flex>
+
+                  {/* Upload Button - Only show for non-Doctor roles */}
+                  {role?.role_name !== "Doctor" && (
+                    <Button
+                      variant="solid"
+                      onClick={openModal}
+                      className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
+                    >
+                      Upload
+                    </Button>
+                  )}
+                </Flex>
+
+                {/* Table */}
+                <Box className="overflow-x-auto">
+                  {/* Table Header */}
+                  <Box className="bg-[#5886a5] rounded-[5px] px-[70px] py-4 mb-0">
+                    <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
+                      <Box style={{ flex: "0 0 150px" }}>Date</Box>
+                      <Box style={{ flex: "0 0 200px" }}>Report type</Box>
+                      <Box style={{ flex: "0 0 200px" }}>Description</Box>
+                      <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Image</Box>
+                      <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
+                    </Flex>
+                  </Box>
+
+                  {/* Table Body */}
+                  <Box>
+                    {dietData && dietData.length > 0 ? (
+                      dietData.map((data, index) => (
+                        <Box
+                          key={data.id || index}
+                          className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
+                        >
+                          <Flex justify="between" align="center">
+                            <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
+                              {formatDate(data.Date)}
+                            </Box>
+                            <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
                               {data.Meal_Type}
-                            </td>
-                            <td className="py-3 px-4 text-left">
+                            </Box>
+                            <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
                               {data.meal_desc}
-                            </td>
-                            <td className="py-3 px-4 text-left">
-                              {data.meal_img &&
-                              data.meal_img.endsWith(".pdf") ? (
-                                <FaFilePdf
-                                  className="w-20 h-16 cursor-pointer py-3 text-red-500"
-                                  style={{ cursor: "pointer" }}
-                                  onClick={() =>
-                                    openFileModal(data.id, data.meal_img)
-                                  }
-                                />
+                            </Box>
+                            <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
+                              {data.meal_img && data.meal_img.endsWith(".pdf") ? (
+                                <Box
+                                  className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => openFileModal(data.id, data.meal_img)}
+                                >
+                                  <FaFilePdf className="text-white text-2xl" />
+                                </Box>
                               ) : (
-                                <img
-                                  src={data.meal_img}
-                                  alt="img"
-                                  style={{ cursor: "pointer" }}
-                                  className="rounded-full h-12 w-12"
-                                  onClick={() =>
-                                    openFileModal(data.id, data.meal_img)
-                                  }
-                                />
+                                  <Box
+                                    className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => openFileModal(data.id, data.meal_img)}
+                                  >
+                                    <img
+                                      src={data?.meal_img}
+                                      alt="Diet"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </Box>
                               )}
-                            </td>
-                            <td className="py-3 px-4 text-left">
+                            </Box>
+                            <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
                               <button
-                                onClick={() =>
-                                  deleteDietDetails(data.id).then(() =>
-                                    fetchData()
-                                  )
-                                }
-                                className="text-red-500"
+                                className="text-[#de425b] hover:text-[#c93850] transition-colors"
+                                onClick={() => deleteDietDetails(data.id)}
                               >
-                                <BsTrash />
+                                <BsTrash size={24} />
                               </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan="4"
-                            className="text-left italic font-light"
-                          >
-                            No data present
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+                            </Box>
+                          </Flex>
+                        </Box>
+                      ))
+                    ) : (
+                      <Box className="bg-white px-[70px] py-8 text-center">
+                        <p className="text-[#989898] text-[16px] italic">No diet details found</p>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+            </Container>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Modals */}
+      {showModal && (
+        <DietModal
+          closeModal={closeModal}
+          user_id={id}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {uploadedFile && (
+        <FileViewModal
+          isOpen={!!uploadedFile}
+          onClose={closeFileModal}
+          fileUrl={uploadedFile.fileUrl}
+          fileId={uploadedFile.fileId}
+          patientId={id}
+          fileType="Diet Details"
+          title="Diet Details View"
+        />
+      )}
+    </ThemeProvider>
   );
-}
+};
 
 export default UserDietDetails;
