@@ -1,367 +1,99 @@
-// import React, { useState, useEffect } from "react";
-// import "./Userprescription.scss";
-// import Sidebar from "../../components/sidebar/Sidebar";
-// import Navbar from "../../components/navbar/Navbar";
-// import PrescriptionModal from "./PrescriptionModal";
-// import { useLocation } from "react-router-dom";
-// import axiosInstance from "../../helpers/axios/axiosInstance";
-// import { server_url } from "../../constants/constants";
-// import { BsTrash } from "react-icons/bs";
-// import { useParams, Link } from "react-router-dom";
-// // import CommentModal from "./commentModal";
-// import UploadedFileModal from "./UploadedFileModal";
-
-// import { FaFilePdf } from "react-icons/fa6";
-// // import UploadBulkProfile from "../labreports/uploadBulkProfileQuestions";
-
-// const Userprescription = () => {
-//   const [showModal, setShowModal] = useState(false);
-//   const [userPrescriptionData, setUserPrescriptionData] = useState([]);
-//   const [filteredPrescriptionData, setFilteredPrescriptionData] = useState([]);
-//   const [uploadedFile, setUploadedFile] = useState(null);
-//   const { id } = useParams();
-//   const [doctorOptions, setDoctorOptions] = useState([]);
-//   const [loading, setLoading] = useState(false);
-//   const location = useLocation();
-//   const email = localStorage.getItem("email");
-
-//   const openModal = () => {
-//     setShowModal(true);
-//   };
-
-//   const closeModal = () => {
-//     setShowModal(false);
-//   };
-
-//   const openFileModal = (user_id, file, comment, file_id) => {
-//     console.log("user_id", user_id);
-//     setUploadedFile({ user_id, file, comment, file_id });
-//   };
-
-//   const closeFileModal = () => {
-//     setUploadedFile(null);
-//   };
-
-//   // console.log(location.pathname);
-
-//   const formatDate = (dateString) => {
-//     if (!dateString) return "";
-//     const dateObject = new Date(dateString);
-//     const day = String(dateObject.getDate()).padStart(2, "0");
-//     const month = String(dateObject.getMonth() + 1).padStart(2, "0"); // Months are zero-based
-//     const year = dateObject.getFullYear();
-//     return `${day}-${month}-${year}`;
-//   };
-
-//   console.log(id);
-//   const fetchData = async () => {
-//     const patient_id = id;
-//     try {
-//       const response = await axiosInstance.get(
-//         `${server_url}/prescription/getPrescription/${patient_id}`
-//       );
-//       console.log(response.data.data);
-//       setUserPrescriptionData(response.data.data);
-//       setFilteredPrescriptionData(response.data.data);
-//       console.log("data received on frontend : ", response.data.data);
-//     } catch (error) {
-//       console.error("Error fetching prescription data:", error);
-//     }
-//   };
-
-//   const fetchMedicalTeam = async (user_id) => {
-//     setLoading(true);
-//     try {
-//       const response = await axiosInstance.get(
-//         `${server_url}/patient/getMedicalTeam/${user_id}`
-//       );
-//       // console.log(response.data)
-//       setDoctorOptions(response.data.data);
-//     } catch (error) {
-//       console.error("Error fetching medical team:", error);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     try {
-//       fetchMedicalTeam(id);
-//       fetchData();
-//     } catch (error) {
-//       console.log(error);
-//     }
-//   }, []);
-
-//   const handleDelete = async (prescriptionId, email) => {
-//     const isConfirmed = window.confirm(
-//       "Are you sure you want to delete this prescription?"
-//     );
-//     if (isConfirmed) {
-//       try {
-//         console.log("prescription id", prescriptionId);
-//         await axiosInstance.delete(
-//           `${server_url}/prescription/deletePrescription/${prescriptionId}`,
-//           {
-//             data: {
-//               email: email,
-//             },
-//           }
-//         );
-
-//         // Remove the deleted prescription from the state
-//         setUserPrescriptionData((prevData) =>
-//           prevData.filter((prescription) => prescription.id !== prescriptionId)
-//         );
-//         setFilteredPrescriptionData((prevData) =>
-//           prevData.filter((prescription) => prescription.id !== prescriptionId)
-//         );
-//       } catch (error) {
-//         console.error("Error deleting prescription:", error);
-//         alert("Failed to delete prescription. Please try again.");
-//       }
-//     }
-//   };
-
-//   if (loading) {
-//     return <div>Loading...</div>;
-//   }
-
-//   const handleSelectChange = (e) => {
-//     const selectedDoctor = parseFloat(e.target.value);
-//     const filteredData = userPrescriptionData.filter(
-//       (prescription) =>
-//         parseFloat(prescription.prescriptionGivenBy) === selectedDoctor
-//     );
-//     setFilteredPrescriptionData(filteredData);
-//   };
-
-//   return (
-//     <div className="Userprescription md:flex block">
-//       <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-//         <Sidebar />
-//       </div>
-//       <div className="md:flex-[5] block w-screen">
-//         <div className="sticky top-0 z-10">
-//           <Navbar />
-//         </div>
-//         <div className="container">
-//           <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-//             <div className="manage-roles-container p-7 ml-4 mr-4 mt-4 bg-white shadow-md border-t-4 border-primary">
-//               <Link
-//                 to={`/userProfile/${id}`}
-//                 className="text-primary border-b-2 border-primary"
-//               >
-//                 go back
-//               </Link>
-//               <div className="mt-4 mb-4 flex items-center justify-end">
-//                 <h1 className="text-xl text-bold">{location?.state?.name}</h1>
-//               </div>
-//               <div className="flex justify-between items-center border-b pb-2 mb-4">
-//                 <h2 className="text-2xl font-bold">Prescription</h2>
-//                 <div className="flex items-center justify-end">
-//                   <button
-//                     className="block rounded-lg text-primary border-2 border-primary w-40 py-2"
-//                     onClick={() => openModal()}
-//                   >
-//                     Upload Prescription
-//                   </button>
-//                   {showModal && (
-//                     <PrescriptionModal
-//                       closeModal={closeModal}
-//                       user_id={id}
-//                       onSuccess={fetchData}
-//                     />
-//                   )}
-
-//                   {uploadedFile && (
-//                     <UploadedFileModal
-//                       closeModal={closeFileModal}
-//                       user_id={id}
-//                       file_id={uploadedFile.id}
-//                       file={uploadedFile.file}
-//                     />
-//                   )}
-//                 </div>
-//               </div>
-
-//               <div className="flex flex-row">
-//                 <select
-//                   id="doctorId"
-//                   className="w-1/3 border-2 py-2 px-3 rounded focus:outline-none focus:border-amber-950"
-//                   // value={selectedDoctorId}
-//                   onChange={handleSelectChange}
-//                 >
-//                   <option>sort by doctor</option>
-//                   {Array.isArray(doctorOptions) &&
-//                     doctorOptions.map((doctor, index) => (
-//                       <option key={index} value={doctor.id}>
-//                         {doctor.name}
-//                       </option>
-//                     ))}
-//                 </select>
-//                 <button
-//                   className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center ml-2"
-//                   onClick={() => {
-//                     setFilteredPrescriptionData(userPrescriptionData);
-//                   }}
-//                 >
-//                   Clear Filter
-//                 </button>
-//               </div>
-
-//               <div className="overflow-x-auto">
-//                 <table className="w-full border-collapse">
-//                   <thead className="bg-white text-gray-700">
-//                     <tr className="border-b-2 border-black">
-//                       <th className="py-3 px-4 text-left">Date</th>
-//                       <th className="py-3 px-4 text-left">
-//                         Prescription Given By
-//                       </th>
-//                       <th className="py-3 px-4 text-center">Prescription</th>
-//                       <th className="py-3 px-4 text-center">Actions</th>
-//                     </tr>
-//                   </thead>
-//                   <tbody>
-//                     {filteredPrescriptionData.length > 0 ? (
-//                       filteredPrescriptionData.map(
-//                         (prescriptionItem, index) => (
-//                           <tr key={index}>
-//                             <td className="px-4 border-black">
-//                               {formatDate(prescriptionItem.Date)}
-//                             </td>
-//                             <td className="px-4 border-black text-center">
-//                               {prescriptionItem.prescriptionGivenByName}
-//                             </td>
-//                             <td className="flex justify-center">
-//                               {prescriptionItem.Prescription &&
-//                               prescriptionItem.Prescription.endsWith(".pdf") ? (
-//                                 <FaFilePdf
-//                                   className="w-20 h-16 cursor-pointer py-3 text-red-500"
-//                                   onClick={() =>
-//                                     openFileModal(
-//                                       prescriptionItem.id,
-//                                       prescriptionItem.Prescription
-//                                     )
-//                                   }
-//                                 />
-//                               ) : (
-//                                 <img
-//                                   className=" cursor-pointer"
-//                                   src={prescriptionItem?.Prescription}
-//                                   alt="Prescription"
-//                                   onClick={() =>
-//                                     openFileModal(
-//                                       prescriptionItem.id,
-//                                       prescriptionItem.Prescription
-//                                     )
-//                                   }
-//                                 />
-//                               )}
-//                             </td>
-//                             <td className="text-center">
-//                               <button
-//                                 className="text-[#ff0000] inline-block mx-2 text-2xl"
-//                                 onClick={() =>
-//                                   handleDelete(prescriptionItem.id, email)
-//                                 }
-//                               >
-//                                 <BsTrash />
-//                               </button>
-//                             </td>
-//                           </tr>
-//                         )
-//                       )
-//                     ) : (
-//                       <tr>
-//                         <td colSpan="3" className="text-left italic font-light">
-//                           No Prescription found
-//                         </td>
-//                       </tr>
-//                     )}
-//                   </tbody>
-//                 </table>
-//               </div>
-//             </div>
-//           </div>
-//           {/* <UploadBulkProfile/> */}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Userprescription;
+/**
+ * Prescription Page - Redesigned
+ * Following Figma design with component library and design system
+ * 
+ * @file src/pages/Userprescription/Userprescription.jsx
+ */
 
 import React, { useState, useEffect } from "react";
-import "./Userprescription.scss";
+import { useNavigate, useParams } from "react-router-dom";
+import { useSelector } from "react-redux";
+
+// Component Library
+import {
+  Box,
+  Flex,
+  Container,
+} from "../../component-library";
+import { Button } from "../../component-library/primitives/Button";
+import { Badge } from "../../component-library/primitives/Badge";
+
+// Components
 import Sidebar from "../../components/sidebar/Sidebar";
 import Navbar from "../../components/navbar/Navbar";
+import SideBarDoctor from "../../components/sidebarDoctor/SideBarDoctor";
+import PageHeader from "../../components/PageHeader";
+import PatientNavTabs from "../../components/PatientNavTabs";
+import ThemeProvider from "../../components/ThemeProvider";
 import PrescriptionModal from "./PrescriptionModal";
-import { useLocation } from "react-router-dom";
+import FileViewModal from "../../components/modals/FileViewModal";
+
+
+// APIs and Helpers
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
-import { BsTrash } from "react-icons/bs";
-import { useParams, Link } from "react-router-dom";
-// import CommentModal from "./commentModal";
-import UploadedFileModal from "./UploadedFileModal";
+import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
 
+// Icons
+import { BsTrash } from "react-icons/bs";
 import { FaFilePdf } from "react-icons/fa6";
-import { useSelector } from "react-redux";
-// import UploadBulkProfile from "../labreports/uploadBulkProfileQuestions";
+
+// Import design system styles
+import "../../design-system/styles/index.css";
 
 const Userprescription = () => {
   const [showModal, setShowModal] = useState(false);
   const [userPrescriptionData, setUserPrescriptionData] = useState([]);
   const [filteredPrescriptionData, setFilteredPrescriptionData] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
-  const { id } = useParams();
   const [doctorOptions, setDoctorOptions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const location = useLocation();
-  const email = localStorage.getItem("email");
+  const [userData, setUserData] = useState({});
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
+  const [selectedDoctor, setSelectedDoctor] = useState("");
+
+  const { id } = useParams();
+  const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
+  const email = localStorage.getItem("email");
 
-  const openModal = () => {
-    setShowModal(true);
+  const openModal = () => setShowModal(true);
+  const closeModal = () => setShowModal(false);
+
+  const openFileModal = (fileId, fileUrl) => {
+    setUploadedFile({ fileId, fileUrl });
   };
 
-  const closeModal = () => {
-    setShowModal(false);
-  };
-
-  const openFileModal = (user_id, file) => {
-    setUploadedFile({ closeFileModal, user_id, file });
-  };
-
-  const closeFileModal = () => {
-    setUploadedFile(null);
-  };
-
-  // console.log(location.pathname);
+  const closeFileModal = () => setUploadedFile(null);
 
   const formatDate = (dateString) => {
     if (!dateString) return "";
     const dateObject = new Date(dateString);
-    const day = String(dateObject.getDate()).padStart(2, "0");
-    const month = String(dateObject.getMonth() + 1).padStart(2, "0"); // Months are zero-based
     const year = dateObject.getFullYear();
-    return `${day}-${month}-${year}`;
+    const month = String(dateObject.getMonth() + 1).padStart(2, "0");
+    const day = String(dateObject.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
-  console.log(id);
   const fetchData = async () => {
-    const patient_id = id;
     try {
       const response = await axiosInstance.get(
-        `${server_url}/prescription/getPrescription/${patient_id}`
+        `${server_url}/prescription/getPrescription/${id}`
       );
-      console.log(response.data.data);
       setUserPrescriptionData(response.data.data);
       setFilteredPrescriptionData(response.data.data);
-      // console.log("data received on frontend : ", response.data.data);
     } catch (error) {
       console.error("Error fetching prescription data:", error);
+    }
+  };
+
+  const fetchPatientData = async () => {
+    try {
+      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${id}`);
+      setUserData(response.data.data);
+    } catch (error) {
+      console.error("Error fetching patient data:", error);
     }
   };
 
@@ -371,7 +103,6 @@ const Userprescription = () => {
       const response = await axiosInstance.get(
         `${server_url}/patient/getMedicalTeam/${user_id}`
       );
-      // console.log(response.data)
       setDoctorOptions(response.data.data);
     } catch (error) {
       console.error("Error fetching medical team:", error);
@@ -381,13 +112,25 @@ const Userprescription = () => {
   };
 
   useEffect(() => {
-    try {
-      fetchMedicalTeam(id);
-      fetchData();
-    } catch (error) {
-      console.log(error);
-    }
-  }, []);
+    const getUnreadMessagesFromAdmin = async () => {
+      try {
+        const chatResult = await getAllChatsAdmin(id);
+        if (chatResult.success) {
+          const unreadMsgs = chatResult.data.filter((chat) => chat.unreadCount > 0);
+          setTotalUnreadCount(unreadMsgs.reduce((acc, chat) => acc + chat.unreadCount, 0));
+        }
+      } catch (error) {
+        console.error("Error fetching unread messages from admin:", error);
+      }
+    };
+    getUnreadMessagesFromAdmin();
+  }, [id]);
+
+  useEffect(() => {
+    fetchMedicalTeam(id);
+    fetchData();
+    fetchPatientData();
+  }, [id]);
 
   const handleDelete = async (prescriptionId, email) => {
     const isConfirmed = window.confirm(
@@ -395,7 +138,6 @@ const Userprescription = () => {
     );
     if (isConfirmed) {
       try {
-        console.log("prescription id", prescriptionId);
         await axiosInstance.delete(
           `${server_url}/prescription/deletePrescription/${prescriptionId}`,
           {
@@ -405,7 +147,6 @@ const Userprescription = () => {
           }
         );
 
-        // Remove the deleted prescription from the state
         setUserPrescriptionData((prevData) =>
           prevData.filter((prescription) => prescription.id !== prescriptionId)
         );
@@ -419,184 +160,226 @@ const Userprescription = () => {
     }
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
   const handleSelectChange = (e) => {
-    const selectedDoctor = parseFloat(e.target.value);
+    const selectedDoctorId = parseFloat(e.target.value);
+    setSelectedDoctor(e.target.value);
+
+    if (!selectedDoctorId || isNaN(selectedDoctorId)) {
+      setFilteredPrescriptionData(userPrescriptionData);
+      return;
+    }
+
     const filteredData = userPrescriptionData.filter(
       (prescription) =>
-        parseFloat(prescription.prescriptionGivenBy) === selectedDoctor
+        parseFloat(prescription.prescriptionGivenBy) === selectedDoctorId
     );
     setFilteredPrescriptionData(filteredData);
   };
 
+  const handleClearFilters = () => {
+    setSelectedDoctor("");
+    setFilteredPrescriptionData(userPrescriptionData);
+  };
+
+  if (loading) {
+    return <Box className="p-20 text-center">Loading...</Box>;
+  }
+
   return (
-    <div className="Userprescription md:flex block">
-      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-        <Sidebar />
-      </div>
-      <div className="md:flex-[5] block w-screen">
-        <div className="sticky top-0 z-10">
+    <ThemeProvider>
+      <Box className="flex min-h-screen">
+        <Box className="flex-shrink-0">
+          {role?.role_name === "Doctor" ? <SideBarDoctor /> : <Sidebar />}
+        </Box>
+
+        <Box className="flex-1 flex flex-col min-w-0">
           <Navbar />
-        </div>
-        <div className="container">
-          <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-            <div className="manage-roles-container p-7 ml-4 mr-4 mt-4 bg-white shadow-md border-t-4 border-primary">
-              <Link
-                to={`/userProfile/${id}`}
-                className="text-primary border-b-2 border-primary"
-              >
-                go back
-              </Link>
-              <div className="mt-4 mb-4 flex items-center justify-end">
-                <h1 className="text-xl text-bold">{location?.state?.name}</h1>
-              </div>
-              <div className="flex justify-between items-center border-b pb-2 mb-4">
-                <h2 className="text-2xl font-bold">Prescription</h2>
-                <div className="flex items-center justify-end">
-                  {role.role_name != "Dialysis Technician" && (
+
+          {/* Sticky Header Section */}
+          <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+            <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+              {/* Header with Breadcrumbs */}
+              <PageHeader
+                title="Patient Profile"
+                breadcrumbs={[
+                  { label: "All Patients", path: "/patient" },
+                  { label: "Patient", path: `/userProfile/${id}`, active: false },
+                  { label: "Patient Profile", active: true }
+                ]}
+                onBack={() => navigate("/patient")}
+              />
+            </Container>
+
+            {/* Navigation Tabs */}
+            <PatientNavTabs
+              patientId={id}
+              userData={userData}
+              unreadAdminCount={totalUnreadCount}
+              unreadDoctorCount={totalUnreadCountDoc}
+              role={role}
+            />
+          </Box>
+
+          {/* Main Content */}
+          <Box className="flex-1 bg-[#fafafa]">
+            <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
+              <Box className="bg-white rounded-[15px] shadow-md p-8">
+                {/* Header Section */}
+                <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
+                  <Box>
+                    <h2 className="text-[18px] font-bold text-[#393939]">Prescription</h2>
+                  </Box>
+                  <Flex align="center" gap={3}>
+                    <Box className="flex items-center gap-2">
+                      <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-gray-700">
+                          {userData?.name?.charAt(0)?.toUpperCase() || "P"}
+                        </span>
+                      </Box>
+                      <span className="text-[18px] text-[#393939]">{userData?.name || "Patient"}</span>
+                    </Box>
+                  </Flex>
+                </Flex>
+
+                {/* Filter and Upload Section */}
+                <Flex justify="between" align="center" className="mb-6">
+                  <Flex gap={4} align="center">
+                    {/* Sort Dropdown */}
+                    <Box className="relative">
+                      <select
+                        value={selectedDoctor}
+                        onChange={handleSelectChange}
+                        className="h-[50px] px-4 pr-10 rounded-[10px] border border-[#5886a5] text-[#5886a5] text-[16px] font-normal bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#4164df]"
+                        style={{ minWidth: "158px" }}
+                      >
+                        <option value="">Sort by</option>
+                        {Array.isArray(doctorOptions) &&
+                          doctorOptions.map((doctor, index) => (
+                            <option key={index} value={doctor.id}>
+                              {doctor.name}
+                            </option>
+                          ))}
+                      </select>
+                      <Box className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                          <path d="M7.5 11.25L2.5 3.75H12.5L7.5 11.25Z" fill="#5886a5" />
+                        </svg>
+                      </Box>
+                    </Box>
+
+                    {/* Clear Filters */}
                     <button
-                      className="block rounded-lg text-primary border-2 border-primary w-40 py-2"
-                      onClick={() => openModal()}
+                      onClick={handleClearFilters}
+                      className="text-[16px] font-semibold text-[#5886a5] underline hover:text-[#4164df] transition-colors"
                     >
-                      Upload Prescription
+                      Clear filters
                     </button>
-                  )}
+                  </Flex>
 
-                  {showModal && (
-                    <PrescriptionModal
-                      closeModal={closeModal}
-                      user_id={id}
-                      onSuccess={fetchData}
-                    />
-                  )}
+                  {/* Upload Button */}
+                  <Button
+                    variant="solid"
+                    onClick={openModal}
+                    className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
+                  >
+                    Upload
+                  </Button>
+                </Flex>
 
-                  {uploadedFile && (
-                    <UploadedFileModal
-                      closeModal={closeFileModal}
-                      user_id={location.state.id}
-                      // onSuccess={fetchData}
-                      file={uploadedFile}
-                      patient_id={id}
-                    />
-                  )}
+                {/* Table */}
+                <Box className="overflow-x-auto">
+                  {/* Table Header */}
+                  <Box className="bg-[#5886a5] rounded-[5px] px-[70px] py-4 mb-0">
+                    <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
+                      <Box style={{ flex: "0 0 150px" }}>Date</Box>
+                      <Box style={{ flex: "0 0 200px" }}>Prescribing doctor</Box>
+                      <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Prescription</Box>
+                      <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
+                    </Flex>
+                  </Box>
 
-                  {uploadedFile && (
-                    <UploadedFileModal
-                      closeModal={closeFileModal}
-                      user_id={uploadedFile.user_id}
-                      file={uploadedFile.file}
-                      patient_id={id}
-                    />
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-row">
-                <select
-                  id="doctorId"
-                  className="w-1/3 border-2 py-2 px-3 rounded focus:outline-none focus:border-amber-950"
-                  // value={selectedDoctorId}
-                  onChange={handleSelectChange}
-                >
-                  <option>sort by doctor</option>
-                  {Array.isArray(doctorOptions) &&
-                    doctorOptions.map((doctor, index) => (
-                      <option key={index} value={doctor.id}>
-                        {doctor.name}
-                      </option>
-                    ))}
-                </select>
-                <button
-                  className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded inline-flex items-center ml-2"
-                  onClick={() => {
-                    setFilteredPrescriptionData(userPrescriptionData);
-                  }}
-                >
-                  Clear Filter
-                </button>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead className="bg-white text-gray-700">
-                    <tr className="border-b-2 border-black">
-                      <th className="py-3 px-4 text-left">Date</th>
-                      <th className="py-3 px-4 text-left">
-                        Prescription Given By
-                      </th>
-                      <th className="py-3 px-4 text-center">Prescription</th>
-                      <th className="py-3 px-4 text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                  {/* Table Body */}
+                  <Box>
                     {filteredPrescriptionData.length > 0 ? (
-                      filteredPrescriptionData.map(
-                        (prescriptionItem, index) => (
-                          <tr key={index}>
-                            <td className="px-4 border-black">
+                      filteredPrescriptionData.map((prescriptionItem, index) => (
+                        <Box
+                          key={index}
+                          className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
+                        >
+                          <Flex justify="between" align="center">
+                            <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
                               {formatDate(prescriptionItem.Date)}
-                            </td>
-                            <td className="px-4 border-black text-center">
+                            </Box>
+                            <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
                               {prescriptionItem.prescriptionGivenByName}
-                            </td>
-                            <td className="flex justify-center">
+                            </Box>
+                            <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
                               {prescriptionItem.Prescription &&
                               prescriptionItem.Prescription.endsWith(".pdf") ? (
-                                <FaFilePdf
-                                  className="w-20 h-16 cursor-pointer py-3 text-red-500"
-                                  onClick={() =>
-                                    openFileModal(
-                                      prescriptionItem?.id,
-                                      prescriptionItem?.Prescription
-                                    )
-                                  }
-                                />
+                                  <Box
+                                    className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => openFileModal(prescriptionItem.id, prescriptionItem.Prescription)}
+                                  >
+                                    <FaFilePdf className="text-white text-2xl" />
+                                  </Box>
                               ) : (
-                                <img
-                                  className=" cursor-pointer"
-                                  src={prescriptionItem?.Prescription}
-                                  alt="Prescription"
-                                  onClick={() =>
-                                    openFileModal(
-                                      prescriptionItem?.id,
-                                      prescriptionItem.Prescription
-                                    )
-                                  }
-                                />
+                                  <Box
+                                    className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => openFileModal(prescriptionItem.id, prescriptionItem.Prescription)}
+                                  >
+                                    <img
+                                      src={prescriptionItem?.Prescription}
+                                      alt="Prescription"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </Box>
                               )}
-                            </td>
-                            <td className="text-center">
+                            </Box>
+                            <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
                               <button
-                                className="text-[#ff0000] inline-block mx-2 text-2xl"
-                                onClick={() =>
-                                  handleDelete(prescriptionItem.id, email)
-                                }
+                                className="text-[#de425b] hover:text-[#c93850] transition-colors"
+                                onClick={() => handleDelete(prescriptionItem.id, email)}
                               >
-                                <BsTrash />
+                                <BsTrash size={24} />
                               </button>
-                            </td>
-                          </tr>
-                        )
-                      )
+                            </Box>
+                          </Flex>
+                        </Box>
+                      ))
                     ) : (
-                      <tr>
-                        <td colSpan="3" className="text-left italic font-light">
-                          No Prescription found
-                        </td>
-                      </tr>
+                      <Box className="bg-white px-[70px] py-8 text-center">
+                        <p className="text-[#989898] text-[16px] italic">No Prescription found</p>
+                      </Box>
                     )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          {/* <UploadBulkProfile/> */}
-        </div>
-      </div>
-    </div>
+                  </Box>
+                </Box>
+              </Box>
+            </Container>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Modals */}
+      {showModal && (
+        <PrescriptionModal
+          closeModal={closeModal}
+          user_id={id}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {uploadedFile && (
+        <FileViewModal
+          isOpen={!!uploadedFile}
+          onClose={closeFileModal}
+          fileUrl={uploadedFile.fileUrl}
+          fileId={uploadedFile.fileId}
+          patientId={id}
+          fileType="Prescription"
+          title="Prescription View"
+        />
+      )}
+    </ThemeProvider>
   );
 };
 
