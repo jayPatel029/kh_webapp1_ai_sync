@@ -1,22 +1,19 @@
-import React from 'react'
-import DoctorSidebar from '../../components/sidebarDoctor/SideBarDoctor';
-import DoctorNavbar from '../../components/doctorNavbar/DoctorNavbar';
+import React from 'react';
+import Sidebar from '../../components/sidebar/Sidebar';
+import Navbar from '../../components/navbar/Navbar';
 
 function DoctorDashboard() {
     return (
-        <div className="changePassword flex">
-          <DoctorSidebar />
-          <div className="changePasswordContainer flex-grow">
-            <DoctorNavbar/>
-            <div className="bg-yellow-100 min-h-screen md:py-10 md:px-40">
-                 Section for alerts fetch alerts here
-            </div>
-            <div>
-              
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar />
+        <div className="flex-grow flex flex-col h-screen overflow-hidden">
+          <Navbar />
+          <div className="flex-grow p-10 px-40 overflow-y-auto bg-yellow-100">
+            Section for alerts fetch alerts here
             </div>
           </div>
         </div>
       );
 }
 
-export default DoctorDashboard
+export default DoctorDashboard;

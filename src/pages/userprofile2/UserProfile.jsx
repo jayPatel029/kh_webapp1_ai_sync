@@ -21,7 +21,7 @@ import {
 // Original Layout Components (containing actual logic/content)
 import Sidebar from "../../components/sidebar/Sidebar";
 import Navbar from "../../components/navbar/Navbar";
-import SideBarDoctor from "../../components/sidebarDoctor/SideBarDoctor";
+import SideBarDoctor from "../../components/sidebar/Sidebar";
 
 // APIs and Helpers
 import axiosInstance from "../../helpers/axios/axiosInstance";

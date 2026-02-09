@@ -20,7 +20,7 @@ import { Button } from "../../component-library/primitives/Button";
 // Components
 import Sidebar from "../../components/sidebar/Sidebar";
 import Navbar from "../../components/navbar/Navbar";
-import SideBarDoctor from "../../components/sidebarDoctor/SideBarDoctor";
+import SideBarDoctor from "../../components/sidebar/Sidebar";
 import PageHeader from "../../components/PageHeader";
 import PatientNavTabs from "../../components/PatientNavTabs";
 import ThemeProvider from "../../components/ThemeProvider";

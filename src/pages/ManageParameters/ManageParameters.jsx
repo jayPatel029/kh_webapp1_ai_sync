@@ -22,7 +22,7 @@ import { Input } from "../../component-library/primitives/Input";
 
 // Components
 import Sidebar from "../../components/sidebar/Sidebar";
-import SideBarDoctor from "../../components/sidebarDoctor/SideBarDoctor";
+import SideBarDoctor from "../../components/sidebar/Sidebar";
 import Navbar from "../../components/navbar/Navbar";
 import PageHeader from "../../components/PageHeader";
 import PatientNavTabs from "../../components/PatientNavTabs";
