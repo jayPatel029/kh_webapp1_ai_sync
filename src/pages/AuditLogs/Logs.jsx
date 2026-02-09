@@ -19,8 +19,6 @@ import { Button } from "../../component-library/primitives/Button";
 import { Card, CardHeader, CardBody } from "../../component-library/primitives/Card";
 
 // Components
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import PageHeader from "../../components/PageHeader";
 import ThemeProvider from "../../components/ThemeProvider";
 
@@ -35,15 +33,7 @@ function Logs() {
 
   return (
     <ThemeProvider>
-      <Box className="flex min-h-screen">
-        {/* Sidebar */}
-        <Box className="flex-shrink-0">
-          <Sidebar />
-        </Box>
-
-        {/* Main Content */}
-        <Box className="flex-1 flex flex-col min-w-0">
-          <Navbar />
+      <Box className="flex-1 flex flex-col min-w-0">
 
           {/* Sticky Header Section */}
           <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
@@ -100,7 +90,6 @@ function Logs() {
                 </Flex>
               </Box>
             </Container>
-          </Box>
         </Box>
       </Box>
     </ThemeProvider>

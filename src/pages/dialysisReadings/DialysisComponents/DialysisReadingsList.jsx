@@ -161,19 +161,19 @@ function DialysisReadingsList() {
   }
 
   return (
-    <div>
-      <div className=" bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
-        <div className="border-b-gray border-b-2 p-2  pt-4 md:pb-4 font-semibold text-primary tracking-wide text-xl">
-          Readings Master
+    <div className="admin-page-content">
+      <div className="admin-card">
+        <div className="admin-card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 className="admin-card__header-title">Readings Master</h2>
           <Link
             to="/dialysisReadingsCsv"
-            className="border md:ml-2 ml-0 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300  md:w-1/4 rounded-lg  p-1.5"
+            className="admin-btn admin-btn--primary"
+            style={{ textDecoration: 'none' }}
           >
-            {" "}
-            BulkUpload Question
+            Bulk Upload Question
           </Link>
         </div>
-        <div className="p-5">
+        <div className="admin-card__body">
           {modelOpen && (
             <TranslationModal
               closeModal={closeModal}
@@ -183,75 +183,83 @@ function DialysisReadingsList() {
               languages={languages}
             />
           )}
-          <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-            Ailment*
-          </label>
-          <Select
-            value={newReading.ailment}
-            onChange={(ailment) => {
-              // console.log(newReading.ailment);
-              newReadingDsipatch({
-                type: "ailment",
-                payload: ailment,
-              });
-            }}
-            options={ailments.map((ailment) => {
-              return {
-                value: ailment.id,
-                label: ailment.name,
-              };
-            })}
-            isMulti
-            className="text-gray-500 text-sm rounded-lg block w-full  focus:outline-primary"
-          />
 
-          <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-            Title
-          </label>
-          <div className="block md:flex w-full">
-            <input
-              type="text"
-              placeholder="Reading Title"
-              value={newReading.title}
-              onChange={(event) => {
+          <div className="admin-form__group">
+            <label className="admin-form__label admin-form__label--required">
+              Ailment
+            </label>
+            <Select
+              value={newReading.ailment}
+              onChange={(ailment) => {
                 newReadingDsipatch({
-                  type: "title",
+                  type: "ailment",
+                  payload: ailment,
+                });
+              }}
+              options={ailments.map((ailment) => {
+                return {
+                  value: ailment.id,
+                  label: ailment.name,
+                };
+              })}
+              isMulti
+              className="basic-multi-select"
+              classNamePrefix="select"
+            />
+          </div>
+
+          <div className="admin-form__group">
+            <label className="admin-form__label">
+              Title
+            </label>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+              <input
+                type="text"
+                placeholder="Reading Title"
+                value={newReading.title}
+                onChange={(event) => {
+                  newReadingDsipatch({
+                    type: "title",
+                    payload: event.target.value,
+                  });
+                }}
+                className="admin-form__input"
+                style={{ flex: 1 }}
+              />
+              <button
+                onClick={() => {
+                  setModelOpen(true);
+                }}
+                className="admin-btn admin-btn--primary"
+              >
+                Set Translations
+              </button>
+            </div>
+          </div>
+
+          <div className="admin-form__group">
+            <label className="admin-form__label">
+              Send Alerts
+            </label>
+            <select
+              value={newReading.sendAlert}
+              onChange={(event) => {
+                console.log(event.target.value);
+                newReadingDsipatch({
+                  type: "sendAlert",
                   payload: event.target.value,
                 });
               }}
-              className=" border border-gray-300 text-gray-500 text-sm rounded-lg block md:w-3/4 w-full p-2.5 focus:outline-primary"
-            />
-            <button
-              onClick={() => {
-                setModelOpen(true);
-              }}
-              className="border md:ml-2 ml-0 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-full md:w-1/4 rounded-lg block p-1.5"
+              className="admin-form__select"
             >
-              Set Translations
-            </button>
+              <option value="0">No</option>
+              <option value="1">Yes</option>
+            </select>
           </div>
 
-          <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-            Send Alerts
-          </label>
-          <select
-            value={newReading.sendAlert}
-            onChange={(event) => {
-              console.log(event.target.value);
-              newReadingDsipatch({
-                type: "sendAlert",
-                payload: event.target.value,
-              });
-            }}
-            className="border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-          >
-            <option value="0">No</option>
-            <option value="1">Yes</option>
-          </select>
-
           {newReading.sendAlert == 1 && (
-            <>
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
+            <div className="admin-form__group">
+              <label className="admin-form__label">
                 Alert Text
               </label>
               <div className="block md:flex w-full">
@@ -265,35 +273,38 @@ function DialysisReadingsList() {
                       payload: event.target.value,
                     });
                   }}
-                  className=" border border-gray-300 text-gray-500 text-sm rounded-lg block md:w-3/4 w-full p-2.5 focus:outline-primary"
+                  className="admin-form__input"
                 />
               </div>
-            </>
+            </div>
           )}
 
-          <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-            Type*
-          </label>
-          <select
-            value={newReading.type}
-            onChange={(event) => {
-              newReadingDsipatch({
-                type: "type",
-                payload: event.target.value,
-              });
-            }}
-            className="border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-          >
-            {readingTypes.map((reading, index) => {
-              return (
-                <option key={index} value={reading}>
-                  {reading}
-                </option>
-              );
-            })}
-          </select>
-          <div>
-            <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
+          <div className="admin-form__group">
+            <label className="admin-form__label admin-form__label--required">
+              Type
+            </label>
+            <select
+              value={newReading.type}
+              onChange={(event) => {
+                newReadingDsipatch({
+                  type: "type",
+                  payload: event.target.value,
+                });
+              }}
+              className="admin-form__select"
+            >
+              {readingTypes.map((reading, index) => {
+                return (
+                  <option key={index} value={reading}>
+                    {reading}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div className="admin-form__group">
+            <label className="admin-form__label">
               Unit
             </label>
             <input
@@ -306,13 +317,14 @@ function DialysisReadingsList() {
                   payload: event.target.value,
                 });
               }}
-              className=" border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
+              className="admin-form__input"
             />
           </div>
+
           {["Int", "Decimal"].includes(newReading.type) && (
-            <>
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                Has Range*
+            <div className="admin-form__group">
+              <label className="admin-form__label admin-form__label--required">
+                Has Range
               </label>
               <select
                 onChange={(event) => {
@@ -321,128 +333,136 @@ function DialysisReadingsList() {
                     payload: event.target.value,
                   });
                 }}
-                className="border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
+                className="admin-form__select"
               >
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
-            </>
+            </div>
           )}
 
-
-
-          
           {["Int", "Decimal"].includes(newReading.type) &&
           newReading.assign_range === "yes" ? (
             <>
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                Lower Range
-              </label>
-              <input
-                type="number"
-                placeholder="Lower Range"
-                value={newReading.lower_assign_range}
-                onChange={(event) => {
-                  newReadingDsipatch({
-                    type: "lower_assign_range",
-                    payload: event.target.value,
-                  });
-                }}
-                className=" border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-              />
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                Upper Range
-              </label>
-              <input
-                type="number"
-                placeholder="Upper Range"
-                value={newReading.upper_assign_range}
-                onChange={(event) => {
-                  newReadingDsipatch({
-                    type: "upper_assign_range",
-                    payload: event.target.value,
-                  });
-                }}
-                className=" border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-              />
+                <div className="admin-form__group">
+                  <label className="admin-form__label">
+                    Lower Range
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Lower Range"
+                    value={newReading.lower_assign_range}
+                    onChange={(event) => {
+                      newReadingDsipatch({
+                        type: "lower_assign_range",
+                        payload: event.target.value,
+                      });
+                    }}
+                    className="admin-form__input"
+                  />
+                </div>
+                <div className="admin-form__group">
+                  <label className="admin-form__label">
+                    Upper Range
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="Upper Range"
+                    value={newReading.upper_assign_range}
+                    onChange={(event) => {
+                      newReadingDsipatch({
+                        type: "upper_assign_range",
+                        payload: event.target.value,
+                      });
+                    }}
+                    className="admin-form__input"
+                  />
+                </div>
 
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                Is Graph
-              </label>
-              <select
-                onChange={(event) => {
-                  console.log("changing graph property")
-                  console.log(event.target.value)
-                  console.log(newReading.isGraph);
-                  console.log("--------------------------------")
-                  newReadingDsipatch({
-                    type: "isGraph",
-                    payload: event.target.value,
-                  });
-                }}
-                className="border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-              >
-                <option value="0">No</option>
-                <option value="1">Yes</option>
-              </select>
+                <div className="admin-form__group">
+                  <label className="admin-form__label">
+                    Is Graph
+                  </label>
+                  <select
+                    onChange={(event) => {
+                      console.log("changing graph property")
+                      console.log(event.target.value)
+                      console.log(newReading.isGraph);
+                      console.log("--------------------------------")
+                      newReadingDsipatch({
+                        type: "isGraph",
+                        payload: event.target.value,
+                      });
+                    }}
+                    className="admin-form__select"
+                  >
+                    <option value="0">No</option>
+                    <option value="1">Yes</option>
+                  </select>
+                </div>
             </>
           ) : null}
 
-          <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-            Condition*
-          </label>
-          <select
-            value={newReading.condition || 'stable'}
-            onChange={(event) => {
-              console.log(event.target.value);
-              newReadingDsipatch({
-                type: "condition",
-                payload: event.target.value,
-              });
-            }}
-            className="border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-          >
-            <option value="stable">Stable</option>
-            <option value="unstable">Unstable</option>
-            <option value="critical">Critical</option>
-          </select>
+          <div className="admin-form__group">
+            <label className="admin-form__label admin-form__label--required">
+              Condition
+            </label>
+            <select
+              value={newReading.condition || 'stable'}
+              onChange={(event) => {
+                console.log(event.target.value);
+                newReadingDsipatch({
+                  type: "condition",
+                  payload: event.target.value,
+                });
+              }}
+              className="admin-form__select"
+            >
+              <option value="stable">Stable</option>
+              <option value="unstable">Unstable</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
 
-          {editMode ? (
-            <>
+          <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
+            {editMode ? (
+              <>
+                <button
+                  onClick={handleSubmit}
+                  className="admin-btn admin-btn--teal"
+                >
+                  UPDATE
+                </button>
+                <button
+                  onClick={() => {
+                    setEditMode(false);
+                    newReadingDsipatch({ type: "all", payload: {} });
+                    let transaltiondict = {};
+                    languages.forEach((lang) => {
+                      if (lang.id !== 1) {
+                        transaltiondict[lang.id] = "";
+                      }
+                    });
+                    setTranslations(transaltiondict);
+                  }}
+                  className="admin-btn admin-btn--outline-danger"
+                >
+                  CANCEL
+                </button>
+              </>
+            ) : (
               <button
                 onClick={handleSubmit}
-                className=" flex-1 mr-2 mt-5 border md:inline-block text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-[12vw] rounded-lg p-1.5"
+                className="admin-btn admin-btn--primary"
               >
-                UPDATE
+                SUBMIT
               </button>
-              <button
-                onClick={() => {
-                  setEditMode(false);
-                  newReadingDsipatch({ type: "all", payload: {} });
-                  let transaltiondict = {};
-                  languages.forEach((lang) => {
-                    if (lang.id !== 1) {
-                      transaltiondict[lang.id] = "";
-                    }
-                  });
-                  setTranslations(transaltiondict);
-                }}
-                className="flex-1 border text-[#ff0000] md:inline-block bg-white font-semibold tracking-wide text-lg border-[#ff0000] w-[12vw] rounded-lg  p-1.5"
-              >
-                CANCEL
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              className=" border mt-5 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-full md:w-[12vw] rounded-lg block p-1.5"
-            >
-              SUBMIT
-            </button>
-          )}
-          <div className="text-[#ff0000] pt-6">
-            {errMsg}
-            <span className="text-primary">{successful}</span>
+            )}
+          </div>
+
+          <div style={{ marginTop: '1rem' }}>
+            {errMsg && <div className="admin-message admin-message--error">{errMsg}</div>}
+            {successful && <div className="admin-message admin-message--success">{successful}</div>}
           </div>
         </div>
       </div>

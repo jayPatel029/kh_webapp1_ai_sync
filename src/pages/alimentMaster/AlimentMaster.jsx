@@ -1,24 +1,34 @@
 import React from "react";
-import "./ailmentmaster.scss";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
+import PageHeader from "../../components/PageHeader";
+import ThemeProvider from "../../components/ThemeProvider";
 import AilmentMasterComponent from "./Ailment Master/AilmentMaster";
+
+// Component Library
+import { Box, Container } from "../../component-library";
 
 function AlimentMaster() {
   return (
-    <div className="ailmentMaster md:flex block">
-      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-        <Sidebar />
-      </div>
-      <div className="md:flex-[5] block w-screen">
-        <div className="sticky top-0 z-10">
-          <Navbar />
-        </div>
-        <div className="">
+    <ThemeProvider>
+      <Box className="flex-1 flex flex-col min-w-0">
+
+        {/* Sticky Header Section */}
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+            <PageHeader
+              title="Ailment Master"
+              breadcrumbs={[
+                { label: "Dashboard", path: "/admin" },
+                { label: "Ailment Master", active: true }
+              ]}
+            />
+          </Container>
+        </Box>
+
+        <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto bg-gray-50 min-h-screen">
           <AilmentMasterComponent />
-        </div>
-      </div>
-    </div>
+        </Container>
+      </Box>
+    </ThemeProvider>
   );
 }
 

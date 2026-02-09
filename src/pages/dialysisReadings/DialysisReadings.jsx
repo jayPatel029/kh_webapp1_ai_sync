@@ -1,25 +1,35 @@
 import React from "react";
-import "./dialysisReadings.scss";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
+import PageHeader from "../../components/PageHeader";
+import ThemeProvider from "../../components/ThemeProvider";
 import DialysisReadingsList from "./DialysisComponents/DialysisReadingsList";
 
-function DailyReadings() {
+// Component Library
+import { Box, Container } from "../../component-library";
+
+function DialysisReadings() {
   return (
-    <div className="dailyReadings">
-      <div className="sticky top-0 h-screen overflow-y-auto">
-        <Sidebar />
-      </div>
-      <div className="dailyReadingsContainer">
-        <div className="sticky top-0 bg-white z-50 ">
-          <Navbar />
-        </div>
-        <div className="bg-gray-100 min-h-screen md:py-5 md:px-16 w-full">
+    <ThemeProvider>
+      <Box className="flex-1 flex flex-col min-w-0">
+
+        {/* Sticky Header Section */}
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+            <PageHeader
+              title="Dialysis Readings"
+              breadcrumbs={[
+                { label: "Dashboard", path: "/admin" },
+                { label: "Dialysis Readings", active: true }
+              ]}
+            />
+          </Container>
+        </Box>
+
+        <div className="admin-page">
           <DialysisReadingsList />
         </div>
-      </div>
-    </div>
+      </Box>
+    </ThemeProvider>
   );
 }
 
-export default DailyReadings;
+export default DialysisReadings;

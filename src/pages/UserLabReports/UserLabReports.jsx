@@ -21,9 +21,6 @@ import { Text, Heading } from "../../component-library/primitives/Typography";
 import { Card } from "../../component-library/primitives/Card";
 
 // Components
-import Navbar from "../../components/navbar/Navbar";
-import Sidebar from "../../components/sidebar/Sidebar";
-import SideBarDoctor from "../../components/sidebar/Sidebar";
 import PageHeader from "../../components/PageHeader";
 import PatientNavTabs from "../../components/PatientNavTabs";
 import ThemeProvider from "../../components/ThemeProvider";
@@ -176,18 +173,7 @@ const UserLabReports = () => {
 
   return (
     <ThemeProvider>
-      <Flex className="min-h-screen bg-[#fafafa]">
-        {/* Sidebar */}
-        <Box className="hidden md:block flex-none sticky top-0 h-screen overflow-y-auto">
-          {role?.role_name === "Doctor" ? <SideBarDoctor /> : <Sidebar />}
-        </Box>
-
-        {/* Main Content Area */}
-        <Box className="flex-1 w-full flex flex-col min-w-0">
-          {/* Navbar */}
-          <Box className="sticky top-0 z-30">
-            <Navbar />
-          </Box>
+      <Box className="flex-1 w-full flex flex-col min-w-0 bg-[#fafafa]">
 
           {/* Sticky Header Section */}
           <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
@@ -401,8 +387,7 @@ const UserLabReports = () => {
               </Card>
             </Container>
           </Box>
-        </Box>
-      </Flex>
+      </Box>
 
       {/* Modals */}
       {showModal && (

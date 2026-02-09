@@ -53,14 +53,20 @@ import DocLogPage from "./pages/AuditLogs/DoctorLog";
 import DelPatient from "./pages/patient/delPatient";
 import Logs from "./pages/AuditLogs/Logs";
 import ProfileQuestionCsv from "./pages/profileQuestion/ProfileQuestionCsv";
+import MainLayout from "./layouts/MainLayout";
 
 function App() {
   return (
     <AppLogout>
       <BrowserRouter>
         <Routes>
+          {/* Public routes without layout */}
           <Route path="/login" element={<Login />} />
-          <Route path="/">
+          <Route path="/doctorLogin" element={<DoctorLogin />} />
+          <Route path="/forgotpassword" element={<ForgotPassword />} />
+
+          {/* Protected routes with MainLayout */}
+          <Route element={<MainLayout />}>
             <Route
               index
               element={
@@ -125,12 +131,12 @@ function App() {
               }
             />
             <Route
-            path="dailyReadingsCsv"
-            element={
-              <ProtectedRoute routeName={"Daily"}>
-                < DailyReadingsCsv1/>
-              </ProtectedRoute>
-            }
+              path="dailyReadingsCsv"
+              element={
+                <ProtectedRoute routeName={"Daily"}>
+                  < DailyReadingsCsv1 />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="DialysisReadingsCsv"
@@ -147,14 +153,14 @@ function App() {
                   <LogsPage />
                 </ProtectedRoute>
               } />
-              <Route
+            <Route
               path="logs"
               element={
                 <ProtectedRoute routeName={"logs"}>
                   <Logs />
                 </ProtectedRoute>
               } />
-              <Route
+            <Route
               path="Doclogs"
               element={
                 <ProtectedRoute routeName={"Doclogs"}>
@@ -220,7 +226,7 @@ function App() {
             <Route path="Addpatient"
               element={
                 <ProtectedRoute routeName={"Patient"}>
-                  <AddPatientForm/>
+                  <AddPatientForm />
                 </ProtectedRoute>
               } />
             <Route
@@ -259,7 +265,7 @@ function App() {
               path="kfre"
               element={
                 <ProtectedRoute routeName={"kfre"}>
-                  <Kfre/>
+                  <Kfre />
                 </ProtectedRoute>
               }
             />
@@ -352,14 +358,6 @@ function App() {
               }
             />
             <Route
-              path="doctorLogin"
-              element={
-                // <ProtectedRoute>
-                <DoctorLogin />
-                // </ProtectedRoute>
-              }
-            />
-            <Route
               path="doctorDashboard"
               element={
                 <ProtectedRoute routeName={"DoctorDashboard"}>
@@ -367,11 +365,11 @@ function App() {
                 </ProtectedRoute>
               }
             />
-             <Route
+            <Route
               path="aiChat"
               element={
                 <ProtectedRoute routeName={"aiChat"}>
-                  <AiChat/>
+                  <AiChat />
                 </ProtectedRoute>
               }
             />
@@ -444,12 +442,10 @@ function App() {
               path="doctorReport"
               element={
                 <ProtectedRoute routeName={"doctorReport"}>
-                  <DoctorReport/>
+                  <DoctorReport />
                 </ProtectedRoute>
               }
             />
-
-            <Route path="forgotpassword" element={<ForgotPassword />} />
           </Route>
         </Routes>
       </BrowserRouter>

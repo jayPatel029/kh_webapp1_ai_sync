@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import axiosInstance from "../../helpers/axios/axiosInstance";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import dummyadmin from "../../assets/dummyadmin.png";
 import { server_url } from "../../constants/constants";
 
@@ -73,15 +71,8 @@ function UniqueUserProgramSelection() {
   }
 
   return (
-    <div className="md:flex block ">
-      <div className="sticky top-0 h-screen overflow-y-auto">
-        <Sidebar />
-      </div>
-      <div className=" md:flex-[5] block w-screen">
-        <div className="sticky top-0 bg-white z-50 ">
-          <Navbar />
-        </div>
-        <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
+    <div className="flex-1 flex flex-col min-w-0">
+      <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
           <div className=" bg-white md:p-12 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
             <span className=" text-gray-900 tracking-wide text-xl ">
               User Program Selection
@@ -164,7 +155,6 @@ function UniqueUserProgramSelection() {
                   </tr>
                 </tbody>
               </table>
-            </div>
           </div>
         </div>
       </div>

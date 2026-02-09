@@ -109,54 +109,38 @@ getLanguages().then((resultLanguage) => {
  
 
   return (
-    <div className="bg-white md:p-6 border p-28 ml-4 mr-4 mt-4 rounded-md border-t-primary border-t-4 shadow-md">
-      
-      <div className="border-b-gray border-b-2 p-2 pt-4 md:pb-4 font-semibold text-primary tracking-wide text-xl">
-        Upload Question
+    <div className="admin-card">
+      <div className="admin-card__header">
+        <h2 className="admin-card__header-title">Upload Questions</h2>
       </div>
-      {/* <div className="flex gap-2 flex-row mb-3">
-        <button className="text-black border mt-5 bg-gray-200 font-semibold tracking-wide text-lg border-gray-300 w-full md:w-[12vw] rounded-lg block p-1.5">
-          Upload PDF
-        </button>
-      </div> */}
-      <div>
-        
-      </div>
-      <div>
+      <div className="admin-card__body">
         <CSVReader
-           translations={translations}
-           setTranslations={setTranslations}
-           setData={setCsvData}
-           setSuccess={setSuccess}
-           success={success}
-           languages={languages}
+          translations={translations}
+          setTranslations={setTranslations}
+          setData={setCsvData}
+          setSuccess={setSuccess}
+          success={success}
+          languages={languages}
         />
-      </div>
         
-      <button
-        onClick={calculate}
-        className="border mt-5 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-full md:w-[12vw] rounded-lg block p-1.5">
-        Submit
-      </button>
-      {kfre && (
-        <div
-          style={{
-            backgroundColor: "lightblue",
-            padding: "10px",
-            borderRadius: "5px",
-            margin: "10px 0",
-          }}>
-          <label
-            style={{
-              fontWeight: "bold",
-              marginBottom: "5px",
-              display: "block",
-            }}>
-            Calculated KFRE:
-          </label>
-          {kfre}
+        <div style={{ marginTop: '1.5rem' }}>
+          <button
+            onClick={calculate}
+            className="admin-btn admin-btn--primary"
+          >
+            Submit
+          </button>
         </div>
-      )}
+
+        {kfre && (
+          <div className="admin-message admin-message--info" style={{ marginTop: '1rem' }}>
+            <label className="font-bold block mb-1">
+              Calculated KFRE:
+            </label>
+            {kfre}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

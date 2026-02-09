@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-  // Import axiosInstance for making HTTP requests
-import "./changepassword.scss"; // If you have additional styles in a separate file
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
+import PageHeader from "../../components/PageHeader";
+import ThemeProvider from "../../components/ThemeProvider";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
+
+// Component Library
+import { Box, Container } from "../../component-library";
 
 function ChangePassword() {
   const [newPassword, setNewPassword] = useState("");
@@ -35,57 +36,76 @@ function ChangePassword() {
   };
 
   return (
-    <div className="changePassword flex">
-      <div className="sticky top-0 h-screen overflow-y-auto">
-        <Sidebar />
-      </div>
-      <div className="changePasswordContainer flex-grow">
-        <div className="sticky top-0 bg-white z-50 ">
-          <Navbar />
-        </div>
-        <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-          <div className="manage-roles-container p-7 ml-4 mr-4 mt-4 bg-white shadow-md border-t-4 border-primary">
-            <div className="header flex justify-between items-center border-b pb-2 mb-4">
-              <h2 className="text-2xl font-bold text-teal">Change Password</h2>
+    <ThemeProvider>
+      <Box className="flex-1 flex flex-col min-w-0">
+
+        {/* Sticky Header Section */}
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+            <PageHeader
+              title="Change Password"
+              breadcrumbs={[
+                { label: "Dashboard", path: "/admin" },
+                { label: "Change Password", active: true }
+              ]}
+            />
+          </Container>
+        </Box>
+
+        <div className="admin-page">
+          {/* Change Password Card */}
+          <div className="admin-card" style={{ maxWidth: '600px' }}>
+            <div className="admin-card__header">
+              <h2 className="admin-card__header-title">Change Password</h2>
             </div>
-            <div className="form-container">
-              <div className="mb-4">
-                <label className="text-lg font-semibold mb-2 block">
-                  New Password*
+            <div className="admin-card__body">
+              <div className="admin-form__group">
+                <label className="admin-form__label admin-form__label--required">
+                  New Password
                 </label>
                 <input
                   type="password"
-                  placeholder="New Password"
+                  placeholder="Enter new password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="rounded-lg border-2 px-4 py-2 w-full"
+                  className="admin-form__input"
                 />
               </div>
-              <div className="mb-4">
-                <label className="text-lg font-semibold mb-2 block">
-                  Confirm Password*
+
+              <div className="admin-form__group">
+                <label className="admin-form__label admin-form__label--required">
+                  Confirm Password
                 </label>
                 <input
                   type="password"
-                  placeholder="Confirm Password"
+                  placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="rounded-lg px-4 py-2 border-2 w-full"
+                  className="admin-form__input"
                 />
               </div>
-              <button
-                onClick={handleChangePassword}
-                className="rounded-lg bg-primary text-white px-4 py-2"
-              >
-                CHANGE PASSWORD
-              </button>
-              {message && <p className="text-red-500 mt-2">{message}</p>}
+
+              <div style={{ marginTop: '1.5rem' }}>
+                <button
+                  onClick={handleChangePassword}
+                  className="admin-btn admin-btn--primary"
+                >
+                  CHANGE PASSWORD
+                </button>
+              </div>
+
+              {message && (
+                <div className="admin-message admin-message--error" style={{ marginTop: '1rem' }}>
+                  {message}
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </Box>
+    </ThemeProvider>
   );
 }
 
 export default ChangePassword;
+

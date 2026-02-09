@@ -1,6 +1,4 @@
 import React from "react";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import { Link } from "react-router-dom";
 import { BsTrash, BsPencilSquare, BsKey } from "react-icons/bs";
 import { useState, useEffect } from "react";
@@ -50,13 +48,8 @@ const UserRoles = () => {
       });
   };
   return (
-    <div className="md:flex block">
-      <div className="md:flex-1 hidden md:flex">
-        <Sidebar />
-      </div>
-      <div className=" md:flex-[5] block w-screen">
-        <Navbar />
-        <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
+    <div className="flex-1 block w-full">
+      <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
           <div className="manage-roles-container p-7 ml-4 mr-4 mt-4 bg-white shadow-md border-t-4 border-primary">
             <div className="header flex justify-between items-center border-b pb-2 mb-4">
               <h2 className="text-2xl font-bold">User Roles</h2>
@@ -106,7 +99,6 @@ const UserRoles = () => {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };

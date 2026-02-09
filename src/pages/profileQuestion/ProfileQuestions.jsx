@@ -1,7 +1,8 @@
 import React from "react";
-import Sidebar from "../../components/sidebar/Sidebar";
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
-import Navbar from "../../components/navbar/Navbar";
+import PageHeader from "../../components/PageHeader";
+import ThemeProvider from "../../components/ThemeProvider";
+
 import { questionTypes } from "./consts";
 import { useState, useReducer, useEffect } from "react";
 import { newQuestionReducer } from "./reducers";
@@ -19,6 +20,9 @@ import Select from "react-select";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { te } from "date-fns/locale";
+
+// Component Library
+import { Box, Container, Flex } from "../../component-library";
 
 function ProfileQuestions() {
   const [editMode, setEditMode] = useState(false);
@@ -223,29 +227,29 @@ function ProfileQuestions() {
   });
 
   return (
-    <div className="md:flex block w-screen">
-      <div className="sticky top-0 h-screen overflow-y-auto">
-        <Sidebar />
-      </div>
+    <ThemeProvider>
+      <Box className="flex-1 flex flex-col min-w-0">
 
-      <div className=" md:flex-[5] block max-w-screen">
-        <div className="sticky top-0 bg-white z-50 ">
-          <Navbar />
-        </div>
-        <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-          <div className=" bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
-            <div className="border-b-gray border-b-2 p-2 pt-4 md:pb-4 font-semibold text-primary tracking-wide text-xl">
-              Question Master
-              <Link
-                to="/ProfileQuestionCsv"
-                className="border md:ml-2 ml-0 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300  md:w-1/4 rounded-lg  p-1.5"
-              >
-                {" "}
-                Bulkupload Question
-              </Link>
+        {/* Sticky Header Section */}
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+            <PageHeader
+              title="Profile Questions"
+              breadcrumbs={[
+                { label: "Dashboard", path: "/admin" },
+                { label: "Profile Questions", active: true }
+              ]}
+            />
+          </Container>
+        </Box>
+
+        <div className="admin-page">
+          {/* Form Card */}
+          <div className="admin-card">
+            <div className="admin-card__header">
+              <h2 className="admin-card__header-title">Question Master</h2>
             </div>
-
-            <div className="p-5">
+            <div className="admin-card__body">
               {modelOpen && (
                 <TranslationModal
                   closeModal={closeModal}
@@ -255,7 +259,7 @@ function ProfileQuestions() {
                   languages={languages}
                 />
               )}
-              
+
               {modelOpenOpt && (
                 <OptTranslationModal
                   closeModal={closeModalOpt}
@@ -266,82 +270,86 @@ function ProfileQuestions() {
                 />
               )}
 
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                Ailment*
-              </label>
-              <Select
-                value={newQuestion.ailment}
-                onChange={(ailment) => {
-                  newQuestionDispatch({
-                    type: "ailment",
-                    payload: ailment,
-                  });
-                }}
-                options={ailments.map((ailment) => {
-                  return {
+              <div className="admin-form__group">
+                <label className="admin-form__label admin-form__label--required">
+                  Ailment
+                </label>
+                <Select
+                  value={newQuestion.ailment}
+                  onChange={(ailment) => {
+                    newQuestionDispatch({
+                      type: "ailment",
+                      payload: ailment,
+                    });
+                  }}
+                  options={ailments.map((ailment) => ({
                     value: ailment.id,
                     label: ailment.name,
-                  };
-                })}
-                isMulti
-                className="text-gray-500 text-sm rounded-lg block w-full  focus:outline-primary"
-              />
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                Question Type*
-              </label>
-              <select
-                value={newQuestion.type}
-                onChange={(event) => {
-                  newQuestionDispatch({
-                    type: "type",
-                    payload: event.target.value,
-                  });
-                }}
-                className="border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-              >
-                {questionTypeOptions}
-              </select>
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                Name
-              </label>
-              <div className="flex">
-                <input
-                  type="text"
-                  placeholder="Question Name"
-                  value={newQuestion.name}
+                  }))}
+                  isMulti
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      borderRadius: '10px',
+                      borderColor: '#E5E7EB',
+                      '&:hover': { borderColor: '#1A9A9A' }
+                    })
+                  }}
+                />
+              </div>
+
+              <div className="admin-form__group">
+                <label className="admin-form__label admin-form__label--required">
+                  Question Type
+                </label>
+                <select
+                  value={newQuestion.type}
                   onChange={(event) => {
                     newQuestionDispatch({
-                      type: "name",
+                      type: "type",
                       payload: event.target.value,
                     });
                   }}
-                  className=" border border-gray-300 text-gray-500 text-sm rounded-lg block p-2.5 focus:outline-primary w-3/4"
-                />
-
-                <button
-                  onClick={() => {
-                    setModelOpen(true);
-                  }}
-                  className="border md:ml-2 ml-0 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-full md:w-1/4 rounded-lg block p-1.5"
+                  className="admin-form__select"
                 >
-                  Set Translations
-                </button>
-
-                <button
-                  onClick={() => {
-                    setModelOpenOpt(true);
-                  }}
-                  className="border md:ml-2 ml-0 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-full md:w-1/4 rounded-lg block p-1.5"
-                >
-                  Set Options Translations
-                </button>
+                  {questionTypeOptions}
+                </select>
               </div>
-              {newQuestion.type === "MultipleChoice" ||
-              newQuestion.type === "SelectAnyOne" ? (
-                <>
-                  <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                    Options (Comma Separated)
-                  </label>
+
+              <div className="admin-form__group">
+                <label className="admin-form__label">Name</label>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="Question Name"
+                    value={newQuestion.name}
+                    onChange={(event) => {
+                      newQuestionDispatch({
+                        type: "name",
+                        payload: event.target.value,
+                      });
+                    }}
+                    className="admin-form__input"
+                    style={{ flex: 1, minWidth: '200px' }}
+                  />
+                  <button
+                    onClick={() => setModelOpen(true)}
+                    className="admin-btn admin-btn--teal"
+                  >
+                    Set Translations
+                  </button>
+                  <button
+                    onClick={() => setModelOpenOpt(true)}
+                    className="admin-btn admin-btn--outline"
+                  >
+                    Set Options Translations
+                  </button>
+                </div>
+              </div>
+
+              {(newQuestion.type === "MultipleChoice" || newQuestion.type === "SelectAnyOne") && (
+                <div className="admin-form__group">
+                  <label className="admin-form__label">Options (Comma Separated)</label>
                   <input
                     type="text"
                     placeholder="eg: Option1, Option2, Option3"
@@ -352,167 +360,135 @@ function ProfileQuestions() {
                         payload: event.target.value,
                       });
                     }}
-                    className=" border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
+                    className="admin-form__input"
                   />
-                </>
-              ) : null}
-              {editMode ? (
-                <>
-                  <button
-                    onClick={handleSubmit}
-                    className=" flex-1 mr-2 mt-5 border md:inline-block text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-[40%] md:w-[12vw] rounded-lg p-1.5"
-                  >
-                    UPDATE
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditMode(false);
-                      newQuestionDispatch({
-                        type: "all",
-                        payload: {},
-                      });
-                    }}
-                    className="flex-1 border text-[#ff0000] md:inline-block bg-white font-semibold tracking-wide text-lg border-[#ff0000] w-[40%] md:w-[12vw] rounded-lg  p-1.5"
-                  >
-                    CANCEL
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleSubmit}
-                  className=" border mt-5 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-full md:w-[12vw] rounded-lg block p-1.5"
-                >
-                  SUBMIT
-                </button>
+                </div>
               )}
-              <div className="text-[#ff0000] pt-6">
-                {errMsg}
-                <span className="text-primary">{successful}</span>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                {editMode ? (
+                  <>
+                    <button onClick={handleSubmit} className="admin-btn admin-btn--teal">
+                      UPDATE
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditMode(false);
+                        newQuestionDispatch({
+                          type: "all",
+                          payload: {},
+                        });
+                      }}
+                      className="admin-btn admin-btn--outline-danger"
+                    >
+                      CANCEL
+                    </button>
+                  </>
+                ) : (
+                    <>
+                      <button onClick={handleSubmit} className="admin-btn admin-btn--primary">
+                        SUBMIT
+                      </button>
+                      <Link to="/ProfileQuestionCsv" className="admin-btn admin-btn--coral">
+                        Bulk Upload Questions
+                      </Link>
+                    </>
+                )}
               </div>
+
+              {errMsg && <div className="admin-message admin-message--error" style={{ marginTop: '1rem' }}>{errMsg}</div>}
+              {successful && <div className="admin-message admin-message--success" style={{ marginTop: '1rem' }}>{successful}</div>}
             </div>
           </div>
 
-          <div className=" bg-white md:p-12 p-6 border rounded-md  border-t-4 shadow-md mt-4">
-            <div>
-              <input
-                type="text"
-                placeholder="Search Name"
-                className=" border border-gray-300 text-gray-500 inline-block text-sm rounded-lg w-full md:w-[22vw] p-2.5 focus:outline-primary"
-                onChange={(event) => {
-                  searchQuestion(event.target.value);
-                }}
-              />
-              {/* <button className="inline-block  mx-3 border-primary border-2 p-3 text-md rounded-md text-primary">
-              <FaSearch />
-            </button> */}
-            </div>
+          {/* Questions List Card */}
+          <div className="admin-card">
+            <div className="admin-card__body">
+              <div className="admin-toolbar">
+                <div className="admin-toolbar__left">
+                  <div className="admin-search">
+                    <svg className="admin-search__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Search by name..."
+                      className="admin-search__input"
+                      onChange={(event) => searchQuestion(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="admin-toolbar__right">
+                  <span className="admin-toolbar__count">
+                    {questions.length} Records Found
+                  </span>
+                </div>
+              </div>
 
-            <div className="relative overflow-x-auto mt-6">
-              <span className=" text-gray-900 tracking-wide text-xl ">
-                Questions List
-                <span className="text-gray-400 text-sm">
-                  ({questions.length} Records Found )
-                </span>
-              </span>
-              <div className="mt-4">
-                <table className=" w-full text-sm text-left rtl:text-right text-gray-800 ">
-                  <thead className="text-sm text-gray-700 border-b-2 border-gray-800 ">
+              <div className="admin-table-container">
+                <table className="admin-table">
+                  <thead>
                     <tr>
-                      <th scope="col" className="px-6 py-3">
-                        Title
-                      </th>
-                      <th scope="col" className="px-6 py-3">
-                        Type
-                      </th>
-                      <th scope="col" className="px-6 py-3">
-                        Ailment
-                      </th>
-                      <th scope="col" className="px-6 py-3 min-w-40 ">
-                        Action
-                      </th>
+                      <th>Title</th>
+                      <th>Type</th>
+                      <th>Ailment</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {questions.map((q, index) => {
-                      const displayAilment = q.ailments
-                        .map((x) => x.name)
-                        .join(", ");
+                      const displayAilment = q.ailments.map((x) => x.name).join(", ");
                       return (
-                        <tr key={index} className="bg-white border-b ">
-                          <td scope="row" className="px-6 py-4">
-                            {q.name}
-                          </td>
-                          <td scope="row" className="px-6 py-4">
-                            {q.type}
-                          </td>
-                          <td className="px-6 py-4">{displayAilment}</td>
-                          <td className="px-6 py-4 text-2xl">
-                           
-                          {role.canEditProfileQuestions ? (
-
-                            <button
-                              className="text-primary inline-block mx-2"
-                              onClick={() => {
-                                setSuccessful("");
-                                newQuestionDispatch({
-                                  type: "all",
-                                  payload: {
-                                    id: q.id,
-                                    ailment: q.ailments.map((x) => {
-                                      return { value: x.id, label: x.name };
-                                    }),
-                                    type: q.type,
-                                    name: q.name,
-                                    options: q.options,
-                                  },
-                                });
-                                if (q.question_translations) {
-                                  let translationDict = {};
-                                  let translationOptDict = {};
-
-                                  q.question_translations.forEach((element) => {
-                                    translationDict[element.language_id] =
-                                      // element.name;
-                                      {
-                                        text: element.name,
-                                        options: element.options,
-                                      };
-                                  });
-
-                                  // q.question_translations.forEach((element) => {
-                                  //   translationOptDict[element.language_id] =
-                                  //     element.options;
-                                  // });
-                                  setTranslations(translationDict);
-                                  // setOptTranslations(translationOptDict);
-                                  console.log("editing these: ", q);
-                                  console.log("qtrnaslaton: ", q.question_translations);
-                                }
-                                setEditMode(true);
-                                window.scrollTo({
-                                  top: 0,
-                                  left: 0,
-                                  behavior: "smooth",
-                                });
-                              }}
-                            >
-                              <BsPencilSquare />
-                            </button>
-                          ) : null} 
-
-                            {role.canDeleteProfileQuestions ?(
-
-                            <button
-                              className="text-[#ff0000] inline-block mx-2 "
-                              onClick={() => {
-                                removeQuestion(q.id);
-                              }}
-                            >
-                              <BsTrash />
-                            </button>
-                                                ):null} 
-
-                          
+                        <tr key={index}>
+                          <td>{q.name}</td>
+                          <td>{q.type}</td>
+                          <td>{displayAilment}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              {role.canEditProfileQuestions && (
+                                <button
+                                  className="admin-action-btn admin-action-btn--edit"
+                                  onClick={() => {
+                                    setSuccessful("");
+                                    newQuestionDispatch({
+                                      type: "all",
+                                      payload: {
+                                        id: q.id,
+                                        ailment: q.ailments.map((x) => ({
+                                          value: x.id,
+                                          label: x.name,
+                                        })),
+                                        type: q.type,
+                                        name: q.name,
+                                        options: q.options,
+                                      },
+                                    });
+                                    if (q.question_translations) {
+                                      let translationDict = {};
+                                      q.question_translations.forEach((element) => {
+                                          translationDict[element.language_id] = {
+                                            text: element.name,
+                                            options: element.options,
+                                          };
+                                        });
+                                      setTranslations(translationDict);
+                                    }
+                                    setEditMode(true);
+                                    window.scrollTo({ top: 0, behavior: "smooth" });
+                                  }}
+                                >
+                                  <BsPencilSquare size={18} />
+                                </button>
+                              )}
+                              {role.canDeleteProfileQuestions && (
+                                <button
+                                  className="admin-action-btn admin-action-btn--delete"
+                                  onClick={() => removeQuestion(q.id)}
+                                >
+                                  <BsTrash size={18} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -523,9 +499,10 @@ function ProfileQuestions() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </Box>
+    </ThemeProvider>
   );
 }
 
 export default ProfileQuestions;
+

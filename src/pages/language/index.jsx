@@ -1,7 +1,7 @@
 import React from "react";
-import Sidebar from "../../components/sidebar/Sidebar";
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
-import Navbar from "../../components/navbar/Navbar";
+import PageHeader from "../../components/PageHeader";
+import ThemeProvider from "../../components/ThemeProvider";
 import { useState, useReducer, useEffect } from "react";
 import {
   createLanguage,
@@ -10,7 +10,10 @@ import {
   updateLanguage,
 } from "../../ApiCalls/languageApis";
 
-function ProfileQuestions() {
+// Component Library
+import { Box, Container } from "../../component-library";
+
+function LanguageMaster() {
   const [editMode, setEditMode] = useState(false);
   const [successful, setSuccessful] = useState("");
   const [errMsg, setErrMsg] = useState("");
@@ -96,168 +99,164 @@ function ProfileQuestions() {
   }
 
   return (
-    <div className="md:flex block w-screen">
-      <div className="sticky top-0 h-screen overflow-y-auto">
-        <Sidebar />
-      </div>
+    <ThemeProvider>
+      <Box className="flex-1 flex flex-col min-w-0">
 
-      <div className=" md:flex-[5] block max-w-screen">
-        <div className="sticky top-0 bg-white z-50 ">
-          <Navbar />
-        </div>
-        <div className="bg-gray-100 top-0 min-h-screen md:py-10 md:px-40">
-          <div className=" bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
-            <div className="border-b-gray border-b-2 p-2 pt-4 md:pb-4 font-semibold text-primary tracking-wide text-xl">
-              Language Master
+        {/* Sticky Header Section */}
+        {/* <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+            <PageHeader
+              title="Language Master"
+              breadcrumbs={[
+                { label: "Dashboard", path: "/admin" },
+                { label: "Language Master", active: true }
+              ]}
+            />
+          </Container>
+        </Box> */}
+
+        <div className="admin-page">
+          {/* Form Card */}
+          <div className="admin-card">
+            <div className="admin-card__header">
+              <h2 className="admin-card__header-title">Language Master</h2>
             </div>
-            <div className="p-5">
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                Language*
-              </label>
-              <input
-                type="text"
-                placeholder="Language Name"
-                value={newLanguage}
-                onChange={(event) => {
-                  setNewLanguage(event.target.value);
-                }}
-                className=" border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-              />
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                JSON*
-              </label>
-              <input
-                type="file"
-                name="JSON"
-                id="file-input"
-                onChange={(event) => {
-                  setLangJson(event.target.files[0]);
-                }}
-                className="block w-full border border-gray-300 text-gray-500 shadow-sm rounded-lg text-sm focus:z-10 focus:border-primary focus:ring-primary disabled:opacity-50 disabled:pointer-events-none 
-                        file:border-0
-                      file:bg-gray-300 file:me-4
-                      file:text-gray-600
-                        file:py-2.5 file:px-4"
-              />
-              <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                Audio Zip File
-              </label>
-              <input
-                type="file"
-                name="Audio Zip File"
-                id="file-input"
-                onChange={(event) => {
-                  setLangAudio(event.target.files[0]);
-                }}
-                className="block w-full border border-gray-300 text-gray-500 shadow-sm rounded-lg text-sm focus:z-10 focus:border-primary focus:ring-primary disabled:opacity-50 disabled:pointer-events-none 
-                        file:border-0
-                      file:bg-gray-300 file:me-4
-                      file:text-gray-600
-                        file:py-2.5 file:px-4"
-              />
-              {editMode ? (
-                <>
-                  <button
-                    onClick={handleSubmit}
-                    className=" flex-1 mr-2 mt-5 border md:inline-block text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-[12vw] rounded-lg p-1.5"
-                  >
-                    UPDATE
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditMode(false);
-                      setNewLanguage("");
-                    }}
-                    className="flex-1 border text-[#ff0000] md:inline-block bg-white font-semibold tracking-wide text-lg border-[#ff0000] w-[12vw] rounded-lg  p-1.5"
-                  >
-                    CANCEL
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleSubmit}
-                  className=" border mt-5 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-full md:w-[12vw] rounded-lg block p-1.5"
-                >
-                  SUBMIT
-                </button>
-              )}
-              <div className="text-[#ff0000] pt-6">
-                {errMsg}
-                <span className="text-primary">{successful}</span>
+            <div className="admin-card__body">
+              <div className="admin-form__group">
+                <label className="admin-form__label admin-form__label--required">
+                  Language
+                </label>
+                <input
+                  type="text"
+                  placeholder="Language Name"
+                  value={newLanguage}
+                  onChange={(event) => {
+                    setNewLanguage(event.target.value);
+                  }}
+                  className="admin-form__input"
+                />
               </div>
+
+              <div className="admin-form__group">
+                <label className="admin-form__label admin-form__label--required">
+                  JSON File
+
+                </label>
+                <input
+                  type="file"
+                  name="JSON"
+                  id="file-input"
+                  onChange={(event) => {
+                    setLangJson(event.target.files[0]);
+                  }}
+                  className="admin-form__file"
+                />
+              </div>
+
+              <div className="admin-form__group">
+                <label className="admin-form__label">
+                  Audio Zip File
+                </label>
+                <input
+                  type="file"
+                  name="Audio Zip File"
+                  id="audio-file-input"
+                  onChange={(event) => {
+                    setLangAudio(event.target.files[0]);
+                  }}
+                  className="admin-form__file"
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                {editMode ? (
+                  <>
+                    <button onClick={handleSubmit} className="admin-btn admin-btn--teal">
+                      UPDATE
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditMode(false);
+                        setNewLanguage("");
+                      }}
+                      className="admin-btn admin-btn--outline-danger"
+                    >
+                      CANCEL
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={handleSubmit} className="admin-btn admin-btn--primary">
+                    SUBMIT
+                  </button>
+                )}
+              </div>
+
+              {errMsg && <div className="admin-message admin-message--error" style={{ marginTop: '1rem' }}>{errMsg}</div>}
+              {successful && <div className="admin-message admin-message--success" style={{ marginTop: '1rem' }}>{successful}</div>}
             </div>
           </div>
 
-          <div className=" bg-white md:p-12 p-6 border rounded-md  border-t-4 shadow-md mt-4">
-            <div className="relative overflow-x-auto mt-6">
-              <span className=" text-gray-900 tracking-wide text-xl ">
-                languages List
-                <span className="text-gray-400 text-sm">
-                  ({languages.length} Records Found )
-                </span>
-              </span>
-              <div className="mt-4">
-                <table className=" w-full text-sm text-left rtl:text-right text-gray-800 ">
-                  <thead className="text-sm text-gray-700 border-b-2 border-gray-800 ">
+          {/* Languages List Card */}
+          <div className="admin-card">
+            <div className="admin-card__body">
+              <div className="admin-toolbar">
+                <div className="admin-toolbar__left">
+                  <h3 style={{ margin: 0, fontWeight: 600, color: '#111827' }}>Languages List</h3>
+                </div>
+                <div className="admin-toolbar__right">
+                  <span className="admin-toolbar__count">
+                    {languages.length} Records Found
+                  </span>
+                </div>
+              </div>
+
+              <div className="admin-table-container">
+                <table className="admin-table">
+                  <thead>
                     <tr>
-                      <th scope="col" className="px-6 py-3">
-                        Id
-                      </th>
-                      <th scope="col" className="px-6 py-3">
-                        Language
-                      </th>
-                      <th scope="col" className="px-6 py-3 min-w-40 ">
-                        Action
-                      </th>
+                      <th>ID</th>
+                      <th>Language</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {languages.map((lang, index) => {
-                      return (
-                        <tr key={index} className="bg-white border-b ">
-                          <td scope="row" className="px-6 py-4">
-                            {lang.id}
-                          </td>
-                          <td scope="row" className="px-6 py-4">
-                            {lang.language_name}
-                          </td>
-                          <td className="px-6 py-4 text-2xl">
+                    {languages.map((lang, index) => (
+                      <tr key={index}>
+                        <td>{lang.id}</td>
+                        <td>{lang.language_name}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <button
-                              className="text-primary inline-block mx-2"
+                              className="admin-action-btn admin-action-btn--edit"
                               onClick={() => {
                                 setEditID(lang.id);
                                 setNewLanguage(lang.language_name);
                                 setEditMode(true);
-                                window.scrollTo({
-                                  top: 0,
-                                  left: 0,
-                                  behavior: "smooth",
-                                });
+                                window.scrollTo({ top: 0, behavior: "smooth" });
                               }}
                             >
-                              <BsPencilSquare />
+                              <BsPencilSquare size={18} />
                             </button>
                             <button
-                              className="text-[#ff0000] inline-block mx-2 "
-                              onClick={() => {
-                                removeLang(lang.id);
-                              }}
+                              className="admin-action-btn admin-action-btn--delete"
+                              onClick={() => removeLang(lang.id)}
                             >
-                              <BsTrash />
+                              <BsTrash size={18} />
                             </button>
+                          </div>
                           </td>
                         </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </Box>
+    </ThemeProvider>
   );
 }
 
-export default ProfileQuestions;
+export default LanguageMaster;
+

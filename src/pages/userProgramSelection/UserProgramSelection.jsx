@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
-// import { useLocation } from "react-router-dom";
 import axiosInstance from "../../helpers/axios/axiosInstance";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
+import PageHeader from "../../components/PageHeader";
+import ThemeProvider from "../../components/ThemeProvider";
 import dummyadmin from "../../assets/dummyadmin.png";
 import { server_url } from "../../constants/constants";
 import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+
+// Component Library
+import { Box, Container } from "../../component-library";
 
 function UserProgramSelection() {
   const recordsPerPage = 5;
@@ -112,138 +114,154 @@ function UserProgramSelection() {
   };
 
   return (
-    <div className="md:flex block ">
-      <div className="sticky top-0 h-screen overflow-y-auto">
-        <Sidebar />
-      </div>
-      <div className=" md:flex-[5] block w-screen">
-        <div className="sticky top-0 bg-white z-50 ">
-          <Navbar />
-        </div>
-        <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-          <div className=" bg-white md:p-12 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
-            <div className="search-box">
-              <input
-                type="text"
-                placeholder="Search By Name"
-                className="border border-gray-300 text-gray-500 inline-block text-sm rounded-lg w-full md:w-[22vw] p-2.5 focus:outline-primary"
-                onChange={handleFilter}
-              />
-            </div>
-            <span className=" text-gray-900 tracking-wide text-xl ">
-              User Program Selection{" "}
-              <span className="text-gray-400 text-sm">
-                ({records.length} Records Found )
-              </span>
-            </span>
+    <ThemeProvider>
+      <Box className="flex-1 flex flex-col min-w-0">
 
-            <div className="mt-4">
-              <table className=" w-full text-sm text-left rtl:text-right text-gray-800 ">
-                <thead className="text-sm text-gray-700 border-b-2 border-gray-800 ">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 ">
-                      Profile Photo
-                    </th>
-                    <th scope="col" className="px-6 py-3 ">
-                      Name
-                    </th>
-                    <th scope="col" className="px-6 py-3 ">
-                      Number
-                    </th>
-                    <th scope="col" className="px-6 py-3 ">
-                      Registration Date
-                    </th>
-                    <th scope="col" className="px-6 py-3 ">
-                      Request For
-                    </th>
-                    <th scope="col" className="px-6 py-3 ">
-                      Program
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {records.length > 0 ? (
-                    paginatedRecords.map((record) => (
-                      <tr key={record.id}>
-                        <td className="py-2 px-4">
-                          <div className="flex justify-center items-center">
-                            <img
-                              src={dummyadmin}
-                              alt={record.name}
-                              className="rounded-full w-12 h-12"
-                            />
-                          </div>
-                        </td>
-                        <td className="py-2 px-6">{record.name}</td>
-                        <td className="py-2 px-4">{record.number}</td>
-                        <td className="py-2 px-8">
-                          {formatDate(record.registered_date)}
-                        </td>
-                        <td className="py-2 px-4">{request?.filter(alert => alert.patientId === record.id).map(alert => (
-             
-             <div key={alert.id}>
-                
-                <p className="font-bold">{alert.programName}</p>
-                <p>Date: {new Date(alert.date).toLocaleDateString()}</p>
-                <button className="bg-green-800 p-2 rounded-sm text-white " onClick={()=>handleSubmit(alert.programName,record.id)}>Accept?</button>
-            
-              </div>))}</td>
-                        <td className="py-2 px-4">
-                          <button
-                            className={`block mb-2 text-primary border-primary border-2 rounded-md w-40 ${
-                              record.program === "Basic" ? "bg-blue-500" : ""
-                            }`}
-                            onClick={() => handleSubmit("Basic", record.id)}>
-                            Basic
-                          </button>
-                          <button
-                            className={`block mb-2  text-primary border-primary border-2 w-40 rounded-md ${
-                              record.program === "Standard" ? "bg-blue-500" : ""
-                            }`}
-                            onClick={() => handleSubmit("Standard", record.id)}>
-                            Standard
-                          </button>
-                          <button
-                            className={`block  text-primary border-primary border-2 w-40 rounded-md ${
-                              record.program === "Advanced" ? "bg-blue-500" : ""
-                            }`}
-                            onClick={() => handleSubmit("Advanced", record.id)}>
-                            Advanced
-                          </button>
+        {/* Sticky Header Section */}
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+            <PageHeader
+              title="User Program Selection"
+              breadcrumbs={[
+                { label: "Dashboard", path: "/admin" },
+                { label: "User Program Selection", active: true }
+              ]}
+            />
+          </Container>
+        </Box>
+
+        <div className="admin-page">
+          {/* User Program Selection Card */}
+          <div className="admin-card">
+            <div className="admin-card__body">
+              <div className="admin-toolbar">
+                <div className="admin-toolbar__left">
+                  <div className="admin-search">
+                    <svg className="admin-search__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Search by name..."
+                      className="admin-search__input"
+                      onChange={handleFilter}
+                    />
+                  </div>
+                </div>
+                <div className="admin-toolbar__right">
+                  <span className="admin-toolbar__count">
+                    {records.length} Records Found
+                  </span>
+                </div>
+              </div>
+
+              <div className="admin-table-container">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Profile Photo</th>
+                      <th>Name</th>
+                      <th>Number</th>
+                      <th>Registration Date</th>
+                      <th>Request For</th>
+                      <th>Program</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {records.length > 0 ? (
+                      paginatedRecords.map((record) => (
+                        <tr key={record.id}>
+                          <td>
+                            <div className="flex justify-center items-center">
+                              <img
+                                src={dummyadmin}
+                                alt={record.name}
+                                className="rounded-full w-12 h-12"
+                              />
+                            </div>
+                          </td>
+                          <td>{record.name}</td>
+                          <td>{record.number}</td>
+                          <td>{formatDate(record.registered_date)}</td>
+                          <td>
+                            {request?.filter(alert => alert.patientId === record.id).map(alert => (
+                              <div key={alert.id} style={{ marginBottom: '0.5rem' }}>
+                                <p style={{ fontWeight: 600, color: '#1A9A9A' }}>{alert.programName}</p>
+                                <p style={{ fontSize: '0.875rem', color: '#6B7280' }}>Date: {new Date(alert.date).toLocaleDateString()}</p>
+                                <button
+                                  className="admin-btn admin-btn--teal"
+                                  style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', marginTop: '0.25rem' }}
+                                  onClick={() => handleSubmit(alert.programName, record.id)}
+                                >
+                                  Accept
+                                </button>
+                              </div>
+                            ))}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              <button
+                                className={`admin-btn ${record.program === "Basic" ? "admin-btn--teal" : "admin-btn--outline"}`}
+                                style={{ minWidth: '100px' }}
+                                onClick={() => handleSubmit("Basic", record.id)}
+                              >
+                                Basic
+                              </button>
+                              <button
+                                className={`admin-btn ${record.program === "Standard" ? "admin-btn--teal" : "admin-btn--outline"}`}
+                                style={{ minWidth: '100px' }}
+                                onClick={() => handleSubmit("Standard", record.id)}
+                              >
+                                Standard
+                              </button>
+                              <button
+                                className={`admin-btn ${record.program === "Advanced" ? "admin-btn--teal" : "admin-btn--outline"}`}
+                                style={{ minWidth: '100px' }}
+                                onClick={() => handleSubmit("Advanced", record.id)}
+                              >
+                                Advanced
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#6B7280' }}>
+                          No records found.
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="6" className="text-center py-4">
-                        No records found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {records.length > recordsPerPage && (
-              <div className="pagination mt-4 flex items-center justify-end">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}>
-                  {"\u2190"}
-                </button>
-                <span>{`Page ${currentPage} of ${totalPages}`}</span>
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}>
-                  {"\u2192"}
-                </button>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            )}
+
+              {records.length > recordsPerPage && (
+                <div className="admin-pagination">
+                  <button
+                    className="admin-pagination__btn"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    ←
+                  </button>
+                  <span className="admin-pagination__info">Page {currentPage} of {totalPages}</span>
+                  <button
+                    className="admin-pagination__btn"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    →
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </Box>
+    </ThemeProvider>
   );
 }
+
 
 export default UserProgramSelection;

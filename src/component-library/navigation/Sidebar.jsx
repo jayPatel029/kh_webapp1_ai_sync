@@ -6,6 +6,7 @@
  */
 
 import React, { forwardRef } from 'react';
+import { NavLink } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import clsx from 'clsx';
 import { Box, Stack, Flex } from '../layout/Layout';
@@ -123,10 +124,16 @@ export const SidebarItem = forwardRef(({
 
   if (href) {
     return (
-      <li ref={ref} className={itemClasses} {...props}>
-        <a href={href} className="sidebar__link">
+      <li ref={ref} className={itemClasses}>
+        <NavLink
+          to={href}
+          className={({ isActive: isLinkActive }) =>
+            clsx('sidebar__link', { 'sidebar__link--active': isLinkActive || isActive })
+          }
+          {...props}
+        >
           {content}
-        </a>
+        </NavLink>
       </li>
     );
   }

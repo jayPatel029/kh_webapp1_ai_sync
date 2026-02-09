@@ -1,5 +1,4 @@
-import Sidebar from '../../components/sidebar/Sidebar';
-import Navbar from '../../components/navbar/Navbar';
+
 import BarChart from '../../components/barChart/BarChart';
 import PieChartComponent from '../../components/pieChart/PieChart';
 import MixedBarChart from '../../components/mixedBarChart/MixedBarChart';
@@ -10,18 +9,8 @@ import BarChartComponentPercentageReturn from '../../components/barChartPercenta
 import BarChartComponentAdh from '../../components/horizontalBarChartAdherance/BarChart';
 function DoctorReport() {
     return (
-        <div className="md:flex block">
-            {/* Sidebar */}
-            <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-                <Sidebar />
-            </div>
-
-            {/* Main Content */}
-            <div className="md:flex-[5] block w-screen">
-                <div className="sticky top-0 z-10">
-                    <Navbar />
-                </div>
-                <div className="flex flex-row flex-1">
+      <div className="flex-1 block w-full">
+          <div className="flex flex-row flex-1">
                     <BarChart title="Patient by Age Group"/>
                     <PieChartComponent title="Patient by Gender"/>
                 </div>
@@ -35,10 +24,8 @@ function DoctorReport() {
                 </div>
 
 
-              
-            </div>
-        </div>
-    );
+      </div>
+  );
 }
 
 

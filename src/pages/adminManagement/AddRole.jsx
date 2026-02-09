@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 
@@ -114,13 +112,8 @@ const AddRole = () => {
     });
   };
   return (
-    <div className="md:flex block">
-      <div className="md:flex-1 hidden md:flex">
-        <Sidebar />
-      </div>
-      <div className=" md:flex-[5] block w-screen">
-        <Navbar />
-        <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
+    <div className="flex-1 block w-full">
+      <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
           <div className=" bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
             <div className="header flex justify-between items-center border-b pb-2 mb-4">
               <h2 className="text-xl md:text-2xl font-bold">Add Role</h2>
@@ -194,7 +187,6 @@ const AddRole = () => {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };

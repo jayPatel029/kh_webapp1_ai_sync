@@ -97,9 +97,9 @@ function UserListManage() {
 
   return (
     <div className="md:flex block">
-      <div className="md:flex-1 hidden md:flex">
+      {/* <div className="md:flex-1 hidden md:flex">
         <Sidebar />
-      </div>
+      </div> */}
 
       <div className="md:flex-[5] block w-screen">
         <Navbar />

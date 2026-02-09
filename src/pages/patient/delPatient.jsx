@@ -1,7 +1,5 @@
 import React from "react";
 // import "./patient.scss";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import PatientList from "./PatientDetails/PatientList";
 import { useState, useEffect } from "react";
 import { server_url } from "../../constants/constants";
@@ -31,30 +29,13 @@ function DelPatient() {
   }, []);
 console.log(patientData)
   return (
-    <div className="md:flex block">
-      {/* Sidebar */}
-      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-        <Sidebar />
-      </div>
-
-      {/* Main Content */}
-      <div className="md:flex-[5] block w-screen">
-        <div className="sticky top-0 z-10">
-          <Navbar />
-        </div>
-        <div className="container flex justify-center overflow-x-hidden bg-blue-100">
-          <DelPatientList
-              data={patientData}
-              patientId={id}
-            />
-          </div>
-        
-      </div>
+    <div className="container flex justify-center overflow-x-hidden bg-blue-100">
+      <DelPatientList
+        data={patientData}
+        patientId={id}
+      />
     </div>
-
-  )
+  );
 }
-
-
 
 export default DelPatient;

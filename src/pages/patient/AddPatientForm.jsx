@@ -9,8 +9,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AddPatient } from "../../ApiCalls/patientAPis";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import PageHeader from "../../components/PageHeader";
 import ThemeProvider from "../../components/ThemeProvider";
 
@@ -94,41 +92,8 @@ const AddPatientForm = () => {
 
   return (
     <ThemeProvider>
-      <Flex className="w-full h-screen">
-        {/* Sidebar */}
-        <Box
-          style={{
-            position: 'sticky',
-            top: 0,
-            height: '100vh',
-            overflowY: 'auto'
-          }}
-        >
-          <Sidebar />
-        </Box>
-
-        {/* Main Content */}
-        <Flex
-          direction="column"
-          className="flex-1"
-          style={{
-            minWidth: 0,
-            overflowX: 'hidden',
-            backgroundColor: '#fafafa'
-          }}
-        >
-          {/* Navbar */}
-          <Box
-            style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 10
-            }}
-          >
-            <Navbar />
-          </Box>
-
-          {/* Form Content */}
+      <Flex className="w-full">
+        {/* Form Content */}
           <Container
             style={{
               flex: 1,
@@ -368,8 +333,7 @@ const AddPatientForm = () => {
                 </CardBody>
               </Card>
             </VStack>
-          </Container>
-        </Flex>
+        </Container>
       </Flex>
     </ThemeProvider>
   );

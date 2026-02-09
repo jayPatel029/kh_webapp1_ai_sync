@@ -18,9 +18,6 @@ import {
 import { Button } from "../../component-library/primitives/Button";
 
 // Components
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
-import SideBarDoctor from "../../components/sidebar/Sidebar";
 import PageHeader from "../../components/PageHeader";
 import PatientNavTabs from "../../components/PatientNavTabs";
 import ThemeProvider from "../../components/ThemeProvider";
@@ -133,13 +130,7 @@ const UserDietDetails = () => {
 
   return (
     <ThemeProvider>
-      <Box className="flex min-h-screen">
-        <Box className="flex-shrink-0">
-          {role?.role_name === "Doctor" ? <SideBarDoctor /> : <Sidebar />}
-        </Box>
-
-        <Box className="flex-1 flex flex-col min-w-0">
-          <Navbar />
+      <Box className="flex-1 flex flex-col min-w-0">
 
           {/* Sticky Header Section */}
           <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
@@ -282,7 +273,6 @@ const UserDietDetails = () => {
                 </Box>
               </Box>
             </Container>
-          </Box>
         </Box>
       </Box>
 

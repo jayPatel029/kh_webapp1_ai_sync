@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
-import Sidebar from "../../../components/sidebar/Sidebar";
-import Navbar from "../../../components/navbar/Navbar";
+
 import { BsTrash, BsPencilSquare, BsKey } from "react-icons/bs";
 import { useState, useReducer } from "react";
 import { practicingAtList, doctorSpeciality, staffSpeciality } from "../consts";
@@ -374,14 +373,8 @@ function AdminManagement() {
   }
 
   return (
-    <div className="md:flex block">
-      <div className="md:flex-1 hidden md:flex">
-        <Sidebar />
-      </div>
-
-      <div className=" md:flex-[5] block w-screen">
-        <Navbar />
-        <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
+    <div className="flex-1 block w-full">
+      <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
           <div className=" bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
             <div className="w-full md:w-[50%] px-5 py-0">
               <label className="block mb-2 text-sm font-medium text-gray-500">
@@ -937,7 +930,7 @@ function AdminManagement() {
           </div>
         </div>
       </div>
-    </div>
+
   );
 }
 

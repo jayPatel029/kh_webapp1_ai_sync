@@ -8,8 +8,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import PatientList from "./PatientDetails/PatientList";
 import { server_url } from "../../constants/constants";
 import axiosInstance from "../../helpers/axios/axiosInstance";
@@ -37,52 +35,9 @@ function Patient() {
   console.log(patientData);
 
   return (
-    <Flex className="w-full h-screen">
-      {/* Sidebar */}
-      <Box
-        style={{
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-          overflowY: 'auto'
-        }}
-      >
-        <Sidebar />
-      </Box>
-
-      {/* Main Content */}
-      <Flex
-        direction="column"
-        className="flex-1"
-        style={{
-          minWidth: 0,
-          overflowX: 'hidden'
-        }}
-      >
-        {/* Navbar */}
-        <Box
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 10
-          }}
-        >
-          <Navbar />
-        </Box>
-
-        {/* Patient List Content */}
-        <Container
-          style={{
-            flex: 1,
-            backgroundColor: 'white',
-            padding: '50px',
-            overflowY: 'auto'
-          }}
-        >
-          <PatientList data={patientData} patientId={id} />
-        </Container>
-      </Flex>
-    </Flex>
+    <Container className="p-4 md:p-12 bg-white">
+      <PatientList data={patientData} patientId={id} />
+    </Container>
   );
 }
 

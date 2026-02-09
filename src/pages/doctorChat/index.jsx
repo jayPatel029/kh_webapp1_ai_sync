@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import { io } from "socket.io-client";
 import { MdKeyboardBackspace } from "react-icons/md";
 import { MdSend } from "react-icons/md";
@@ -211,14 +209,8 @@ const ChatApp = () => {
   const navigate = useNavigate();
   
   return (
-    <div className="userProfile md:flex block bg-gray-50 min-h-screen">
-      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-        <Sidebar />
-      </div>
-      <div className="md:flex-[5] block w-full">
-        <div className="sticky top-0 z-10">
-          <Navbar />
-        </div>
+    <div className="userProfile flex flex-col bg-gray-50 min-h-screen">
+      <div className="flex-1 block w-full">
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">

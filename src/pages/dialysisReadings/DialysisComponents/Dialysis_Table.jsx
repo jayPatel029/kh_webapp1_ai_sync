@@ -31,137 +31,128 @@ export default function DailyTable({
 
   return (
     <>
-      <div className=" bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md mt-10">
-        <div className="mb-4 flex items-center">
-          <input
-            type="text"
-            placeholder="Search Term"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-2 border border-gray-300 w-56 h-8"
-          />
-          <SearchIcon className="ml-2 w-8 h-8 text-gray-400 border border-gray-300 p-1 rounded" />
-        </div>
-        <div>
-          <div className="text-left">
-            <h1 className="text-xl mb-2 text-left inline-block">
-              Dialysis Readings List
-            </h1>
-            <p className="text-xs mb-4 text-left inline-block ml-1">
-              ({tableData.length} records found)
-            </p>
+      <div className="admin-card" style={{ marginTop: '2.5rem' }}>
+        <div className="admin-card__header">
+          <div className="flex justify-between items-center w-full flex-wrap gap-4">
+            <div>
+              <h2 className="admin-card__header-title">Dialysis Readings List</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                ({tableData.length} records found)
+              </p>
+            </div>
+
+            <div className="admin-search">
+              <SearchIcon className="admin-search__icon" />
+              <input
+                type="text"
+                placeholder="Search Term"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="admin-search__input"
+              />
+            </div>
           </div>
         </div>
-        <table className=" w-full text-sm text-left rtl:text-right text-gray-800 ">
-          <thead className="text-base text-gray-700 border-b-2 border-gray-800 ">
-            <tr>
-              <th scope="col" className="px-6 py-3 w-1/3">
-                Title
-              </th>
-              <th scope="col" className="px-6 py-3">
-                Alert Text
-              </th>
-              <th scope="col" className="px-6 py-3">
-                Ailment
-              </th>
-              <th scope="col" className="px-6 py-3">
-                Condition
-              </th>
-              <th scope="col" className="px-6 py-3">
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.map((item, index) => {
-              const displayAilment = item.ailments
-                .map((x) => x.name)
-                .join(", ");
-              if (item.showUser === 0) {
-                console.log("item", item);
-                return (
-                  <tr key={index} className="bg-white border-b ">
-                    <td className="px-6 py-4">{item.title}</td>
-                    <td className="px-6 py-4">{item.alertTextDoc}</td>
-                    <td className="px-6 py-4">{displayAilment}</td>
-                    <td className="px-6 py-4">{item.condition}</td>
-                    <td className="px-6 py-4 text-2xl">
-                     
-                    {role.canEditDialysisReadings ? (
 
-                      <button
-                        className="text-primary inline-block mx-2"
-                        onClick={() => {
-                          setSuccessful("");
-                          newReadingDsipatch({
-                            type: "all",
-                            payload: {
-                              id: item.id,
-                              ailment: item.ailments.map((x) => {
-                                return { value: x.id, label: x.name };
-                              }),
-                              title: item.title,
-                              type: item.type,
-                              assign_range: item.assign_range,
-                              lower_assign_range: item.low_range,
-                              upper_assign_range: item.high_range,
-                              sendAlert: item.sendAlert ? 1 : 0,
-                              unit : item.unit,
-                              isGraph: item.isGraph ? 1 : 0,
-                              alertTextDoc: item.alertTextDoc,
-                              condition: item.condition
-                            },
-                          });
+        <div className="admin-card__body">
+          <div className="overflow-x-auto">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="w-1/3">Title</th>
+                  <th scope="col">Alert Text</th>
+                  <th scope="col">Ailment</th>
+                  <th scope="col">Condition</th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredData.map((item, index) => {
+                  const displayAilment = item.ailments
+                    .map((x) => x.name)
+                    .join(", ");
+                  if (item.showUser === 0) {
+                    return (
+                      <tr key={index}>
+                        <td>{item.title}</td>
+                        <td>{item.alertTextDoc}</td>
+                        <td>{displayAilment}</td>
+                        <td>{item.condition}</td>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            {role.canEditDialysisReadings ? (
+                              <button
+                                className="admin-action-btn admin-action-btn--edit"
+                                onClick={() => {
+                                  setSuccessful("");
+                                  newReadingDsipatch({
+                                    type: "all",
+                                    payload: {
+                                      id: item.id,
+                                      ailment: item.ailments.map((x) => {
+                                        return { value: x.id, label: x.name };
+                                      }),
+                                      title: item.title,
+                                      type: item.type,
+                                      assign_range: item.assign_range,
+                                      lower_assign_range: item.low_range,
+                                      upper_assign_range: item.high_range,
+                                      sendAlert: item.sendAlert ? 1 : 0,
+                                      unit: item.unit,
+                                      isGraph: item.isGraph ? 1 : 0,
+                                      alertTextDoc: item.alertTextDoc,
+                                      condition: item.condition
+                                    },
+                                  });
 
-                          console.log(item)
+                                  if (item.dialysis_readings_translations) {
+                                    let translationDict = {};
 
-                          if (item.dialysis_readings_translations) {
-                            let translationDict = {};
+                                    item.dialysis_readings_translations.forEach(
+                                      (element) => {
+                                        translationDict[element.language_id] =
+                                          element.title;
+                                      }
+                                    );
+                                    setTranslations(translationDict);
+                                  }
+                                  setEditMode(true);
+                                  window.scrollTo({
+                                    top: 0,
+                                    left: 0,
+                                    behavior: "smooth",
+                                  });
+                                }}
+                              >
+                                <BsPencilSquare />
+                              </button>
+                            ) : null}
 
-                            item.dialysis_readings_translations.forEach(
-                              (element) => {
-                                translationDict[element.language_id] =
-                                  element.title;
-                              }
-                            );
-                            setTranslations(translationDict);
-                          }
-                          setEditMode(true);
-                          window.scrollTo({
-                            top: 0,
-                            left: 0,
-                            behavior: "smooth",
-                          });
-                        }}
-                      >
-                        <BsPencilSquare />
-                      </button>
-                    ):null} 
-
-                      {role.canDeleteDialysisReadings ?(
-
-                      <button
-                        className="text-[#ff0000] inline-block mx-2 "
-                        onClick={() => {
-                          setSuccessful("");
-                          deleteDialysisReading(item.id).then(() => {
-                            setSuccessful("Reading Deleted Successful!");
-                            setResetter(!resetter);
-                          });
-                        }}
-                      >
-                        <BsTrash />
-                      </button>
-                      ):null} 
-
-
-                    </td>
-                  </tr>
-                );
-              }
-            })}
-          </tbody>
-        </table>
+                            {role.canDeleteDialysisReadings ? (
+                              <button
+                                className="admin-action-btn admin-action-btn--delete"
+                                onClick={() => {
+                                  setSuccessful("");
+                                  deleteDialysisReading(item.id).then(() => {
+                                    setSuccessful("Reading Deleted Successful!");
+                                    setResetter(!resetter);
+                                  });
+                                }}
+                              >
+                                <BsTrash />
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return null;
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </>
   );

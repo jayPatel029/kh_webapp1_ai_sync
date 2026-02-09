@@ -19,7 +19,6 @@ import { Flex, Box, Container } from "../../component-library/layout/Layout";
 import { Card } from "../../component-library/primitives/Card";
 
 // Components
-import Navbar from "../../components/navbar/Navbar";
 import PageHeader from "../../components/PageHeader";
 import PatientNavTabs from "../../components/PatientNavTabs";
 
@@ -36,7 +35,7 @@ import closeIcon from "../../assets/Close.svg";
 // CSV Components
 import CSVLab2 from "../../components/csvLab2/CSVLab2";
 
-import Sidebar from "../../components/sidebar/Sidebar";
+
 
 const UserLabReportsRedesign = () => {
   const [showModal, setShowModal] = useState(false);
@@ -124,21 +123,9 @@ const UserLabReportsRedesign = () => {
   }, [showModal, id]);
 
   return (
-    <Flex className="min-h-screen bg-[#fafafa]">
-      {/* Sidebar */}
-      <Box className="hidden md:block flex-none sticky top-0 h-screen overflow-y-auto">
-        <Sidebar />
-      </Box>
-
-      {/* Main Content Area */}
-      <Box className="flex-1 w-full flex flex-col min-w-0">
-        {/* Navbar */}
-        <Box className="sticky top-0 z-30">
-          <Navbar />
-        </Box>
-
-        {/* Sticky Header Section */}
-        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+    <Container className="flex-1 w-full flex flex-col min-w-0 bg-[#fafafa]">
+      {/* Sticky Header Section */}
+      <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
           <Container className="py-4 px-4 md:px-6 max-w-full lg:max-w-[1440px] mx-auto">
             {/* Header with Breadcrumbs */}
             <PageHeader
@@ -417,8 +404,8 @@ const UserLabReportsRedesign = () => {
             />
           )}
         </Box>
-      </Box>
-    </Flex>
+
+    </Container >
   );
 };
 

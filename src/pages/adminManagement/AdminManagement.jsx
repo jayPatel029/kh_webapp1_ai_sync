@@ -1,6 +1,4 @@
 import React from "react";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import { BsTrash, BsPencilSquare, BsKey } from "react-icons/bs";
 import { useState, useReducer, useEffect } from "react";
 import { newUserReducer } from "./reducers";
@@ -187,12 +185,9 @@ function AdminManagement() {
 
   return (
     <div className="md:flex block">
-      <div className="md:flex-1 hidden md:flex">
-        <Sidebar />
-      </div>
 
       <div className=" md:flex-[5] block w-screen">
-        <Navbar />
+        {/* <Navbar /> */}
         <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
           <div className=" bg-white md:p-12 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
             <div className="border-b-gray border-b-2 p-2 pb-6 font-semibold text-primary tracking-wide text-xl">
@@ -434,7 +429,7 @@ function AdminManagement() {
                               </>
                             )}
                             {u.email !== "superadmin@kifaytihealth.com" &&
-                            myRole.createAdmin >= 4 ? (
+                              myRole.createAdmin >= 4 ? (
                               <button
                                 onClick={() => deleteUser(u.email)}
                                 className="text-[#ff0000] inline-block mx-2">

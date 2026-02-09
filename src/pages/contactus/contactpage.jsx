@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllContactUs, deleteContactUs } from "../../ApiCalls/contactus";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
+import PageHeader from "../../components/PageHeader";
+import ThemeProvider from "../../components/ThemeProvider";
 import { BsTrash } from "react-icons/bs";
+
+// Component Library
+import { Box, Container } from "../../component-library";
 
 export default function ContactUs() {
   const [contactus, setContactUs] = useState([]);
@@ -36,87 +39,86 @@ export default function ContactUs() {
   };
 
   return (
-    <div className="md:flex block">
-      <div className="md:flex-1 hidden md:flex">
-        <Sidebar />
-      </div>
+    <ThemeProvider>
+      <Box className="flex-1 flex flex-col min-w-0">
 
-      <div className=" md:flex-[5] block w-screen">
-        <Navbar />
-        <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-          <div className=" bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
-            <div className="border-b-gray border-b-2 p-2 pt-4 md:pb-4 font-bold text-primary tracking-wide text-2xl">
-              Contact Us
+        {/* Sticky Header Section */}
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+            <PageHeader
+              title="Contact Us"
+              breadcrumbs={[
+                { label: "Dashboard", path: "/admin" },
+                { label: "Contact Us", active: true }
+              ]}
+            />
+          </Container>
+        </Box>
+
+        <div className="admin-page">
+          {/* Contact Us Card */}
+          <div className="admin-card">
+            <div className="admin-card__header">
+              <h2 className="admin-card__header-title">Contact Messages</h2>
             </div>
-            <div>
-              <table className=" w-full text-sm text-left rtl:text-right text-gray-800 ">
-                <thead className="text-sm text-gray-700 border-b-2 border-gray-800 ">
-                  <tr>
-                    <th scope="col" className="px-6 py-3">
-                      Sr. no.
-                    </th>
-                    <th scope="col" className="px-6 py-3">
-                      Name
-                    </th>
-                    <th scope="col" className="px-6 py-3 w-1/5">
-                      Phone No.
-                    </th>
-                    <th scope="col" className="px-6 py-3">
-                      Message
-                    </th>
-                    <th scope="col" className="px-6 py-3">
-                      Date
-                    </th>
-                    <th scope="col" className="px-6 py-3 ">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contactus.map((c, index) => {
-                    const dateoptions = {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    };
-                    const displaydate = new Date(c.createdAt).toLocaleDateString("en-GB", dateoptions);
-                    return (
-                      <tr
-                        key={index}
-                        className="bg-white border-b cursor-pointer"
-                        onClick={() => {
-                          navigate(`/contactus/${c.id}`);
-                        }}
-                      >
-                        <td className="px-6 py-4">
-                          {index + 1}
-                        </td>
-                        <td className="px-6 py-4">
-                          {c.email}
-                        </td>
-                        <td className="px-6 py-4">{c.phoneno}</td>
-                        <td className="px-6 py-4">{c.message}</td>
-                        <td className="px-6 py-4">{displaydate}</td>
-                        <td className="px-6 py-4 text-2xl">
-                          <button
-                            className="text-[#ff0000] inline-block mx-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleterow(c.id);
-                            }}
-                          >
-                            <BsTrash />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="admin-card__body">
+              <div className="admin-table-container">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Sr. No.</th>
+                      <th>Email</th>
+                      <th>Phone No.</th>
+                      <th>Message</th>
+                      <th>Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {contactus.map((c, index) => {
+                      const dateoptions = {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      };
+                      const displaydate = new Date(c.createdAt).toLocaleDateString("en-GB", dateoptions);
+                      return (
+                        <tr
+                          key={index}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            navigate(`/contactus/${c.id}`);
+                          }}
+                        >
+                          <td>{index + 1}</td>
+                          <td>{c.email}</td>
+                          <td>{c.phoneno}</td>
+                          <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {c.message}
+                          </td>
+                          <td>{displaydate}</td>
+                          <td>
+                            <button
+                              className="admin-action-btn admin-action-btn--delete"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleterow(c.id);
+                              }}
+                            >
+                              <BsTrash size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </Box>
+
+    </ThemeProvider>
   );
 }

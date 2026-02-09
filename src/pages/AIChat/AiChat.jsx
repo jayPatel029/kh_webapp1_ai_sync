@@ -1,6 +1,4 @@
 import React from "react";
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import { DeepChat } from "deep-chat-react";
 
 
@@ -157,50 +155,38 @@ const AiChat = () => {
   };
 
   return (
-    <div className="md:flex block">
-      {/* Sidebar */}
-      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-        <Sidebar />
-      </div>
-
-      {/* Main Content */}
-      <div className="md:flex-[5] block w-screen">
-        <div className="sticky top-0 z-10">
-          <Navbar />
-        </div>
-        
-        <div className="flex-grow bg-gray-100 p-5 md:p-16 items-center justify-center">
-          <h1
+    <div className="flex-1 block w-full">
+      <div className="flex-grow bg-gray-100 p-5 md:p-16 items-center justify-center">
+        <h1
+          style={{
+            fontSize: "40px",
+            fontWeight: "bold",
+            background: "-webkit-linear-gradient(45deg, #ff6ec4, #7873f5)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            textAlign: "center",
+          }}
+        >
+          AI Chat Interface
+        </h1>
+        <div className="bg-white p-5 shadow-md rounded-lg h-full items-center justify-center">
+          <DeepChat
             style={{
-              fontSize: "40px",
-              fontWeight: "bold",
-              background: "-webkit-linear-gradient(45deg, #ff6ec4, #7873f5)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              textAlign: "center",
+              borderRadius: "10px",
+              borderColor: "#dcdcdc",
+              backgroundColor: "#f3f6fc",
+              width: "70rem",
+              height: "70vh",
             }}
-          >
-            AI Chat Interface
-          </h1>
-          <div className="bg-white p-5 shadow-md rounded-lg h-full items-center justify-center">
-            <DeepChat
-              style={{
-                borderRadius: "10px",
-                borderColor: "#dcdcdc",
-                backgroundColor: "#f3f6fc",
-                width: "70rem",
-                height: "70vh",
-              }}
-              textInput={textInputConfig}
-              messageStyles={messageStylesConfig}
-              avatars={avatarsConfig}
-              speechToText={speechToTextConfig}
-              submitButtonStyles={submitButtonStylesConfig}
-              initialMessages={initialMessages}
-              demo={true}
-              stream={true}
-            />
-          </div>
+            textInput={textInputConfig}
+            messageStyles={messageStylesConfig}
+            avatars={avatarsConfig}
+            speechToText={speechToTextConfig}
+            submitButtonStyles={submitButtonStylesConfig}
+            initialMessages={initialMessages}
+            demo={true}
+            stream={true}
+          />
         </div>
       </div>
     </div>
