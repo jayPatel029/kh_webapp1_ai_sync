@@ -1,39 +1,29 @@
-/**
- * Patient Profile Card Component
- * Displays patient basic details and ailment information in a compact, dynamic layout.
- * 
- * @file src/components/PatientProfileCard.jsx
- */
 
-import React from 'react';
-import clsx from 'clsx';
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  Text,
-  Heading,
-  IconButton,
-  Box,
-  Flex,
-} from '../component-library';
+import React, { useState } from 'react';
+import { Card, CardBody, CardHeader } from '../component-library/primitives/Card';
+import { Text, Heading } from '../component-library/primitives/Typography';
+import { IconButton, Button } from '../component-library/primitives/Button';
+import { Flex, Box } from '../component-library/layout/Layout';
 import getValidImageUrl, { formatDate } from '../helpers/utils';
+import clsx from 'clsx';
 import ParameterSection from './ParameterSection';
 import QuestionsContainer from './questions/QuestionsContainer';
-import '../design-system/styles/index.css';
-
+import upIcon from '../assets/up.png';
+import { Edit } from '@mui/icons-material';
 export const PatientProfileCard = ({
   userData,
   role,
   onEditName,
   onEditAilments,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+
   const getConditionStyle = (condition) => {
     switch (String(condition || '').toLowerCase()) {
-      case 'stable': return 'badge-success';
-      case 'unstable': return 'badge-warning';
-      case 'critical': return 'badge-error';
-      default: return 'badge-default';
+      case 'stable': return 'bg-green-100 text-green-700';
+      case 'unstable': return 'bg-yellow-100 text-yellow-700';
+      case 'critical': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
@@ -59,18 +49,33 @@ export const PatientProfileCard = ({
   ];
 
   return (
-    <Card variant="elevated" className="w-full card-elevated">
-      <CardHeader className="px-4 py-2 border-b border-border bg-white">
-        <Flex align="center" justify="start" className="w-full">
-          <Heading size="sm" weight="bold" className="uppercase tracking-wide text-muted">
+    <Card variant="elevated" className="w-full" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+      <CardHeader
+        className="px-4 py-2 border-b border-gray-100 bg-white cursor-pointer select-none"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <Flex align="center" justify="between" className="w-full">
+          <Heading size="sm" weight="bold" className="uppercase tracking-wide text-black font-16 font-bold">
             Basic details & ailment
           </Heading>
+          {/* <Box className={clsx("h-6 w-6 p-0 hover:bg-transparent transition-transform duration-200", isExpanded ? 'rotate-90' : '')}>
+            <img src={upIcon} alt='up' />
+          </Box> */}
+          <Button
+            variant="ghost"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1 h-8 w-8 min-w-0"
+          >
+            <Box className={clsx("transition-transform duration-200", isExpanded ? 'rotate-90' : '')}>
+              <img src={upIcon} alt='up' />
+            </Box>
+          </Button>
         </Flex>
       </CardHeader>
 
-      <CardBody className="p-4">
-        <Flex className="flex-col md:flex-row" gap={4} align="start">
-          <Box className="flex-shrink-0 w-full md:w-56">
+      {isExpanded && (
+        <CardBody className="p-4 transition-all duration-300 ease-in-out">
+          <Flex direction="flex-row" gap={8} align="start">
             <Flex direction="column" align="center" gap={3}>
               <Box className="relative">
                 <Box
@@ -81,13 +86,12 @@ export const PatientProfileCard = ({
                   style={{ width: 84, height: 84, border: '4px solid #fff' }}
                 />
                 <IconButton
-                  onClick={onEditName}
+                  onClick={(e) => { e.stopPropagation(); onEditName(); }}
                   variant="ghost"
                   className="absolute bottom-0 right-0 bg-white shadow border rounded-full h-7 w-7 p-0 flex items-center justify-center"
-                  aria-label="Edit name"
-                >
-                  <span style={{ fontSize: 10 }}>✎</span>
-                </IconButton>
+                  icon={<Edit />}
+                />
+
               </Box>
 
               <Box className={clsx('px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight', getConditionStyle(userData?.condition))}>
@@ -98,8 +102,8 @@ export const PatientProfileCard = ({
                 <Box className="space-y-2 text-sm">
                   {infoItems.slice(0, 4).map((it, i) => (
                     <Flex key={i} className="items-center gap-2">
-                      <Text size="xs" weight="bold" className="text-muted uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
-                      <Text size="sm" weight="semibold" className="text-dark truncate">{it.value || '-'}</Text>
+                      <Text size="xs" weight="bold" className="text-slate-400 uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
+                      <Text size="sm" weight="semibold" className="text-slate-700 truncate">{it.value || '-'}</Text>
                     </Flex>
                   ))}
                 </Box>
@@ -107,40 +111,38 @@ export const PatientProfileCard = ({
                 <Box className="mt-3 text-sm">
                   {infoItems.slice(4).map((it, i) => (
                     <Flex key={i} className="items-center gap-2">
-                      <Text size="xs" className="text-muted uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
-                      <Text size="sm" className="text-dark truncate">{it.value || '-'}</Text>
+                      <Text size="xs" className="text-slate-400 uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
+                      <Text size="sm" className="text-slate-700 truncate">{it.value || '-'}</Text>
                     </Flex>
                   ))}
                 </Box>
               </Box>
             </Flex>
-          </Box>
 
-          <Box className="hidden md:block divider-vertical" style={{ width: 1, marginLeft: 16, marginRight: 16 }} />
+            <Box className="flex-1 w-full">
+              <Box className="space-y-4">
+                <Box className="flex items-center gap-4">
+                  <Box className="h-8 w-1 rounded-full" />
+                  <Heading size="sm" weight="bold" className="text-2xl font-bold text-[#333]">Ailment Details</Heading>
+                </Box>
 
-          <Box className="flex-1 w-full">
-            <Box className="space-y-4">
-              <Box className="flex items-center gap-4">
-                <Box className="h-8 w-1 bg-primary rounded-full" />
-                <Heading size="sm" weight="bold" className="text-2xl font-bold text-dark">Ailment Details</Heading>
+                {userData?.ailments && userData.ailments.length > 0 ? (
+                  userData.ailments.map((ailment, idx) => (
+                    <ParameterSection key={idx} title={ailment}>
+                      <QuestionsContainer aliment={ailment} user_id={userData?.id} />
+                    </ParameterSection>
+                  ))
+                ) : (
+                  <Text size="sm" className="text-slate-500">No ailments listed.</Text>
+                )}
               </Box>
-
-              {userData?.ailments && userData.ailments.length > 0 ? (
-                userData.ailments.map((ailment, idx) => (
-                  <ParameterSection key={idx} title={ailment}>
-                    <QuestionsContainer aliment={ailment} user_id={userData?.id} />
-                  </ParameterSection>
-                ))
-              ) : (
-                  <Text size="sm" className="text-muted">No ailments listed.</Text>
-              )}
-
             </Box>
-          </Box>
-        </Flex>
-      </CardBody>
+          </Flex>
+        </CardBody>
+      )}
     </Card>
   );
 };
 
 export default PatientProfileCard;
+
