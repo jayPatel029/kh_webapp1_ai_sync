@@ -1,51 +1,13 @@
-import React, { useState } from "react";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
-import { ConfirmModal } from "../../component-library/modals/ConfirmModal";
-import { Text } from "../../component-library/primitives/Typography";
+/**
+ * TableModalDelete Component
+ * Wrapper for ReadingModalDelete with regular readings type
+ * 
+ * @file src/components/table/TableModalDelete.jsx
+ */
 
-export default function TableModalDelete({ id, closeModal, onSuccess, date }) {
-  const [errMessage, setErrMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+import React from "react";
+import ReadingModalDelete from "./ReadingModalDelete";
 
-  const handleDelete = () => {
-    deleteReading({ id });
-  };
-
-  const deleteReading = async (data) => {
-    setIsLoading(true);
-    axiosInstance
-      .post(`${server_url}/readings/delete`, data)
-      .then((response) => {
-        if (response.data.success === false) {
-          setErrMessage(response.data.data);
-        } else {
-          onSuccess();
-          closeModal();
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error.message);
-        setErrMessage("An error occurred while deleting the entry.");
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  };
-
-  return (
-    <ConfirmModal
-      isOpen={true}
-      onClose={closeModal}
-      onConfirm={handleDelete}
-      title="Delete Entry"
-      confirmText="Delete"
-      cancelText="Cancel"
-      confirmVariant="danger"
-      isLoading={isLoading}
-    >
-      <Text>Do you want to delete {date} entry?</Text>
-      {errMessage && <Text className="text-red-500 mt-2">{errMessage}</Text>}
-    </ConfirmModal>
-  );
+export default function TableModalDelete(props) {
+  return <ReadingModalDelete {...props} type="regular" />;
 }

@@ -6,7 +6,7 @@
 
 import React, { useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { tokens, getColor, getTypography } from '../Styles/tokens';
+import { theme as designSystemTheme } from '../design-system';
 
 /**
  * ThemeProvider Component
@@ -16,14 +16,14 @@ import { tokens, getColor, getTypography } from '../Styles/tokens';
 export const ThemeProvider = ({ children }) => {
   const dispatch = useDispatch();
   const { currentTheme, theme, customOverrides } = useSelector(
-    (state) => state.theme
+    (state) => state.theme || { currentTheme: 'light', theme: designSystemTheme, customOverrides: {} }
   );
 
   const themeContextValue = useMemo(
     () => ({
-      currentTheme,
-      theme,
-      customOverrides,
+      currentTheme: currentTheme || 'light',
+      theme: theme || designSystemTheme,
+      customOverrides: customOverrides || {},
       dispatch,
     }),
     [currentTheme, theme, customOverrides, dispatch]
@@ -42,7 +42,7 @@ export const ThemeProvider = ({ children }) => {
  */
 export const ThemeContext = React.createContext({
   currentTheme: 'light',
-  theme: tokens,
+  theme: designSystemTheme,
   customOverrides: {},
   dispatch: () => {},
 });
@@ -65,7 +65,7 @@ export const useTheme = () => {
  */
 export const useThemeColors = () => {
   const { theme } = useTheme();
-  return theme.colors;
+  return theme?.colors || {};
 };
 
 /**
@@ -74,7 +74,7 @@ export const useThemeColors = () => {
  */
 export const useThemeTypography = () => {
   const { theme } = useTheme();
-  return theme.typography;
+  return theme?.typography || {};
 };
 
 /**
@@ -83,7 +83,7 @@ export const useThemeTypography = () => {
  */
 export const useThemeSpacing = () => {
   const { theme } = useTheme();
-  return theme.spacing;
+  return theme?.spacing || {};
 };
 
 /**

@@ -1,10 +1,16 @@
+/**
+ * DocOpenModal Component
+ * Modal for viewing uploaded documents (PDF or image)
+ * 
+ * @file src/components/table/DocOpenModal.jsx
+ */
+
 import React from "react";
 import MyPDFViewer from "../pdf/MyPDFViewer";
-import { BaseModal } from "../../component-library/modals/BaseModal";
-import { Box } from "../../component-library/layout/Layout";
+import { BaseModal, Box } from "../../component-library";
 
 function DocOpenModal({ closeModal, file }) {
-  const isPdf = /.*\.pdf$/.test(file);
+  const isPdf = /.*\.pdf$/i.test(file);
   
   return (
     <BaseModal

@@ -8,7 +8,8 @@
  * import { Button, Input, Container, Card } from './components';
  */
 
-// ==================== PRIMITIVES ====================
+// ==================== RE-EXPORT FROM COMPONENT LIBRARY ====================
+// Primitives
 export {
   // Button
   Button,
@@ -43,6 +44,7 @@ export {
   CardHeader,
   CardBody,
   CardFooter,
+  Chart,
   
   // Typography
   Text,
@@ -51,7 +53,7 @@ export {
   Code,
   Label,
   
-  // Overlay
+  // Overlay (Modal)
   Modal,
   ModalOverlay,
   ModalContent,
@@ -60,9 +62,9 @@ export {
   ModalFooter,
   ModalCloseButton,
   useModalContext,
-} from './primitives';
+} from '../component-library/primitives';
 
-// ==================== LAYOUT ====================
+// Layout
 export {
   Box,
   Flex,
@@ -76,24 +78,27 @@ export {
   SimpleGrid,
   Grid,
   GridItem,
-} from './layout';
+} from '../component-library/layout';
 
-// ==================== COMPONENT LIBRARY (Unified) ====================
+// Modal Wrappers
 export {
-  // Modal Wrappers
   BaseModal,
   ConfirmModal,
   FormModal,
-  
-  // Feedback
+} from '../component-library/modals';
+
+// Feedback
+export {
   Alert,
   Toast,
   Spinner,
   Skeleton,
   SkeletonText,
   SkeletonCircle,
-  
-  // Navigation
+} from '../component-library/feedback';
+
+// Navigation
+export {
   Navbar,
   NavbarBrand,
   NavbarContent,
@@ -104,7 +109,20 @@ export {
   SidebarItem,
   SidebarGroup,
   NavLink,
-} from '../component-library';
+} from '../component-library/navigation';
 
-// ==================== THEME ====================
+// ==================== LOCAL COMPONENTS ====================
+// Page-level components
+export { PageHeader } from './PageHeader';
+export { PatientNavTabs } from './PatientNavTabs';
+export { PatientProfileCard } from './PatientProfileCard';
+export { ParameterSection } from './ParameterSection';
+
+// Theme
 export { ThemeProvider, useTheme, useThemeColors, useThemeTypography, ThemeContext } from './ThemeProvider';
+
+// Modals
+export * from './modals';
+
+// Questions
+export { default as QuestionsContainer } from './questions/QuestionsContainer';

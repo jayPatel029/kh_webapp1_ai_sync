@@ -1,11 +1,21 @@
+/**
+ * DynamicModal Component
+ * Renders different input types based on question type
+ * 
+ * @file src/components/modals/DynamicModal.jsx
+ */
+
 import React, { useState } from "react";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
-import { FormModal } from "../../component-library/modals/FormModal";
-import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
-import { Input } from "../../component-library/primitives/Input";
-import { Checkbox, CheckboxGroup } from "../../component-library/primitives/Checkbox";
-import { VStack, Flex } from "../../component-library/layout/Layout";
+import {
+  FormModal,
+  FormControl,
+  Input,
+  Checkbox,
+  VStack,
+  Flex,
+} from "../../component-library";
 
 const DynamicModal = ({
   closeModal,

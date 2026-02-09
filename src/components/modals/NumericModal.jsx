@@ -1,9 +1,14 @@
+/**
+ * NumericModal Component
+ * Modal for entering numeric type responses
+ * 
+ * @file src/components/modals/NumericModal.jsx
+ */
+
 import React, { useState } from "react";
 import { server_url } from "../../constants/constants";
 import axiosInstance from "../../helpers/axios/axiosInstance";
-import { FormModal } from "../../component-library/modals/FormModal";
-import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
-import { Input } from "../../component-library/primitives/Input";
+import { FormModal, FormControl, FormLabel, Input } from "../../component-library";
 
 const NumericModal = ({ closeModal, user_id, question_id, question }) => {
   const [selectedResponse, setSelectedResponse] = useState("");

@@ -18,11 +18,16 @@ import {
   ModalContent,
   ModalHeader,
   ModalBody,
-  ModalCloseButton
-} from "../../component-library/primitives/Modal";
-import { Button } from "../../component-library/primitives/Button";
-import { VStack, HStack, Box, Flex } from "../../component-library/layout/Layout";
-import { Text, Heading } from "../../component-library/primitives/Typography";
+  ModalCloseButton,
+  Button,
+  VStack,
+  HStack,
+  Box,
+  Flex,
+  Text,
+  Heading,
+  Spinner,
+} from "../../component-library";
 
 // APIs and Helpers
 import axiosInstance from "../../helpers/axios/axiosInstance";
@@ -30,6 +35,9 @@ import { server_url } from "../../constants/constants";
 import { addComment } from "../../ApiCalls/commentApi";
 import { getPatientByIdad } from "../../ApiCalls/patientAPis";
 import MyPDFViewer from "../../components/pdf/MyPDFViewer";
+
+// Styles
+import '../../design-system/styles/index.css';
 
 // Icons
 import downloadIcon from "../../assets/icons/download.svg";
@@ -122,7 +130,7 @@ export const FileViewModal = ({
     } catch (error) {
       console.error("Error uploading comment:", error);
     } finally {
-      setIsSubmitting(true); // Small delay feel
+      setIsSubmitting(true);
       setTimeout(() => setIsSubmitting(false), 500);
     }
   };
@@ -216,16 +224,16 @@ export const FileViewModal = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="6xl" isCentered>
-      <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
+      <ModalOverlay className="modal-overlay-blur" />
       <ModalContent
-        className="rounded-2xl overflow-hidden flex flex-col bg-white"
+        className="rounded-2xl overflow-hidden flex flex-col bg-white file-view-modal"
         style={{ height: '85vh', maxWidth: '1200px' }}
       >
-        <ModalHeader className="border-b bg-gray-50/50 flex-none py-4 px-6">
+        <ModalHeader className="border-b bg-surface/50 flex-none py-4 px-6">
           <HStack justify="between" align="center" className="w-full">
             <VStack spacing={0} align="start">
-              <Heading size="sm" weight="bold" style={{ color: '#1a1a1a' }}>{title}</Heading>
-              <Text size="xs" color="gray.500">{fileType}</Text>
+              <Heading size="sm" weight="bold" className="text-dark">{title}</Heading>
+              <Text size="xs" className="text-muted">{fileType}</Text>
             </VStack>
 
             <HStack spacing={4}>
@@ -234,36 +242,36 @@ export const FileViewModal = ({
                 size="md"
                 onClick={handleDownloadPDF}
                 isLoading={isDownloading}
-                className="rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold"
+                className="rounded-xl btn-outline-secondary"
               >
                 <HStack spacing={2}>
                   <img src={downloadIcon} alt="" style={{ width: 16 }} />
                   <span>Download Summary</span>
                 </HStack>
               </Button>
-              <ModalCloseButton className="static p-0 hover:bg-gray-100 rounded-full" />
+              <ModalCloseButton className="static p-0 hover:bg-surface rounded-full" />
             </HStack>
           </HStack>
         </ModalHeader>
 
         <ModalBody className="p-0 flex-1 overflow-hidden flex flex-col md:flex-row">
           {/* Left Side: File Preview */}
-          <Box className="flex-1 bg-gray-50 overflow-auto flex items-center justify-center p-6 relative">
+          <Box className="flex-1 bg-surface overflow-auto flex items-center justify-center p-6 relative">
             {loading && !imgError && (
-              <VStack spacing={4} className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
-                <Box className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <VStack spacing={4} className="absolute inset-0 flex items-center justify-center bg-surface z-10">
+                <Spinner size="lg" />
                 <Text weight="medium">Loading file preview...</Text>
               </VStack>
             )}
 
             {imgError ? (
-              <VStack spacing={2} align="center" justify="center" className="h-full text-gray-400">
+              <VStack spacing={2} align="center" justify="center" className="h-full text-muted">
                 <Text size="2xl">⚠️</Text>
                 <Text>Failed to load image</Text>
-                <Text size="xs" className="text-gray-300">URL: {fileUrl || 'Empty'}</Text>
+                <Text size="xs" className="text-muted-foreground">URL: {fileUrl || 'Empty'}</Text>
               </VStack>
             ) : isPdf ? (
-              <Box className="w-full h-full min-h-[500px] rounded-xl overflow-hidden shadow-sm border border-gray-100">
+                <Box className="w-full h-full min-h-[500px] rounded-xl overflow-hidden shadow-sm border border-border">
                 <MyPDFViewer file={fileUrl} />
               </Box>
             ) : (
@@ -271,7 +279,7 @@ export const FileViewModal = ({
                 <img
                   src={fileUrl}
                   alt="File Preview"
-                  className={`max-w-full max-h-[70vh] shadow-2xl rounded-lg border border-gray-200 transition-opacity duration-300 ${loading ? 'opacity-0' : 'opacity-100'}`}
+                      className={`max-w-full max-h-[70vh] shadow-2xl rounded-lg border border-border transition-opacity duration-300 ${loading ? 'opacity-0' : 'opacity-100'}`}
                   onLoad={() => setLoading(false)}
                   onError={() => {
                     setLoading(false);
@@ -283,9 +291,9 @@ export const FileViewModal = ({
           </Box>
 
           {/* Right Side: Comments Section */}
-          <Box className="w-full md:w-[380px] border-l border-gray-100 bg-white flex flex-col flex-none shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">
-            <Box className="p-6 border-b border-gray-50">
-              <Heading size="xs" weight="bold" className="uppercase tracking-tight text-gray-400">
+          <Box className="w-full md:w-[380px] border-l border-border bg-white flex flex-col flex-none shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">
+            <Box className="p-6 border-b border-border">
+              <Heading size="xs" weight="bold" className="uppercase tracking-tight text-muted">
                 Comments
               </Heading>
             </Box>
@@ -296,26 +304,24 @@ export const FileViewModal = ({
                   prevComments.map((comment) => (
                     <Box key={comment.id} className="group">
                       <HStack spacing={3} align="start" className="mb-2">
-                        <Box className={`mt-1 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${comment.isDoctor ? 'bg-[#5886a5]' : 'bg-[#4361ee]'
-                          }`}>
+                        <Box className={`mt-1 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${comment.isDoctor ? 'bg-primary-dark' : 'bg-primary'}`}>
                           {comment.isDoctor ? 'D' : 'P'}
                         </Box>
                         <VStack spacing={1} align="start" className="flex-1">
                           <HStack justify="between" className="w-full">
-                            <Text size="sm" weight="bold" className="text-gray-900">
+                            <Text size="sm" weight="bold" className="text-dark">
                               {comment.isDoctor ? `Dr. ${comment.doctorName}` : "Patient"}
                             </Text>
-                            <Text size="xs" className="text-gray-400 font-normal">
+                            <Text size="xs" className="text-muted font-normal">
                               {formatDate(comment.date).split(',')[1]}
                             </Text>
                           </HStack>
-                          <Box className={`p-3 rounded-2xl ${comment.isDoctor ? 'bg-gray-50 rounded-tl-none' : 'bg-blue-50/50 rounded-tl-none border border-blue-100/30'
-                            }`}>
-                            <Text size="sm" className="text-gray-700 leading-relaxed font-normal">
+                          <Box className={`p-3 rounded-2xl ${comment.isDoctor ? 'bg-surface rounded-tl-none' : 'bg-primary/5 rounded-tl-none border border-primary/10'}`}>
+                            <Text size="sm" className="text-dark leading-relaxed font-normal">
                               {comment.content}
                             </Text>
                           </Box>
-                          <Text size="xs" className="text-gray-300 pl-1 mt-1">
+                          <Text size="xs" className="text-muted-foreground pl-1 mt-1">
                             {formatDate(comment.date).split(',')[0]}
                           </Text>
                         </VStack>
@@ -324,19 +330,19 @@ export const FileViewModal = ({
                   ))
                 ) : (
                   <Flex direction="column" align="center" justify="center" className="h-full py-10">
-                    <Box className="w-16 h-16 bg-gray-50 rounded-full mb-4 flex items-center justify-center">
+                      <Box className="w-16 h-16 bg-surface rounded-full mb-4 flex items-center justify-center">
                       <Text size="lg">💬</Text>
                     </Box>
-                    <Text size="sm" className="text-gray-400 italic font-medium">No comments posted yet</Text>
-                    <Text size="xs" className="text-gray-300 mt-1">Be the first to share your thoughts</Text>
+                      <Text size="sm" className="text-muted italic font-medium">No comments posted yet</Text>
+                      <Text size="xs" className="text-muted-foreground mt-1">Be the first to share your thoughts</Text>
                   </Flex>
                 )
               ) : (
-                <Box className="p-6 bg-amber-50/50 border border-amber-100/50 rounded-2xl text-center">
-                  <Text size="sm" weight="semibold" className="text-amber-700 mb-1">
+                  <Box className="p-6 bg-warning/10 border border-warning/20 rounded-2xl text-center">
+                    <Text size="sm" weight="semibold" className="text-warning-dark mb-1">
                     🔒 Premium Feature
                   </Text>
-                  <Text size="xs" className="text-amber-600/80">
+                    <Text size="xs" className="text-warning/80">
                     Discussions are available only for Advanced and Standard program patients.
                   </Text>
                 </Box>
@@ -344,18 +350,18 @@ export const FileViewModal = ({
             </Box>
 
             {patientProgram && !isDialysisTech && (
-              <Box className="p-6 border-t border-gray-50 bg-gray-50/30">
+              <Box className="p-6 border-t border-border bg-surface/30">
                 <Box className="relative">
                   <textarea
                     placeholder="Share your observation..."
-                    className="w-full p-4 text-sm border-none rounded-2xl bg-white shadow-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none min-h-[100px] text-gray-700"
+                    className="w-full p-4 text-sm border-none rounded-2xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none min-h-[100px] text-dark textarea-comment"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                   />
                   <Button
                     size="sm"
-                    variant="solid"
-                    className="absolute bottom-3 right-3 rounded-xl bg-[#4361ee] hover:bg-[#3453c1] text-white px-5 shadow-lg shadow-blue-500/20"
+                    variant="primary"
+                    className="absolute bottom-3 right-3 rounded-xl"
                     onClick={handleUploadComment}
                     isLoading={isSubmitting}
                     isDisabled={!newComment.trim()}

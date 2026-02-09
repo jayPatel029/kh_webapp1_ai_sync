@@ -150,7 +150,7 @@ const UserDietDetails = () => {
                 breadcrumbs={[
                   { label: "All Patients", path: "/patient" },
                   { label: "Patient", path: `/userProfile/${id}`, active: false },
-                  { label: "Patient Profile", active: true }
+                  { label: "Diet Details", active: true }
                 ]}
                 onBack={() => navigate("/patient")}
               />

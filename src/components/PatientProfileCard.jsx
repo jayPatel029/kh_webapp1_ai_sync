@@ -6,14 +6,21 @@
  */
 
 import React from 'react';
-import { Card, CardBody, CardHeader } from '../component-library/primitives/Card';
-import { Text, Heading } from '../component-library/primitives/Typography';
-import { IconButton } from '../component-library/primitives/Button';
-import { Flex, Box } from '../component-library/layout/Layout';
-import getValidImageUrl, { formatDate } from '../helpers/utils';
 import clsx from 'clsx';
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  Text,
+  Heading,
+  IconButton,
+  Box,
+  Flex,
+} from '../component-library';
+import getValidImageUrl, { formatDate } from '../helpers/utils';
 import ParameterSection from './ParameterSection';
 import QuestionsContainer from './questions/QuestionsContainer';
+import '../design-system/styles/index.css';
 
 export const PatientProfileCard = ({
   userData,
@@ -23,10 +30,10 @@ export const PatientProfileCard = ({
 }) => {
   const getConditionStyle = (condition) => {
     switch (String(condition || '').toLowerCase()) {
-      case 'stable': return 'bg-green-100 text-green-700';
-      case 'unstable': return 'bg-yellow-100 text-yellow-700';
-      case 'critical': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'stable': return 'badge-success';
+      case 'unstable': return 'badge-warning';
+      case 'critical': return 'badge-error';
+      default: return 'badge-default';
     }
   };
 
@@ -51,14 +58,11 @@ export const PatientProfileCard = ({
     ] : [])
   ];
 
-  const ailmentDetails = userData?.ailmentDetails || userData?.genericAilmentDetails || [];
-  const hemoDetails = userData?.hemoDetails || [];
-
   return (
-    <Card variant="elevated" className="w-full" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-      <CardHeader className="px-4 py-2 border-b border-gray-100 bg-white">
+    <Card variant="elevated" className="w-full card-elevated">
+      <CardHeader className="px-4 py-2 border-b border-border bg-white">
         <Flex align="center" justify="start" className="w-full">
-          <Heading size="sm" weight="bold" className="uppercase tracking-wide text-gray-600" style={{ fontSize: 14 }}>
+          <Heading size="sm" weight="bold" className="uppercase tracking-wide text-muted">
             Basic details & ailment
           </Heading>
         </Flex>
@@ -80,6 +84,7 @@ export const PatientProfileCard = ({
                   onClick={onEditName}
                   variant="ghost"
                   className="absolute bottom-0 right-0 bg-white shadow border rounded-full h-7 w-7 p-0 flex items-center justify-center"
+                  aria-label="Edit name"
                 >
                   <span style={{ fontSize: 10 }}>✎</span>
                 </IconButton>
@@ -93,8 +98,8 @@ export const PatientProfileCard = ({
                 <Box className="space-y-2 text-sm">
                   {infoItems.slice(0, 4).map((it, i) => (
                     <Flex key={i} className="items-center gap-2">
-                      <Text size="xs" weight="bold" className="text-slate-400 uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
-                      <Text size="sm" weight="semibold" className="text-slate-700 truncate">{it.value || '-'}</Text>
+                      <Text size="xs" weight="bold" className="text-muted uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
+                      <Text size="sm" weight="semibold" className="text-dark truncate">{it.value || '-'}</Text>
                     </Flex>
                   ))}
                 </Box>
@@ -102,8 +107,8 @@ export const PatientProfileCard = ({
                 <Box className="mt-3 text-sm">
                   {infoItems.slice(4).map((it, i) => (
                     <Flex key={i} className="items-center gap-2">
-                      <Text size="xs" className="text-slate-400 uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
-                      <Text size="sm" className="text-slate-700 truncate">{it.value || '-'}</Text>
+                      <Text size="xs" className="text-muted uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
+                      <Text size="sm" className="text-dark truncate">{it.value || '-'}</Text>
                     </Flex>
                   ))}
                 </Box>
@@ -111,13 +116,13 @@ export const PatientProfileCard = ({
             </Flex>
           </Box>
 
-          <Box className="hidden md:block" style={{ width: 1, background: 'linear-gradient(to bottom, #0ea5a4 0%, rgba(14,165,164,0.15) 100%)', marginLeft: 16, marginRight: 16 }} />
+          <Box className="hidden md:block divider-vertical" style={{ width: 1, marginLeft: 16, marginRight: 16 }} />
 
           <Box className="flex-1 w-full">
             <Box className="space-y-4">
               <Box className="flex items-center gap-4">
-                <Box className="h-8 w-1  rounded-full" />
-                <Heading size="sm" weight="bold" className="text-2xl font-bold text-[#333]">Ailment Details</Heading>
+                <Box className="h-8 w-1 bg-primary rounded-full" />
+                <Heading size="sm" weight="bold" className="text-2xl font-bold text-dark">Ailment Details</Heading>
               </Box>
 
               {userData?.ailments && userData.ailments.length > 0 ? (
@@ -127,7 +132,7 @@ export const PatientProfileCard = ({
                   </ParameterSection>
                 ))
               ) : (
-                <Text size="sm" className="text-slate-500">No ailments listed.</Text>
+                  <Text size="sm" className="text-muted">No ailments listed.</Text>
               )}
 
             </Box>

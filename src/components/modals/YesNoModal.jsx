@@ -1,10 +1,14 @@
+/**
+ * YesNoModal Component
+ * Modal for Yes/No type responses
+ * 
+ * @file src/components/modals/YesNoModal.jsx
+ */
+
 import React, { useState } from "react";
 import { server_url } from "../../constants/constants";
 import axiosInstance from "../../helpers/axios/axiosInstance";
-import { FormModal } from "../../component-library/modals/FormModal";
-import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
-import { Checkbox } from "../../component-library/primitives/Checkbox";
-import { Flex } from "../../component-library/layout/Layout";
+import { FormModal, FormControl, Checkbox, Flex } from "../../component-library";
 
 const YesNoModal = ({ closeModal, user_id, question_id, question }) => {
   const [selectedResponse, setSelectedResponse] = useState("");

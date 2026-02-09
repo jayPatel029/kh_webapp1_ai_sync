@@ -1,60 +1,65 @@
-import React from "react";
-import { BaseModal } from "../../component-library/modals/BaseModal";
-import { Button } from "../../component-library/primitives/Button";
-import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
-import { Input } from "../../component-library/primitives/Input";
-import { VStack } from "../../component-library/layout/Layout";
+/**
+ * OptionTranslationModal Component
+ * Modal for setting option translations for different languages
+ * 
+ * @file src/components/modals/OptionTranslationModal.jsx
+ */
 
-const OptTranslationModal = ({
-  closeModal,
-  languages,
-  setTranslations,
-  translations,
-}) => {
-  console.log("got this translations", translations);
+import React, { useState } from "react";
+import {
+  BaseModal,
+  Button,
+  FormControl,
+  Input,
+  VStack,
+  Flex,
+} from "../../component-library";
+
+const OptionTranslationModal = ({ isOpen, onClose, onSave, languages = [], optionName = "" }) => {
+  const [translations, setTranslations] = useState({});
+
+  const handleTranslationChange = (langCode, value) => {
+    setTranslations((prev) => ({
+      ...prev,
+      [langCode]: value,
+    }));
+  };
+
+  const handleSubmit = () => {
+    onSave(translations);
+    onClose();
+  };
 
   return (
     <BaseModal
-      isOpen={true}
-      onClose={closeModal}
-      title="Set Translations"
-      size="lg"
-      footer={
-        <Button variant="primary" onClick={closeModal}>
-          Save
-        </Button>
-      }
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`Translate: ${optionName}`}
+      size="md"
+      showCloseButton
     >
       <VStack gap={4} align="stretch">
-        {languages.map((language, index) => {
-          if (language.id !== 1)
-            return (
-              <FormControl key={index}>
-                <FormLabel>{language.language_name}</FormLabel>
-                <Input
-                  type="text"
-                  value={
-                    typeof translations[language.id] === "string"
-                      ? translations[language.id]
-                      : translations[language.id]?.options || ""
-                  }
-                  onChange={(e) => {
-                    setTranslations({
-                      ...translations,
-                      [language.id]: {
-                        text: translations[language.id]?.text || "",
-                        options: e.target.value,
-                      },
-                    });
-                  }}
-                />
-              </FormControl>
-            );
-          return null;
-        })}
+        {languages.map((lang) => (
+          <FormControl key={lang.code}>
+            <Input
+              placeholder={`Translation for ${lang.name}`}
+              value={translations[lang.code] || ""}
+              onChange={(e) => handleTranslationChange(lang.code, e.target.value)}
+            />
+          </FormControl>
+        ))}
+
+        <Flex justify="end" gap={3} className="mt-4">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSubmit}>
+            Save
+          </Button>
+        </Flex>
       </VStack>
     </BaseModal>
   );
 };
 
-export default OptTranslationModal;
+export default OptionTranslationModal;

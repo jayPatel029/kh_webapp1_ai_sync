@@ -6,14 +6,18 @@
  */
 
 import React, { useState } from 'react';
-import { Card, CardBody, CardHeader } from '../component-library/primitives/Card';
 import clsx from 'clsx';
-import { Text, Heading } from '../component-library/primitives/Typography';
-import { Button } from '../component-library/primitives/Button';
-import { Badge } from '../component-library/primitives/Badge';
-import { Flex, Box, Divider } from '../component-library/layout/Layout';
-import { Chart } from '../component-library/primitives/Chart';
-import { colors, spacing } from '../design-system/tokens';
+import {
+  Card,
+  CardBody,
+  Text,
+  Heading,
+  Button,
+  Badge,
+  Box,
+  Flex,
+} from '../component-library';
+import '../design-system/styles/index.css';
 import upIcon from '../assets/up.png';
 
 export const ParameterSection = ({
@@ -35,16 +39,12 @@ export const ParameterSection = ({
     <Box className="w-full">
       <Card
         variant="elevated"
-        className="w-full"
-        style={{
-          borderRadius: '12px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-        }}
+        className="w-full card-elevated"
       >
-        <CardBody >
+        <CardBody>
           {/* Header */}
-          <Flex justify="between" align="center" gap={4} >
-            <Heading as="h5" size="md" weight="semibold"  style={{ color: '#333' }}>
+          <Flex justify="between" align="center" gap={4}>
+            <Heading as="h5" size="md" weight="semibold" className="text-dark">
               {title}
             </Heading>
             <Button
@@ -53,67 +53,68 @@ export const ParameterSection = ({
               className="p-1 h-8 w-8 min-w-0"
             >
               <Box className={clsx("transition-transform duration-200", isExpanded ? 'rotate-90' : '')}>
-                <img src={upIcon} alt='up'/>
+                <img src={upIcon} alt='up' />
               </Box>
             </Button>
           </Flex>
 
           {isExpanded && (
-            <Box className="space-y-6">
+            <Box className="space-y-6 mt-4">
               {/* Control Bar (Only if it has actions) */}
               {(onClearFilters || onUpdateRange || onEnterReading) && (
                 <Flex justify="between" align="center" gap={4} className="flex-wrap">
                   <Flex gap={4} align="center">
                     <Box
-                      className="p-1 rounded-full flex items-center justify-center text-sm"
-                      style={{ background: '#f1f5f9', width: '28px', height: '28px' }}
+                      className="p-1 rounded-full flex items-center justify-center text-sm bg-surface"
+                      style={{ width: '28px', height: '28px' }}
                     >
                       📅
                     </Box>
                     <Flex gap={3} align="center">
                       <Flex align="center" gap={1.5}>
                         <Box
-                          className="rounded-full"
-                          style={{ width: '10px', height: '10px', background: '#ef4444' }}
+                          className="rounded-full bg-error"
+                          style={{ width: '10px', height: '10px' }}
                         />
-                        <Text size="xs" weight="semibold" className="text-slate-500">
+                        <Text size="xs" weight="semibold" className="text-muted">
                           Red
                         </Text>
                       </Flex>
                       <Flex align="center" gap={1.5}>
                         <Box
-                          className="rounded-full"
-                          style={{ width: '10px', height: '10px', background: '#f59e0b' }}
+                          className="rounded-full bg-warning"
+                          style={{ width: '10px', height: '10px' }}
                         />
-                        <Text size="xs" weight="semibold" className="text-slate-500">
+                        <Text size="xs" weight="semibold" className="text-muted">
                           Orange
                         </Text>
                       </Flex>
                     </Flex>
                     {onClearFilters && (
-                      <button
+                      <Button
+                        variant="ghost"
                         onClick={onClearFilters}
-                        className="text-red-500 text-xs font-semibold hover:underline"
+                        className="text-error text-xs font-semibold hover:underline p-0"
                       >
                         Clear filters
-                      </button>
+                      </Button>
                     )}
                   </Flex>
 
                   <Flex gap={4} align="center">
                     {onUpdateRange && (
-                      <button
+                      <Button
+                        variant="ghost"
                         onClick={onUpdateRange}
-                        className="text-primary text-xs font-semibold hover:underline"
+                        className="text-primary text-xs font-semibold hover:underline p-0"
                       >
                         Update range
-                      </button>
+                      </Button>
                     )}
                     {onEnterReading && (
                       <Button
-                        // variant="pr"
+                        variant="primary"
                         onClick={onEnterReading}
-                        // className="h-8 px-4 text-xs rounded-md"
                       >
                         Enter reading
                       </Button>
@@ -141,8 +142,7 @@ export const ParameterSection = ({
                         <Button
                           variant="outline"
                           onClick={onUploadData}
-                          className="h-8 px-4 text-xs rounded-md"
-                          style={{ borderColor: '#4164df', color: '#4164df' }}
+                              className="h-8 px-4 text-xs rounded-md btn-outline-primary"
                         >
                           Upload data
                         </Button>
@@ -150,16 +150,16 @@ export const ParameterSection = ({
                     )}
 
                     {/* Table styling matched to Figma but more compact */}
-                    <Box className="w-full overflow-hidden rounded-md border border-slate-100">
+                        <Box className="w-full overflow-hidden rounded-md border border-border">
                       <Flex
                         justify="between"
                         align="center"
-                        className="px-8 py-3 bg-slate-50"
+                            className="px-8 py-3 bg-surface"
                       >
-                        <Text size="xs" weight="bold" className="text-slate-500 uppercase">
+                            <Text size="xs" weight="bold" className="text-muted uppercase">
                           Date
                         </Text>
-                        <Text size="xs" weight="bold" className="text-slate-500 uppercase">
+                            <Text size="xs" weight="bold" className="text-muted uppercase">
                           Reading
                         </Text>
                       </Flex>
@@ -170,9 +170,9 @@ export const ParameterSection = ({
                             key={idx}
                             justify="between"
                             align="center"
-                            className="bg-white px-8 py-3 border-t border-slate-50"
+                            className="bg-white px-8 py-3 border-t border-border"
                           >
-                            <Text size="sm" className="text-slate-600">{reading.date}</Text>
+                            <Text size="sm" className="text-muted-foreground">{reading.date}</Text>
                             <Flex align="center" gap={3}>
                               {reading.image && (
                                 <Box
@@ -185,7 +185,7 @@ export const ParameterSection = ({
                               <Button
                                 variant="ghost"
                                 onClick={() => onDeleteReading?.(reading.id)}
-                                className="text-red-400 hover:text-red-600 p-1"
+                                className="text-error hover:text-error-dark p-1"
                               >
                                 ✕
                               </Button>
@@ -194,7 +194,7 @@ export const ParameterSection = ({
                         ))
                       ) : (
                         <Box className="px-12 py-8 text-center bg-white">
-                          <Text style={{ color: '#989898' }}>
+                                <Text className="text-muted">
                             {noResponse ? 'No response' : 'No readings available.'}
                           </Text>
                         </Box>

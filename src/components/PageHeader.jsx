@@ -7,10 +7,9 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Text, Heading } from '../component-library/primitives/Typography';
-import { Flex, Box } from '../component-library/layout/Layout';
-import { colors } from '../design-system/tokens';
+import { Text, Heading, Box, Flex, IconButton } from '../component-library';
 import * as assets from '../assets';
+import '../design-system/styles/index.css';
 
 export const PageHeader = ({
   breadcrumbs = ['My patients'],
@@ -23,30 +22,40 @@ export const PageHeader = ({
     : [{ label: String(breadcrumbs) }];
 
   return (
-    <Box
-      className="w-full px-0 py-2 noscrollbar" 
-    >
+    <Box className="page-header w-full px-0 py-2 noscrollbar">
       <Flex direction="column" gap={2}>
         <Flex gap={2} align="center">
           {onBackClick && (
-            <button
+            <IconButton
               onClick={onBackClick}
-              className="text-2xl mr-2"
-              style={{ cursor: 'pointer' }}
+              variant="ghost"
+              aria-label="Go back"
+              className="mr-2"
             >
               ←
-            </button>
+            </IconButton>
           )}
 
-          <Text size="sm" weight="normal" style={{ color: '#989898' }}>
+          <Text size="sm" weight="normal" className="text-muted">
             {crumbs.map((c, i) => (
               <span key={i}>
                 {i > 0 && <span className="mx-2">/</span>}
                 {c.icon && assets[c.icon] ? (
-                  <img src={assets[c.icon]} alt="icon" className="inline-block mr-2" style={{ width: 14, height: 14 }} />
+                  <img
+                    src={assets[c.icon]}
+                    alt="icon"
+                    className="inline-block mr-2"
+                    style={{ width: 14, height: 14 }}
+                  />
                 ) : null}
                 {c.path && !c.active ? (
-                  <Link to={c.path} style={{ color: '#989898', textDecoration: 'none' }}>{c.label}</Link>
+                  <Link
+                    to={c.path}
+                    className="text-muted hover:text-primary transition-colors"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    {c.label}
+                  </Link>
                 ) : (
                   <span>{c.label}</span>
                 )}
@@ -55,11 +64,11 @@ export const PageHeader = ({
           </Text>
         </Flex>
 
-        <Heading size="xl" weight="bold" style={{ color: '#3f6b85' }}>
+        <Heading size="xl" weight="bold" className="text-primary-dark">
           {title}
         </Heading>
       </Flex>
-    </Box >
+    </Box>
   );
 };
 

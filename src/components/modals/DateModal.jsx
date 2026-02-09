@@ -1,10 +1,15 @@
+/**
+ * DateModal Component
+ * Modal for entering date type responses
+ * 
+ * @file src/components/modals/DateModal.jsx
+ */
+
 import React, { useState } from "react";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import getCurrentDate from "../../helpers/formatDate";
 import { server_url } from "../../constants/constants";
-import { FormModal } from "../../component-library/modals/FormModal";
-import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
-import { Input } from "../../component-library/primitives/Input";
+import { FormModal, FormControl, FormLabel, Input } from "../../component-library";
 
 const DateModal = ({ closeModal, user_id, question_id, question }) => {
   const [selectedDate, setSelectedDate] = useState("");

@@ -1,10 +1,14 @@
+/**
+ * SelectAnyOneModal Component
+ * Modal for selecting a single option
+ * 
+ * @file src/components/modals/SelectAnyOneModal.jsx
+ */
+
 import React, { useState } from "react";
 import { server_url } from "../../constants/constants";
 import axiosInstance from "../../helpers/axios/axiosInstance";
-import { FormModal } from "../../component-library/modals/FormModal";
-import { FormControl } from "../../component-library/primitives/FormControl";
-import { Checkbox } from "../../component-library/primitives/Checkbox";
-import { VStack } from "../../component-library/layout/Layout";
+import { FormModal, FormControl, Checkbox, VStack } from "../../component-library";
 
 const SelectAnyOneModal = ({
   closeModal,

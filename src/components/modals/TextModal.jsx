@@ -1,9 +1,14 @@
+/**
+ * TextModal Component
+ * Modal for entering text type responses
+ * 
+ * @file src/components/modals/TextModal.jsx
+ */
+
 import React, { useState } from "react";
 import { server_url } from "../../constants/constants";
 import axiosInstance from "../../helpers/axios/axiosInstance";
-import { FormModal } from "../../component-library/modals/FormModal";
-import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
-import { Input } from "../../component-library/primitives/Input";
+import { FormModal, FormControl, FormLabel, Input } from "../../component-library";
 
 const TextModal = ({ closeModal, user_id, question_id, question }) => {
   const [selectedResponse, setSelectedResponse] = useState("");

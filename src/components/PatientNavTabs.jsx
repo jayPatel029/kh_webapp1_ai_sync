@@ -7,10 +7,8 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../component-library/primitives/Button';
-import { Flex, Box } from '../component-library/layout/Layout';
-import { Badge } from '../component-library/primitives/Badge';
-import { colors } from '../design-system/tokens';
+import { Button, Flex, Box, Badge } from '../component-library';
+import '../design-system/styles/index.css';
 import alarmIcon from '../assets/alarm.svg';
 import dietIcon from '../assets/Healthy_Eating.svg';
 import chatIcon from '../assets/Chat.svg';
@@ -37,7 +35,6 @@ export const PatientNavTabs = ({
     { id: 'requisition', label: 'REQUISITION REPORTS', path: `/UserRequisition/${patientId}`, state: userData, visible: true },
     { id: 'alarms', label: 'ALARMS', path: `/ShowAlarms/${patientId}`, visible: !(role?.role_name === 'Dialysis Technician') },
     { id: 'manage', label: 'MANAGE PARAMETERS', path: `/manageparameters/${patientId}`, state: userData, visible: role?.role_name === 'Admin' },
-    { id: 'kfre', label: 'KFRE', path: `/kfre/${patientId}`, state: userData, visible: role?.patients && !userData?.ailments?.includes('Hemo Dialysis') && !userData?.ailments?.includes('Peritoneal Dialysis') },
   ];
 
   const icons = {
@@ -52,27 +49,22 @@ export const PatientNavTabs = ({
     kfre: manageIcon,
   };
 
+  const isActive = (path) => path === window.location.pathname;
+
   return (
     <Flex
       gap={3}
       align="center"
       justify="start"
-      className="noscrollbar px-6 py-4 overflow-x-auto shadow-sm bg-white sticky top-0"
+      className="patient-nav-tabs noscrollbar px-6 py-4 overflow-x-auto shadow-sm bg-white sticky top-0"
       aria-label="Patient Navigation Tabs"
     >
       {tabs.filter(tab => tab.visible).map((tab) => (
         <Button
           key={tab.id}
-          variant={tab.path === window.location.pathname ? 'secondary' : 'outline'}
+          variant={isActive(tab.path) ? 'secondary' : 'outline'}
           onClick={() => navigate(tab.path, { state: tab.state })}
-          className="h-10 px-4 rounded-[12px] flex items-center gap-3 shrink-0  bg-white"
-          style={{
-            borderColor: '#656565',
-            color: '#656565',
-            fontSize: '13px',
-            fontWeight: 700,
-            minWidth: 150
-          }}
+          className="nav-tab-button h-10 px-4 rounded-xl flex items-center gap-3 shrink-0 bg-white"
           aria-label={tab.label}
         >
           <Flex align="center" gap={2} className="w-full justify-start">
@@ -83,16 +75,16 @@ export const PatientNavTabs = ({
                 style={{
                   width: 18,
                   height: 18,
-                  filter: tab.path === window.location.pathname
+                  filter: isActive(tab.path)
                     ? 'brightness(0) invert(1)' // White
-                    : 'brightness(0) saturate(100%) invert(39%) sepia(0%) saturate(0%) hue-rotate(173deg) brightness(95%) contrast(87%)' // #656565
+                    : 'brightness(0) saturate(100%) invert(39%) sepia(0%) saturate(0%) hue-rotate(173deg) brightness(95%) contrast(87%)' // Muted
                 }}
               />
             </Box>
-            <span className="truncate">{tab.label}</span>
+            <span className="truncate nav-tab-label">{tab.label}</span>
             <Box className="ml-auto flex items-center gap-2">
               {tab.unread > 0 && (
-                <Badge colorScheme="error" isPill size="sm" className="bg-red-600 text-white">
+                <Badge colorScheme="error" isPill size="sm" className="badge-error">
                   {tab.unread}
                 </Badge>
               )}
