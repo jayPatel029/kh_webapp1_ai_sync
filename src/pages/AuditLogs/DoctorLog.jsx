@@ -1,13 +1,44 @@
+/**
+ * Doctor Logs Page - Redesigned
+ * Following component library and design system patterns
+ * 
+ * @file src/pages/AuditLogs/DoctorLog.jsx
+ */
+
 import React, { useEffect, useState } from "react";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+
+// Component Library
+import {
+  Box,
+  Flex,
+  Container,
+} from "../../component-library";
+import { Button } from "../../component-library/primitives/Button";
+import { Card, CardBody } from "../../component-library/primitives/Card";
+
+// Components
 import Sidebar from "../../components/sidebar/Sidebar";
 import Navbar from "../../components/navbar/Navbar";
-import { Link } from "react-router-dom";
+import PageHeader from "../../components/PageHeader";
+import ThemeProvider from "../../components/ThemeProvider";
+
+// APIs and Helpers
+import axiosInstance from "../../helpers/axios/axiosInstance";
+import { server_url } from "../../constants/constants";
+
+// Design System
+import "../../design-system/styles/index.css";
+
+// Icons
+import { FaDownload, FaArrowLeft } from "react-icons/fa";
+
 const DocLogPage = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const role = useSelector((state) => state.permission);
 
   // Fetch logs from the backend
   const fetchLogs = async () => {
@@ -15,12 +46,10 @@ const DocLogPage = () => {
       setLoading(true);
       const response = await axiosInstance.get(
         `${server_url}/doctor/doctorLogs`
-      ); // Adjust the URL if your API endpoint differs
+      );
       if (!response) {
         throw new Error("Failed to fetch logs");
       }
-      console.log("response", response);
-
       setLogs(response.data.logs);
     } catch (err) {
       setError(err.message);
@@ -37,7 +66,7 @@ const DocLogPage = () => {
   const convertToCSV = (data) => {
     if (!data.length) return "";
 
-    const headers = Object.keys(data[0]).join(","); // Extract headers
+    const headers = Object.keys(data[0]).join(",");
     const rows = data
       .map((log) =>
         Object.values(log)
@@ -58,82 +87,143 @@ const DocLogPage = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "logs.csv";
+    link.download = "doctor_logs.csv";
     link.click();
     URL.revokeObjectURL(url);
-    
   };
 
   return (
-    <div className="md:flex block">
-    {/* Sidebar */}
-      <div className="md:flex-1hiddenmd:flexstickytop-0h-screenoverflow-y-auto">
-      <Sidebar />
-    </div>
+    <ThemeProvider>
+      <Box className="flex min-h-screen">
+        {/* Sidebar */}
+        <Box className="flex-shrink-0">
+          <Sidebar />
+        </Box>
 
-    {/* Main Content */}
-    <div className="md:flex-[5] block w-screen">
-      <div className="sticky top-0 z-50">
-        <Navbar />
-      </div>
-      
-      <div className="max-w-5xl p-10">
-        <Link to="/logs" className="text-blue-600 mb-4 inline-block">go back</Link>
-      <h1 className="text-2xl font-bold mb-4">Doctor Logs</h1>
+        {/* Main Content */}
+        <Box className="flex-1 flex flex-col min-w-0">
+          <Navbar />
 
-      {loading && <p>Loading logs...</p>}
-      {error && <p className="text-red-500">Error: {error}</p>}
+          {/* Sticky Header Section */}
+          <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+            <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+              <PageHeader
+                title="Doctor Logs"
+                breadcrumbs={[
+                  { label: "Dashboard", path: "/" },
+                  { label: "Audit Logs", path: "/logs" },
+                  { label: "Doctor Logs", active: true }
+                ]}
+                onBack={() => window.history.back()}
+              />
+            </Container>
+          </Box>
 
-      {!loading && !error && (
-          <>
-          {/* Render Logs in a Table */}
-          <table className="table-auto border-collapse border border-gray-300 w-full mb-4">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-gray-300 px-4 py-2">Doctor Id</th>
-                <th className="border border-gray-300 px-4 py-2">Field</th>
-                <th className="border border-gray-300 px-4 py-2">Old Value</th>
-                <th className="border border-gray-300 px-4 py-2">New Value</th>
-                <th className="border border-gray-300 px-4 py-2">Changed At</th>
-                <th className="border border-gray-300 px-4 py-2">Changed By</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.slice(0, 5).map((log, index) => ( // Display only the first 5 logs
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-4 py-2">
-                    {log.patientId}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">{log.field}</td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {log.oldValue}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {log.newValue}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {new Date(log.changedAt).toLocaleString()}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    {log.changedBy}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* Main Content Area */}
+          <Box className="flex-1 bg-[#fafafa]">
+            <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
+              <Box className="bg-white rounded-[15px] shadow-md p-8">
+                {/* Header Section */}
+                <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
+                  <Box>
+                    <h2 className="text-[18px] font-bold text-[#393939]">Doctor Logs</h2>
+                    <p className="text-[14px] text-[#989898] mt-1">Track changes made to doctor records</p>
+                  </Box>
+                  <Button
+                    onClick={downloadCSV}
+                    disabled={!logs.length}
+                  // leftIcon={<FaDownload />}
+                  >
+                    Download CSV
+                  </Button>
+                </Flex>
 
-          {/* Download Button */}
-          <button
-            onClick={downloadCSV}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-            Download Logs as CSV
-          </button>
-        </>
-      )}
-    </div>
-    </div>
-  </div>
+                {/* Loading State */}
+                {loading && (
+                  <Box className="py-12 text-center">
+                    <Box className="animate-spin w-8 h-8 border-4 border-[#4164df] border-t-transparent rounded-full mx-auto mb-4" />
+                    <p className="text-[#989898]">Loading logs...</p>
+                  </Box>
+                )}
+
+                {/* Error State */}
+                {error && (
+                  <Box className="py-12 text-center">
+                    <Box className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                      <span className="text-red-500 text-2xl">!</span>
+                    </Box>
+                    <p className="text-red-500 font-semibold">Error: {error}</p>
+                  </Box>
+                )}
+
+                {/* Table */}
+                {!loading && !error && (
+                  <Box className="overflow-x-auto">
+                    {/* Table Header */}
+                    <Box className="bg-[#5886a5] rounded-[5px] px-6 py-4 mb-0">
+                      <Flex justify="between" align="center" className="text-white text-[14px] font-semibold">
+                        <Box style={{ flex: "0 0 120px" }}>Doctor ID</Box>
+                        <Box style={{ flex: "0 0 150px" }}>Field</Box>
+                        <Box style={{ flex: "1", minWidth: "150px" }}>Old Value</Box>
+                        <Box style={{ flex: "1", minWidth: "150px" }}>New Value</Box>
+                        <Box style={{ flex: "0 0 180px" }}>Changed At</Box>
+                        <Box style={{ flex: "0 0 120px" }}>Changed By</Box>
+                      </Flex>
+                    </Box>
+
+                    {/* Table Body */}
+                    <Box>
+                      {logs && logs.length > 0 ? (
+                        logs.slice(0, 10).map((log, index) => (
+                          <Box
+                            key={index}
+                            className="bg-white border-b border-gray-100 px-6 py-4 hover:bg-gray-50 transition-colors"
+                          >
+                            <Flex justify="between" align="center">
+                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898]">
+                                {log.patientId}
+                              </Box>
+                              <Box style={{ flex: "0 0 150px" }} className="text-[14px] font-semibold text-[#393939]">
+                                {log.field}
+                              </Box>
+                              <Box style={{ flex: "1", minWidth: "150px" }} className="text-[14px] text-[#989898] truncate pr-2">
+                                {log.oldValue || "-"}
+                              </Box>
+                              <Box style={{ flex: "1", minWidth: "150px" }} className="text-[14px] text-[#4164df] truncate pr-2">
+                                {log.newValue || "-"}
+                              </Box>
+                              <Box style={{ flex: "0 0 180px" }} className="text-[14px] text-[#989898]">
+                                {new Date(log.changedAt).toLocaleString()}
+                              </Box>
+                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898]">
+                                {log.changedBy}
+                              </Box>
+                            </Flex>
+                          </Box>
+                        ))
+                      ) : (
+                        <Box className="bg-white px-6 py-12 text-center">
+                          <p className="text-[#989898] text-[16px] italic">No logs found</p>
+                        </Box>
+                      )}
+                    </Box>
+
+                    {/* Show more indicator */}
+                    {logs.length > 10 && (
+                      <Box className="bg-gray-50 px-6 py-3 text-center">
+                        <p className="text-[14px] text-[#989898]">
+                          Showing 10 of {logs.length} logs. Download CSV for complete data.
+                        </p>
+                      </Box>
+                    )}
+                  </Box>
+                )}
+              </Box>
+            </Container>
+          </Box>
+        </Box>
+      </Box>
+    </ThemeProvider>
   );
 };
 

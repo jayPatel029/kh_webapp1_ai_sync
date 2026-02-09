@@ -26,11 +26,12 @@
   text-decoration: none;
 
   border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
   overflow: hidden;
 }
+
 .btn:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
@@ -44,7 +45,7 @@
 */
 .btn:active {
   transform: translateY(0) scale(0.96);
-    box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn:disabled,
@@ -58,16 +59,21 @@
 /* Icon spacing within buttons */
 .btn__icon {
   display: inline-flex;
-  align-self: center;
-  flex-shrink: 0;
+  align-self: baseline;
 }
 
 .btn__icon--left {
   margin-right: var(--space-2);
+  align-self: baseline;
+    height: var(--space-4);
+    width: var(--space-4);
 }
 
 .btn__icon--right {
   margin-left: var(--space-2);
+  align-self: baseline;
+    height: var(--space-4);
+    width: var(--space-4);
 }
 
 /* Loading state */
@@ -141,15 +147,16 @@ button.btn--solid,
 button.btn--brand,
 .btn--brand {
   background-color: var(--color-primary, #3311DB) !important;
-    color: var(--color-white) !important;
+  color: var(--color-white) !important;
     border: 1px solid transparent !important;
   }
+
 button.btn--solid:hover,
 .btn--solid:hover,
 button.btn--brand:hover,
 .btn--brand:hover {
   background-color: var(--color-primary-600) !important;
-    color: var(--color-white) !important;
+  color: var(--color-white) !important;
     box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
     transform: translateY(-1px);
 }
@@ -182,14 +189,14 @@ button.btn--brand:active,
 /* Secondary Variant */
 .btn--secondary {
   background-color: var(--color-primary-dark) !important;
-    color: var(--color-white) !important;
+  color: var(--color-white) !important;
     border: 1px solid var(--color-gray-200);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .btn--secondary:hover {
   background-color: var(--color-primary) !important;
-    border-color: var(--color-gray-300);
+  border-color: var(--color-gray-300);
 }
 
 .btn--secondary:active {
@@ -200,7 +207,7 @@ button.btn--brand:active,
 .btn--outline {
   background-color: transparent;
   border: 1px solid var(--color-primary-dark);
-    color: var(--color-primary-dark);
+  color: var(--color-primary-dark);
 }
 
 .btn--outline:hover {
@@ -241,6 +248,7 @@ button.btn--brand:active,
   background: rgba(255, 255, 255, 0.3);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 }
+
 /* Link Variant */
 .btn--link {
   background-color: transparent;
@@ -268,7 +276,7 @@ button.btn--brand:active,
 
 .btn--danger:hover {
   background: linear-gradient(135deg, #f05a74 0%, var(--color-danger) 100%);
-    box-shadow: 0 8px 20px rgba(222, 66, 91, 0.25);
+  box-shadow: 0 8px 20px rgba(222, 66, 91, 0.25);
 }
 
 .btn--danger:active {
@@ -294,7 +302,7 @@ button.btn--brand:active,
 
 .btn--success:hover {
   background: linear-gradient(135deg, #28e030 0%, var(--color-success) 100%);
-    box-shadow: 0 8px 20px rgba(0, 192, 8, 0.25);
+  box-shadow: 0 8px 20px rgba(0, 192, 8, 0.25);
 }
 
 /* Warning Variant */
@@ -305,7 +313,7 @@ button.btn--brand:active,
 
 .btn--warning:hover {
   background: linear-gradient(135deg, #ffb33b 0%, var(--color-warning) 100%);
-    box-shadow: 0 8px 20px rgba(255, 152, 0, 0.25);
+  box-shadow: 0 8px 20px rgba(255, 152, 0, 0.25);
 }
 
 /* ==================== COLOR SCHEME VARIANTS ==================== */

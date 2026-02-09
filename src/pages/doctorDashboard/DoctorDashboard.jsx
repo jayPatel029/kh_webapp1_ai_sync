@@ -1,19 +1,40 @@
+/**
+ * Doctor Dashboard - Redesigned
+ * Renders as content within DashboardLayout
+ * 
+ * @file src/pages/doctorDashboard/DoctorDashboard.jsx
+ */
+
 import React from 'react';
-import Sidebar from '../../components/sidebar/Sidebar';
-import Navbar from '../../components/navbar/Navbar';
+import {
+  Box,
+  Container,
+  Flex,
+  Heading,
+  Text
+} from '../../component-library';
+
+// Design System
+import '../../design-system/styles/index.css';
 
 function DoctorDashboard() {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-grow flex flex-col h-screen overflow-hidden">
-          <Navbar />
-          <div className="flex-grow p-10 px-40 overflow-y-auto bg-yellow-100">
-            Section for alerts fetch alerts here
-            </div>
-          </div>
-        </div>
-      );
+  return (
+    <Box className="flex-1 flex flex-col bg-gray-50 h-full overflow-hidden">
+      <Box className="flex-1 overflow-y-auto p-10">
+        <Container maxW="container.xl">
+          <Heading as="h1" size="2xl" className="mb-6 text-[#32617d]">
+            Doctor Dashboard
+          </Heading>
+
+          <Box className="bg-yellow-100 p-8 rounded-lg border border-yellow-200">
+            <Text className="text-yellow-800">
+              Section for alerts fetch alerts here
+            </Text>
+          </Box>
+        </Container>
+      </Box>
+    </Box>
+  );
 }
 
 export default DoctorDashboard;

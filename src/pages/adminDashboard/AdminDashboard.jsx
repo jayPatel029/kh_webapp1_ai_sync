@@ -1,13 +1,20 @@
 /**
  * Admin Dashboard - Redesigned
- * Following Figma design with integrated legacy logic
+ * Renders as content within DashboardLayout (no internal Sidebar/Navbar)
+ * Uses component-library for layout and styling
  * 
  * @file src/pages/adminDashboard/AdminDashboard.jsx
  */
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heading, Text } from "../../component-library/primitives/Typography";
+import {
+  Box,
+  Flex,
+  Heading,
+  Text,
+  Container
+} from "../../component-library";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import {
@@ -17,18 +24,15 @@ import {
   getUsersThisWeekSub,
 } from "../../ApiCalls/adminDashApis";
 import { getDoctorComments } from "../../ApiCalls/GetComments";
+// Import CSS for modals (legacy styles)
+import "./AdminDashboard.css"; 
 
 // Components
-import Sidebar from "../../components/sidebar/Sidebar";
-import Navbar from "../../components/navbar/Navbar";
 import PatientAlertCard from "./components/PatientAlertCard";
 import PrescriptionModal from "./components/ApprovePrescriptionModal";
 import CommentContainer from "./components/CommentContainer";
 import AlertModal from "./components/AlertModal";
 import DiaAlertModal from "./components/DialysisTechModal";
-
-// Styles
-import "./AdminDashboard.css";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -70,7 +74,7 @@ const AdminDashboard = () => {
       const email = localStorage.getItem("email");
       setUserName(localStorage.getItem("name") || "User");
 
-      // Get Admin ID and set to localStorage
+      // Get Admin ID
       try {
         const idRes = await axiosInstance.post(`${server_url}/users/byEmail/id`, { email });
         localStorage.setItem("id", idRes.data.id);
@@ -114,13 +118,11 @@ const AdminDashboard = () => {
       // Fetch Alerts
       let alerts = [];
       if (isDoc) {
-        // Doctor specific alerts
         const doctorIdRes = await axiosInstance.post(`${server_url}/doctor/byEmail/id`, { email });
         const doctorId = doctorIdRes.data.data;
         const alertsRes = await axiosInstance.get(`${server_url}/sortAlerts/doctor/${doctorId}`);
         alerts = alertsRes.data || [];
       } else {
-        // Admin alerts
         const alertsRes = await getAlerts();
         alerts = (alertsRes.data || []).reverse();
       }
@@ -149,8 +151,6 @@ const AdminDashboard = () => {
         }
 
         const pData = patientMap.get(pId);
-
-        // Categorize based on type or category
         const type = (alert.type || "").toLowerCase();
         const category = (alert.category || "").toLowerCase();
 
@@ -161,7 +161,6 @@ const AdminDashboard = () => {
           pData.dialysisAlerts.push(alert);
           pData.dialysisCount++;
         } else {
-          // General alerts (might be read or unread)
           pData.alertAlerts.push(alert);
           if (alert.isRead === 0 || alert.isRead === false) {
             pData.alertCount++;
@@ -169,7 +168,7 @@ const AdminDashboard = () => {
         }
       }
 
-      // Fetch Comments separately (as per legacy logic in DoctorContainer)
+      // Fetch Comments separately if Doctor
       if (isDoc) {
         const patientPromises = Array.from(patientMap.values()).map(async (p) => {
           try {
@@ -194,8 +193,6 @@ const AdminDashboard = () => {
 
   const handleAction = (patient, type) => {
     setSelectedPatient(patient);
-
-    // Store data in localStorage as required by legacy modals
     if (type === 'prescription') {
       localStorage.setItem("prescriptionAlerts", JSON.stringify(patient.prescriptionAlerts));
     } else if (type === 'alert') {
@@ -203,61 +200,60 @@ const AdminDashboard = () => {
     } else if (type === 'dialysis') {
       localStorage.setItem("Dialysis_updates", JSON.stringify(patient.dialysisAlerts));
     }
-
     setModals(prev => ({ ...prev, [type]: true }));
   };
 
   const closeModal = (type) => {
     setModals(prev => ({ ...prev, [type]: false }));
-    // Refresh data if something was read/updated
     if (type === 'alert' || type === 'comment') {
       fetchDashboardData();
     }
   };
 
   return (
-    <div className="dashboard-page overflow-hidden h-screen w-full">
-      <Sidebar />
+    <Box className="flex-1 flex flex-col min-h-0 bg-white">
+      {/* Main Content Scrollable Area */}
+      <Box className="flex-1 overflow-y-auto">
+        <Container maxW="container.xl" className="py-8 px-4 md:px-12">
 
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        <Navbar />
-
-        <div className="dashboard-content">
-          <div className="dashboard-header">
-            <Heading as="h1" size="2xl" className="dashboard-title">
+          {/* Header */}
+          <Flex align="center" justify="between" className="pb-6 border-b-2 border-[#00cccc] mb-8">
+            <Heading as="h1" size="2xl" className="text-[#32617d]">
               My Dashboard
             </Heading>
-          </div>
+          </Flex>
 
-          <div className="alerts-section">
-            <Heading as="h2" size="xl" className="section-title">
+          {/* Alerts Section */}
+          <Box className="pb-8">
+            <Heading as="h2" size="xl" className="mb-6 text-black font-bold">
               Important Alerts
             </Heading>
 
             {loading ? (
-              <div className="loading-state">
+              <Flex justify="center" align="center" className="py-12 text-gray-500">
                 <Text size="md">Loading alerts...</Text>
-              </div>
+              </Flex>
             ) : patients.length === 0 ? (
-              <div className="empty-state">
+                <Flex justify="center" align="center" className="py-12 text-gray-500">
                 <Text size="md">No alerts at this time</Text>
-              </div>
+                </Flex>
             ) : (
-                  <div className="patient-alerts-list">
+                  <Flex direction="column" gap={0}>
                     {patients.map((patient) => (
                       <React.Fragment key={patient.id}>
                         <PatientAlertCard
                           patient={patient}
                           onAction={handleAction}
                         />
-                      <div className="alert-divider" />
-                    </React.Fragment>
-                  ))}
-                  </div>
+                    {/* Divider */}
+                    <Box className="h-[2px] bg-gray-200 my-6" />
+                  </React.Fragment>
+                ))}
+                  </Flex>
             )}
-          </div>
-        </div>
-      </div>
+          </Box>
+        </Container>
+      </Box>
 
       {/* Modals */}
       {modals.prescription && (
@@ -275,7 +271,7 @@ const AdminDashboard = () => {
       {modals.dialysis && (
         <DiaAlertModal closeModal={() => closeModal('dialysis')} />
       )}
-    </div>
+    </Box>
   );
 };
 
