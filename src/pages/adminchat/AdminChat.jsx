@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import { MdSend } from "react-icons/md";
 import dummyAdmin from "../../assets/dummyadmin.png";
 import { getUsers } from "../../ApiCalls/authapis";
-import { Button, Input, Badge, Card } from "../../component-library";
+import { Button, Input, Badge, Card,Flex } from "../../component-library";
 import PageHeader from "../../components/PageHeader";
 
 import {
@@ -238,18 +238,18 @@ const ChatApp = () => {
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+          <Flex justify="start" align="center" className="py-4 px-6">
             {/* Header with Breadcrumbs */}
             <PageHeader
               title="Admin Chat"
               breadcrumbs={[
                 { label: "All Patients", path: "/patient" },
-                { label: patient?.name || "Patient", path: `/userProfile/${pid}`, active: false },
+                { label: "Patient", path: `/userProfile/${pid}`, active: false },
                 { label: "Admin Chat", active: true }
               ]}
               onBack={() => navigate(`/userProfile/${pid}`)}
             />
-          </Container>
+          </Flex>
 
           {/* Navigation Tabs */}
           <PatientNavTabs

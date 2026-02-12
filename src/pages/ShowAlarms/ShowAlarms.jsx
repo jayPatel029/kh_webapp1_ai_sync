@@ -17,6 +17,7 @@ import {
 } from "../../component-library";
 import { Button } from "../../component-library/primitives/Button";
 
+import { HdrPlus, PlusOneSharp } from "@mui/icons-material";
 // Components
 import PageHeader from "../../components/PageHeader";
 import PatientNavTabs from "../../components/PatientNavTabs";
@@ -32,6 +33,8 @@ import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
 
 // Icons
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
+
+
 
 // Import design system styles
 import "../../design-system/styles/index.css";
@@ -221,95 +224,95 @@ const ShowAlarms = () => {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
 
-          {/* Sticky Header Section */}
-          <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-            <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
-              {/* Header with Breadcrumbs */}
-              <PageHeader
-                title="Patient Profile"
-                breadcrumbs={[
-                  { label: "All Patients", path: "/patient" },
-                  { label: "Patient", path: `/userProfile/${pid}`, active: false },
-                  { label: "Alarms", active: true }
-                ]}
-                onBack={() => navigate("/patient")}
-              />
-            </Container>
-
-            {/* Navigation Tabs */}
-            <PatientNavTabs
-              patientId={pid}
-              userData={userData}
-              unreadAdminCount={totalUnreadCount}
-              unreadDoctorCount={totalUnreadCountDoc}
-              role={role}
+        {/* Sticky Header Section */}
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Flex justify="start" align="center" className="py-4 px-6">
+            {/* Header with Breadcrumbs */}
+            <PageHeader
+              title="Alarm Details"
+              breadcrumbs={[
+                { label: "All Patients", path: "/patient" },
+                { label: "Patient", path: `/userProfile/${pid}`, active: false },
+                { label: "Alarms", active: true }
+              ]}
+              onBack={() => navigate("/patient")}
             />
-          </Box>
+          </Flex>
 
-          {/* Main Content */}
-          <Box className="flex-1 bg-[#fafafa]">
-            <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
-              <Box className="bg-white rounded-[15px] shadow-md p-8">
-                {/* Header Section */}
-                <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
-                  <Box>
-                    <h2 className="text-[18px] font-bold text-[#393939]">Alarms</h2>
-                  </Box>
-                  <Flex align="center" gap={3}>
-                    <Box className="flex items-center gap-2">
-                      <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-gray-700">
-                          {userData?.name?.charAt(0)?.toUpperCase() || "P"}
-                        </span>
-                      </Box>
-                      <span className="text-[18px] text-[#393939]">{userData?.name || "Patient"}</span>
+          {/* Navigation Tabs */}
+          <PatientNavTabs
+            patientId={pid}
+            userData={userData}
+            unreadAdminCount={totalUnreadCount}
+            unreadDoctorCount={totalUnreadCountDoc}
+            role={role}
+          />
+        </Box>
+
+        {/* Main Content */}
+        <Box className="flex-1 bg-[#fafafa]">
+          <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
+            <Box className="bg-white rounded-[15px] shadow-md p-8">
+              {/* Header Section */}
+              <Flex justify="between" align="center" className="pb-4   mb-2">
+                <Box>
+                  <h2 className="text-[18px] font-bold text-[#393939]">Alarms</h2>
+                </Box>
+                <Flex align="center" gap={3}>
+                  <Box className="flex items-center gap-2">
+                    <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
+                      <span className="text-sm font-semibold text-gray-700">
+                        {userData?.name?.charAt(0)?.toUpperCase() || "P"}
+                      </span>
                     </Box>
+                    <span className="text-[18px] text-[#393939]">{userData?.name || "Patient"}</span>
+                  </Box>
+                </Flex>
+              </Flex>
+              <hr className="border-info mb-4" />
+              {/* Add Alarm Button */}
+              <Flex justify="end" align="center" className="mb-6">
+                <Button
+                  variant="solid"
+                  rightIcon={<div className="text-md">+</div>}
+                  onClick={openModal}
+                  className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9] flex items-center gap-8 "
+                >
+                  Add alarm
+                </Button>
+              </Flex>
+
+              {/* Table */}
+              <Box className="overflow-x-auto">
+                {/* Table Header */}
+                <Box className="bg-[#5886a5] rounded-[5px] px-[50px] py-4 mb-0">
+                  <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
+                    <Box style={{ flex: "0 0 150px" }}>Date</Box>
+                    <Box style={{ flex: "0 0 150px" }}>Type</Box>
+                    <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Duration</Box>
+                    <Box style={{ flex: "0 0 100px" }}>Monthly</Box>
+                    <Box style={{ flex: "0 0 100px" }}>Status</Box>
+                    {!isDoctor && <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>}
                   </Flex>
-                </Flex>
+                </Box>
 
-                {/* Add Alarm Button */}
-                <Flex justify="end" align="center" className="mb-6">
-                  <Button
-                    variant="solid"
-                    onClick={openModal}
-                    className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9] flex items-center gap-2"
-                  >
-                    Add alarm
-                    <span className="text-xl">+</span>
-                  </Button>
-                </Flex>
-
-                {/* Table */}
-                <Box className="overflow-x-auto">
-                  {/* Table Header */}
-                  <Box className="bg-[#5886a5] rounded-[5px] px-[50px] py-4 mb-0">
-                    <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
-                      <Box style={{ flex: "0 0 150px" }}>Date</Box>
-                      <Box style={{ flex: "0 0 150px" }}>Type</Box>
-                      <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Duration</Box>
-                      <Box style={{ flex: "0 0 100px" }}>Monthly</Box>
-                      <Box style={{ flex: "0 0 100px" }}>Status</Box>
-                      {!isDoctor && <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>}
-                    </Flex>
-                  </Box>
-
-                  {/* Table Body */}
-                  <Box>
-                    {userAlarmData.length > 0 ? (
-                      userAlarmData.map((alarm) => (
-                        <AlarmRow
-                          key={alarm.id}
-                          alarm={alarm}
-                        />
-                      ))
-                    ) : (
-                      <Box className="bg-white px-[50px] py-8 text-center">
-                        <p className="text-[#989898] text-[16px] italic">No Alarms found</p>
-                      </Box>
-                    )}
-                  </Box>
+                {/* Table Body */}
+                <Box>
+                  {userAlarmData.length > 0 ? (
+                    userAlarmData.map((alarm) => (
+                      <AlarmRow
+                        key={alarm.id}
+                        alarm={alarm}
+                      />
+                    ))
+                  ) : (
+                    <Box className="bg-white px-[50px] py-8 text-center">
+                      <p className="text-[#989898] text-[16px] italic">No Alarms found</p>
+                    </Box>
+                  )}
                 </Box>
               </Box>
+            </Box>
           </Container>
         </Box>
       </Box>

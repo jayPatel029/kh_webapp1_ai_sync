@@ -27,14 +27,14 @@ export const PatientNavTabs = ({
   const navigate = useNavigate();
 
   const tabs = [
-    { id: 'adminChat', label: 'ADMIN CHAT', path: `/adminChat/${patientId}`, unread: unreadAdminCount, visible: !(role?.role_name === 'Dialysis Technician' || role?.role_name === 'Medical Staff') },
-    { id: 'doctorChat', label: 'DOCTOR CHAT', path: `/doctorChat/${patientId}`, unread: unreadDoctorCount, visible: !(role?.role_name === 'Medical Staff' || role?.role_name === 'Dialysis Technician') },
-    { id: 'prescriptions', label: 'PRESCRIPTIONS', path: `/Userprescription/${patientId}`, state: userData, visible: true },
-    { id: 'labs', label: 'LAB REPORTS', path: `/UserLabReports/${patientId}`, state: userData, visible: true },
-    { id: 'diet', label: 'DIET DETAILS', path: `/UserDietDetails/${patientId}`, state: userData, visible: !(role?.role_name === 'Dialysis Technician') },
-    { id: 'requisition', label: 'REQUISITION REPORTS', path: `/UserRequisition/${patientId}`, state: userData, visible: true },
-    { id: 'alarms', label: 'ALARMS', path: `/ShowAlarms/${patientId}`, visible: !(role?.role_name === 'Dialysis Technician') },
-    { id: 'manage', label: 'MANAGE PARAMETERS', path: `/manageparameters/${patientId}`, state: userData, visible: role?.role_name === 'Admin' },
+    { id: 'alarms', label: 'Alarms', path: `/ShowAlarms/${patientId}`, visible: !(role?.role_name === 'Dialysis Technician') },
+    { id: 'diet', label: 'Diet Details', path: `/UserDietDetails/${patientId}`, state: userData, visible: !(role?.role_name === 'Dialysis Technician') },
+    { id: 'adminChat', label: 'Admin Chat', path: `/adminChat/${patientId}`, unread: unreadAdminCount, visible: !(role?.role_name === 'Dialysis Technician' || role?.role_name === 'Medical Staff') },
+    { id: 'doctorChat', label: 'Doctor Chat', path: `/doctorChat/${patientId}`, unread: unreadDoctorCount, visible: !(role?.role_name === 'Medical Staff' || role?.role_name === 'Dialysis Technician') },
+    { id: 'labs', label: 'Lab Reports', path: `/UserLabReports/${patientId}`, state: userData, visible: true },
+    { id: 'prescriptions', label: 'Prescriptions', path: `/Userprescription/${patientId}`, state: userData, visible: true },
+    { id: 'requisition', label: 'Requisition Reports', path: `/UserRequisition/${patientId}`, state: userData, visible: true },
+    { id: 'manage', label: 'Manage Parameters', path: `/manageparameters/${patientId}`, state: userData, visible: role?.role_name === 'Admin' },
   ];
 
   const icons = {
@@ -62,33 +62,34 @@ export const PatientNavTabs = ({
       {tabs.filter(tab => tab.visible).map((tab) => (
         <Button
           key={tab.id}
+
           variant={isActive(tab.path) ? 'secondary' : 'outline'}
           onClick={() => navigate(tab.path, { state: tab.state })}
-          className="nav-tab-button h-10 px-4 rounded-xl flex items-center gap-3 shrink-0 bg-white"
+          className=" h-10 px-4 rounded-xl flex items-center gap-3 shrink-0 bg-white border-2 border-divider transition-colors"
           aria-label={tab.label}
         >
-          <Flex align="center" gap={2} className="w-full justify-start">
+          <Flex align="center" gap={2} className="w-full justify-start ">
             <Box className="flex items-center justify-center" style={{ width: 34, height: 34 }}>
               <img
                 src={icons[tab.id]}
                 alt={tab.label}
                 style={{
-                  width: 18,
-                  height: 18,
+                  width: 22,
+                  height: 22,
                   filter: isActive(tab.path)
                     ? 'brightness(0) invert(1)' // White
                     : 'brightness(0) saturate(100%) invert(39%) sepia(0%) saturate(0%) hue-rotate(173deg) brightness(95%) contrast(87%)' // Muted
                 }}
               />
             </Box>
-            <span className="truncate nav-tab-label">{tab.label}</span>
+            <span className={`truncate   ${isActive(tab.path) ? 'text-white' : 'text-gray-700'}`}>{tab.label}</span>
             <Box className="ml-auto flex items-center gap-2">
               {tab.unread > 0 && (
                 <Badge colorScheme="error" isPill size="sm" className="badge-error">
                   {tab.unread}
                 </Badge>
               )}
-              {tab.id === 'doctorChat' && <span style={{ fontSize: 12 }}>▾</span>}
+              {/* {tab.id === 'doctorChat' && <span style={{ fontSize: 12 }}>▾</span>} */}
             </Box>
           </Flex>
         </Button>

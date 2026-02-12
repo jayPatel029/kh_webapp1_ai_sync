@@ -228,213 +228,215 @@ function UserProfile() {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
 
-          {/* Sticky Header Section */}
-          <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-            <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
-              {/* Header with Breadcrumbs */}
-              <PageHeader
-                title="Patient Profile"
-                breadcrumbs={[
-                  { label: "All Patients", path: "/patient" },
-                  { label: "Patient", path: `/userProfile/${id}`, active: false },
-                  { label: "Patient Profile", active: true }
-                ]}
-                onBack={() => navigate("/patient")}
-              />
-            </Container>
+        {/* Sticky Header Section */}
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
 
-            {/* Navigation Tabs */}
-            <PatientNavTabs
-              patientId={id}
-              userData={userData}
-              unreadAdminCount={totalUnreadCount}
-              unreadDoctorCount={totalUnreadCountDoc}
-              role={role}
+          <Flex justify="start" align="center" className="py-4 px-6">
+
+            {/* Header with Breadcrumbs */}
+            <PageHeader
+              title="Patient Profile"
+              breadcrumbs={[
+                { label: "All Patients", path: "/patient" },
+                { label: "Patient", path: `/userProfile/${id}`, active: false },
+                { label: "Patient Profile", active: true }
+              ]}
+              onBack={() => navigate("/patient")}
             />
-          </Box>
+          </Flex>
 
-          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto space-y-4">
-            {/* Profile Card */}
-            <PatientProfileCard
-              userData={userData}
-              role={role}
-              onEditName={openEditModal}
-              onEditAilments={openEditalimentsModal}
+          {/* Navigation Tabs */}
+          <PatientNavTabs
+            patientId={id}
+            userData={userData}
+            unreadAdminCount={totalUnreadCount}
+            unreadDoctorCount={totalUnreadCountDoc}
+            role={role}
+          />
+        </Box>
+
+        <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto space-y-4">
+          {/* Profile Card */}
+          <PatientProfileCard
+            userData={userData}
+            role={role}
+            onEditName={openEditModal}
+            onEditAilments={openEditalimentsModal}
+          />
+
+          {/* Modals */}
+          {editModalOpen && (
+            <NameModal
+              closeEditModal={closeEditModal}
+              onSuccess={handleUpdateSuccess}
+              initialData={userData}
+              updateData={updateUserData}
+              user_id={userData.id}
             />
+          )}
+          {editalimentsModalOpen && (
+            // <AilmentModal
+            //   closeEditalimentsModal={closeEditalimentsModal}
+            //   initialAilments={userData.ailments}
+            //   updateData={updateUserData}
+            //   user_id={userData.id}
+            //   onSuccess={handleUpdateSuccess}
+            // />
+            <>hi</>
+          )}
 
-            {/* Modals */}
-            {editModalOpen && (
-              <NameModal
-                closeEditModal={closeEditModal}
-                onSuccess={handleUpdateSuccess}
-                initialData={userData}
-                updateData={updateUserData}
-                user_id={userData.id}
-              />
-            )}
-            {editalimentsModalOpen && (
-              // <AilmentModal
-              //   closeEditalimentsModal={closeEditalimentsModal}
-              //   initialAilments={userData.ailments}
-              //   updateData={updateUserData}
-              //   user_id={userData.id}
-              //   onSuccess={handleUpdateSuccess}
-              // />
-              <>hi</>
-            )}
 
-           
 
-            {/* Ailment details are now shown inside the PatientProfileCard component */}
+          {/* Ailment details are now shown inside the PatientProfileCard component */}
 
-            {/* General Parameters */}
-            {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
-              <Box className="space-y-6">
-                <Box className="flex items-center gap-4">
-                  <Box className="h-8 w-1 bg-[#4164df] rounded-full" />
-                  <Box as="h2" className="text-2xl font-bold text-[#333]">General Parameters</Box>
-                </Box>
-
-                {/* Generic Profile Section */}
-                <ParameterSection title="Generic Profile">
-                  <QuestionsContainer aliment="Generic Profile" user_id={id} />
-                </ParameterSection>
-                
-                {generalParameters
-                  .filter(q => !q.title.toLowerCase().includes("diastolic"))
-                  .map((question, index) => {
-                    let questionTitle = question.title;
-                    if (question.title.toLowerCase().includes("systolic")) {
-                      questionTitle = questionTitle.replace(/systolic/i, "Systolic and Diastolic");
-                    }
-
-                    return (
-                      <ParameterSection
-                        key={index}
-                        title={questionTitle}
-                        noResponse={question.responseCount === 0}
-                      >
-                        {question.isGraph === 1 ? (
-                          question.title.toLowerCase().includes("systolic") ? (
-                            <LineChartComponentSys
-                              aspect={3 / 1}
-                              questionId={question.id}
-                              user_id={userData.id}
-                              title={questionTitle}
-                              unit={question.unit}
-                            />
-                          ) : (
-                            <LineChartComponent
-                              aspect={3 / 1}
-                              questionId={question.id}
-                              user_id={userData.id}
-                              title={questionTitle}
-                              unit={question.unit}
-                            />
-                          )
-                        ) : (
-                          <Table
-                            questionId={question.id}
-                            user_id={userData.id}
-                            title={questionTitle}
-                            question={question}
-                          />
-                        )}
-                      </ParameterSection>
-                    );
-                  })}
+          {/* General Parameters */}
+          {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
+            <Box className="space-y-6">
+              <Box className="flex items-center gap-4">
+                {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
+                <Box as="h2" className="text-2xl font-bold text-[#333]">General Parameters</Box>
               </Box>
-            )}
 
-            {/* Dialysis Parameters */}
-            {userData.program !== "Basic" && dialysisParameters.length > 0 && (
-              <Box className="space-y-6">
-                <Box className="flex items-center gap-4">
-                  <Box className="h-8 w-1 bg-[#4164df] rounded-full" />
-                  <Box as="h2" className="text-2xl font-bold text-[#333]">Dialysis Parameters</Box>
-                </Box>
+              {/* Generic Profile Section */}
+              <ParameterSection title="Generic Profile">
+                <QuestionsContainer aliment="Generic Profile" user_id={id} />
+              </ParameterSection>
 
-                {dialysisParameters
-                  .filter(q => !q.title.toLowerCase().includes("diastolic"))
-                  .map((question, index) => (
+              {generalParameters
+                .filter(q => !q.title.toLowerCase().includes("diastolic"))
+                .map((question, index) => {
+                  let questionTitle = question.title;
+                  if (question.title.toLowerCase().includes("systolic")) {
+                    questionTitle = questionTitle.replace(/systolic/i, "Systolic and Diastolic");
+                  }
+
+                  return (
                     <ParameterSection
                       key={index}
-                      title={question.title}
+                      title={questionTitle}
                       noResponse={question.responseCount === 0}
                     >
                       {question.isGraph === 1 ? (
-                        <LineChartDialysis
-                          aspect={3 / 1}
-                          questionId={question.id}
-                          user_id={userData.id}
-                          title={question.title}
-                          unit={question.unit}
-                        />
+                        question.title.toLowerCase().includes("systolic") ? (
+                          <LineChartComponentSys
+                            aspect={3 / 1}
+                            questionId={question.id}
+                            user_id={userData.id}
+                            title={questionTitle}
+                            unit={question.unit}
+                          />
+                        ) : (
+                          <LineChartComponent
+                            aspect={3 / 1}
+                            questionId={question.id}
+                            user_id={userData.id}
+                            title={questionTitle}
+                            unit={question.unit}
+                          />
+                        )
                       ) : (
-                        <DialysisTable
+                        <Table
                           questionId={question.id}
                           user_id={userData.id}
-                          title={question.title}
+                          title={questionTitle}
                           question={question}
                         />
                       )}
                     </ParameterSection>
-                  ))}
+                  );
+                })}
+            </Box>
+          )}
+
+          {/* Dialysis Parameters */}
+          {userData.program !== "Basic" && dialysisParameters.length > 0 && (
+            <Box className="space-y-6">
+              <Box className="flex items-center gap-4">
+                {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
+                <Box as="h2" className="text-2xl font-bold text-[#333]">Dialysis Parameters</Box>
               </Box>
-            )}
 
-            {/* Lab Reports */}
-            {userData.program !== "Basic" && (
-              <Box className="space-y-6">
-                <Box className="flex items-center gap-4">
-                  <Box className="h-8 w-1 bg-[#4164df] rounded-full" />
-                  <Box as="h2" className="text-2xl font-bold text-[#333]">Lab Reports</Box>
-                </Box>
-
-                {labReadings.map((reading) => (
+              {dialysisParameters
+                .filter(q => !q.title.toLowerCase().includes("diastolic"))
+                .map((question, index) => (
                   <ParameterSection
-                    key={reading.id}
-                    title={reading.title}
-                    noResponse={reading.responseCount === 0}
+                    key={index}
+                    title={question.title}
+                    noResponse={question.responseCount === 0}
                   >
-                    <Box className="relative">
-                      {role?.role_name === "Admin" && (
-                        <Flex gap={2} className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10 bg-white/70 backdrop-blur-sm rounded-md p-1">
-                          <button
-                            className="text-[#4164df] text-xl"
-                            onClick={() => openLabReadingModal(reading.title, reading.id)}
-                          >
-                            ✎
-                          </button>
-                          <button
-                            className="text-[#de425b] text-xl"
-                            onClick={() => deleteLabReading(reading.id)}
-                          >
-                            🗑
-                          </button>
-                        </Flex>
-                      )}
-                      <LineChartComponentLab
+                    {question.isGraph === 1 ? (
+                      <LineChartDialysis
                         aspect={3 / 1}
-                        questionId={reading.id}
+                        questionId={question.id}
                         user_id={userData.id}
-                        title={reading.title}
-                        unit={reading.unit}
+                        title={question.title}
+                        unit={question.unit}
                       />
-                    </Box>
+                    ) : (
+                      <DialysisTable
+                        questionId={question.id}
+                        user_id={userData.id}
+                        title={question.title}
+                        question={question}
+                      />
+                    )}
                   </ParameterSection>
                 ))}
+            </Box>
+          )}
 
-                {selectedReading && (
-                  <LabRedingUpdateModal
-                    closeEditModal={closeLabReadingModal}
-                    initialData={selectedReading.title}
-                    id={selectedReading.id}
-                    onSuccess={handleUpdateSuccess}
-                  />
-                )}
+          {/* Lab Reports */}
+          {userData.program !== "Basic" && (
+            <Box className="space-y-6">
+              <Box className="flex items-center gap-4">
+                {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
+                <Box as="h2" className="text-2xl font-bold text-[#333]">Lab Reports</Box>
               </Box>
-            )}
+
+              {labReadings.map((reading) => (
+                <ParameterSection
+                  key={reading.id}
+                  title={reading.title}
+                  noResponse={reading.responseCount === 0}
+                >
+                  <Box className="relative">
+                    {role?.role_name === "Admin" && (
+                      <Flex gap={2} className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10 bg-white/70 backdrop-blur-sm rounded-md p-1">
+                        <button
+                          className="text-[#4164df] text-xl"
+                          onClick={() => openLabReadingModal(reading.title, reading.id)}
+                        >
+                          ✎
+                        </button>
+                        <button
+                          className="text-[#de425b] text-xl"
+                          onClick={() => deleteLabReading(reading.id)}
+                        >
+                          🗑
+                        </button>
+                      </Flex>
+                    )}
+                    <LineChartComponentLab
+                      aspect={3 / 1}
+                      questionId={reading.id}
+                      user_id={userData.id}
+                      title={reading.title}
+                      unit={reading.unit}
+                    />
+                  </Box>
+                </ParameterSection>
+              ))}
+
+              {selectedReading && (
+                <LabRedingUpdateModal
+                  closeEditModal={closeLabReadingModal}
+                  initialData={selectedReading.title}
+                  id={selectedReading.id}
+                  onSuccess={handleUpdateSuccess}
+                />
+              )}
+            </Box>
+          )}
         </Container>
       </Box>
     </ThemeProvider>

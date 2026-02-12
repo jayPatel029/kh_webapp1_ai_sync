@@ -218,7 +218,7 @@ const PatientList = ({ data, patientId }) => {
             left: 0,
             top: '50%',
             transform: 'translateY(-50%)',
-            color: '#3f6b85',
+            color: 'var(--color-accent)',
             fontFamily: 'Sora, sans-serif',
             fontWeight: 'bold'
           }}

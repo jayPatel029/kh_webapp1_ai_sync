@@ -9,9 +9,8 @@ import { getPatientById } from "../../ApiCalls/patientAPis";
 import { useParams, Link } from "react-router-dom";
 import { identifyRole } from "../../ApiCalls/authapis";
 import { getDoctors, getDoctorsChat } from "../../ApiCalls/doctorApis";
-import { Button, Input, Badge, Card } from "../../component-library";
+import { Box, Button, Input, Badge, Card,Flex } from "../../component-library";
 import PageHeader from "../../components/PageHeader";
-import { Container, Box } from "../../component-library";
 
 import {
   getChatId,
@@ -70,9 +69,9 @@ const ChatApp = () => {
       try {
         const roleResult = await identifyRole();
         setRole(roleResult.data.data.role_name);
-        if (roleResult.data.data.role_name === "Admin" || roleResult.data.data.role_name==="PSadmin") {
+        if (roleResult.data.data.role_name === "Admin" || roleResult.data.data.role_name === "PSadmin") {
           const getDoctorsResult = await getDoctorsChat(pid);
-          console.log("doctorRes",getDoctorsResult)
+          console.log("doctorRes", getDoctorsResult)
           if (getDoctorsResult.success) {
             setDoctors(getDoctorsResult.data.data);
           } else {
@@ -207,14 +206,14 @@ const ChatApp = () => {
   };
   console.log(patient);
   const navigate = useNavigate();
-  
+
   return (
     <div className="userProfile flex flex-col bg-gray-50 min-h-screen">
       <div className="flex-1 block w-full">
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+          <Flex justify="start" align="center" className="py-4 px-6">
             {/* Header with Breadcrumbs */}
             <PageHeader
               title="Doctor Chat"
@@ -225,7 +224,7 @@ const ChatApp = () => {
               ]}
               onBack={() => navigate(`/userProfile/${pid}`)}
             />
-          </Container>
+          </Flex>
 
           {/* Navigation Tabs */}
           <PatientNavTabs
@@ -275,11 +274,10 @@ const ChatApp = () => {
                                 setLoading(false);
                               });
                             }}
-                            className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${
-                              isActive
+                            className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${isActive
                                 ? "bg-blue-50 border-l-4 border-l-blue-600"
                                 : "hover:bg-gray-50"
-                            }`}
+                              }`}
                           >
                             <img
                               className="h-12 w-12 rounded-full object-cover flex-shrink-0"
@@ -310,11 +308,10 @@ const ChatApp = () => {
                               setLoading(false);
                             });
                           }}
-                          className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${
-                            user.email === activeReciever
+                          className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${user.email === activeReciever
                               ? "bg-blue-50 border-l-4 border-l-blue-600"
                               : "hover:bg-gray-50"
-                          }`}
+                            }`}
                         >
                           <img
                             className="h-12 w-12 rounded-full object-cover flex-shrink-0"
@@ -426,11 +423,10 @@ const ChatApp = () => {
                                             {message.firstname} {message.lastname}
                                           </p>
                                           <div
-                                            className={`px-4 py-2 rounded-lg text-sm ${
-                                              isOwn
+                                            className={`px-4 py-2 rounded-lg text-sm ${isOwn
                                                 ? "bg-blue-500 text-white rounded-br-none"
                                                 : "bg-gray-200 text-gray-800 rounded-bl-none"
-                                            }`}
+                                              }`}
                                           >
                                             {message.message}
                                           </div>
@@ -488,11 +484,10 @@ const ChatApp = () => {
                                 {message.firstname} {message.lastname}
                               </p>
                               <div
-                                className={`px-4 py-3 rounded-2xl text-gray-800 ${
-                                  isOwn
+                                className={`px-4 py-3 rounded-2xl text-gray-800 ${isOwn
                                     ? "bg-blue-500 text-white rounded-br-none"
                                     : "bg-white border border-gray-200 rounded-bl-none shadow-sm"
-                                }`}
+                                  }`}
                               >
                                 {message.message}
                               </div>

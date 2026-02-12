@@ -143,10 +143,10 @@ const UserRequisition = () => {
 
           {/* Sticky Header Section */}
           <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-            <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
-              {/* Header with Breadcrumbs */}
+          <Flex justify="start" align="center" className="py-4 px-6"> 
+          {/* Header with Breadcrumbs */}
               <PageHeader
-                title="Patient Profile"
+                title="Requisition Details"
                 breadcrumbs={[
                   { label: "All Patients", path: "/patient" },
                   { label: "Patient", path: `/userProfile/${id}`, active: false },
@@ -154,7 +154,7 @@ const UserRequisition = () => {
                 ]}
                 onBack={() => navigate("/patient")}
               />
-            </Container>
+            </Flex>
 
             {/* Navigation Tabs */}
             <PatientNavTabs
