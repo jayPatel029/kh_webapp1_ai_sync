@@ -1,13 +1,16 @@
 import React, { useState } from "react";
 import logo from "../../assets/kifayti_logo.png";
 import { BsFillUnlockFill } from "react-icons/bs";
-import { loginUser } from "../../ApiCalls/authapis";
-import { Link, Navigate } from "react-router-dom";
-import { getUserByEmail } from "../../ApiCalls/authapis";
-import { useNavigate } from "react-router-dom";
-import { identifyRole } from "../../ApiCalls/authapis";
+import { loginUser, getUserByEmail, identifyRole } from "../../ApiCalls/authapis";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setPermissions } from "../../redux/permissionSlice";
+
+// Design primitives
+import { Button } from "../../component-library/primitives/Button";
+import Input from "../../component-library/primitives/Input";
+import { Text, Heading, Label } from "../../component-library/primitives/Typography";
+import { Card, CardHeader, CardBody } from "../../component-library/primitives/Card";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -15,6 +18,7 @@ function Login() {
   const [errMsg, setErrMsg] = useState([]);
   const theNavigate = useNavigate();
   const dispatch = useDispatch();
+  const [isLoading, setIsLoading] = useState(false);
 
   function validateUserData(userData) {
     const errors = [];
@@ -28,8 +32,8 @@ function Login() {
     }
     return errors;
   }
+
   const handleSubmit = async () => {
-    // console.log("in login")
     const errors = validateUserData({
       email: email,
       password: password,
@@ -40,12 +44,13 @@ function Login() {
         email: email,
         password: password,
       };
+      setIsLoading(true);
       const response = await loginUser(payload);
+      setIsLoading(false);
       if (response.success) {
         setErrMsg([]);
 
         const userResponse = await getUserByEmail(email);
-        console.log("user resp",userResponse.data)
         localStorage.setItem(
           "firstname",
           userResponse?.data?.data[0]?.firstname
@@ -59,7 +64,6 @@ function Login() {
             dispatch(setPermissions(role.data.data));
           }
         } catch (error) {
-          console.log("login error!!!!!!!!!!!!!!!!!!!!");
           console.error(error.message);
         }
         theNavigate("/");
@@ -76,58 +80,103 @@ function Login() {
       {localStorage.getItem("token") ? (
         <Navigate to="/" replace />
       ) : (
-        <div className="bg-gradient-to-r from-primary to-highlight h-screen md:px-[35vw] py-[15vh]">
-          <div className="bg-white  h-[70vh] p-10">
-            <div className="flex justify-center items-center">
-              <img
-                src={logo}
-                className="w-[15vh] h-[15vh]"
-                alt="Kifayti Health"
-              />
-            </div>
-            <div className="w-full text-center font-semibold mt-3 text-lg">
-              Please Log in to Kifayti Health
-            </div>
-            <div className="pt-6">
-              <label className="block text-sm md:text-base font-semibold text-gray-600">
-                Email Address *
-              </label>
-              <input
-                type="text"
-                className="w-full px-3 md:px-4 py-2 border rounded mt-2 focus:outline-none focus:border-primary"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <label className="block text-sm md:text-base font-semibold text-gray-600 pt-4">
-                Password *
-              </label>
-              <input
-                type="password"
-                className="w-full px-3 md:px-4 py-2 border rounded mt-2 focus:outline-none focus:border-primary"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSubmit();
-                }}
-              />
-              <div className="block text-sm md:text-base font-semibold text-primary text-right pt-4">
-                <Link to="/forgotpassword">Forgot Password ? </Link>
+        <div className="min-h-screen flex items-center justify-center bg-info px-6 py-12">
+          <Card variant="elevated" className="max-w-md w-full rounded-2xl">
+              <CardHeader className="!border-none flex flex-col items-center gap-4 pt-6">
+              <img src={logo} alt="Kifayti Health" className="w-14 h-14" />
+              <div className="text-center">
+                <Heading as="h2" className="text-center text-lg">
+                  Welcome to <span className="font-bold">Kifayti Health</span>
+                </Heading>
+                <Text size="sm" color="muted" className="text-center mt-2">
+                  Please log in to your doctors portal
+                </Text>
               </div>
-              <button
-                onClick={handleSubmit}
-                className="bg-gradient-to-r from-primary to-highlight text-white m-0 py-2 rounded-md w-full mt-3 text-lg">
-                <BsFillUnlockFill className="inline-block h-3.5 w-5 mb-1" />
-                Login
-              </button>
-              {errMsg.length > 0 ? (
-                <div className="mt-2 block">
-                  <div className="text-[#ff0000] ml-2">{errMsg[0]}</div>
+            </CardHeader>
+
+            <CardBody>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSubmit();
+                }}
+                className="space-y-5"
+              >
+                <div>
+                  <Label htmlFor="email" isRequired>
+                    Email Address
+                  </Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="Enter your email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    variant="outline"
+                    size="md"
+                    aria-invalid={errMsg.length > 0}
+                    className="mt-2"
+                  />
                 </div>
-              ) : (
-                <></>
-              )}
-            </div>
-          </div>
+
+                <div>
+                  <Label htmlFor="password" isRequired>
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    variant="outline"
+                    size="md"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSubmit();
+                    }}
+                    className="mt-2"
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <Link
+                    to="/forgotpassword"
+                    className="text-sm font-semibold text-primary hover:text-primary-700 transition-colors"
+                  >
+                    Forgot Password?
+                  </Link>
+                </div>
+
+                {errMsg.length > 0 && (
+                  <div className="bg-danger/10 border border-danger text-danger text-sm font-medium px-4 py-3 rounded-lg">
+                    {errMsg[0]}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  size="md"
+                  isLoading={isLoading}
+                  isFullWidth
+                  className="mt-6 py-3 rounded-md"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <BsFillUnlockFill className="w-4 h-4" />
+                    Login
+                  </span>
+                </Button>
+
+                <div className="mt-4 text-center">
+                  <Link to="/doctorLogin" className="text-sm text-primary hover:underline">
+                    Resend OTP
+                  </Link>
+                </div>
+              </form>
+            </CardBody>
+          </Card>
         </div>
       )}
     </>

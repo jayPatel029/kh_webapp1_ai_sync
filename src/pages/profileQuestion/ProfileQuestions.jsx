@@ -22,7 +22,7 @@ import { useSelector } from "react-redux";
 import { te } from "date-fns/locale";
 
 // Component Library
-import { Box, Container, Flex } from "../../component-library";
+import { Box, Container, Flex, Button } from "../../component-library";
 
 function ProfileQuestions() {
   const [editMode, setEditMode] = useState(false);
@@ -45,7 +45,7 @@ function ProfileQuestions() {
   };
 
   const closeModalOpt = () => {
-    console.log("object", optTranslations );
+    console.log("object", optTranslations);
     setModelOpenOpt(false);
   };
 
@@ -195,8 +195,8 @@ function ProfileQuestions() {
           translations: translations,
         };
         console.log("updating with: ", payload);
-        console.log("translations here: ",translations);
-        console.log("options: ",newQuestion.options);
+        console.log("translations here: ", translations);
+        console.log("options: ", newQuestion.options);
         console.log(newQuestion.id);
         const response = await updateQuestion(newQuestion.id, payload);
         if (response.success) {
@@ -252,20 +252,20 @@ function ProfileQuestions() {
             <div className="admin-card__body">
               {modelOpen && (
                 <TranslationModal
-                  closeModal={closeModal}
+                  isOpen={modelOpen}
+                  onClose={closeModal}
                   translations={translations}
                   setTranslations={setTranslations}
-                  setLanguages={setLanguages}
                   languages={languages}
                 />
               )}
 
               {modelOpenOpt && (
                 <OptTranslationModal
-                  closeModal={closeModalOpt}
-                  translations={translations}
-                  setTranslations={setTranslations}
-                  setLanguages={setLanguages}
+                  isOpen={modelOpenOpt}
+                  onClose={closeModalOpt}
+                  translations={optTranslations}
+                  setTranslations={setOptTranslations}
                   languages={languages}
                 />
               )}
@@ -332,18 +332,32 @@ function ProfileQuestions() {
                     className="admin-form__input"
                     style={{ flex: 1, minWidth: '200px' }}
                   />
-                  <button
+                  <Button
+                    variant="secondary"
                     onClick={() => setModelOpen(true)}
-                    className="admin-btn admin-btn--teal"
+                    className="admin-btn admin-btn"
                   >
                     Set Translations
-                  </button>
-                  <button
-                    onClick={() => setModelOpenOpt(true)}
-                    className="admin-btn admin-btn--outline"
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      // derive option translations from current translations state
+                      const optTrans = {};
+                      Object.entries(translations).forEach(([langId, val]) => {
+                        if (val && typeof val === "object" && val.options !== undefined) {
+                          optTrans[langId] = val.options;
+                        } else {
+                          optTrans[langId] = "";
+                        }
+                      });
+                      setOptTranslations(optTrans);
+                      setModelOpenOpt(true);
+                    }}
+                  // className="admin-btn admin-btn--outline"
                   >
                     Set Options Translations
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -385,14 +399,14 @@ function ProfileQuestions() {
                     </button>
                   </>
                 ) : (
-                    <>
-                      <button onClick={handleSubmit} className="admin-btn admin-btn--primary">
-                        SUBMIT
-                      </button>
-                      <Link to="/ProfileQuestionCsv" className="admin-btn admin-btn--coral">
-                        Bulk Upload Questions
-                      </Link>
-                    </>
+                  <>
+                    <Button onClick={handleSubmit} variant="primary" className="admin">
+                      SUBMIT
+                    </Button>
+                    <Button to="/ProfileQuestionCsv" variant="secondary" className="admin" as={Link}>
+                      Bulk Upload Questions
+                    </Button>
+                  </>
                 )}
               </div>
 
@@ -465,13 +479,16 @@ function ProfileQuestions() {
                                     });
                                     if (q.question_translations) {
                                       let translationDict = {};
+                                      let optionDict = {};
                                       q.question_translations.forEach((element) => {
-                                          translationDict[element.language_id] = {
-                                            text: element.name,
-                                            options: element.options,
-                                          };
-                                        });
+                                        translationDict[element.language_id] = {
+                                          text: element.name,
+                                          options: element.options,
+                                        };
+                                        optionDict[element.language_id] = element.options || "";
+                                      });
                                       setTranslations(translationDict);
+                                      setOptTranslations(optionDict);
                                     }
                                     setEditMode(true);
                                     window.scrollTo({ top: 0, behavior: "smooth" });

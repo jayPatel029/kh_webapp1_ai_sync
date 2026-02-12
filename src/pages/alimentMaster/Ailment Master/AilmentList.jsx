@@ -1,6 +1,7 @@
 import React from "react";
 import { BsPencilSquare, BsTrash } from "react-icons/bs";
 import { deleteAilment } from "../../../ApiCalls/ailmentApis";
+import { IconButton, Text } from "../../../component-library";
 
 const AilmentList = ({
   setName,
@@ -11,90 +12,88 @@ const AilmentList = ({
   setSuccessful,
 }) => {
   return (
-    <div className=" p-7 mt-5 bg-white shadow-md border-t-4 border-primary">
-      <div className="text-left">
-        <h1 className="text-xl mb-2 text-left inline-block">Ailment List </h1>
-        <p className="text-xs mb-4 text-left inline-block ml-1">
-          ({ailments.length} records found)
-        </p>
+    <div>
+      <div className="w-full overflow-auto">
+        <table className="w-full table-auto border-collapse">
+          <thead>
+            <tr className="text-left border-b border-gray-200">
+              <th className="py-3 px-4">Name</th>
+              <th className="py-3 px-4">Icon</th>
+              <th className="py-3 px-4">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {ailments.map((item, index) => (
+              <tr
+                key={item.id || index}
+                className={index % 2 === 0 ? "bg-gray-50 hover:bg-gray-100" : "bg-white hover:bg-gray-100"}
+              >
+                <td className="py-3 px-4 align-middle">{item.name}</td>
+                <td className="py-3 px-4 align-middle w-24">
+                  {item.Ailment_Img ? (
+                    <img src={item.Ailment_Img} alt={`${item.name} icon`} className="w-8 h-8 object-contain" />
+                  ) : (
+                    <Text className="text-sm text-muted">—</Text>
+                  )}
+                </td>
+                <td className="py-3 px-4 align-middle">
+                  <div className="flex items-center gap-2">
+                    <IconButton
+                      aria-label={`Edit ${item.name}`}
+                      title={`Edit ${item.name}`}
+                      icon={<BsPencilSquare />}
+                      variant="ghost"
+                      size="lg"
+                      className="text-primary text-2xl font-bold hover:bg-primary/10 rounded-md"
+                      onClick={() => {
+                        setSuccessful("");
+                        setName(item.name);
+                        setId(item.id);
+                        if (item.ailmentTranslations) {
+                          let translationDict = {};
+
+                          item.ailmentTranslations.forEach((element) => {
+                            translationDict[element.languageId] = element.name;
+                          });
+                          setTranslations(translationDict);
+                        }
+                        setEditMode(true);
+                        // Scroll to the form
+                        const el = document.getElementById("ailment-form");
+                        if (el) el.scrollIntoView({ behavior: "smooth" });
+                      }}
+                    />
+
+                    <IconButton
+                      aria-label={`Delete ${item.name}`}
+                      title={`Delete ${item.name}`}
+                      icon={<BsTrash />}
+                      variant="ghost"
+                      size="lg"
+                      className="text-danger text-2xl font-bold hover:bg-red-50 rounded-md"
+                      onClick={async () => {
+                        try {
+                          setSuccessful("");
+                          await deleteAilment(item.id);
+                          setSuccessful("Ailment deleted successfully!");
+                        } catch (error) {
+                          console.error("Error deleting Ailment:", error);
+                          setSuccessful("Error deleting ailment");
+                        }
+                      }}
+                    />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* Table with alternating background colors */}
-      <table className="w-full border-collapse">
-        <thead className="border-b border-gray-500 mt-1">
-          <tr>
-            <th className="py-2 px-4 text-left">Name</th>
-            <th className="py-2 px-4 text-left">Icons</th>
-            <th className="py-2 px-4 text-left">Action</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {ailments.map((item, index) => (
-            <tr
-              key={index}
-              className={
-                index % 2 === 0
-                  ? "bg-gray-100 cursor-pointer hover:bg-slate-300"
-                  : "bg-white cursor-pointer hover:bg-slate-300"
-              }>
-              <td className="py-2 px-4" style={{ width: "50%" }}>
-                {/* Text input for Name column with cursor-pointer class */}
-                {item.name}
-              </td>
-              <td className="py-2 px-4" style={{ width: "25%" }}>
-                {/* Image for Icons column */}
-                <img
-                  src={item.Ailment_Img}
-                  alt="Icon"
-                  className="w-8 h-8 object-contain"
-                />
-              </td>
-              <td className="py-2 px-4" style={{ width: "25%" }}>
-                {/* Action buttons for Actions column */}
-                <div className="flex">
-                  <button
-                    className="text-primary inline-block mx-2 text-2xl"
-                    onClick={() => {
-                      setSuccessful("");
-                      setName(item.name);
-                      setId(item.id);
-                      if (item.ailmentTranslations) {
-                        let translationDict = {};
-
-                        item.ailmentTranslations.forEach((element) => {
-                          translationDict[element.languageId] = element.name;
-                        });
-                        setTranslations(translationDict);
-                      }
-                      setEditMode(true);
-                      window.scrollTo({
-                        top: 0,
-                        left: 0,
-                        behavior: "smooth",
-                      });
-                    }}>
-                    <BsPencilSquare />
-                  </button>
-                  <button
-                    className="text-[#ff0000] inline-block mx-2 text-2xl"
-                    onClick={async () => {
-                      try {
-                        setSuccessful("");
-                        await deleteAilment(item.id);
-                      } catch (error) {
-                        console.error("Error deleting Ailment:", error);
-                      }
-                      setSuccessful("Reading Deleted Successful!");
-                    }}>
-                    <BsTrash />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {ailments.length === 0 && (
+        <div className="mt-4 text-center text-sm text-muted">No records found</div>
+      )}
     </div>
   );
 };

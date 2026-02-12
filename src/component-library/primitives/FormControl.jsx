@@ -60,7 +60,7 @@ export const FormControl = forwardRef(({
 
   return (
     <FormControlContext.Provider value={contextValue}>
-      <div ref={ref} role="group" className={controlClasses} {...props}>
+      <div ref={ref} role="group" className={controlClasses} style={{ position: 'relative' }} {...props}>
         {children}
       </div>
     </FormControlContext.Provider>

@@ -2,6 +2,11 @@
 /* Generated from Figma design system */
 /* File: src/Styles/variables.css */
 
+
+/* Design system variables: ensure Sora is available when this file is imported directly */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
+
+
 :root {
   /* ==================== COLORS ==================== */
 
@@ -132,11 +137,12 @@
   --color-transparent: transparent;
 
   /* ==================== TYPOGRAPHY ==================== */
-
   /* Font Families */
+  /* Load Sora from Google Fonts and use it as the primary, heading, and body font */
+  /* Note: App imports this file early (src/App.js) so font will be available globally. */
   --font-primary: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-heading: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --font-body: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-heading: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-body: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
   /* Font Weights */
@@ -438,4 +444,44 @@
   font-size: var(--typography-button-font-size);
   font-weight: var(--typography-button-font-weight);
   line-height: var(--typography-button-line-height);
+}
+
+/* ==================== GLOBAL CONTROL NORMALIZATION ==================== */
+/* Normalize fonts, line-heights and rendering for interactive controls
+   so buttons, inputs and other controls align consistently across components. */
+button,
+input,
+select,
+textarea,
+.btn {
+  font-family: var(--font-primary) !important;
+  line-height: 1 !important;
+  vertical-align: middle;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Ensure inline content inside controls centers properly */
+button > *,
+.btn > *,
+input,
+select,
+textarea {
+  vertical-align: middle;
+}
+
+/* Remove native inner focus padding on some browsers */
+button::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+
+/* Provide a small helper class to force token-based centering if needed */
+.tokens-center {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }

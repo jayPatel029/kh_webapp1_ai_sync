@@ -22,7 +22,10 @@
 
   font-family: var(--font-primary);
   font-weight: var(--font-weight-semibold);
-  line-height: 1.2;
+  /* Normalize line-height to avoid baseline misalignment across fonts */
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-decoration: none;
 
   border-radius: var(--radius-lg);
@@ -59,21 +62,29 @@
 /* Icon spacing within buttons */
 .btn__icon {
   display: inline-flex;
-  align-self: baseline;
+  align-self: center;
 }
 
 .btn__icon--left {
   margin-right: var(--space-2);
-  align-self: baseline;
+  align-self: center;
     height: var(--space-4);
     width: var(--space-4);
 }
 
 .btn__icon--right {
   margin-left: var(--space-2);
-  align-self: baseline;
+  align-self: center;
     height: var(--space-4);
     width: var(--space-4);
+}
+
+/* Content wrapper: ensure inline children are vertically centered */
+.btn__content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 /* Loading state */

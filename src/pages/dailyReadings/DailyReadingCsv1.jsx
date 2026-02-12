@@ -1,6 +1,3 @@
-import React from "react";
-import "./dailyReadings.scss";
-
 import DailyquestionCsv from "./DailyReadingCsv";
 import { Link } from "react-router-dom";
 

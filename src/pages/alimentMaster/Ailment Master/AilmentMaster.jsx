@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import AilmentList from "./AilmentList";
 import { getLanguages } from "../../../ApiCalls/languageApis";
 import {
@@ -7,6 +7,23 @@ import {
   updateAilment,
 } from "../../../ApiCalls/ailmentApis";
 import { uploadFile } from "../../../ApiCalls/dataUpload";
+
+// Design system primitives
+import {
+  Container,
+  Card,
+  CardHeader,
+  CardBody,
+  CardFooter,
+  Input,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  Button,
+  Heading,
+  Text,
+  Box,
+} from "../../../component-library";
 
 export default function AilmentMasterComponent() {
   // State to hold the selected ailment data
@@ -20,32 +37,19 @@ export default function AilmentMasterComponent() {
   const [successmsg, setSuccessmsg] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [id, setId] = useState(null);
+  const formRef = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         getAilments().then((resultAilment) => {
           if (resultAilment.success && resultAilment.data.listOfAilments) {
-            console.log("Ailments:", resultAilment.data.listOfAilments);
             setAilments(resultAilment.data.listOfAilments);
-            resultAilment.data.listOfAilments.forEach((element) => {
-              if (element.ailmentTranslations) {
-                let translationDict = {};
-                element.ailmentTranslations.forEach((element) => {
-                  translationDict[element.languageId] = element.name;
-                }
-                );
-                setTranslations(translationDict); 
-              }
-            }
-            );
-                  
-
           } else {
             console.error("Failed to fetch Ailments:", resultAilment);
           }
         });
-        
+
         getLanguages().then((resultLanguage) => {
           if (resultLanguage.success && resultLanguage.data) {
             setLanguages(resultLanguage.data);
@@ -61,7 +65,7 @@ export default function AilmentMasterComponent() {
           }
         });
       } catch (error) {
-        console.error("Error fetching questions:", error.message);
+        console.error("Error fetching data:", error.message);
       }
     };
 
@@ -79,9 +83,11 @@ export default function AilmentMasterComponent() {
         return { data: { objectUrl: "" } };
       }
     } catch (error) {
-      setErrmsg("Error uploading file:", error);
+      setErrmsg("Error uploading file:");
+      console.error(error);
     }
   };
+
   const clearFields = () => {
     setName("");
     let transaltiondict = {};
@@ -111,7 +117,7 @@ export default function AilmentMasterComponent() {
             clearFields();
             setSuccessmsg("Ailment added successfully");
           } else {
-            setErrmsg("Failed to add Ailment:", result);
+            setErrmsg("Failed to add Ailment");
           }
         });
       } else {
@@ -120,7 +126,7 @@ export default function AilmentMasterComponent() {
             clearFields();
             setSuccessmsg("Ailment updated successfully");
           } else {
-            setErrmsg("Failed to update Ailment:", result);
+            setErrmsg("Failed to update Ailment");
           }
         });
       }
@@ -129,111 +135,112 @@ export default function AilmentMasterComponent() {
     }
   };
 
-  return (
-    <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-      <div className=" bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
-        <div className="border-b-2 border-gray-200 text-xl font-semibold p-4 text-primary">
-          Ailment Master
-        </div>
+  // Focus form when edit mode enabled
+  useEffect(() => {
+    if (editMode && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [editMode]);
 
-        <div>
-          <div className="flex flex-col mt-4">
-            <label className="block mb-2 text-sm font-medium text-gray-500">
-              English Name
-            </label>
-            <input
-              type="text"
-              className=" border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-              }}
-            />
-          </div>
-          {languages.map((language, index) => {
-            if (language.id !== 1)
-              return (
-                <div key={index} className="flex flex-col mt-4">
-                  <label className="block mb-2 text-sm font-medium text-gray-500">
-                    {language.language_name}
-                  </label>
-                  <input
-                    type="text"
-                    className=" border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-                    value={translations[language.id]}
-                    onChange={(e) => {
-                      setTranslations({
-                        ...translations,
-                        [language.id]: e.target.value,
-                      });
-                    }}
-                  />
-                </div>
-              );
-          })}
-          <div className="flex flex-col mt-4">
-            <label className="block mb-2 text-sm font-medium text-gray-500">
-              Icon
-            </label>
-            <input
-              type="file"
-              name="Resume"
-              id="file-input"
-              onChange={(event) => {
-                setAilment_Img(event.target.files[0]);
-              }}
-              className="block w-full border border-gray-300 text-gray-500 shadow-sm rounded-lg text-sm focus:z-10 focus:border-primary focus:ring-primary disabled:opacity-50 disabled:pointer-events-none 
-                        file:border-0
-                      file:bg-gray-300 file:me-4
-                      file:text-gray-600
-                        file:py-2.5 file:px-4"
-            />
-          </div>
-          <div className="mt-4">
+  return (
+    <Container size="lg" className="py-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Form */}
+        <Card className="md:col-span-1" variant="elevated" ref={formRef} id="ailment-form">
+          <CardHeader>
+            <Heading size="md">Ailment Master</Heading>
+            <Text className="text-sm text-muted">Add or edit ailments and icons</Text>
+          </CardHeader>
+
+          <CardBody>
+            <Box className="space-y-4">
+              <FormControl>
+                <FormLabel>English Name</FormLabel>
+                <Input
+                  type="text"
+                  placeholder="Enter ailment name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </FormControl>
+
+              {languages.map((language, index) => {
+                if (language.id === 1) return null;
+                return (
+                  <FormControl key={language.id}>
+                    <FormLabel>{language.language_name}</FormLabel>
+                    <Input
+                      type="text"
+                      placeholder={`Enter name in ${language.language_name}`}
+                      value={translations[language.id] || ""}
+                      onChange={(e) => {
+                        setTranslations({
+                          ...translations,
+                          [language.id]: e.target.value,
+                        });
+                      }}
+                    />
+                  </FormControl>
+                );
+              })}
+
+              <FormControl>
+                <FormLabel>Icon</FormLabel>
+                <Input
+                  type="file"
+                  onChange={(event) => setAilment_Img(event.target.files[0])}
+                />
+              </FormControl>
+
+              {errmsg && <FormErrorMessage className="mt-2">{errmsg}</FormErrorMessage>}
+              {successmsg && <Text className="text-success mt-2">{successmsg}</Text>}
+            </Box>
+          </CardBody>
+
+          <CardFooter>
             {!editMode ? (
-              <button
-                className="bg-primary text-white px-4 py-2 rounded-md w-1/3"
-                onClick={submitAilment}>
+              <Button variant="primary" onClick={submitAilment}>
                 Submit
-              </button>
+              </Button>
             ) : (
-              <>
-                <button
-                  onClick={submitAilment}
-                  className=" flex-1 mr-2 mt-5 border md:inline-block text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-[12vw] rounded-lg p-1.5">
-                  UPDATE
-                </button>
-                <button
+              <div className="flex gap-3">
+                <Button variant="primary" onClick={submitAilment}>
+                  Update
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setEditMode(false);
                     clearFields();
-                  }}
-                  className="flex-1 border text-[#ff0000] md:inline-block bg-white font-semibold tracking-wide text-lg border-[#ff0000] w-[12vw] rounded-lg  p-1.5">
-                  CANCEL
-                </button>
-              </>
+                  }}>
+                  Cancel
+                </Button>
+              </div>
             )}
-          </div>
-          <div>
-            {errmsg && (
-              <div className="text-red-500 text-sm mt-2">{errmsg}</div>
-            )}
-            {successmsg && (
-              <div className="text-primary text-sm mt-2">{successmsg}</div>
-            )}
-          </div>
-        </div>
-      </div>
+          </CardFooter>
+        </Card>
 
-      {/* AilmentList component */}
-      <AilmentList
-        setName={setName}
-        setTranslations={setTranslations}
-        ailments={ailments}
-        setEditMode={setEditMode}
-        setId={setId}
-        setSuccessful={setSuccessmsg}
-      />
-    </div>
+        {/* List */}
+        <Card className="md:col-span-2" variant="elevated">
+          <CardHeader>
+            <div className="flex items-center w-full">
+              <Heading size="md">Ailment List</Heading>
+              <div className="ml-auto text-sm text-muted">{ailments.length} records</div>
+            </div>
+          </CardHeader>
+
+          <CardBody>
+            <AilmentList
+              setName={setName}
+              setTranslations={setTranslations}
+              ailments={ailments}
+              setEditMode={setEditMode}
+              setId={setId}
+              setSuccessful={setSuccessmsg}
+            />
+          </CardBody>
+        </Card>
+      </div>
+    </Container>
   );
 }

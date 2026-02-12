@@ -205,7 +205,7 @@ const PatientList = ({ data, patientId }) => {
       <Box
         className="border-b-2 border-solid"
         style={{
-          borderColor: '#00cccc',
+          borderColor: 'var(--color-info)',
           height: '100px',
           position: 'relative'
         }}
@@ -239,11 +239,9 @@ const PatientList = ({ data, patientId }) => {
             onChange={(e) => setSearchTerm(e.target.value)}
             size="lg"
             style={{
-              borderColor: '#32617d',
               borderRadius: '10px',
               fontFamily: 'Sora, sans-serif',
               fontSize: '16px',
-              color: '#32617d'
             }}
           />
         </InputGroup>
