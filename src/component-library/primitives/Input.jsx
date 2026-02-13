@@ -24,6 +24,7 @@ export const Input = forwardRef(({
   isReadOnly = false,
   isRequired = false,
   className,
+  type = 'text',
   ...props
 }, ref) => {
   const inputClasses = clsx(
@@ -35,6 +36,9 @@ export const Input = forwardRef(({
       'input--invalid': isInvalid,
       'input--readonly': isReadOnly,
     },
+
+    // if type is date or time, add specific class for styling
+    // (type === 'date' || type === 'time') && 'datepicker',
     className
   );
 
@@ -47,6 +51,7 @@ export const Input = forwardRef(({
       required={isRequired}
       aria-invalid={isInvalid}
       aria-disabled={isDisabled}
+      type={type}
       {...props}
     />
   );
@@ -62,6 +67,7 @@ Input.propTypes = {
   isReadOnly: PropTypes.bool,
   isRequired: PropTypes.bool,
   className: PropTypes.string,
+  type: PropTypes.string,
 };
 
 /**
@@ -81,9 +87,9 @@ export const InputGroup = forwardRef(({
 
   React.Children.forEach(children, (child) => {
     if (!React.isValidElement(child)) return;
-    
+
     const displayName = child.type?.displayName || child.type?.name || '';
-    
+
     if (displayName === 'InputLeftElement') hasLeftElement = true;
     if (displayName === 'InputRightElement') hasRightElement = true;
     if (displayName === 'InputLeftAddon') hasLeftAddon = true;
@@ -103,11 +109,11 @@ export const InputGroup = forwardRef(({
 
   const enhancedChildren = React.Children.map(children, (child) => {
     if (!React.isValidElement(child)) return child;
-    
+
     if (child.type?.displayName === 'Input' || child.type === Input) {
       return React.cloneElement(child, { size });
     }
-    
+
     return child;
   });
 

@@ -14,15 +14,19 @@
   position: relative;
   appearance: none;
   box-sizing: border-box;
-  
+
   font-family: var(--font-primary);
   font-weight: var(--font-weight-regular);
   color: var(--color-text);
-  
+
+
   background-color: var(--color-white);
+
+
+
   border: 0.5px solid var(--color-border-input);
   border-radius: var(--radius-lg);
-  
+
   transition: var(--transition-fast);
 }
 
@@ -91,7 +95,7 @@
 
 /* Outline (Default) */
 .input--outline {
-  background-color:var(--color-white);
+  background-color: var(--color-white);
   border: 0.5px solid var(--color-accent);
 }
 
@@ -203,7 +207,7 @@
   width: 100%;
 }
 
-.input-group > .input {
+.input-group>.input {
   position: relative;
   z-index: 1;
   flex: 1 1 0%;
@@ -233,11 +237,11 @@
 }
 
 /* Adjust input padding when elements are present */
-.input-group--has-left > .input {
+.input-group--has-left>.input {
   padding-left: 40px;
 }
 
-.input-group--has-right > .input {
+.input-group--has-right>.input {
   padding-right: 40px;
 }
 
@@ -265,12 +269,12 @@
   border-bottom-right-radius: var(--radius-md);
 }
 
-.input-group--has-addon-left > .input {
+.input-group--has-addon-left>.input {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
 
-.input-group--has-addon-right > .input {
+.input-group--has-addon-right>.input {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -285,19 +289,20 @@
   appearance: none;
   box-sizing: border-box;
   resize: vertical;
-  
+  min-height: 80px;
+
   font-family: var(--font-primary);
   font-weight: var(--font-weight-regular);
   color: var(--color-text);
-  
+
   background-color: var(--color-white);
-  border: 0.5px solid var(--color-border-input);
+  border: 0.5px solid var(--color-accent);
   border-radius: var(--radius-lg);
-  
+
   padding: var(--space-2) var(--space-4);
   font-size: var(--font-size-md);
   line-height: var(--line-height-normal);
-  
+
   transition: var(--transition-fast);
 }
 
@@ -306,7 +311,7 @@
 }
 
 .textarea:hover {
-  border-color: var(--color-gray-300);
+  border-color: var(--color-info);
 }
 
 .textarea:focus {
@@ -339,27 +344,29 @@
   appearance: none;
   box-sizing: border-box;
   cursor: pointer;
-  
+
   font-family: var(--font-primary);
   font-weight: var(--font-weight-regular);
   color: var(--color-text);
-  
+
+
+
   background-color: var(--color-white);
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 0.5rem center;
+  background-image: url("data: image/svg+xml, %3Csvg%20width%3D%2213%22%20height%3D%2212%22%20viewBox%3D%220%200%2013%2012%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M6.49512%2011.25L-7.24494e-05%20-1.2235e-06L12.9903%20-8.78432e-08L6.49512%2011.25Z%22%20fill%3D%22%2300CCCC%22%2F%3E%3C%2Fsvg%3E");
+  background-position: right 0.95rem center;
   background-repeat: no-repeat;
-  background-size: 1.5em 1.5em;
-  
-  border: 0.5px solid var(--color-border-input);
+  background-size: 0.90em 0.90em;
+
+  border: 0.5px solid var(--color-accent);
   border-radius: var(--radius-lg);
-  
+
   padding-right: 2.5rem;
-  
+
   transition: var(--transition-fast);
 }
 
 .select:hover {
-  border-color: var(--color-gray-300);
+  border-color: var(--color-info);
 }
 
 .select:focus {
@@ -393,4 +400,17 @@
 
 .select--invalid {
   border-color: var(--color-error);
+}
+
+
+
+.input[type="date"]::-webkit-calendar-picker-indicator {
+  /* display: none; */
+  /* -webkit-appearance: none; */
+  /* Helps with removing all default styling in webkit browsers */
+  background-color: var(--color-white);
+  background-image: url("data: image/svg+xml, %3Csvg%20width%3D%2225%22%20height%3D%2225%22%20viewBox%3D%220%200%2025%2025%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%3E%3Crect%20width%3D%2225%22%20height%3D%2225%22%20fill%3D%22url(%23pattern0_4556_486)%22%2F%3E%3Cdefs%3E%3Cpattern%20id%3D%22pattern0_4556_486%22%20patternContentUnits%3D%22objectBoundingBox%22%20width%3D%221%22%20height%3D%221%22%3E%3Cuse%20xlink%3Ahref%3D%22%23image0_4556_486%22%20transform%3D%22scale(0.01)%22%2F%3E%3C%2Fpattern%3E%3Cimage%20id%3D%22image0_4556_486%22%20width%3D%22100%22%20height%3D%22100%22%20preserveAspectRatio%3D%22none%22%20xlink%3Ahref%3D%22data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAACMUlEQVR4nO3dO04DMRRG4ctKgH0goGALdLALBG1AFCyEnfAQGt9RmuyCPiVGToQQD8Vpxvefyfkkl0genziZEGlsBgCAspR84%2Bi6s%2BgpWplDbZ6T4Z4r4zx6ilbmUJvnZBBEDEHEEEQMQcQQRAxBAry9HVrXXZr7laV082PUgqT0%2BOdvUvPxuMU8f1%2FXlfX9hc3nByYjpVNzf9liF0x9PFvXncSFyHnP3O8tpQ%2BBxcgSY70Wd6u1aa7EiF4AFx0p3bZ%2Fm2Jn5I07pe%2BPWwZ5DX8Vuvx4bhOj3FHEX2wexSh3noNb39rGX6yPYJRb4sHVv1csq78rTGW4LzeuRVmrBkFmlSAL2xXui0qQ2fCTIMg3goghiBiCiCGIGIKIIYiYkQThi6FrBWE4QbLkC4Ed4vERCOLxC08Qj19sgnj8AhPE4xd1AkHezf1hR8b7GILwA5UTJMZI%2FnXCDnGCxGCHiCGIGIKIIYgYgoghiBiCiCGIGIKIIYgYgoghiBiCiCGIGIKIIYgYgoghiBiCiCGIGIKIIYgYgoghiBiCiCGIGIKIIYgYgoghiBiCiCGIGIKIIYgYgoghiBiCiBEJwqPG09aPGr8ePggP489aD%2BPv%2B30Oc3Gh4yqKclhJ9JN2XH48WTPlNDKOPMqVw8GOrKlyGln8qzBLjiZ3V%2F8fm3fHTvGfO6PECDk270s5jYzPlLz6zGj%2BNlU7LKzc5q2%2FpzzsxEjpZnXN5c4TAAAAAAAAsN3yCX9Rlyw2r5YvAAAAAElFTkSuQmCC%22%2F%3E%3C%2Fdefs%3E%3C%2Fsvg%3E");
+  /* background-position: right -0.2rem center; */
+  background-repeat: no-repeat;
+  background-size: 1.25em 1.25em;
 }

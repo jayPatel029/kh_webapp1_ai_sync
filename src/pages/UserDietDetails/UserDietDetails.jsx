@@ -34,7 +34,7 @@ import { BsTrash } from "react-icons/bs";
 import { FaFilePdf } from "react-icons/fa6";
 
 // Import design system styles
-import "../../design-system/styles/index.css";
+// import "../../design-system/styles/index.css";
 
 const UserDietDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -130,16 +130,16 @@ const UserDietDetails = () => {
 
   return (
     <ThemeProvider>
-      <Box className="flex-1 flex flex-col min-w-0">
+      {/* <Box className="flex-1 flex flex-col min-h-screen w-full"> */}
 
           {/* Sticky Header Section */}
-        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+        <Box className="sticky top-[56px] z-20 bg-white">
           <Flex justify="start" align="center" className="py-4 px-6">
               {/* Header with Breadcrumbs */}
               <PageHeader
                 title="Diet Details"
                 breadcrumbs={[
-                  { label: "All Patients", path: "/patient" },
+                 // { label: "All Patients", path: "/patient" },
                   { label: "Patient", path: `/userProfile/${id}`, active: false },
                   { label: "Diet Details", active: true }
                 ]}
@@ -158,13 +158,13 @@ const UserDietDetails = () => {
           </Box>
 
           {/* Main Content */}
-          <Box className="flex-1 bg-[#fafafa]">
-            <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
+          {/* <Box className="flex-1 bg-[#fafafa]"> */}
+            <Flex className="py-8 px-4 md:px-12 mx-0">
               <Box className="bg-white rounded-[15px] shadow-md p-8">
                 {/* Header Section */}
-                <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
+                <Flex justify="between" align="center" className="pb-4 border-b-2 !border-info mb-6">
                   <Box>
-                    <h2 className="text-[18px] font-bold text-[#393939]">Diet reports</h2>
+                    <h2 className="text-[18px] font-bold text-[#393939]">Diet Details</h2>
                   </Box>
                   <Flex align="center" gap={3}>
                     <Box className="flex items-center gap-2">
@@ -183,7 +183,7 @@ const UserDietDetails = () => {
                   <Flex gap={4} align="center">
                     {/* Placeholder for filters - hidden per Figma design */}
                     <Box className="opacity-0">
-                      <select className="h-[50px] px-4 pr-10 rounded-[10px] border border-[#5886a5]">
+                      <select className="h-[50px] px-4 pr-10 rounded-[10px] border border-i">
                         <option>Sort by</option>
                       </select>
                     </Box>
@@ -272,15 +272,16 @@ const UserDietDetails = () => {
                   </Box>
                 </Box>
               </Box>
-            </Container>
-        </Box>
-      </Box>
+            </Flex>
+        {/* </Box> */}
+      {/* </Box> */}
 
       {/* Modals */}
       {showModal && (
         <DietModal
           closeModal={closeModal}
           user_id={id}
+          userData={userData}
           onSuccess={fetchData}
         />
       )}

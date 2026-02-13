@@ -148,7 +148,7 @@ const UserRequisition = () => {
               <PageHeader
                 title="Requisition Details"
                 breadcrumbs={[
-                  { label: "All Patients", path: "/patient" },
+                 // { label: "All Patients", path: "/patient" },
                   { label: "Patient", path: `/userProfile/${id}`, active: false },
                   { label: "Requisition", active: true }
                 ]}

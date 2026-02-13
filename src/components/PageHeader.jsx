@@ -7,14 +7,14 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Text, Heading, Box, Flex, IconButton } from '../component-library';
+import { Text, Heading, Box, Flex, IconButton, Button } from '../component-library';
 import * as assets from '../assets';
 import '../design-system/styles/index.css';
-
+import onBackButton from '../assets/onBackButton.svg';
 export const PageHeader = ({
   breadcrumbs = ['My patients'],
   title = 'Patient Name',
-  onBackClick,
+  onBack,
 }) => {
   // Normalize breadcrumbs: accept array of strings or objects { label, path, active, icon }
   const crumbs = Array.isArray(breadcrumbs)
@@ -22,19 +22,12 @@ export const PageHeader = ({
     : [{ label: String(breadcrumbs) }];
 
   return (
-    <Box className="page-header w-full px-0 py-2 noscrollbar">
-      <Flex direction="column" gap={2}>
-        <Flex gap={2} align="center">
-          {onBackClick && (
-            <IconButton
-              onClick={onBackClick}
-              variant="ghost"
-              aria-label="Go back"
-              className="mr-2"
-            >
-              ←
-            </IconButton>
-          )}
+    <Box className="w-full px-0 py-2 noscrollbar">
+      <Flex direction="rows" align="center" gap={8}>
+        {onBack && (
+          <img src={onBackButton} alt="back" onClick={onBack} className="w-6 h-6" />
+        )}
+        <Flex gap={2} direction="column" align="flex-start">
 
           <Text size="sm" weight="normal" className="text-muted">
             {crumbs.map((c, i) => (
@@ -62,11 +55,14 @@ export const PageHeader = ({
               </span>
             ))}
           </Text>
-        </Flex>
 
-        <Heading size="xl" weight="bold" className="text-primary-dark">
+
+          <div className="self-stretch justify-start text-accent text-2xl font-bold font-['Sora']">Mukesh</div>
+
+          {/* <Heading size="xl" weight="bold" className="text-slate-600">
           {title}
-        </Heading>
+          </Heading> */}
+        </Flex>
       </Flex>
     </Box>
   );

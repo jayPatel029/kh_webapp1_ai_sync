@@ -243,7 +243,7 @@ const ChatApp = () => {
             <PageHeader
               title="Admin Chat"
               breadcrumbs={[
-                { label: "All Patients", path: "/patient" },
+               // { label: "All Patients", path: "/patient" },
                 { label: "Patient", path: `/userProfile/${pid}`, active: false },
                 { label: "Admin Chat", active: true }
               ]}

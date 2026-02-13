@@ -229,7 +229,7 @@ function UserProfile() {
       <Box className="flex-1 flex flex-col min-w-0">
 
         {/* Sticky Header Section */}
-        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+        <Box className="sticky top-[56px] z-20 bg-white ">
 
           <Flex justify="start" align="center" className="py-4 px-6">
 
@@ -237,7 +237,7 @@ function UserProfile() {
             <PageHeader
               title="Patient Profile"
               breadcrumbs={[
-                { label: "All Patients", path: "/patient" },
+               // { label: "All Patients", path: "/patient" },
                 { label: "Patient", path: `/userProfile/${id}`, active: false },
                 { label: "Patient Profile", active: true }
               ]}
@@ -255,7 +255,7 @@ function UserProfile() {
           />
         </Box>
 
-        <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto space-y-4">
+        <Flex className="py-4 flex-col gap-6 px-6">
           {/* Profile Card */}
           <PatientProfileCard
             userData={userData}
@@ -294,7 +294,7 @@ function UserProfile() {
             <Box className="space-y-6">
               <Box className="flex items-center gap-4">
                 {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-                <Box as="h2" className="text-2xl font-bold text-[#333]">General Parameters</Box>
+              <Box as="h2" className="text-2xl font-bold m-4">General Parameters</Box>
               </Box>
 
               {/* Generic Profile Section */}
@@ -353,7 +353,7 @@ function UserProfile() {
             <Box className="space-y-6">
               <Box className="flex items-center gap-4">
                 {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-                <Box as="h2" className="text-2xl font-bold text-[#333]">Dialysis Parameters</Box>
+              <Box as="h2" className="text-2xl font-bold m-4">Dialysis Parameters</Box>
               </Box>
 
               {dialysisParameters
@@ -390,7 +390,7 @@ function UserProfile() {
             <Box className="space-y-6">
               <Box className="flex items-center gap-4">
                 {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-                <Box as="h2" className="text-2xl font-bold text-[#333]">Lab Reports</Box>
+              <Box as="h2" className="text-2xl font-bold m-4">Lab Reports</Box>
               </Box>
 
               {labReadings.map((reading) => (
@@ -437,7 +437,7 @@ function UserProfile() {
               )}
             </Box>
           )}
-        </Container>
+        </Flex>
       </Box>
     </ThemeProvider>
   );

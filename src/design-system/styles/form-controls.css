@@ -38,15 +38,16 @@
   color: var(--color-text);
   margin-bottom: var(--space-2);
   position: absolute;
-  top: -8px;
+  top: -14px;
   left: 20px;
   background-color: white;
   padding-left: 5px;
   padding-right: 5px;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-accent);
   z-index: 1;
+  border-radius: var(--radius-full);
 }
 
 .form-label--required::after {

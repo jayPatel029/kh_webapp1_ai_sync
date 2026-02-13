@@ -49,13 +49,13 @@ export const PatientProfileCard = ({
   ];
 
   return (
-    <Card variant="elevated" className="w-full" style={{ borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+    <Card variant="elevated" className="w-full self-stretch bg-white rounded-2xl !shadow-[2px_2px_8px_0px_rgba(0,0,0,0.35)] !shadow-[-2px_-2px_8px_0px_rgba(0,0,0,0.10)]">
       <CardHeader
-        className="px-4 py-2 border-b border-gray-100 bg-white cursor-pointer select-none"
+        className="px-4 py-2  bg-white cursor-pointer select-none  "
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <Flex align="center" justify="between" className="w-full">
-          <Heading size="sm" weight="bold" className="uppercase tracking-wide text-black font-16 font-bold">
+          <Heading size="sm" weight="bold" className=" uppercase tracking-wide text-black font-16 font-bold">
             Basic details & ailment
           </Heading>
           {/* <Box className={clsx("h-6 w-6 p-0 hover:bg-transparent transition-transform duration-200", isExpanded ? 'rotate-90' : '')}>
@@ -118,7 +118,8 @@ export const PatientProfileCard = ({
                 </Box>
               </Box>
             </Flex>
-
+            {/* <hr className="border-2 w-full rotate-90 border-info self-stretch"/> */}
+            <div className="w-0 self-stretch origin-top-left outline outline-[1px] outline-offset-[-0.5px] outline-info" />
             <Box className="flex-1 w-full">
               <Box className="space-y-4">
                 <Box className="flex items-center gap-4">

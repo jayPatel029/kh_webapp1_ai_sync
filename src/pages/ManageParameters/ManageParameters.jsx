@@ -259,7 +259,7 @@ function ManageParameters() {
               <PageHeader
                 title="Manage Parameters"
                 breadcrumbs={[
-                  { label: "All Patients", path: "/patient" },
+                 // { label: "All Patients", path: "/patient" },
                   { label: "Patient", path: `/userProfile/${pid}`, active: false },
                   { label: "Manage Parameters", active: true }
                 ]}

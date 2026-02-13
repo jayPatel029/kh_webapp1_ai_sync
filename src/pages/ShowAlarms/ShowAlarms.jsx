@@ -231,7 +231,7 @@ const ShowAlarms = () => {
             <PageHeader
               title="Alarm Details"
               breadcrumbs={[
-                { label: "All Patients", path: "/patient" },
+               // { label: "All Patients", path: "/patient" },
                 { label: "Patient", path: `/userProfile/${pid}`, active: false },
                 { label: "Alarms", active: true }
               ]}

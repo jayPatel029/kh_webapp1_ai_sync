@@ -115,6 +115,26 @@ module.exports = {
           css: "inset -2px -2px 4px 0px rgba(0, 0, 0, 0.05)",
         },
       },
+//         --border - none: none;
+// --border - sm: 1px solid var(--color - border);
+// --border - base: 1px solid var(--color - border);
+// --border - md: 2px solid var(--color - border);
+// --border - lg: 4px solid var(--color - border);
+// --border - xl: 8px solid var(--color - border);
+// --border - input: 1px solid var(--color - border - input);
+// --border - focus: 2px solid var(--color - border - focus);
+// --border - divider: 1px solid var(--color - divider);
+        borders: {
+          none: "none",
+          sm: "1px solid var(--color-border)",
+          base: "1px solid var(--color-border)",
+          md: "2px solid var(--color-border)",
+          lg: "4px solid var(--color-border)",
+          xl: "8px solid var(--color-border)",
+          input: "1px solid var(--color-border-input)",
+          focus: "2px solid var(--color-border-focus)",
+          divider: "1px solid var(--color-divider)",
+        },
     },
   },
   plugins: [],

@@ -39,11 +39,16 @@ export const ParameterSection = ({
     <Box className="w-full">
       <Card
         variant="elevated"
-        className="w-full card-elevated"
+        className="w-full card-elevated cursor-pointer select-none"
+        onClick={() => setIsExpanded(!isExpanded)}
+        // className="cursor-pointer select-none"
       >
         <CardBody>
           {/* Header */}
-          <Flex justify="between" align="center" gap={4}>
+          <Flex justify="between" align="center" gap={4}
+          
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
             <Heading as="h5" size="md" weight="semibold" className="text-dark">
               {title}
             </Heading>

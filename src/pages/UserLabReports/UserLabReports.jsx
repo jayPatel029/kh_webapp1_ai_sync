@@ -183,7 +183,7 @@ const UserLabReports = () => {
             <PageHeader
               title="Lab Reports"
               breadcrumbs={[
-                { label: "All Patients", path: "/patient" },
+               // { label: "All Patients", path: "/patient" },
                 { label: "Patient", path: `/userProfile/${id}`, active: false },
                 { label: "Lab Reports", active: true }
               ]}

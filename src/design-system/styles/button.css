@@ -285,12 +285,13 @@ button.btn--brand:active,
 
 /* Danger Variant */
 .btn--danger {
-  background: linear-gradient(135deg, var(--color-danger) 0%, var(--color-danger-dark) 100%);
-  color: var(--color-white);
+  background: var(--color-white);
+  color: var(--color-danger);
 }
 
 .btn--danger:hover {
-  background: linear-gradient(135deg, #f05a74 0%, var(--color-danger) 100%);
+  background: var(--color-danger-dark);
+  color: var(--color-white);
   box-shadow: 0 8px 20px rgba(222, 66, 91, 0.25);
 }
 
