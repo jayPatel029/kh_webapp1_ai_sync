@@ -28,7 +28,7 @@ import { Select } from "../../component-library/primitives/Select";
 import { VStack, HStack, Box, Flex } from "../../component-library/layout/Layout";
 import { Text, Heading } from "../../component-library/primitives/Typography";
 
-const MyModal = ({ closeModal, user_id, onSuccess }) => {
+const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedReportType, setSelectedReportType] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
@@ -140,8 +140,11 @@ const MyModal = ({ closeModal, user_id, onSuccess }) => {
   return (
     <Modal isOpen={true} onClose={closeModal} size="lg" isCentered>
       <ModalOverlay />
-      <ModalContent className="rounded-xl overflow-hidden border-t-4 border-primary">
-        <ModalHeader className="border-b bg-gray-50/50">
+      <ModalContent
+        // className="rounded-xl overflow-hidden border-t-4 border-primary"
+      >
+        
+        <ModalHeader >
           <Heading size="md" weight="bold">Upload Lab Reports</Heading>
           <ModalCloseButton />
         </ModalHeader>
@@ -183,7 +186,7 @@ const MyModal = ({ closeModal, user_id, onSuccess }) => {
             <FormControl isRequired isInvalid={!!errorMsg && !selectedImage}>
               <FormLabel>Upload File</FormLabel>
               <Box className="relative">
-                <input
+                <Input
                   type="file"
                   onChange={handleImageChange}
                   className="w-full text-sm text-gray-500
@@ -244,7 +247,7 @@ const MyModal = ({ closeModal, user_id, onSuccess }) => {
           </VStack>
         </ModalBody>
 
-        <ModalFooter className="bg-gray-50/50 border-t gap-3">
+        <ModalFooter >
           <Button variant="outline" onClick={closeModal} className="flex-1">
             Cancel
           </Button>
@@ -252,7 +255,7 @@ const MyModal = ({ closeModal, user_id, onSuccess }) => {
             <Button 
               variant="solid" 
               colorScheme="success" 
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              // className="flex-1 bg-green-600 hover:bg-green-700"
               isLoading={isSaving}
               onClick={handleSave}
             >
@@ -265,4 +268,4 @@ const MyModal = ({ closeModal, user_id, onSuccess }) => {
   );
 };
 
-export default MyModal;
+export default UploadLabReports;

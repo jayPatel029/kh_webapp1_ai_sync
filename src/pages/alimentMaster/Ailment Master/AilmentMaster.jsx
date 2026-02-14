@@ -7,7 +7,7 @@ import {
   updateAilment,
 } from "../../../ApiCalls/ailmentApis";
 import { uploadFile } from "../../../ApiCalls/dataUpload";
-
+import FileUploadWithCamera from "../../../components/FileUploadWithCamera";
 // Design system primitives
 import {
   Container,
@@ -144,9 +144,9 @@ export default function AilmentMasterComponent() {
 
   return (
     <Container size="lg" className="py-10">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Form */}
-        <Card className="md:col-span-1" variant="elevated" ref={formRef} id="ailment-form">
+        <Card className="md:col-span-2" variant="elevated" ref={formRef} id="ailment-form">
           <CardHeader>
             <Heading size="md">Ailment Master</Heading>
             <Text className="text-sm text-muted">Add or edit ailments and icons</Text>
@@ -186,9 +186,24 @@ export default function AilmentMasterComponent() {
 
               <FormControl>
                 <FormLabel>Icon</FormLabel>
-                <Input
-                  type="file"
-                  onChange={(event) => setAilment_Img(event.target.files[0])}
+                <FileUploadWithCamera
+                  onFileChange={(file) => setAilment_Img(file)}
+                  accept="image/*"
+                  attachLabel="Upload Icon"
+                  captureLabel="Capture Icon"
+    //               images?: never[] | undefined;
+    // onChange?: (() => void) | undefined;
+    //             accept?: string | undefined;
+    //             multiple?: boolean | undefined;
+    //             append?: boolean | undefined;
+    //             attachLabel?: string | undefined;
+    //             captureLabel?: string | undefined;
+    //             previewWidth?: number | undefined;
+    //             previewHeight?: number | undefined;
+    //             showCountInfo?: boolean | undefined;
+                  previewWidth={100}
+                  previewHeight={100}
+                  showCountInfo={false}
                 />
               </FormControl>
 

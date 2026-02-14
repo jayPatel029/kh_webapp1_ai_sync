@@ -10,17 +10,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 // Component Library
-import {
-  Box,
-  Flex,
-  Container,
-} from "../../component-library";
-import { Button } from "../../component-library/primitives/Button";
+import { Box, Flex, Button as ButtonPrimitive } from "../../component-library";
 
-// Components
-import PageHeader from "../../components/PageHeader";
-import PatientNavTabs from "../../components/PatientNavTabs";
-import ThemeProvider from "../../components/ThemeProvider";
+// Layout Components
+import PatientDetailLayout from "../common/PatientDetailLayout";
+import PatientDetailTable from "../common/PatientDetailTable";
+
+// Page Components
 import DietModal from "./DietModal";
 import FileViewModal from "../../components/modals/FileViewModal";
 
@@ -32,9 +28,6 @@ import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
 // Icons
 import { BsTrash } from "react-icons/bs";
 import { FaFilePdf } from "react-icons/fa6";
-
-// Import design system styles
-// import "../../design-system/styles/index.css";
 
 const UserDietDetails = () => {
   const [showModal, setShowModal] = useState(false);
@@ -128,153 +121,100 @@ const UserDietDetails = () => {
     return <Box className="p-20 text-center">Loading...</Box>;
   }
 
-  return (
-    <ThemeProvider>
-      {/* <Box className="flex-1 flex flex-col min-h-screen w-full"> */}
-
-          {/* Sticky Header Section */}
-        <Box className="sticky top-[56px] z-20 bg-white">
-          <Flex justify="start" align="center" className="py-4 px-6">
-              {/* Header with Breadcrumbs */}
-              <PageHeader
-                title="Diet Details"
-                breadcrumbs={[
-                 // { label: "All Patients", path: "/patient" },
-                  { label: "Patient", path: `/userProfile/${id}`, active: false },
-                  { label: "Diet Details", active: true }
-                ]}
-                onBack={() => navigate("/patient")}
+  const renderDietRow = (data, index) => (
+    <Box
+      key={data.id || index}
+      className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
+    >
+      <Flex justify="between" align="center">
+        <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
+          {formatDate(data.Date)}
+        </Box>
+        <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
+          {data.Meal_Type}
+        </Box>
+        <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
+          {data.meal_desc}
+        </Box>
+        <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
+          {data.meal_img && data.meal_img.endsWith(".pdf") ? (
+            <Box
+              className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => openFileModal(data.id, data.meal_img)}
+            >
+              <FaFilePdf className="text-white text-2xl" />
+            </Box>
+          ) : (
+            <Box
+              className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => openFileModal(data.id, data.meal_img)}
+            >
+              <img
+                src={data?.meal_img}
+                alt="Diet"
+                className="w-full h-full object-cover"
               />
-            </Flex>
+            </Box>
+          )}
+        </Box>
+        <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
+          <button
+            className="text-[#de425b] hover:text-[#c93850] transition-colors"
+            onClick={() => deleteDietDetails(data.id)}
+          >
+            <BsTrash size={24} />
+          </button>
+        </Box>
+      </Flex>
+    </Box>
+  );
 
-            {/* Navigation Tabs */}
-            <PatientNavTabs
-              patientId={id}
-              userData={userData}
-              unreadAdminCount={totalUnreadCount}
-              unreadDoctorCount={totalUnreadCountDoc}
-              role={role}
-            />
+  return (
+    <PatientDetailLayout
+      title="Diet Details"
+      patientIdParam="id"
+      userData={userData}
+      totalUnreadCount={totalUnreadCount}
+      totalUnreadCountDoc={totalUnreadCountDoc}
+      loading={loading}
+      onBackClick={() => navigate("/patient")}
+    >
+      {/* Filter and Upload Section */}
+      <Flex justify="between" align="center" className="mb-6">
+        <Flex gap={4} align="center">
+          {/* Placeholder for filters - hidden per Figma design */}
+          <Box className="opacity-0">
+            <select className="h-[50px] px-4 pr-10 rounded-[10px] border border-i">
+              <option>Sort by</option>
+            </select>
           </Box>
+        </Flex>
 
-          {/* Main Content */}
-          {/* <Box className="flex-1 bg-[#fafafa]"> */}
-            <Flex className="py-8 px-4 md:px-12 mx-0">
-              <Box className="bg-white rounded-[15px] shadow-md p-8">
-                {/* Header Section */}
-                <Flex justify="between" align="center" className="pb-4 border-b-2 !border-info mb-6">
-                  <Box>
-                    <h2 className="text-[18px] font-bold text-[#393939]">Diet Details</h2>
-                  </Box>
-                  <Flex align="center" gap={3}>
-                    <Box className="flex items-center gap-2">
-                      <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-gray-700">
-                          {userData?.name?.charAt(0)?.toUpperCase() || "P"}
-                        </span>
-                      </Box>
-                      <span className="text-[18px] text-[#393939]">{userData?.name || "Patient"}</span>
-                    </Box>
-                  </Flex>
-                </Flex>
+        {/* Upload Button - Only show for non-Doctor roles */}
+        {role?.role_name !== "Doctor" && (
+          <ButtonPrimitive
+            variant="solid"
+            onClick={openModal}
+            className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
+          >
+            Upload
+          </ButtonPrimitive>
+        )}
+      </Flex>
 
-                {/* Filter and Upload Section */}
-                <Flex justify="between" align="center" className="mb-6">
-                  <Flex gap={4} align="center">
-                    {/* Placeholder for filters - hidden per Figma design */}
-                    <Box className="opacity-0">
-                      <select className="h-[50px] px-4 pr-10 rounded-[10px] border border-i">
-                        <option>Sort by</option>
-                      </select>
-                    </Box>
-                  </Flex>
-
-                  {/* Upload Button - Only show for non-Doctor roles */}
-                  {role?.role_name !== "Doctor" && (
-                    <Button
-                      variant="solid"
-                      onClick={openModal}
-                      className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
-                    >
-                      Upload
-                    </Button>
-                  )}
-                </Flex>
-
-                {/* Table */}
-                <Box className="overflow-x-auto">
-                  {/* Table Header */}
-                  <Box className="bg-[#5886a5] rounded-[5px] px-[70px] py-4 mb-0">
-                    <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
-                      <Box style={{ flex: "0 0 150px" }}>Date</Box>
-                      <Box style={{ flex: "0 0 200px" }}>Report type</Box>
-                      <Box style={{ flex: "0 0 200px" }}>Description</Box>
-                      <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Image</Box>
-                      <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
-                    </Flex>
-                  </Box>
-
-                  {/* Table Body */}
-                  <Box>
-                    {dietData && dietData.length > 0 ? (
-                      dietData.map((data, index) => (
-                        <Box
-                          key={data.id || index}
-                          className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
-                        >
-                          <Flex justify="between" align="center">
-                            <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-                              {formatDate(data.Date)}
-                            </Box>
-                            <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
-                              {data.Meal_Type}
-                            </Box>
-                            <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
-                              {data.meal_desc}
-                            </Box>
-                            <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
-                              {data.meal_img && data.meal_img.endsWith(".pdf") ? (
-                                <Box
-                                  className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => openFileModal(data.id, data.meal_img)}
-                                >
-                                  <FaFilePdf className="text-white text-2xl" />
-                                </Box>
-                              ) : (
-                                  <Box
-                                    className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => openFileModal(data.id, data.meal_img)}
-                                  >
-                                    <img
-                                      src={data?.meal_img}
-                                      alt="Diet"
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </Box>
-                              )}
-                            </Box>
-                            <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
-                              <button
-                                className="text-[#de425b] hover:text-[#c93850] transition-colors"
-                                onClick={() => deleteDietDetails(data.id)}
-                              >
-                                <BsTrash size={24} />
-                              </button>
-                            </Box>
-                          </Flex>
-                        </Box>
-                      ))
-                    ) : (
-                      <Box className="bg-white px-[70px] py-8 text-center">
-                        <p className="text-[#989898] text-[16px] italic">No diet details found</p>
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
-              </Box>
-            </Flex>
-        {/* </Box> */}
-      {/* </Box> */}
+      {/* Table */}
+      <PatientDetailTable
+        columns={[
+          { key: "date", label: "Date", flex: "0 0 150px" },
+          { key: "type", label: "Report type", flex: "0 0 200px" },
+          { key: "desc", label: "Description", flex: "0 0 200px" },
+          { key: "image", label: "Image", flex: "0 0 150px", textAlign: "center" },
+          { key: "actions", label: "Actions", flex: "0 0 100px", textAlign: "center" },
+        ]}
+        data={dietData}
+        renderRow={renderDietRow}
+        emptyMessage="No diet details found"
+      />
 
       {/* Modals */}
       {showModal && (
@@ -297,7 +237,7 @@ const UserDietDetails = () => {
           title="Diet Details View"
         />
       )}
-    </ThemeProvider>
+    </PatientDetailLayout>
   );
 };
 

@@ -5,23 +5,19 @@
  * @file src/pages/ShowAlarms/ShowAlarms.jsx
  */
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 // Component Library
-import {
-  Box,
-  Flex,
-  Container,
-} from "../../component-library";
-import { Button } from "../../component-library/primitives/Button";
+import { Box, Flex, Button } from "../../component-library";
+import { Button as ButtonPrimitive } from "../../component-library/primitives/Button";
 
-import { HdrPlus, PlusOneSharp } from "@mui/icons-material";
-// Components
-import PageHeader from "../../components/PageHeader";
-import PatientNavTabs from "../../components/PatientNavTabs";
-import ThemeProvider from "../../components/ThemeProvider";
+// Layout Components
+import PatientDetailLayout from "../common/PatientDetailLayout";
+import PatientDetailTable from "../common/PatientDetailTable";
+
+// Page Components
 import AlarmModal from "./AlarmModal";
 import EditAlarmModal from "./EditAlarmModal";
 import DoctorAlarmModal from "./DoctorAlarmModal";
@@ -33,8 +29,6 @@ import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
 
 // Icons
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
-
-
 
 // Import design system styles
 import "../../design-system/styles/index.css";
@@ -175,10 +169,7 @@ const ShowAlarms = () => {
     const isHighlighted = alarmId && parseInt(alarmId) === alarm.id;
 
     return (
-      <Box
-        className={`bg-white border-b border-gray-100 px-[50px] py-5 hover:bg-gray-50 transition-colors ${isHighlighted ? "bg-green-50" : ""
-          }`}
-      >
+      <Box className={`bg-white border-b border-gray-100 px-[50px] py-5 hover:bg-gray-50 transition-colors ${isHighlighted ? "bg-green-50" : ""}`}>
         <Flex justify="between" align="center">
           <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
             {formatDate(alarm.dateadded)}
@@ -221,106 +212,44 @@ const ShowAlarms = () => {
   }
 
   return (
-    <ThemeProvider>
-      <Box className="flex-1 flex flex-col min-w-0">
+    <PatientDetailLayout
+      title="Alarm Details"
+      patientIdParam="pid"
+      userData={userData}
+      totalUnreadCount={totalUnreadCount}
+      totalUnreadCountDoc={totalUnreadCountDoc}
+      loading={loading}
+      onBackClick={() => navigate("/patient")}
+    >
+      {/* Add Alarm Button */}
+      <Flex justify="end" align="center" className="mb-6">
+        <ButtonPrimitive
+          variant="solid"
+          rightIcon={<div className="text-md">+</div>}
+          onClick={openModal}
+          className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9] flex items-center gap-8"
+        >
+          Add alarm
+        </ButtonPrimitive>
+      </Flex>
 
-        {/* Sticky Header Section */}
-        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-          <Flex justify="start" align="center" className="py-4 px-6">
-            {/* Header with Breadcrumbs */}
-            <PageHeader
-              title="Alarm Details"
-              breadcrumbs={[
-               // { label: "All Patients", path: "/patient" },
-                { label: "Patient", path: `/userProfile/${pid}`, active: false },
-                { label: "Alarms", active: true }
-              ]}
-              onBack={() => navigate("/patient")}
-            />
-          </Flex>
-
-          {/* Navigation Tabs */}
-          <PatientNavTabs
-            patientId={pid}
-            userData={userData}
-            unreadAdminCount={totalUnreadCount}
-            unreadDoctorCount={totalUnreadCountDoc}
-            role={role}
-          />
-        </Box>
-
-        {/* Main Content */}
-        <Box className="flex-1 bg-[#fafafa]">
-          <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
-            <Box className="bg-white rounded-[15px] shadow-md p-8">
-              {/* Header Section */}
-              <Flex justify="between" align="center" className="pb-4   mb-2">
-                <Box>
-                  <h2 className="text-[18px] font-bold text-[#393939]">Alarms</h2>
-                </Box>
-                <Flex align="center" gap={3}>
-                  <Box className="flex items-center gap-2">
-                    <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
-                      <span className="text-sm font-semibold text-gray-700">
-                        {userData?.name?.charAt(0)?.toUpperCase() || "P"}
-                      </span>
-                    </Box>
-                    <span className="text-[18px] text-[#393939]">{userData?.name || "Patient"}</span>
-                  </Box>
-                </Flex>
-              </Flex>
-              <hr className="border-info mb-4" />
-              {/* Add Alarm Button */}
-              <Flex justify="end" align="center" className="mb-6">
-                <Button
-                  variant="solid"
-                  rightIcon={<div className="text-md">+</div>}
-                  onClick={openModal}
-                  className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9] flex items-center gap-8 "
-                >
-                  Add alarm
-                </Button>
-              </Flex>
-
-              {/* Table */}
-              <Box className="overflow-x-auto">
-                {/* Table Header */}
-                <Box className="bg-[#5886a5] rounded-[5px] px-[50px] py-4 mb-0">
-                  <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
-                    <Box style={{ flex: "0 0 150px" }}>Date</Box>
-                    <Box style={{ flex: "0 0 150px" }}>Type</Box>
-                    <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Duration</Box>
-                    <Box style={{ flex: "0 0 100px" }}>Monthly</Box>
-                    <Box style={{ flex: "0 0 100px" }}>Status</Box>
-                    {!isDoctor && <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>}
-                  </Flex>
-                </Box>
-
-                {/* Table Body */}
-                <Box>
-                  {userAlarmData.length > 0 ? (
-                    userAlarmData.map((alarm) => (
-                      <AlarmRow
-                        key={alarm.id}
-                        alarm={alarm}
-                      />
-                    ))
-                  ) : (
-                    <Box className="bg-white px-[50px] py-8 text-center">
-                      <p className="text-[#989898] text-[16px] italic">No Alarms found</p>
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-            </Box>
-          </Container>
-        </Box>
-      </Box>
+      {/* Table */}
+      <PatientDetailTable
+        columns={[
+          { key: "date", label: "Date", flex: "0 0 150px" },
+          { key: "type", label: "Type", flex: "0 0 150px" },
+          { key: "duration", label: "Duration", flex: "0 0 150px", textAlign: "center" },
+          { key: "monthly", label: "Monthly", flex: "0 0 100px" },
+          { key: "status", label: "Status", flex: "0 0 100px" },
+          { key: "actions", label: "Actions", flex: "0 0 100px", textAlign: "center", hidden: isDoctor },
+        ]}
+        data={userAlarmData}
+        renderRow={(alarm) => <AlarmRow key={alarm.id} alarm={alarm} />}
+        emptyMessage="No Alarms found"
+      />
 
       {/* Modals */}
-      {showModal && (
-        <AlarmModal closeModal={closeModal} pid={pid} />
-      )}
+      {showModal && <AlarmModal closeModal={closeModal} pid={pid} />}
 
       {showEditModal && !isDoctor && (
         <EditAlarmModal
@@ -338,7 +267,7 @@ const ShowAlarms = () => {
           pid={pid}
         />
       )}
-    </ThemeProvider>
+    </PatientDetailLayout>
   );
 };
 

@@ -27,6 +27,7 @@ import { Select } from "../../component-library/primitives/Select";
 import { VStack, Box, Flex } from "../../component-library/layout/Layout";
 import { Text, Heading } from "../../component-library/primitives/Typography";
 import attachIcon from "../../assets/attachIcon.svg";
+import FileUploadWithCamera from "../../components/FileUploadWithCamera";
 
 // APIs and Helpers
 import axiosInstance from "../../helpers/axios/axiosInstance";
@@ -302,90 +303,22 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
             </FormControl>
 
             {/* File Upload with Attach & Capture (unified previews + names) */}
-            <FormControl isRequired isInvalid={!!errorMsg && selectedImages.length === 0}>
-              <FormLabel className="text-gray-700 font-semibold mb-2">Upload file</FormLabel>
-              <Box className="relative flex gap-2 items-center">
-                <div className="w-full   border-2  border-accent rounded-lg flex items-center justify-between">
-                  <div>
-                    {/* <Text size="sm" className="font-medium">Upload file</Text>
-                    <Text size="xs" className="text-gray-500">Attach file or capture using camera</Text> */}
-                  </div>
-                  <div className="flex gap-3">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageChange}
-                      style={{ display: "none" }}
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => { closeCamera(); fileInputRef.current.click() }}
-                      className="!border-none !font-normal !shadow-none"
-                    >
-                      Attach file <img src={attachIcon} alt="attach" className="inline-block ml-1" />
-                    </Button>
-                  </div>
-                </div>
-                {/* Camera Overlay */}
-                {showCamera && (
-                  <Box className="relative inset-0 z-50  p-4 flex items-center justify-center w-full">
-                    <Box className="bg-white rounded-lg   w-full flex flex-col">
-                      <div className="flex justify-between items-center mb-4">
-                        <Text size="lg" weight="bold">Camera</Text>
-                        <Button variant="danger" onClick={() => { closeCamera(); }}>X</Button>
-                      </div>
-                      <div className="flex-1 bg-black flex items-center justify-center rounded-lg overflow-hidden">
-                        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                      </div>
-                      <div className="mt-4 flex justify-end gap-3">
-                        <Button variant="secondary" onClick={() => captureFromCamera()}>Capture</Button>
-                      </div>
-                    </Box>
-                  </Box>
-                )}
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setShowCamera(true);
-                    openCamera();
-                  }}
-                  gap={2}
-                  className="!bg-accent p-6"
-                >
-                  Capture image
-                </Button>
-              </Box>
-
-              {selectedImages.length > 0 && (
-                <Box mt={4}>
-                  <Text size="sm" className="font-medium">Previews:</Text>
-                  <Flex wrap="wrap" gap={3} className="mt-2">
-                    {selectedImages.map((img, index) => (
-                      <div key={index} style={{ position: 'relative', width: 120 }}>
-                        <div style={{ borderRadius: 8, overflow: 'hidden', width: 120, height: 90, background: '#f3f4f6' }}>
-                          <img src={img.data} alt={`Preview ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        </div>
-                        <Button
-                          variant="danger"
-                          onClick={() => handleRemoveImage(index)}
-                          style={{ position: 'absolute', top: 6, right: 6, padding: '2px 6px' }}
-                        >
-                          X
-                        </Button>
-                        <Text size="xs" className="mt-2 text-gray-500" style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {img.name}
-                        </Text>
-                      </div>
-                    ))}
-                  </Flex>
-                  <Text size="xs" className="mt-2 text-gray-500">
-                    Selected: {selectedImages.length} {selectedImages.length === 1 ? 'image' : 'images'} {selectedImages.length > 1 ? '(will be combined into PDF)' : ''}
-                  </Text>
-                </Box>
-              )}
-            </FormControl>
+              <FormControl isRequired isInvalid={!!errorMsg && selectedImages.length === 0}>
+                <FormLabel>Upload file</FormLabel>
+                <FileUploadWithCamera
+                  images={selectedImages}
+                  onChange={(next) => setSelectedImages(next)}
+                  accept="image/*"
+                  multiple={true}
+                  append={false}
+                  attachLabel={<>
+                    Attach file <img src={attachIcon} alt="attach" className="inline-block ml-1" />
+                  </>}
+                  captureLabel="Capture image"
+                  previewWidth={120}
+                  previewHeight={90}
+                />
+              </FormControl>
 
             {errorMsg && (
               <Box className="p-3 bg-red-50 border border-red-100 rounded-lg">

@@ -38,6 +38,7 @@ export const FormModal = ({
   submitText = 'Submit',
   cancelText = 'Cancel',
   submitVariant = 'primary',
+  cancelVariant = 'outline',
   isLoading = false,
   isSubmitDisabled = false,
   errorMessage,
@@ -56,7 +57,7 @@ export const FormModal = ({
       )}
       <Flex justify="end" gap={3}>
         <Button
-          variant="outline"
+          variant={cancelVariant}
           onClick={onClose}
           isDisabled={isLoading}
         >

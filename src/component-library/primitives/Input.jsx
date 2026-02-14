@@ -25,12 +25,15 @@ export const Input = forwardRef(({
   isRequired = false,
   className,
   type = 'text',
+  fileLabel,
   ...props
 }, ref) => {
   const inputClasses = clsx(
     'input',
     `input--${size}`,
     `input--${variant}`,
+    // add a modifier for file inputs so CSS can target file-specific layout
+    type === 'file' && 'input--file',
     {
       'input--disabled': isDisabled,
       'input--invalid': isInvalid,
@@ -52,6 +55,8 @@ export const Input = forwardRef(({
       aria-invalid={isInvalid}
       aria-disabled={isDisabled}
       type={type}
+      // expose a data attribute that CSS can read for the left-side label
+      {...(type === 'file' && { 'data-filelabel': fileLabel || '' })}
       {...props}
     />
   );
@@ -68,6 +73,7 @@ Input.propTypes = {
   isRequired: PropTypes.bool,
   className: PropTypes.string,
   type: PropTypes.string,
+  fileLabel: PropTypes.string,
 };
 
 /**

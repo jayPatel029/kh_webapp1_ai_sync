@@ -24,9 +24,7 @@ function AlimentMaster() {
           </Container>
         </Box>
 
-        <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto bg-gray-50 min-h-screen">
-          <AilmentMasterComponent />
-        </Container>
+        <AilmentMasterComponent />
       </Box>
     </ThemeProvider>
   );

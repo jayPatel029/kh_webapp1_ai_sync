@@ -14,7 +14,7 @@
 }
 
 .form-control+.form-control {
-  margin-top: var(--space-4);
+  margin-top: var(--space-6);
 }
 
 .form-control--disabled {
@@ -61,7 +61,8 @@
   font-family: var(--font-body);
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  margin-top: var(--space-1);
+  margin-top: var(--space-1); 
+  /* Helper text Style */
 }
 
 /* ==================== FORM ERROR MESSAGE ==================== */
@@ -110,34 +111,34 @@
   height: 18px;
 
   background-color: var(--color-white);
-  border: 2px solid var(--color-gray-300);
-  border-radius: var(--radius-base);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-full);
 
   transition: var(--transition-fast);
 }
 
 .checkbox__input:hover+.checkbox__control {
-  border-color: var(--color-gray-400);
+  border-color: var(--color-accent);
 }
 
 .checkbox__input:focus+.checkbox__control {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary-100);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-100);
 }
 
 .checkbox__input:checked+.checkbox__control {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
-.checkbox__input:checked+.checkbox__control::after {
+/* .checkbox__input:checked+.checkbox__control::after {
   content: "";
   width: 5px;
   height: 10px;
   border: solid var(--color-white);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg) translateY(-1px);
-}
+} */
 
 .checkbox__input:disabled+.checkbox__control {
   opacity: 0.4;
@@ -147,7 +148,7 @@
 .checkbox__label {
   font-family: var(--font-body);
   font-size: var(--font-size-sm);
-  color: var(--color-text);
+  color: var(--color-accent);
 }
 
 /* Checkbox Sizes */
@@ -187,31 +188,31 @@
   width: 18px;
   height: 18px;
 
-  background-color: var(--color-white);
-  border: 2px solid var(--color-gray-300);
+  background-color: var(--color-accent);
+  border: 2px solid var(--color-accent);
   border-radius: var(--radius-full);
 
   transition: var(--transition-fast);
 }
 
 .radio__input:hover+.radio__control {
-  border-color: var(--color-gray-400);
+  border-color: var(--color-accent);
 }
 
 .radio__input:focus+.radio__control {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--color-primary-100);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent);
 }
 
 .radio__input:checked+.radio__control {
-  border-color: var(--color-primary);
+  border-color: var(--color-accent);
 }
 
 .radio__input:checked+.radio__control::after {
   content: "";
   width: 8px;
   height: 8px;
-  background-color: var(--color-primary);
+  background-color: var(--color-accent);
   border-radius: var(--radius-full);
 }
 
@@ -223,7 +224,7 @@
 .radio__label {
   font-family: var(--font-body);
   font-size: var(--font-size-sm);
-  color: var(--color-text);
+  color: var(--color-accent);
 }
 
 /* Radio Group */

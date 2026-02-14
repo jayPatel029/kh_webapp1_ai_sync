@@ -10,21 +10,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 // Component Library
-import {
-  Box,
-  Flex,
-  Container,
-} from "../../component-library";
-import { Button } from "../../component-library/primitives/Button";
-import { Badge } from "../../component-library/primitives/Badge";
+import { Box, Flex, Button as ButtonPrimitive } from "../../component-library";
 
-// Components
-import PageHeader from "../../components/PageHeader";
-import PatientNavTabs from "../../components/PatientNavTabs";
-import ThemeProvider from "../../components/ThemeProvider";
+// Layout Components
+import PatientDetailLayout from "../common/PatientDetailLayout";
+
+// Page Components
 import PrescriptionModal from "./PrescriptionModal";
 import FileViewModal from "../../components/modals/FileViewModal";
-
 
 // APIs and Helpers
 import axiosInstance from "../../helpers/axios/axiosInstance";
@@ -183,169 +176,125 @@ const Userprescription = () => {
   }
 
   return (
-    <ThemeProvider>
-      <Box className="flex-1 flex flex-col min-w-0">
-
-          {/* Sticky Header Section */}
-          <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-            <Flex justify="start" align="center" className="py-4 px-6">
-              {/* Header with Breadcrumbs */}
-              <PageHeader
-              title="Prescriptions"
-                breadcrumbs={[
-                 // { label: "All Patients", path: "/patient" },
-                  { label: "Patient", path: `/userProfile/${id}`, active: false },
-                  { label: "Prescriptions", active: true }
-                ]}
-                onBack={() => navigate("/patient")}
-              />
-            </Flex>
-
-            {/* Navigation Tabs */}
-            <PatientNavTabs
-              patientId={id}
-              userData={userData}
-              unreadAdminCount={totalUnreadCount}
-              unreadDoctorCount={totalUnreadCountDoc}
-              role={role}
-            />
+    <PatientDetailLayout
+      title="Prescriptions"
+      patientIdParam="id"
+      userData={userData}
+      totalUnreadCount={totalUnreadCount}
+      totalUnreadCountDoc={totalUnreadCountDoc}
+      loading={loading}
+      onBackClick={() => navigate("/patient")}
+    >
+      {/* Filter and Upload Section */}
+      <Flex justify="between" align="center" className="mb-6">
+        <Flex gap={4} align="center">
+          {/* Sort Dropdown */}
+          <Box className="relative">
+            <select
+              value={selectedDoctor}
+              onChange={handleSelectChange}
+              className="h-[50px] px-4 pr-10 rounded-[10px] border border-[#5886a5] text-[#5886a5] text-[16px] font-normal bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#4164df]"
+              style={{ minWidth: "158px" }}
+            >
+              <option value="">Sort by</option>
+              {Array.isArray(doctorOptions) &&
+                doctorOptions.map((doctor, index) => (
+                  <option key={index} value={doctor.id}>
+                    {doctor.name}
+                  </option>
+                ))}
+            </select>
+            <Box className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                <path d="M7.5 11.25L2.5 3.75H12.5L7.5 11.25Z" fill="#5886a5" />
+              </svg>
+            </Box>
           </Box>
 
-          {/* Main Content */}
-          <Box className="flex-1 bg-[#fafafa]">
-            <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
-              <Box className="bg-white rounded-[15px] shadow-md p-8">
-                {/* Header Section */}
-                <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
-                  <Box>
-                    <h2 className="text-[18px] font-bold text-[#393939]">Prescription</h2>
+          {/* Clear Filters */}
+          <button
+            onClick={handleClearFilters}
+            className="text-[16px] font-semibold text-[#5886a5] underline hover:text-[#4164df] transition-colors"
+          >
+            Clear filters
+          </button>
+        </Flex>
+
+        {/* Upload Button */}
+        <ButtonPrimitive
+          variant="solid"
+          onClick={openModal}
+          className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
+        >
+          Upload
+        </ButtonPrimitive>
+      </Flex>
+
+      {/* Table */}
+      <Box className="overflow-x-auto">
+        {/* Table Header */}
+        <Box className="bg-[#5886a5] rounded-[5px] px-[70px] py-4 mb-0">
+          <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
+            <Box style={{ flex: "0 0 150px" }}>Date</Box>
+            <Box style={{ flex: "0 0 200px" }}>Prescribing doctor</Box>
+            <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Prescription</Box>
+            <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
+          </Flex>
+        </Box>
+
+        {/* Table Body */}
+        <Box>
+          {filteredPrescriptionData.length > 0 ? (
+            filteredPrescriptionData.map((prescriptionItem, index) => (
+              <Box
+                key={index}
+                className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
+              >
+                <Flex justify="between" align="center">
+                  <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
+                    {formatDate(prescriptionItem.Date)}
                   </Box>
-                  <Flex align="center" gap={3}>
-                    <Box className="flex items-center gap-2">
-                      <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-gray-700">
-                          {userData?.name?.charAt(0)?.toUpperCase() || "P"}
-                        </span>
-                      </Box>
-                      <span className="text-[18px] text-[#393939]">{userData?.name || "Patient"}</span>
-                    </Box>
-                  </Flex>
-                </Flex>
-
-                {/* Filter and Upload Section */}
-                <Flex justify="between" align="center" className="mb-6">
-                  <Flex gap={4} align="center">
-                    {/* Sort Dropdown */}
-                    <Box className="relative">
-                      <select
-                        value={selectedDoctor}
-                        onChange={handleSelectChange}
-                        className="h-[50px] px-4 pr-10 rounded-[10px] border border-[#5886a5] text-[#5886a5] text-[16px] font-normal bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#4164df]"
-                        style={{ minWidth: "158px" }}
-                      >
-                        <option value="">Sort by</option>
-                        {Array.isArray(doctorOptions) &&
-                          doctorOptions.map((doctor, index) => (
-                            <option key={index} value={doctor.id}>
-                              {doctor.name}
-                            </option>
-                          ))}
-                      </select>
-                      <Box className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                          <path d="M7.5 11.25L2.5 3.75H12.5L7.5 11.25Z" fill="#5886a5" />
-                        </svg>
-                      </Box>
-                    </Box>
-
-                    {/* Clear Filters */}
-                    <button
-                      onClick={handleClearFilters}
-                      className="text-[16px] font-semibold text-[#5886a5] underline hover:text-[#4164df] transition-colors"
-                    >
-                      Clear filters
-                    </button>
-                  </Flex>
-
-                  {/* Upload Button */}
-                  <Button
-                    variant="solid"
-                    onClick={openModal}
-                    className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
-                  >
-                    Upload
-                  </Button>
-                </Flex>
-
-                {/* Table */}
-                <Box className="overflow-x-auto">
-                  {/* Table Header */}
-                  <Box className="bg-[#5886a5] rounded-[5px] px-[70px] py-4 mb-0">
-                    <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
-                      <Box style={{ flex: "0 0 150px" }}>Date</Box>
-                      <Box style={{ flex: "0 0 200px" }}>Prescribing doctor</Box>
-                      <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Prescription</Box>
-                      <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
-                    </Flex>
+                  <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
+                    {prescriptionItem.prescriptionGivenByName}
                   </Box>
-
-                  {/* Table Body */}
-                  <Box>
-                    {filteredPrescriptionData.length > 0 ? (
-                      filteredPrescriptionData.map((prescriptionItem, index) => (
+                  <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
+                    {prescriptionItem.Prescription &&
+                    prescriptionItem.Prescription.endsWith(".pdf") ? (
                         <Box
-                          key={index}
-                          className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
+                          className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => openFileModal(prescriptionItem.id, prescriptionItem.Prescription)}
                         >
-                          <Flex justify="between" align="center">
-                            <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-                              {formatDate(prescriptionItem.Date)}
-                            </Box>
-                            <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
-                              {prescriptionItem.prescriptionGivenByName}
-                            </Box>
-                            <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
-                              {prescriptionItem.Prescription &&
-                              prescriptionItem.Prescription.endsWith(".pdf") ? (
-                                  <Box
-                                    className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => openFileModal(prescriptionItem.id, prescriptionItem.Prescription)}
-                                  >
-                                    <FaFilePdf className="text-white text-2xl" />
-                                  </Box>
-                              ) : (
-                                  <Box
-                                    className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => openFileModal(prescriptionItem.id, prescriptionItem.Prescription)}
-                                  >
-                                    <img
-                                      src={prescriptionItem?.Prescription}
-                                      alt="Prescription"
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </Box>
-                              )}
-                            </Box>
-                            <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
-                              <button
-                                className="text-[#de425b] hover:text-[#c93850] transition-colors"
-                                onClick={() => handleDelete(prescriptionItem.id, email)}
-                              >
-                                <BsTrash size={24} />
-                              </button>
-                            </Box>
-                          </Flex>
+                          <FaFilePdf className="text-white text-2xl" />
                         </Box>
-                      ))
                     ) : (
-                      <Box className="bg-white px-[70px] py-8 text-center">
-                        <p className="text-[#989898] text-[16px] italic">No Prescription found</p>
-                      </Box>
+                        <Box
+                          className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => openFileModal(prescriptionItem.id, prescriptionItem.Prescription)}
+                        >
+                          <img
+                            src={prescriptionItem?.Prescription}
+                            alt="Prescription"
+                            className="w-full h-full object-cover"
+                          />
+                        </Box>
                     )}
                   </Box>
-                </Box>
+                  <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
+                    <button
+                      className="text-[#de425b] hover:text-[#c93850] transition-colors"
+                      onClick={() => handleDelete(prescriptionItem.id, email)}
+                    >
+                      <BsTrash size={24} />
+                    </button>
+                  </Box>
+                </Flex>
               </Box>
-            </Container>
+            ))
+          ) : (
+            <Box className="bg-white px-[70px] py-8 text-center">
+              <p className="text-[#989898] text-[16px] italic">No Prescription found</p>
+            </Box>
+          )}
         </Box>
       </Box>
 
@@ -369,7 +318,7 @@ const Userprescription = () => {
           title="Prescription View"
         />
       )}
-    </ThemeProvider>
+    </PatientDetailLayout>
   );
 };
 

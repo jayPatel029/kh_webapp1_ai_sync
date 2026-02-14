@@ -44,7 +44,7 @@
 
 .btn:focus {
   outline: none;
-  box-shadow: 0 0 0 3px var(--color-white), 0 0 0 6px var(--color-primary-200);
+  /* box-shadow: 0 0 0 3px var(--color-white), 0 0 0 6px var(--color-primary-200); */
 }
 
 
@@ -287,16 +287,18 @@ button.btn--brand:active,
 .btn--danger {
   background: var(--color-white);
   color: var(--color-danger);
+  box-shadow: none;
 }
 
 .btn--danger:hover {
-  background: var(--color-danger-dark);
+  background: var(--color-danger);
   color: var(--color-white);
   box-shadow: 0 8px 20px rgba(222, 66, 91, 0.25);
 }
 
 .btn--danger:active {
   background-color: var(--color-danger-dark);
+  color: var(--color-white);
 }
 
 /* Danger Outline */

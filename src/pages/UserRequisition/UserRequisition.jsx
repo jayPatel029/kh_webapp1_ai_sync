@@ -10,17 +10,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 // Component Library
-import {
-  Box,
-  Flex,
-  Container,
-} from "../../component-library";
-import { Button } from "../../component-library/primitives/Button";
+import { Box, Flex, Button as ButtonPrimitive } from "../../component-library";
 
-// Components
-import PageHeader from "../../components/PageHeader";
-import PatientNavTabs from "../../components/PatientNavTabs";
-import ThemeProvider from "../../components/ThemeProvider";
+// Layout Components
+import PatientDetailLayout from "../common/PatientDetailLayout";
+
+// Page Components
 import RequisitionModal from "./RequisitionModal";
 import FileViewModal from "../../components/modals/FileViewModal";
 
@@ -138,133 +133,89 @@ const UserRequisition = () => {
   }
 
   return (
-    <ThemeProvider>
-      <Box className="flex-1 flex flex-col min-w-0">
+    <PatientDetailLayout
+      title="Requisition Details"
+      patientIdParam="id"
+      userData={userData}
+      totalUnreadCount={totalUnreadCount}
+      totalUnreadCountDoc={totalUnreadCountDoc}
+      loading={loading}
+      onBackClick={() => navigate("/patient")}
+    >
+      {/* Upload Button Section */}
+      <Flex justify="end" align="center" className="mb-6">
+        {role?.role_name !== "Dialysis Technician" && (
+          <ButtonPrimitive
+            variant="solid"
+            onClick={openModal}
+            className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
+          >
+            Upload
+          </ButtonPrimitive>
+        )}
+      </Flex>
 
-          {/* Sticky Header Section */}
-          <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-          <Flex justify="start" align="center" className="py-4 px-6"> 
-          {/* Header with Breadcrumbs */}
-              <PageHeader
-                title="Requisition Details"
-                breadcrumbs={[
-                 // { label: "All Patients", path: "/patient" },
-                  { label: "Patient", path: `/userProfile/${id}`, active: false },
-                  { label: "Requisition", active: true }
-                ]}
-                onBack={() => navigate("/patient")}
-              />
-            </Flex>
+      {/* Table */}
+      <Box className="overflow-x-auto">
+        {/* Table Header */}
+        <Box className="bg-[#5886a5] rounded-[5px] px-[70px] py-4 mb-0">
+          <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
+            <Box style={{ flex: "0 0 150px" }}>Date</Box>
+            <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Requisition</Box>
+            <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
+          </Flex>
+        </Box>
 
-            {/* Navigation Tabs */}
-            <PatientNavTabs
-              patientId={id}
-              userData={userData}
-              unreadAdminCount={totalUnreadCount}
-              unreadDoctorCount={totalUnreadCountDoc}
-              role={role}
-            />
-          </Box>
-
-          {/* Main Content */}
-          <Box className="flex-1 bg-[#fafafa]">
-            <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
-              <Box className="bg-white rounded-[15px] shadow-md p-8">
-                {/* Header Section */}
-                <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
-                  <Box>
-                    <h2 className="text-[18px] font-bold text-[#393939]">Requisition Reports</h2>
+        {/* Table Body */}
+        <Box>
+          {userRequisitionData.length > 0 ? (
+            userRequisitionData.map((requisitionItem, index) => (
+              <Box
+                key={index}
+                className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
+              >
+                <Flex justify="between" align="center">
+                  <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
+                    {formatDate(requisitionItem.Date)}
                   </Box>
-                  <Flex align="center" gap={3}>
-                    <Box className="flex items-center gap-2">
-                      <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-gray-700">
-                          {userData?.name?.charAt(0)?.toUpperCase() || "P"}
-                        </span>
+                  <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
+                    {requisitionItem.Requisition &&
+                      requisitionItem.Requisition.endsWith(".pdf") ? (
+                      <Box
+                        className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => openFileModal(requisitionItem.id, requisitionItem.Requisition)}
+                      >
+                        <FaFilePdf className="text-white text-2xl" />
                       </Box>
-                      <span className="text-[18px] text-[#393939]">{userData?.name || "Patient"}</span>
-                    </Box>
-                  </Flex>
-                </Flex>
-
-                {/* Upload Button Section */}
-                <Flex justify="end" align="center" className="mb-6">
-                  {role?.role_name !== "Dialysis Technician" && (
-                    <Button
-                      variant="solid"
-                      onClick={openModal}
-                      className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
-                    >
-                      Upload
-                    </Button>
-                  )}
-                </Flex>
-
-                {/* Table */}
-                <Box className="overflow-x-auto">
-                  {/* Table Header */}
-                  <Box className="bg-[#5886a5] rounded-[5px] px-[70px] py-4 mb-0">
-                    <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
-                      <Box style={{ flex: "0 0 150px" }}>Date</Box>
-                      <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Requisition</Box>
-                      <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
-                    </Flex>
-                  </Box>
-
-                  {/* Table Body */}
-                  <Box>
-                    {userRequisitionData.length > 0 ? (
-                      userRequisitionData.map((requisitionItem, index) => (
-                        <Box
-                          key={index}
-                          className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
-                        >
-                          <Flex justify="between" align="center">
-                            <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-                              {formatDate(requisitionItem.Date)}
-                            </Box>
-                            <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
-                              {requisitionItem.Requisition &&
-                                requisitionItem.Requisition.endsWith(".pdf") ? (
-                                <Box
-                                  className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => openFileModal(requisitionItem.id, requisitionItem.Requisition)}
-                                >
-                                  <FaFilePdf className="text-white text-2xl" />
-                                </Box>
-                              ) : (
-                                  <Box
-                                    className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => openFileModal(requisitionItem.id, requisitionItem.Requisition)}
-                                  >
-                                    <img
-                                      src={requisitionItem?.Requisition}
-                                      alt="Requisition"
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </Box>
-                              )}
-                            </Box>
-                            <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
-                              <button
-                                className="text-[#de425b] hover:text-[#c93850] transition-colors"
-                                onClick={() => handleDelete(requisitionItem.id, email)}
-                              >
-                                <BsTrash size={24} />
-                              </button>
-                            </Box>
-                          </Flex>
-                        </Box>
-                      ))
                     ) : (
-                      <Box className="bg-white px-[70px] py-8 text-center">
-                        <p className="text-[#989898] text-[16px] italic">No Requisition found</p>
-                      </Box>
+                        <Box
+                          className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => openFileModal(requisitionItem.id, requisitionItem.Requisition)}
+                        >
+                          <img
+                            src={requisitionItem?.Requisition}
+                            alt="Requisition"
+                            className="w-full h-full object-cover"
+                          />
+                        </Box>
                     )}
                   </Box>
-                </Box>
+                  <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
+                    <button
+                      className="text-[#de425b] hover:text-[#c93850] transition-colors"
+                      onClick={() => handleDelete(requisitionItem.id, email)}
+                    >
+                      <BsTrash size={24} />
+                    </button>
+                  </Box>
+                </Flex>
               </Box>
-            </Container>
+            ))
+          ) : (
+            <Box className="bg-white px-[70px] py-8 text-center">
+              <p className="text-[#989898] text-[16px] italic">No Requisition found</p>
+            </Box>
+          )}
         </Box>
       </Box>
 
@@ -288,7 +239,7 @@ const UserRequisition = () => {
           title="Requisition View"
         />
       )}
-    </ThemeProvider>
+    </PatientDetailLayout>
   );
 };
 
