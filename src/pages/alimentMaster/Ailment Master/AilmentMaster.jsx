@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import AilmentList from "./AilmentList";
 import { getLanguages } from "../../../ApiCalls/languageApis";
 import {
@@ -8,21 +8,14 @@ import {
 } from "../../../ApiCalls/ailmentApis";
 import { uploadFile } from "../../../ApiCalls/dataUpload";
 import FileUploadWithCamera from "../../../components/FileUploadWithCamera";
+import { FormModal } from "../../../component-library/modals/FormModal";
 // Design system primitives
 import {
-  Container,
-  Card,
-  CardHeader,
-  CardBody,
-  CardFooter,
   Input,
   FormControl,
   FormLabel,
   FormErrorMessage,
-  Button,
-  Heading,
   Text,
-  Box,
 } from "../../../component-library";
 
 export default function AilmentMasterComponent() {
@@ -35,9 +28,10 @@ export default function AilmentMasterComponent() {
   const [Ailment_Img, setAilment_Img] = useState(null);
   const [errmsg, setErrmsg] = useState("");
   const [successmsg, setSuccessmsg] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [id, setId] = useState(null);
-  const formRef = useRef(null);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -90,6 +84,7 @@ export default function AilmentMasterComponent() {
 
   const clearFields = () => {
     setName("");
+    setAilment_Img(null);
     let transaltiondict = {};
     languages.forEach((lang) => {
       if (lang.id !== 1) {
@@ -116,6 +111,7 @@ export default function AilmentMasterComponent() {
           if (result.success) {
             clearFields();
             setSuccessmsg("Ailment added successfully");
+            setIsFormModalOpen(false);
           } else {
             setErrmsg("Failed to add Ailment");
           }
@@ -125,6 +121,7 @@ export default function AilmentMasterComponent() {
           if (result.success) {
             clearFields();
             setSuccessmsg("Ailment updated successfully");
+            setIsFormModalOpen(false);
           } else {
             setErrmsg("Failed to update Ailment");
           }
@@ -137,125 +134,137 @@ export default function AilmentMasterComponent() {
 
   // Focus form when edit mode enabled
   useEffect(() => {
-    if (editMode && formRef.current) {
-      formRef.current.scrollIntoView({ behavior: "smooth" });
+    if (editMode) {
+      setIsFormModalOpen(true);
     }
   }, [editMode]);
 
+  const openAddModal = () => {
+    clearFields();
+    setEditMode(false);
+    setId(null);
+    setIsFormModalOpen(true);
+  };
+
+  const closeFormModal = () => {
+    setIsFormModalOpen(false);
+    clearFields();
+  };
+
   return (
-    <Container size="lg" className="py-10">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Form */}
-        <Card className="md:col-span-2" variant="elevated" ref={formRef} id="ailment-form">
-          <CardHeader>
-            <Heading size="md">Ailment Master</Heading>
-            <Text className="text-sm text-muted">Add or edit ailments and icons</Text>
-          </CardHeader>
-
-          <CardBody>
-            <Box className="space-y-4">
-              <FormControl>
-                <FormLabel>English Name</FormLabel>
-                <Input
-                  type="text"
-                  placeholder="Enter ailment name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </FormControl>
-
-              {languages.map((language, index) => {
-                if (language.id === 1) return null;
-                return (
-                  <FormControl key={language.id}>
-                    <FormLabel>{language.language_name}</FormLabel>
-                    <Input
-                      type="text"
-                      placeholder={`Enter name in ${language.language_name}`}
-                      value={translations[language.id] || ""}
-                      onChange={(e) => {
-                        setTranslations({
-                          ...translations,
-                          [language.id]: e.target.value,
-                        });
-                      }}
-                    />
-                  </FormControl>
-                );
-              })}
-
-              <FormControl>
-                <FormLabel>Icon</FormLabel>
-                <FileUploadWithCamera
-                  onFileChange={(file) => setAilment_Img(file)}
-                  accept="image/*"
-                  attachLabel="Upload Icon"
-                  captureLabel="Capture Icon"
-    //               images?: never[] | undefined;
-    // onChange?: (() => void) | undefined;
-    //             accept?: string | undefined;
-    //             multiple?: boolean | undefined;
-    //             append?: boolean | undefined;
-    //             attachLabel?: string | undefined;
-    //             captureLabel?: string | undefined;
-    //             previewWidth?: number | undefined;
-    //             previewHeight?: number | undefined;
-    //             showCountInfo?: boolean | undefined;
-                  previewWidth={100}
-                  previewHeight={100}
-                  showCountInfo={false}
-                />
-              </FormControl>
-
-              {errmsg && <FormErrorMessage className="mt-2">{errmsg}</FormErrorMessage>}
-              {successmsg && <Text className="text-success mt-2">{successmsg}</Text>}
-            </Box>
-          </CardBody>
-
-          <CardFooter>
-            {!editMode ? (
-              <Button variant="primary" onClick={submitAilment}>
-                Submit
-              </Button>
-            ) : (
-              <div className="flex gap-3">
-                <Button variant="primary" onClick={submitAilment}>
-                  Update
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditMode(false);
-                    clearFields();
-                  }}>
-                  Cancel
-                </Button>
+     
+      <div className="admin-page-content">
+        <div className="admin-card">
+          <div className="admin-card__header">
+            <div className="flex justify-between items-center w-full flex-wrap gap-4">
+              <div>
+                <p className="text-sm text-gray-500">
+                  ({ailments.filter(ailment => 
+                    ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
+                  ).length} records found)
+                </p>
               </div>
-            )}
-          </CardFooter>
-        </Card>
 
-        {/* List */}
-        <Card className="md:col-span-2" variant="elevated">
-          <CardHeader>
-            <div className="flex items-center w-full">
-              <Heading size="md">Ailment List</Heading>
-              <div className="ml-auto text-sm text-muted">{ailments.length} records</div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="admin-search">
+                  <svg className="admin-search__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search ailments..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="admin-search__input"
+                  />
+                </div>
+                <button
+                  className="admin-btn admin-btn--primary"
+                  onClick={() => setIsFormModalOpen(true)}
+                >
+                  Add Ailment
+                </button>
+              </div>
             </div>
-          </CardHeader>
+          </div>
 
-          <CardBody>
+          <div className="admin-card__body">
+            <div style={{ marginBottom: '1rem' }}>
+              {errmsg && <div className="admin-message admin-message--error">{errmsg}</div>}
+              {successmsg && <div className="admin-message admin-message--success">{successmsg}</div>}
+            </div>
+
             <AilmentList
               setName={setName}
               setTranslations={setTranslations}
-              ailments={ailments}
+              ailments={ailments.filter(ailment => 
+                ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
+              )}
               setEditMode={setEditMode}
               setId={setId}
               setSuccessful={setSuccessmsg}
+              onOpenEditModal={() => setIsFormModalOpen(true)}
             />
-          </CardBody>
-        </Card>
+          </div>
+        </div>
+
+        <FormModal
+          isOpen={isFormModalOpen}
+          onClose={closeFormModal}
+          onSubmit={submitAilment}
+          title={editMode ? "Edit Ailment" : "Add Ailment"}
+          submitText={editMode ? "Update" : "Submit"}
+          size="lg"
+          errorMessage={errmsg}
+        >
+          <FormControl>
+            <FormLabel>English Name</FormLabel>
+            <Input
+              type="text"
+              placeholder="Enter ailment name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </FormControl>
+
+          {languages.map((language) => {
+            if (language.id === 1) return null;
+            return (
+              <FormControl key={language.id}>
+                <FormLabel>{language.language_name}</FormLabel>
+                <Input
+                  type="text"
+                  placeholder={`Enter name in ${language.language_name}`}
+                  value={translations[language.id] || ""}
+                  onChange={(e) => {
+                    setTranslations({
+                      ...translations,
+                      [language.id]: e.target.value,
+                    });
+                  }}
+                />
+              </FormControl>
+            );
+          })}
+
+          <FormControl>
+            <FormLabel>Icon</FormLabel>
+            <FileUploadWithCamera
+              onFileChange={(file) => setAilment_Img(file)}
+              accept="image/*"
+              attachLabel="Upload Icon"
+              captureLabel="Capture Icon"
+              previewWidth={100}
+              previewHeight={100}
+              showCountInfo={false}
+              showCamera={false}
+              multiple={false}
+            />
+          </FormControl>
+
+        </FormModal>
       </div>
-    </Container>
+
+
   );
 }

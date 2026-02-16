@@ -11,6 +11,7 @@ import { useSelector } from "react-redux";
 
 // Component Library
 import { Box, Flex, Button as ButtonPrimitive } from "../../component-library";
+import { SortDropdown } from "../../component-library/primitives";
 
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
@@ -27,6 +28,7 @@ import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
 // Icons
 import { BsTrash } from "react-icons/bs";
 import { FaFilePdf } from "react-icons/fa6";
+import sortIcon from "../../assets/Sort_Amount_Up.svg";
 
 // Import design system styles
 import "../../design-system/styles/index.css";
@@ -42,6 +44,10 @@ const Userprescription = () => {
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
   const [selectedDoctor, setSelectedDoctor] = useState("");
+  const doctorDropdownOptions = doctorOptions.map((doctor) => ({
+    value: String(doctor.id),
+    label: doctor.name,
+  }));
 
   const { id } = useParams();
   const navigate = useNavigate();
@@ -188,28 +194,13 @@ const Userprescription = () => {
       {/* Filter and Upload Section */}
       <Flex justify="between" align="center" className="mb-6">
         <Flex gap={4} align="center">
-          {/* Sort Dropdown */}
-          <Box className="relative">
-            <select
-              value={selectedDoctor}
-              onChange={handleSelectChange}
-              className="h-[50px] px-4 pr-10 rounded-[10px] border border-[#5886a5] text-[#5886a5] text-[16px] font-normal bg-white appearance-none cursor-pointer focus:outline-none focus:border-[#4164df]"
-              style={{ minWidth: "158px" }}
-            >
-              <option value="">Sort by</option>
-              {Array.isArray(doctorOptions) &&
-                doctorOptions.map((doctor, index) => (
-                  <option key={index} value={doctor.id}>
-                    {doctor.name}
-                  </option>
-                ))}
-            </select>
-            <Box className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <path d="M7.5 11.25L2.5 3.75H12.5L7.5 11.25Z" fill="#5886a5" />
-              </svg>
-            </Box>
-          </Box>
+          <SortDropdown
+            value={selectedDoctor}
+            onChange={handleSelectChange}
+            options={doctorDropdownOptions}
+            icon={<img src={sortIcon} alt="Sort" />}
+            placeholder="Sort by"
+          />
 
           {/* Clear Filters */}
           <button

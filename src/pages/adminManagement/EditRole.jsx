@@ -1,8 +1,17 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import PageHeader from "../../components/PageHeader";
+import ThemeProvider from "../../components/ThemeProvider";
+import {
+  Box,
+  Container,
+  FormControl,
+  FormLabel,
+  Input,
+  Button
+} from "../../component-library";
 
 const EditRole = () => {
   const navigate = useNavigate();
@@ -78,6 +87,8 @@ const EditRole = () => {
     },
   });
 
+  const { rolename } = useParams();
+
   const handleCheckboxChange = (pageName, permissionType) => {
     setPermissions((prevPermissions) => ({
       ...prevPermissions,
@@ -109,7 +120,6 @@ const EditRole = () => {
         console.log(err);
       });
   };
-  const { rolename } = useParams();
 
   useEffect(() => {
     axiosInstance
@@ -155,82 +165,105 @@ const EditRole = () => {
   }, [rolename]);
 
   return (
-    <div className="flex-1 block w-full">
-      <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-          <div className=" bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
-            <div className="header flex justify-between items-center border-b pb-2 mb-4">
-              <h2 className="text-xl md:text-2xl font-bold">Add Role</h2>
-            </div>
-            <div className="form-section mb-4 md:mb-6">
-              <label className="block text-sm md:text-base font-bold text-gray-600">
-                Role Name
-              </label>
-              <input
-                type="text"
-                className="w-full px-3 md:px-4 py-2 border rounded mt-2 focus:outline-none focus:border-primary"
-                value={roleName}
-                onChange={(e) => setRoleName(e.target.value)}
-              />
-            </div>
-            <div className="table-section">
-              <table className="w-full border-collapse">
-                <thead className="bg-white text-gray-700">
-                  <tr>
-                    <th className="py-2 pl-2 text-left font-bold">Page Name</th>
-                    <th className="py-2 text-center font-bold">View</th>
-                    <th className="py-2 text-center font-bold">Edit</th>
-                    <th className="py-2 text-center font-bold">Delete</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.keys(permissions).map((pageName) => (
-                    <tr key={pageName} className="border-b">
-                      <td className="py-2 pl-2">
-                        {permissions[pageName].name}
-                      </td>
-                      <td className="py-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={permissions[pageName].view}
-                          onChange={() =>
-                            handleCheckboxChange(pageName, "view")
-                          }
-                        />
-                      </td>
-                      <td className="py-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={permissions[pageName].edit}
-                          onChange={() =>
-                            handleCheckboxChange(pageName, "edit")
-                          }
-                        />
-                      </td>
-                      <td className="py-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={permissions[pageName].delete}
-                          onChange={() =>
-                            handleCheckboxChange(pageName, "delete")
-                          }
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-6">
-              <button
-                className="bg-gradient-to-r from-primary to-teal-400 text-white px-4 py-2 rounded-md"
-                onClick={handleSubmit}
-              >
-                Submit
-              </button>
+    <ThemeProvider>
+      <Box className="flex-1 flex flex-col min-w-0">
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Container className="py-4 px-4 md:px-6 mx-0">
+            <PageHeader
+              title="Edit Role"
+              breadcrumbs={[
+                { label: "Dashboard", path: "/" },
+                { label: "Edit Role", active: true }
+              ]}
+            />
+          </Container>
+        </Box>
+
+         
+          <div className="admin-page-content">
+            <div className="admin-card">
+              <div className="admin-card__header">
+                <h3 className="admin-card__title">Role Details</h3>
+              </div>
+
+              <div className="admin-card__body">
+                <div className="max-w-md mb-6">
+                  <FormControl>
+                    <FormLabel>Role Name</FormLabel>
+                    <Input
+                      type="text"
+                      value={roleName}
+                      onChange={(e) => setRoleName(e.target.value)}
+                      placeholder="Enter role name"
+                    />
+                  </FormControl>
+                </div>
+
+                <div className="admin-table-container">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Page Name</th>
+                        <th className="text-center">View</th>
+                        <th className="text-center">Edit</th>
+                        <th className="text-center">Delete</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.keys(permissions).map((pageName) => (
+                        <tr key={pageName}>
+                          <td>{permissions[pageName].name}</td>
+                          <td className="text-center">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 bg-gray-100 border-gray-300 rounded text-teal-600 focus:ring-teal-500"
+                              checked={permissions[pageName].view}
+                              onChange={() =>
+                                handleCheckboxChange(pageName, "view")
+                              }
+                            />
+                          </td>
+                          <td className="text-center">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 bg-gray-100 border-gray-300 rounded text-teal-600 focus:ring-teal-500"
+                              checked={permissions[pageName].edit}
+                              onChange={() =>
+                                handleCheckboxChange(pageName, "edit")
+                              }
+                            />
+                          </td>
+                          <td className="text-center">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 bg-gray-100 border-gray-300 rounded text-teal-600 focus:ring-teal-500"
+                              checked={permissions[pageName].delete}
+                              onChange={() =>
+                                handleCheckboxChange(pageName, "delete")
+                              }
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <Button
+                    variant="primary"
+                    onClick={handleSubmit}
+                    className="w-32"
+                  >
+                    Submit
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-    </div>
+
+      </Box>
+    </ThemeProvider>
   );
 };
 

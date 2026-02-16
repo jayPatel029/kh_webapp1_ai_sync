@@ -10,90 +10,82 @@ const AilmentList = ({
   setEditMode,
   setId,
   setSuccessful,
+  onOpenEditModal,
 }) => {
   return (
-    <div>
-      <div className="w-full overflow-auto">
-        <table className="w-full table-auto border-collapse">
-          <thead>
-            <tr className="text-left border-b border-gray-200">
-              <th className="py-3 px-4">Name</th>
-              <th className="py-3 px-4">Icon</th>
-              <th className="py-3 px-4">Action</th>
-            </tr>
-          </thead>
+    <div className="overflow-x-auto">
+      <div className="admin-table-container">
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Icon</th>
+            <th>Action</th>
+          </tr>
+        </thead>
 
-          <tbody>
-            {ailments.map((item, index) => (
-              <tr
-                key={item.id || index}
-                className={index % 2 === 0 ? "bg-gray-50 hover:bg-gray-100" : "bg-white hover:bg-gray-100"}
-              >
-                <td className="py-3 px-4 align-middle">{item.name}</td>
-                <td className="py-3 px-4 align-middle w-24">
-                  {item.Ailment_Img ? (
-                    <img src={item.Ailment_Img} alt={`${item.name} icon`} className="w-8 h-8 object-contain" />
-                  ) : (
-                    <Text className="text-sm text-muted">—</Text>
-                  )}
-                </td>
-                <td className="py-3 px-4 align-middle">
-                  <div className="flex items-center gap-2">
-                    <IconButton
-                      aria-label={`Edit ${item.name}`}
-                      title={`Edit ${item.name}`}
-                      icon={<BsPencilSquare />}
-                      variant="ghost"
-                      size="lg"
-                      className="text-primary text-2xl font-bold hover:bg-primary/10 rounded-md"
-                      onClick={() => {
+        <tbody>
+          {ailments.map((item, index) => (
+            <tr key={item.id || index}>
+              <td>{item.name}</td>
+              <td>
+                {item.Ailment_Img ? (
+                  <img src={item.Ailment_Img} alt={`${item.name} icon`} className="w-8 h-8 object-contain" />
+                ) : (
+                  <Text className="text-sm text-gray-400">—</Text>
+                )}
+              </td>
+              <td>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="admin-action-btn admin-action-btn--edit"
+                    onClick={() => {
+                      setSuccessful("");
+                      setName(item.name);
+                      setId(item.id);
+                      if (item.ailmentTranslations) {
+                        let translationDict = {};
+
+                        item.ailmentTranslations.forEach((element) => {
+                          translationDict[element.languageId] = element.name;
+                        });
+                        setTranslations(translationDict);
+                      }
+                      setEditMode(true);
+                      onOpenEditModal?.();
+                    }}
+                    title={`Edit ${item.name}`}
+                  >
+                    <BsPencilSquare size={18} />
+                  </button>
+
+                  <button
+                    className="admin-action-btn admin-action-btn--delete"
+                    onClick={async () => {
+                      try {
                         setSuccessful("");
-                        setName(item.name);
-                        setId(item.id);
-                        if (item.ailmentTranslations) {
-                          let translationDict = {};
-
-                          item.ailmentTranslations.forEach((element) => {
-                            translationDict[element.languageId] = element.name;
-                          });
-                          setTranslations(translationDict);
-                        }
-                        setEditMode(true);
-                        // Scroll to the form
-                        const el = document.getElementById("ailment-form");
-                        if (el) el.scrollIntoView({ behavior: "smooth" });
-                      }}
-                    />
-
-                    <IconButton
-                      aria-label={`Delete ${item.name}`}
-                      title={`Delete ${item.name}`}
-                      icon={<BsTrash />}
-                      variant="ghost"
-                      size="lg"
-                      className="text-danger text-2xl font-bold hover:bg-red-50 rounded-md"
-                      onClick={async () => {
-                        try {
-                          setSuccessful("");
-                          await deleteAilment(item.id);
-                          setSuccessful("Ailment deleted successfully!");
-                        } catch (error) {
-                          console.error("Error deleting Ailment:", error);
-                          setSuccessful("Error deleting ailment");
-                        }
-                      }}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                        await deleteAilment(item.id);
+                        setSuccessful("Ailment deleted successfully!");
+                      } catch (error) {
+                        console.error("Error deleting Ailment:", error);
+                        setSuccessful("Error deleting ailment");
+                      }
+                    }}
+                    title={`Delete ${item.name}`}
+                  >
+                    <BsTrash size={18} />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       {ailments.length === 0 && (
-        <div className="mt-4 text-center text-sm text-muted">No records found</div>
+        <div className="p-4 text-center text-gray-500">No records found</div>
       )}
+      </div>
     </div>
   );
 };

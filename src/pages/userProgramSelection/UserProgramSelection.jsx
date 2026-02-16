@@ -119,18 +119,18 @@ function UserProgramSelection() {
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+          <Container className="py-4 px-4 md:px-6 mx-0">
             <PageHeader
               title="User Program Selection"
               breadcrumbs={[
-                { label: "Dashboard", path: "/admin" },
+                { label: "Dashboard", path: "/" },
                 { label: "User Program Selection", active: true }
               ]}
             />
           </Container>
         </Box>
 
-        <div className="admin-page">
+         
           {/* User Program Selection Card */}
           <div className="admin-card">
             <div className="admin-card__body">
@@ -257,7 +257,6 @@ function UserProgramSelection() {
               )}
             </div>
           </div>
-        </div>
       </Box>
     </ThemeProvider>
   );

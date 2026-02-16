@@ -86,6 +86,7 @@ export const FormLabel = forwardRef(({
   children,
   htmlFor,
   className,
+  isTruncated = false,
   ...props
 }, ref) => {
   const { isRequired, id } = useFormControlContext();
@@ -102,7 +103,7 @@ export const FormLabel = forwardRef(({
     <label
       ref={ref}
       htmlFor={htmlFor || id}
-      className={labelClasses}
+      className={clsx(labelClasses, isTruncated && 'form-label--truncated')}
       {...props}
     >
       {children}
@@ -116,6 +117,7 @@ FormLabel.propTypes = {
   children: PropTypes.node.isRequired,
   htmlFor: PropTypes.string,
   className: PropTypes.string,
+  isTruncated: PropTypes.bool,
 };
 
 /**
@@ -124,6 +126,7 @@ FormLabel.propTypes = {
 export const FormHelperText = forwardRef(({
   children,
   className,
+  isTruncated = false,
   ...props
 }, ref) => {
   const { isInvalid } = useFormControlContext();

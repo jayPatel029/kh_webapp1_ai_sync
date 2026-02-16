@@ -3,7 +3,6 @@ import { Box, Flex } from "../component-library";
 import { Button } from "../component-library/primitives/Button";
 import { Text } from "../component-library/primitives/Typography";
 import { Input } from "../component-library/primitives/Input";
-import { min } from "date-fns";
 import attachIcon from "../assets/attachIcon.svg";
 
 /**
@@ -22,6 +21,7 @@ import attachIcon from "../assets/attachIcon.svg";
 const FileUploadWithCamera = ({
     images = [],
     onChange = () => { },
+    onFileChange,
     accept = "image/*",
     multiple = true,
     append = false,
@@ -30,13 +30,14 @@ const FileUploadWithCamera = ({
     previewWidth = 120,
     previewHeight = 90,
     showCountInfo = true,
+    showCamera = true,
 }) => {
     const fileInputRef = useRef(null);
     const videoRef = useRef(null);
-    const [showCamera, setShowCamera] = useState(false);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
 
     const openCamera = async () => {
-        setShowCamera(true);
+        setIsCameraOpen(true);
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -48,7 +49,7 @@ const FileUploadWithCamera = ({
     };
 
     const closeCamera = () => {
-        setShowCamera(false);
+        setIsCameraOpen(false);
         if (videoRef.current && videoRef.current.srcObject) {
             const tracks = videoRef.current.srcObject.getTracks();
             tracks.forEach((t) => t.stop());
@@ -66,9 +67,25 @@ const FileUploadWithCamera = ({
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL("image/jpeg");
         const name = `capture_${Date.now()}.jpg`;
-        const next = append ? [...images, { data: dataUrl, name }] : [{ data: dataUrl, name }];
+        const file = dataURLToFile(dataUrl, name);
+        const next = append ? [...images, { data: dataUrl, name, file }] : [{ data: dataUrl, name, file }];
         onChange(next);
+        if (onFileChange) {
+            onFileChange(multiple ? next.map((item) => item.file).filter(Boolean) : file);
+        }
         closeCamera();
+    };
+
+    const dataURLToFile = (dataUrl, filename) => {
+        const arr = dataUrl.split(",");
+        const mime = arr[0].match(/:(.*?);/)?.[1] || "image/jpeg";
+        const binary = atob(arr[1]);
+        let n = binary.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = binary.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
     };
 
     const handleImageChange = (e) => {
@@ -85,6 +102,9 @@ const FileUploadWithCamera = ({
                 if (loaded === files.length) {
                     const next = append ? [...images, ...newImages] : [...newImages];
                     onChange(next);
+                    if (onFileChange) {
+                        onFileChange(multiple ? files : files[0]);
+                    }
                 }
             };
             reader.readAsDataURL(file);
@@ -126,20 +146,21 @@ const FileUploadWithCamera = ({
                         </Button>
                     </div>
                 </div>
-                <Button
-                    variant="secondary"
-                    onClick={() => {
-                        setShowCamera(true);
-                        openCamera();
-                    }}
-                    gap={2}
-                    className="!bg-accent p-6"
-                >
-                    {captureLabel}
-                </Button>
+                {showCamera && (
+                    <Button
+                        variant="secondary"
+                        onClick={() => {
+                            openCamera();
+                        }}
+                        gap={2}
+                        className="!bg-accent p-6"
+                    >
+                        {captureLabel}
+                    </Button>
+                )}
             </Box>
 
-            {showCamera && (
+            {showCamera && isCameraOpen && (
                 <Box className="relative inset-0 z-50 p-4 flex items-center justify-center w-full">
                     <Box className="bg-white rounded-lg w-full flex flex-col">
                         <div className="flex justify-between items-center mb-4">
@@ -163,7 +184,13 @@ const FileUploadWithCamera = ({
                         {images.map((img, index) => (
                             <div key={index} style={{ position: 'relative', width: previewWidth }}>
                                 <div style={{ borderRadius: 8, overflow: 'hidden', width: previewWidth, height: previewHeight, background: '#f3f4f6' }}>
-                                    <img src={img.data} alt={`Preview ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    {String(img?.data || "").startsWith("data:image") ? (
+                                        <img src={img.data} alt={`Preview ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-xs text-gray-500 px-2 text-center">
+                                            {img?.name || "File"}
+                                        </div>
+                                    )}
                                 </div>
                                 <Button
                                     variant="danger"

@@ -5,7 +5,14 @@ import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 
 // Component Library
-import { Box, Container } from "../../component-library";
+import {
+  Box,
+  Container,
+  FormControl,
+  FormLabel,
+  Input,
+  Button
+} from "../../component-library";
 
 function ChangePassword() {
   const [newPassword, setNewPassword] = useState("");
@@ -41,67 +48,64 @@ function ChangePassword() {
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+          <Container className="py-4 px-4 md:px-6 mx-0">
             <PageHeader
               title="Change Password"
               breadcrumbs={[
-                { label: "Dashboard", path: "/admin" },
+                { label: "Dashboard", path: "/" },
                 { label: "Change Password", active: true }
               ]}
             />
           </Container>
         </Box>
 
-        <div className="admin-page">
-          {/* Change Password Card */}
-          <div className="admin-card" style={{ maxWidth: '600px' }}>
-            <div className="admin-card__header">
-              <h2 className="admin-card__header-title">Change Password</h2>
-            </div>
-            <div className="admin-card__body">
-              <div className="admin-form__group">
-                <label className="admin-form__label admin-form__label--required">
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  placeholder="Enter new password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="admin-form__input"
-                />
+         
+          <div className="admin-page-content">
+            <div className="admin-card max-w-xl">
+              <div className="admin-card__header">
+                <h3 className="admin-card__title">Change Password</h3>
               </div>
+              <div className="admin-card__body">
+                <div className="flex flex-col gap-6">
+                  <FormControl>
+                    <FormLabel>New Password</FormLabel>
+                    <Input
+                      type="password"
+                      placeholder="Enter new password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </FormControl>
 
-              <div className="admin-form__group">
-                <label className="admin-form__label admin-form__label--required">
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="admin-form__input"
-                />
-              </div>
+                  <FormControl>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <Input
+                      type="password"
+                      placeholder="Confirm new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </FormControl>
 
-              <div style={{ marginTop: '1.5rem' }}>
-                <button
-                  onClick={handleChangePassword}
-                  className="admin-btn admin-btn--primary"
-                >
-                  CHANGE PASSWORD
-                </button>
-              </div>
+                  <div className="mt-2">
+                    <Button
+                      variant="primary"
+                      onClick={handleChangePassword}
+                      className="w-full sm:w-auto"
+                    >
+                      CHANGE PASSWORD
+                    </Button>
+                  </div>
 
-              {message && (
-                <div className="admin-message admin-message--error" style={{ marginTop: '1rem' }}>
-                  {message}
+                  {message && (
+                    <div className={`admin-message ${message.includes("success") ? "admin-message--success" : "admin-message--error"}`}>
+                      {message}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
-        </div>
       </Box>
     </ThemeProvider>
   );

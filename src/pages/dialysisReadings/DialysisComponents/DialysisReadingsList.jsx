@@ -9,9 +9,16 @@ import DialysisTable from "./Dialysis_Table";
 import { readingTypes } from "../../../constants/ReadingConstants";
 import { getLanguages } from "../../../ApiCalls/languageApis";
 import TranslationModal from "../../../components/modals/TranslationModel";
-import Select from "react-select";
 import { se } from "date-fns/locale";
 import { Link } from "react-router-dom";
+import { FormModal } from "../../../component-library/modals/FormModal";
+import {
+  FormControl,
+  FormLabel,
+  Input,
+  Select,
+  Button
+} from "../../../component-library";
 
 function DialysisReadingsList() {
   const [editMode, setEditMode] = useState(false);
@@ -19,6 +26,7 @@ function DialysisReadingsList() {
   const [errMsg, setErrMsg] = useState("");
 
   const [modelOpen, setModelOpen] = useState(false);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [translations, setTranslations] = useState({});
 
   const closeModal = () => {
@@ -94,7 +102,7 @@ function DialysisReadingsList() {
   async function handleSubmit() {
     setSuccessful("");
     setErrMsg("");
-  
+
     const payload = {
       id: newReading.id,
       title: newReading.title,
@@ -124,6 +132,7 @@ function DialysisReadingsList() {
           setTranslations(transaltiondict);
           setErrMsg("");
           setSuccessful("Reading Created Successful!");
+          setIsFormModalOpen(false);
           newReadingDsipatch({
             type: "all",
             payload: {},
@@ -145,6 +154,7 @@ function DialysisReadingsList() {
           setErrMsg("");
           setEditMode(false);
           setSuccessful("Reading Updated Successful!");
+          setIsFormModalOpen(false);
           newReadingDsipatch({
             type: "all",
             payload: {},
@@ -160,318 +170,266 @@ function DialysisReadingsList() {
     }
   }
 
+  const resetFormState = () => {
+    setEditMode(false);
+    newReadingDsipatch({ type: "all", payload: {} });
+    let transaltiondict = {};
+    languages.forEach((lang) => {
+      if (lang.id !== 1) {
+        transaltiondict[lang.id] = "";
+      }
+    });
+    setTranslations(transaltiondict);
+    setErrMsg("");
+  };
+
   return (
     <div className="admin-page-content">
-      <div className="admin-card">
-        <div className="admin-card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 className="admin-card__header-title">Readings Master</h2>
-          <Link
-            to="/dialysisReadingsCsv"
-            className="admin-btn admin-btn--primary"
-            style={{ textDecoration: 'none' }}
-          >
-            Bulk Upload Question
-          </Link>
-        </div>
+      {/* <div className="admin-card">
         <div className="admin-card__body">
-          {modelOpen && (
-            <TranslationModal
-              closeModal={closeModal}
-              translations={translations}
-              setTranslations={setTranslations}
-              setLanguages={setLanguages}
-              languages={languages}
-            />
-          )}
-
-          <div className="admin-form__group">
-            <label className="admin-form__label admin-form__label--required">
-              Ailment
-            </label>
-            <Select
-              value={newReading.ailment}
-              onChange={(ailment) => {
-                newReadingDsipatch({
-                  type: "ailment",
-                  payload: ailment,
-                });
-              }}
-              options={ailments.map((ailment) => {
-                return {
-                  value: ailment.id,
-                  label: ailment.name,
-                };
-              })}
-              isMulti
-              className="basic-multi-select"
-              classNamePrefix="select"
-            />
-          </div>
-
-          <div className="admin-form__group">
-            <label className="admin-form__label">
-              Title
-            </label>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-              <input
-                type="text"
-                placeholder="Reading Title"
-                value={newReading.title}
-                onChange={(event) => {
-                  newReadingDsipatch({
-                    type: "title",
-                    payload: event.target.value,
-                  });
-                }}
-                className="admin-form__input"
-                style={{ flex: 1 }}
-              />
-              <button
-                onClick={() => {
-                  setModelOpen(true);
-                }}
-                className="admin-btn admin-btn--primary"
-              >
-                Set Translations
-              </button>
-            </div>
-          </div>
-
-          <div className="admin-form__group">
-            <label className="admin-form__label">
-              Send Alerts
-            </label>
-            <select
-              value={newReading.sendAlert}
-              onChange={(event) => {
-                console.log(event.target.value);
-                newReadingDsipatch({
-                  type: "sendAlert",
-                  payload: event.target.value,
-                });
-              }}
-              className="admin-form__select"
-            >
-              <option value="0">No</option>
-              <option value="1">Yes</option>
-            </select>
-          </div>
-
-          {newReading.sendAlert == 1 && (
-            <div className="admin-form__group">
-              <label className="admin-form__label">
-                Alert Text
-              </label>
-              <div className="block md:flex w-full">
-                <input
-                  type="text"
-                  placeholder="Alert Text for doctors"
-                  value={newReading.alertTextDoc}
-                  onChange={(event) => {
-                    newReadingDsipatch({
-                      type: "alertTextDoc",
-                      payload: event.target.value,
-                    });
-                  }}
-                  className="admin-form__input"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="admin-form__group">
-            <label className="admin-form__label admin-form__label--required">
-              Type
-            </label>
-            <select
-              value={newReading.type}
-              onChange={(event) => {
-                newReadingDsipatch({
-                  type: "type",
-                  payload: event.target.value,
-                });
-              }}
-              className="admin-form__select"
-            >
-              {readingTypes.map((reading, index) => {
-                return (
-                  <option key={index} value={reading}>
-                    {reading}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          <div className="admin-form__group">
-            <label className="admin-form__label">
-              Unit
-            </label>
-            <input
-              type="text"
-              placeholder="Unit"
-              value={newReading.unit}
-              onChange={(event) => {
-                newReadingDsipatch({
-                  type: "unit",
-                  payload: event.target.value,
-                });
-              }}
-              className="admin-form__input"
-            />
-          </div>
-
-          {["Int", "Decimal"].includes(newReading.type) && (
-            <div className="admin-form__group">
-              <label className="admin-form__label admin-form__label--required">
-                Has Range
-              </label>
-              <select
-                onChange={(event) => {
-                  newReadingDsipatch({
-                    type: "assign_range",
-                    payload: event.target.value,
-                  });
-                }}
-                className="admin-form__select"
-              >
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </select>
-            </div>
-          )}
-
-          {["Int", "Decimal"].includes(newReading.type) &&
-          newReading.assign_range === "yes" ? (
-            <>
-                <div className="admin-form__group">
-                  <label className="admin-form__label">
-                    Lower Range
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Lower Range"
-                    value={newReading.lower_assign_range}
-                    onChange={(event) => {
-                      newReadingDsipatch({
-                        type: "lower_assign_range",
-                        payload: event.target.value,
-                      });
-                    }}
-                    className="admin-form__input"
-                  />
-                </div>
-                <div className="admin-form__group">
-                  <label className="admin-form__label">
-                    Upper Range
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Upper Range"
-                    value={newReading.upper_assign_range}
-                    onChange={(event) => {
-                      newReadingDsipatch({
-                        type: "upper_assign_range",
-                        payload: event.target.value,
-                      });
-                    }}
-                    className="admin-form__input"
-                  />
-                </div>
-
-                <div className="admin-form__group">
-                  <label className="admin-form__label">
-                    Is Graph
-                  </label>
-                  <select
-                    onChange={(event) => {
-                      console.log("changing graph property")
-                      console.log(event.target.value)
-                      console.log(newReading.isGraph);
-                      console.log("--------------------------------")
-                      newReadingDsipatch({
-                        type: "isGraph",
-                        payload: event.target.value,
-                      });
-                    }}
-                    className="admin-form__select"
-                  >
-                    <option value="0">No</option>
-                    <option value="1">Yes</option>
-                  </select>
-                </div>
-            </>
-          ) : null}
-
-          <div className="admin-form__group">
-            <label className="admin-form__label admin-form__label--required">
-              Condition
-            </label>
-            <select
-              value={newReading.condition || 'stable'}
-              onChange={(event) => {
-                console.log(event.target.value);
-                newReadingDsipatch({
-                  type: "condition",
-                  payload: event.target.value,
-                });
-              }}
-              className="admin-form__select"
-            >
-              <option value="stable">Stable</option>
-              <option value="unstable">Unstable</option>
-              <option value="critical">Critical</option>
-            </select>
-          </div>
-
-          <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
-            {editMode ? (
-              <>
-                <button
-                  onClick={handleSubmit}
-                  className="admin-btn admin-btn--teal"
-                >
-                  UPDATE
-                </button>
-                <button
-                  onClick={() => {
-                    setEditMode(false);
-                    newReadingDsipatch({ type: "all", payload: {} });
-                    let transaltiondict = {};
-                    languages.forEach((lang) => {
-                      if (lang.id !== 1) {
-                        transaltiondict[lang.id] = "";
-                      }
-                    });
-                    setTranslations(transaltiondict);
-                  }}
-                  className="admin-btn admin-btn--outline-danger"
-                >
-                  CANCEL
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={handleSubmit}
-                className="admin-btn admin-btn--primary"
-              >
-                SUBMIT
-              </button>
-            )}
-          </div>
-
-          <div style={{ marginTop: '1rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
             {errMsg && <div className="admin-message admin-message--error">{errMsg}</div>}
             {successful && <div className="admin-message admin-message--success">{successful}</div>}
           </div>
         </div>
-      </div>
+      </div> */}
+
+      <FormModal
+        isOpen={isFormModalOpen}
+        onClose={() => {
+          setIsFormModalOpen(false);
+          resetFormState();
+          closeModal();
+        }}
+        onSubmit={handleSubmit}
+        title={editMode ? "Edit Dialysis Reading" : "Add Dialysis Reading"}
+        submitText={editMode ? "Update" : "Submit"}
+        size="xl"
+        errorMessage={errMsg}
+      >
+        {modelOpen && (
+          <TranslationModal
+            closeModal={closeModal}
+            translations={translations}
+            setTranslations={setTranslations}
+            setLanguages={setLanguages}
+            languages={languages}
+          />
+        )}
+
+        <FormControl>
+          <FormLabel>Ailment</FormLabel>
+          <Select
+            value={newReading.ailment}
+            onChange={(ailment) => {
+              newReadingDsipatch({
+                type: "ailment",
+                payload: ailment,
+              });
+            }}
+            isMulti
+            className="basic-multi-select"
+            classNamePrefix="select"
+          >
+            {ailments.map((ailment, index) => {
+              return (
+                <option key={index} value={ailment.id}>
+                  {ailment.name}
+                </option>
+              );
+            })}
+          </Select>
+        </FormControl>
+
+        <FormControl>
+          <FormLabel>Title</FormLabel>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+            <Input
+              type="text"
+              placeholder="Reading Title"
+              value={newReading.title}
+              onChange={(event) => {
+                newReadingDsipatch({
+                  type: "title",
+                  payload: event.target.value,
+                });
+              }}
+              style={{ flex: 1 }}
+            />
+            <Button
+              onClick={() => {
+                setModelOpen(true);
+              }}
+              variant="primary"
+              type="button"
+            >
+              Set Translations
+            </Button>
+          </div>
+        </FormControl>
+
+        <FormControl>
+          <FormLabel>Send Alerts</FormLabel>
+          <Select
+            value={newReading.sendAlert}
+            onChange={(event) => {
+              newReadingDsipatch({
+                type: "sendAlert",
+                payload: event.target.value,
+              });
+            }}
+          >
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </Select>
+        </FormControl>
+
+        {newReading.sendAlert == 1 && (
+          <FormControl>
+            <FormLabel>Alert Text</FormLabel>
+            <Input
+              type="text"
+              placeholder="Alert Text for doctors"
+              value={newReading.alertTextDoc}
+              onChange={(event) => {
+                newReadingDsipatch({
+                  type: "alertTextDoc",
+                  payload: event.target.value,
+                });
+              }}
+            />
+          </FormControl>
+        )}
+
+        <FormControl>
+          <FormLabel>Type</FormLabel>
+          <Select
+            value={newReading.type}
+            onChange={(event) => {
+              newReadingDsipatch({
+                type: "type",
+                payload: event.target.value,
+              });
+            }}
+          >
+            {readingTypes.map((reading, index) => {
+              return (
+                <option key={index} value={reading}>
+                  {reading}
+                </option>
+              );
+            })}
+          </Select>
+        </FormControl>
+
+        <FormControl>
+          <FormLabel>Unit</FormLabel>
+          <Input
+            type="text"
+            placeholder="Unit"
+            value={newReading.unit}
+            onChange={(event) => {
+              newReadingDsipatch({
+                type: "unit",
+                payload: event.target.value,
+              });
+            }}
+          />
+        </FormControl>
+
+        {["Int", "Decimal"].includes(newReading.type) && (
+          <FormControl>
+            <FormLabel>Has Range</FormLabel>
+            <Select
+              onChange={(event) => {
+                newReadingDsipatch({
+                  type: "assign_range",
+                  payload: event.target.value,
+                });
+              }}
+            >
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </Select>
+          </FormControl>
+        )}
+
+        {["Int", "Decimal"].includes(newReading.type) &&
+          newReading.assign_range === "yes" ? (
+          <>
+            <FormControl>
+              <FormLabel>Lower Range</FormLabel>
+              <Input
+                type="number"
+                placeholder="Lower Range"
+                value={newReading.lower_assign_range}
+                onChange={(event) => {
+                  newReadingDsipatch({
+                    type: "lower_assign_range",
+                    payload: event.target.value,
+                  });
+                }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Upper Range</FormLabel>
+              <Input
+                type="number"
+                placeholder="Upper Range"
+                value={newReading.upper_assign_range}
+                onChange={(event) => {
+                  newReadingDsipatch({
+                    type: "upper_assign_range",
+                    payload: event.target.value,
+                  });
+                }}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Is Graph</FormLabel>
+              <Select
+                onChange={(event) => {
+                  newReadingDsipatch({
+                    type: "isGraph",
+                    payload: event.target.value,
+                  });
+                }}
+              >
+                <option value="0">No</option>
+                <option value="1">Yes</option>
+              </Select>
+            </FormControl>
+          </>
+        ) : null}
+
+        <FormControl>
+          <FormLabel>Condition</FormLabel>
+          <Select
+            value={newReading.condition || 'stable'}
+            onChange={(event) => {
+              newReadingDsipatch({
+                type: "condition",
+                payload: event.target.value,
+              });
+            }}
+          >
+            <option value="stable">Stable</option>
+            <option value="unstable">Unstable</option>
+            <option value="critical">Critical</option>
+          </Select>
+        </FormControl>
+      </FormModal>
+
       <DialysisTable
         successful={successful}
         newReadingDsipatch={newReadingDsipatch}
         setTranslations={setTranslations}
         setEditMode={setEditMode}
         setSuccessful={setSuccessful}
+        setIsFormModalOpen={setIsFormModalOpen}
+        resetFormState={resetFormState}
       />
     </div>
   );

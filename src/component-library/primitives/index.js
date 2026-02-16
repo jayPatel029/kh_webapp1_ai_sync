@@ -26,6 +26,7 @@ export {
 } from './Input';
 
 export { Select } from './Select';
+export { SortDropdown } from './SortDropdown';
 export { Textarea } from './Textarea';
 
 // ==================== FORM CONTROLS ====================

@@ -13,6 +13,7 @@ import { useSelector } from "react-redux";
 // Component Library
 import { Button, Box, Flex } from "../../component-library";
 import { Text } from "../../component-library/primitives/Typography";
+import { SortDropdown } from "../../component-library/primitives";
 
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
@@ -31,11 +32,26 @@ import sortIcon from "../../assets/Sort_Amount_Up.svg";
 import deleteIcon from "../../assets/Delete.svg";
 import expandIcon from "../../assets/Expand.svg";
 
+// CSV Components
+import CSVLab2 from "../../components/csvLab2/CSVLab2";
+
+const LAB_REPORT_SORT_OPTIONS = [
+  "Lab",
+  "Ultrasound",
+  "X-Ray",
+  "Echo",
+  "MRI",
+  "Angiography",
+  "CT Scan",
+].map((type) => ({ value: type, label: type }));
+
 const UserLabReports = () => {
   const [showModal, setShowModal] = useState(false);
   const [labReportData, setLabReportData] = useState([]);
   const [filteredReportData, setFilteredReportData] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [csvData, setCsvData] = useState();
+  const [success, setSuccess] = useState(false);
   const [userData, setUserData] = useState(null);
   const [medicalTeam, setMedicalTeam] = useState([]);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
@@ -146,7 +162,7 @@ const UserLabReports = () => {
     const filter = e.target.value;
     setSelectedFilter(filter);
 
-    if (!filter || filter === "Select") {
+    if (!filter) {
       setFilteredReportData(labReportData);
       return;
     }
@@ -175,22 +191,13 @@ const UserLabReports = () => {
       {/* Filter and Action Bar */}
       <Flex justify="between" align="center" className="mb-8">
         <Flex align="center" gap={4}>
-          <Box className="relative">
-            <select
-              value={selectedFilter}
-              onChange={handleSelectChange}
-              className="h-[50px] pl-4 pr-10 rounded-[10px] border border-[#5886a5] bg-white text-[#5886a5] text-[16px] font-normal appearance-none cursor-pointer focus:outline-none"
-              style={{ minWidth: '158px' }}
-            >
-              <option value="">Sort by</option>
-              {["Lab", "Ultrasound", "X-Ray", "Echo", "MRI", "Angiography", "CT Scan"].map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-            <Box className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-              <img src={sortIcon} alt="Sort" className="w-[15px] h-[15px]" />
-            </Box>
-          </Box>
+          <SortDropdown
+            value={selectedFilter}
+            onChange={handleSelectChange}
+            options={LAB_REPORT_SORT_OPTIONS}
+            icon={<img src={sortIcon} alt="Sort" />}
+            placeholder="Sort by"
+          />
 
           <button
             onClick={handleClearFilters}
@@ -210,6 +217,16 @@ const UserLabReports = () => {
           </Button>
         )}
       </Flex>
+
+      {/* CSV Upload Component */}
+      {/* <Box className="mb-6">
+        <CSVLab2
+          patientId={id}
+          setData={setCsvData}
+          setSuccess={setSuccess}
+          success={success}
+        />
+      </Box> */}
 
       {/* Table Layout */}
       <Box className="border border-gray-100 rounded-[5px] overflow-hidden">
@@ -293,7 +310,7 @@ const UserLabReports = () => {
                   style={{ flex: '0 0 100px' }}
                   className="flex justify-center"
                 >
-                  <button 
+                  <button
                     onClick={() => deleteLabReport(report.id, email)}
                     className="w-8 h-8 flex items-center justify-center cursor-pointer hover:opacity-70 transition-opacity"
                   >

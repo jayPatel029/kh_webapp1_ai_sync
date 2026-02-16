@@ -13,20 +13,17 @@ function DailyReadings() {
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-          <Container className="py-4 px-4 md:px-6 max-w-[1440px] mx-auto">
+          <Container className="py-4 px-4 md:px-6 mx-0">
             <PageHeader
               title="Daily Readings"
               breadcrumbs={[
-                { label: "Dashboard", path: "/admin" },
+                { label: "Dashboard", path: "/" },
                 { label: "Daily Readings", active: true }
               ]}
             />
           </Container>
         </Box>
-
-        <div className="admin-page">
           <DailyReadingsList />
-        </div>
       </Box>
     </ThemeProvider>
   );

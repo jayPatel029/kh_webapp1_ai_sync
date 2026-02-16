@@ -55,6 +55,14 @@
   color: var(--color-danger);
 }
 
+
+.form-label--truncated {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 /* ==================== FORM HELPER TEXT ==================== */
 
 .form-helper-text {

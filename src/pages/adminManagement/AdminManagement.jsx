@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useState, useReducer, useEffect } from "react";
 import { BsTrash, BsPencilSquare, BsKey } from "react-icons/bs";
-import { useState, useReducer, useEffect } from "react";
 import { newUserReducer } from "./reducers";
 import {
   registerUser,
@@ -10,6 +9,17 @@ import {
   getRoles,
 } from "../../ApiCalls/authapis";
 import { useSelector } from "react-redux";
+import PageHeader from "../../components/PageHeader";
+import ThemeProvider from "../../components/ThemeProvider";
+import {
+  Box,
+  Container,
+  FormControl,
+  FormLabel,
+  Input,
+  Select,
+  Button
+} from "../../component-library";
 
 function AdminManagement() {
   const myRole = useSelector((state) => state.permission);
@@ -184,202 +194,205 @@ function AdminManagement() {
   }
 
   return (
-    <div className="md:flex block">
+    <ThemeProvider>
+      <Box className="flex-1 flex flex-col min-w-0">
+        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+          <Container className="py-4 px-4 md:px-6 mx-0">
+            <PageHeader
+              title="Create Admin"
+              breadcrumbs={[
+                { label: "Dashboard", path: "/" },
+                { label: "Create Admin", active: true }
+              ]}
+            />
+          </Container>
+        </Box>
 
-      <div className=" md:flex-[5] block w-screen">
-        {/* <Navbar /> */}
-        <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
-          <div className=" bg-white md:p-12 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
-            <div className="border-b-gray border-b-2 p-2 pb-6 font-semibold text-primary tracking-wide text-xl">
-              Admin Master
+
+        <div className="admin-page-content">
+          {/* Form Section */}
+          <div className="admin-card">
+            <div className="admin-card__header">
+              <h3 className="admin-card__title">Admin Details</h3>
             </div>
-            <div className=" md:grid grid-cols-2">
-              <div className="p-5">
-                <label className="block mb-2 text-sm font-medium text-gray-500">
-                  Name*
-                </label>
-                <input
-                  type="text"
-                  placeholder="Name"
-                  value={newUser.name}
-                  onChange={(event) => {
-                    newUserDispatch({
-                      type: "name",
-                      payload: event.target.value,
-                    });
-                  }}
-                  className="border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-                />
-                <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                  Phone No
-                </label>
-                <input
-                  type="Number"
-                  placeholder="Phone No"
-                  value={newUser.phone}
-                  onChange={(event) => {
-                    newUserDispatch({
-                      type: "phone",
-                      payload: event.target.value,
-                    });
-                  }}
-                  className="border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-                />
-                {!editMode || passEditMode ? (
-                  <>
-                    <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                      Password*
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="Password"
-                      value={newUser.password}
+            <div className="admin-card__body">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  <FormControl>
+                    <FormLabel>Name*</FormLabel>
+                    <Input
+                      type="text"
+                      placeholder="Name"
+                      value={newUser.name}
                       onChange={(event) => {
                         newUserDispatch({
-                          type: "password",
+                          type: "name",
                           payload: event.target.value,
                         });
                       }}
-                      className="border border-gray-300 text-gray-500 text-sm  rounded-lg block w-full p-2.5 focus:outline-primary"
                     />
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Phone No</FormLabel>
+                    <Input
+                      type="number"
+                      placeholder="Phone No"
+                      value={newUser.phone}
+                      onChange={(event) => {
+                        newUserDispatch({
+                          type: "phone",
+                          payload: event.target.value,
+                        });
+                      }}
+                    />
+                  </FormControl>
+
+                  {(!editMode || passEditMode) && (
+                    <FormControl>
+                      <FormLabel>Password*</FormLabel>
+                      <Input
+                        type="password"
+                        placeholder="Password"
+                        value={newUser.password}
+                        onChange={(event) => {
+                          newUserDispatch({
+                            type: "password",
+                            payload: event.target.value,
+                          });
+                        }}
+                      />
+                    </FormControl>
+                  )}
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  <FormControl>
+                    <FormLabel>Email*</FormLabel>
+                    <Input
+                      type="text"
+                      placeholder="Email"
+                      value={newUser.email}
+                      onChange={(event) => {
+                        newUserDispatch({
+                          type: "email",
+                          payload: event.target.value,
+                        });
+                      }}
+                    />
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Role*</FormLabel>
+                    <Select
+                      value={newUser.role}
+                      onChange={(event) => {
+                        newUserDispatch({
+                          type: "role",
+                          payload: event.target.value,
+                        });
+                      }}
+                    >
+                      {roles.map((role, index) => (
+                        <option key={index} value={role.role_name}>
+                          {role.role_name}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex justify-end gap-3 mt-6">
+                {editMode ? (
+                  <>
+                    <Button
+                      variant="primary"
+                      onClick={handleSubmit}
+                      className="w-32"
+                    >
+                      Update
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditMode(false);
+                        newUserDispatch({ type: "all", payload: {} });
+                      }}
+                      className="w-32"
+                    >
+                      Cancel
+                    </Button>
                   </>
                 ) : (
-                  <></>
+                  <Button
+                    variant="primary"
+                    onClick={handleSubmit}
+                    className="w-32"
+                  >
+                    Submit
+                  </Button>
                 )}
               </div>
-              <div className="p-5">
-                <label className="block mb-2 text-sm font-medium text-gray-500">
-                  Email*
-                </label>
-                <input
-                  type="text"
-                  placeholder="Email"
-                  value={newUser.email}
-                  onChange={(event) => {
-                    newUserDispatch({
-                      type: "email",
-                      payload: event.target.value,
-                    });
-                  }}
-                  className="border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary"
-                />
-                <label className="block mb-2 text-sm font-medium text-gray-500 pt-6">
-                  Role*
-                </label>
-                <select
-                  value={newUser.role}
-                  onChange={(event) => {
-                    newUserDispatch({
-                      type: "role",
-                      payload: event.target.value,
-                    });
-                  }}
-                  className="border border-gray-300 text-gray-500 text-sm rounded-lg block w-full p-2.5 focus:outline-primary">
-                  {roles.map((role, index) => {
-                    return (
-                      <option key={index} value={role.role_name}>
-                        {role.role_name}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            </div>
-            <div className="w-full md:block p-5 pt-2">
-              {editMode ? (
-                <>
-                  <button
-                    onClick={handleSubmit}
-                    className=" flex-1 mr-2 border md:inline-block text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-[12vw] rounded-lg p-1.5">
-                    UPDATE
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEditMode(false);
-                      newUserDispatch({ type: "all", payload: {} });
-                    }}
-                    className="flex-1 border text-[#ff0000] md:inline-block bg-white font-semibold tracking-wide text-lg border-[#ff0000] w-[12vw] rounded-lg  p-1.5">
-                    CANCEL
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={handleSubmit}
-                  className="block border text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-full md:w-[12vw] rounded-lg p-1.5">
-                  SUBMIT
-                </button>
-              )}
-              {errMsg.length > 0 ? (
-                <div className="mt-3 block">
-                  {errMsg.map((msg) => (
-                    <div className="text-[#ff0000] ml-2">{msg}</div>
+
+              {/* Messages */}
+              {errMsg.length > 0 && (
+                <div className="mt-4">
+                  {errMsg.map((msg, idx) => (
+                    <div key={idx} className="admin-message admin-message--error">{msg}</div>
                   ))}
                 </div>
-              ) : (
-                <></>
               )}
-              {successful.length > 0 ? (
-                <div className="mt-3 block text-primary ml-2">{successful}</div>
-              ) : (
-                <></>
+              {successful.length > 0 && (
+                <div className="mt-4 admin-message admin-message--success">{successful}</div>
               )}
             </div>
           </div>
 
-          <div className=" bg-white md:p-12 p-6 border rounded-md  border-t-4 shadow-md mt-4">
-            <div>
-              <input
-                type="text"
-                placeholder="Search Name"
-                className="border border-gray-300 text-gray-500 inline-block text-sm rounded-lg w-full md:w-[22vw] p-2.5 focus:outline-primary"
-                onChange={(event) => {
-                  searchUser(event.target.value);
-                }}
-              />
-              {/* <button className="inline-block  mx-3 border-primary border-2 p-3 text-md rounded-md text-primary">
-                <FaSearch />
-              </button> */}
+          {/* List Section */}
+          <div className="admin-card mt-6">
+            <div className="admin-card__header flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <h3 className="admin-card__title">Admin List</h3>
+                <span className="text-gray-500 text-sm">
+                  ({users.length} Records Found)
+                </span>
+              </div>
+              <div className="w-64">
+                <Input
+                  type="text"
+                  placeholder="Search Name"
+                  onChange={(event) => searchUser(event.target.value)}
+                />
+              </div>
             </div>
 
-            <div className="relative overflow-x-auto mt-6">
-              <span className=" text-gray-900 tracking-wide text-xl ">
-                Admin List{" "}
-                <span className="text-gray-400 text-sm">
-                  ({users.length} Records Found )
-                </span>
-              </span>
-              <div className="mt-4">
-                <table className=" w-full text-sm text-left rtl:text-right text-gray-800 ">
-                  <thead className="text-sm text-gray-700 border-b-2 border-gray-800 ">
+            <div className="admin-card__body">
+              <div className="admin-table-container">
+                <table className="admin-table">
+                  <thead>
                     <tr>
-                      <th scope="col" className="px-6 py-3">
-                        Name
-                      </th>
-                      <th scope="col" className="px-6 py-3">
-                        Email
-                      </th>
-                      <th scope="col" className="px-6 py-3">
-                        Role
-                      </th>
-                      <th scope="col" className="px-6 py-3 ">
-                        Action
-                      </th>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((u, index) => {
-                      return (
-                        <tr className="bg-white border-b " key={index}>
-                          <td scope="row" className="px-6 py-4">
-                            {u.firstname + " " + u.lastname}
-                          </td>
-                          <td className="px-6 py-4">{u.email}</td>
-                          <td className="px-6 py-4">{u.role}</td>
-                          <td className="px-6 py-4 text-3xl">
+                    {users.map((u, index) => (
+                      <tr key={index}>
+                        <td>{u.firstname + " " + u.lastname}</td>
+                        <td>{u.email}</td>
+                        <td>{u.role}</td>
+                        <td>
+                          <div className="flex gap-2">
                             {myRole.createAdmin >= 2 && (
                               <>
                                 <button
-                                  className="text-primary inline-block mx-2"
+                                  className="admin-action-btn admin-action-btn--edit"
                                   onClick={() => {
                                     newUserDispatch({
                                       type: "all",
@@ -394,16 +407,14 @@ function AdminManagement() {
                                     setEditMode(true);
                                     setEditMail(u.email);
                                     setSuccessful("");
-                                    window.scrollTo({
-                                      top: 0,
-                                      left: 0,
-                                      behavior: "smooth",
-                                    });
-                                  }}>
-                                  <BsKey />
+                                    window.scrollTo({ top: 0, behavior: "smooth" });
+                                  }}
+                                  title="Edit Password"
+                                >
+                                  <BsKey size={18} />
                                 </button>
                                 <button
-                                  className="text-primary inline-block mx-2"
+                                  className="admin-action-btn admin-action-btn--edit"
                                   onClick={() => {
                                     newUserDispatch({
                                       type: "all",
@@ -418,38 +429,36 @@ function AdminManagement() {
                                     setEditMode(true);
                                     setEditMail(u.email);
                                     setSuccessful("");
-                                    window.scrollTo({
-                                      top: 0,
-                                      left: 0,
-                                      behavior: "smooth",
-                                    });
-                                  }}>
-                                  <BsPencilSquare />
+                                    window.scrollTo({ top: 0, behavior: "smooth" });
+                                  }}
+                                  title="Edit User"
+                                >
+                                  <BsPencilSquare size={18} />
                                 </button>
                               </>
                             )}
                             {u.email !== "superadmin@kifaytihealth.com" &&
-                              myRole.createAdmin >= 4 ? (
-                              <button
-                                onClick={() => deleteUser(u.email)}
-                                className="text-[#ff0000] inline-block mx-2">
-                                <BsTrash />
-                              </button>
-                            ) : (
-                              <></>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                              myRole.createAdmin >= 4 && (
+                                <button
+                                  className="admin-action-btn admin-action-btn--delete"
+                                  onClick={() => deleteUser(u.email)}
+                                  title="Delete User"
+                                >
+                                  <BsTrash size={18} />
+                                </button>
+                              )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </Box>
+    </ThemeProvider>
   );
 }
 

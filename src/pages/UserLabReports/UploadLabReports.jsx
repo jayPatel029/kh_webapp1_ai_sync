@@ -1,8 +1,8 @@
 /**
- * ShowModal Component - Redesigned
+ * UploadLabReports Component
  * Modal for uploading and extracting lab reports
  * 
- * @file src/pages/UserLabReports/ShowModal.jsx
+ * @file src/pages/UserLabReports/UploadLabReports.jsx
  */
 
 import React, { useState } from "react";

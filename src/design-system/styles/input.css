@@ -525,3 +525,100 @@
   content: '';
   /* reserved for future use (icons/lines) */
 }
+
+/* Styles specific to the sort dropdown used on the lab report filter bar */
+.sort-dropdown {
+  position: relative;
+  min-width: 160px;
+  width: fit-content;
+  height: 48px;
+  border-radius: 10px;
+  border: 1px solid #94a3b8;
+  background-color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  overflow: hidden;
+  font-family: 'Sora', 'Inter', sans-serif;
+  color: #64748b;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  background-color: var(--color-white);
+  background-image: url("data: image/svg+xml, %3Csvg%20width%3D%2213%22%20height%3D%2212%22%20viewBox%3D%220%200%2013%2012%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M6.49512%2011.25L-7.24494e-05%20-1.2235e-06L12.9903%20-8.78432e-08L6.49512%2011.25Z%22%20fill%3D%22%2300CCCC%22%2F%3E%3C%2Fsvg%3E");
+  background-position: right 0.45rem center;
+  background-repeat: no-repeat;
+  background-size: 0.90em 0.90em;
+
+}
+
+.sort-dropdown:hover {
+  border-color: #64748b;
+  box-shadow: 0 4px 10px rgba(100, 116, 139, 0.15);
+}
+
+.sort-dropdown:focus-within {
+  border-color: #51657a;
+  box-shadow: 0 0 0 2px rgba(81, 101, 122, 0.25);
+}
+
+.sort-dropdown--block {
+  width: 100%;
+  min-width: 0;
+}
+
+.sort-dropdown__select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  /* background: transparent; */
+  /* color: transparent; */
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.sort-dropdown__select:focus {
+  outline: none;
+}
+
+.sort-dropdown__content {
+  pointer-events: none;
+  z-index: 0;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  gap: 8px;
+}
+
+.sort-dropdown__icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sort-dropdown__icon img,
+.sort-dropdown__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.sort-dropdown__label {
+  flex: 1;
+  text-align: left;
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 400;
+  color: #64748b;
+}
+
+.sort-dropdown__chevron {
+  display: none;
+}

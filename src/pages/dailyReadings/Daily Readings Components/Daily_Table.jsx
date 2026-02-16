@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { ReactComponent as SearchIcon } from "../../../assets/search_icon.svg";
 import { BsPencilSquare, BsTrash } from "react-icons/bs";
 import {
@@ -13,6 +14,8 @@ export default function DailyTable({
   successful,
   setSuccessful,
   setTranslations,
+  setIsFormModalOpen,
+  resetFormState,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [tableData, setTableData] = useState([]);
@@ -33,25 +36,42 @@ export default function DailyTable({
 
   return (
     <>
-      <div className="admin-card" style={{ marginTop: '2.5rem' }}>
+      <div className="admin-card">
         <div className="admin-card__header">
           <div className="flex justify-between items-center w-full flex-wrap gap-4">
             <div>
-              <h2 className="admin-card__header-title">Daily Readings List</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500">
                 ({tableData.length} records found)
               </p>
             </div>
 
-            <div className="admin-search">
-              <SearchIcon className="admin-search__icon" />
-              <input
-                type="text"
-                placeholder="Search Term"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="admin-search__input"
-              />
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="admin-search">
+                <SearchIcon className="admin-search__icon" />
+                <input
+                  type="text"
+                  placeholder="Search Term"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="admin-search__input"
+                />
+              </div>
+              <button
+                className="admin-btn admin-btn--primary"
+                onClick={() => {
+                  resetFormState();
+                  setIsFormModalOpen(true);
+                }}
+              >
+                Add Daily Reading
+              </button>
+              <Link
+                to="/dailyReadingsCsv"
+                className="admin-btn admin-btn--secondary"
+                style={{ textDecoration: 'none' }}
+              >
+                Bulk Upload Question
+              </Link>
             </div>
           </div>
         </div>
@@ -118,11 +138,7 @@ export default function DailyTable({
                                     setTranslations(translationDict);
                                   }
                                   setEditMode(true);
-                                  window.scrollTo({
-                                    top: 0,
-                                    left: 0,
-                                    behavior: "smooth",
-                                  });
+                                  setIsFormModalOpen?.(true);
                                 }}
                               >
                                 <BsPencilSquare />

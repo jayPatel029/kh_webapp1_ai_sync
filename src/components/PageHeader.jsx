@@ -57,7 +57,7 @@ export const PageHeader = ({
           </Text>
 
 
-          <div className="self-stretch justify-start text-accent text-2xl font-bold font-['Sora']">Mukesh</div>
+          <div className="self-stretch justify-start text-accent text-2xl font-bold font-['Sora']">{title}</div>
 
           {/* <Heading size="xl" weight="bold" className="text-slate-600">
           {title}

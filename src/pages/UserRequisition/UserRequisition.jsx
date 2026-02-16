@@ -5,12 +5,13 @@
  * @file src/pages/UserRequisition/UserRequisition.jsx
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 // Component Library
 import { Box, Flex, Button as ButtonPrimitive } from "../../component-library";
+import { SortDropdown } from "../../component-library/primitives";
 
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
@@ -27,9 +28,15 @@ import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
 // Icons
 import { BsTrash } from "react-icons/bs";
 import { FaFilePdf } from "react-icons/fa6";
+import sortIcon from "../../assets/Sort_Amount_Up.svg";
 
 // Import design system styles
 import "../../design-system/styles/index.css";
+
+const REQUISITION_SORT_OPTIONS = [
+  { value: "latest", label: "Latest first" },
+  { value: "oldest", label: "Oldest first" },
+];
 
 const UserRequisition = () => {
   const [showModal, setShowModal] = useState(false);
@@ -39,6 +46,7 @@ const UserRequisition = () => {
   const [userData, setUserData] = useState({});
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
+  const [selectedSort, setSelectedSort] = useState("");
 
   const { id } = useParams();
   const navigate = useNavigate();
@@ -82,6 +90,22 @@ const UserRequisition = () => {
       console.error("Error fetching patient data:", error);
     }
   };
+
+  const sortedRequisitionData = useMemo(() => {
+    if (!userRequisitionData || userRequisitionData.length === 0) {
+      return [];
+    }
+    if (!selectedSort) {
+      return userRequisitionData;
+    }
+    const baseData = [...userRequisitionData];
+    baseData.sort((a, b) => {
+      const aTime = new Date(a.Date).getTime() || 0;
+      const bTime = new Date(b.Date).getTime() || 0;
+      return selectedSort === "latest" ? bTime - aTime : aTime - bTime;
+    });
+    return baseData;
+  }, [selectedSort, userRequisitionData]);
 
   useEffect(() => {
     const getUnreadMessagesFromAdmin = async () => {
@@ -142,8 +166,31 @@ const UserRequisition = () => {
       loading={loading}
       onBackClick={() => navigate("/patient")}
     >
-      {/* Upload Button Section */}
-      <Flex justify="end" align="center" className="mb-6">
+      {/* Sort Controls + Upload (single row) */}
+      <Flex align="center" justify="between" className="mb-5 gap-4 flex-wrap">
+        <Flex align="center" gap={3} className="flex-wrap items-center">
+          <Box className="flex items-center rounded-[8px] py-1">
+
+            <SortDropdown
+              value={selectedSort}
+              onChange={(e) => setSelectedSort(e.target.value)}
+              options={REQUISITION_SORT_OPTIONS}
+              placeholder="Sort by"
+              icon={<img src={sortIcon} alt="Sort icon" />}
+              style={{ minWidth: 220 }}
+            />
+          </Box>
+
+          {selectedSort && (
+            <button
+              onClick={() => setSelectedSort("")}
+              className="text-[16px] font-semibold text-[#5886a5] underline hover:text-[#4164df] transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
+        </Flex>
+
         {role?.role_name !== "Dialysis Technician" && (
           <ButtonPrimitive
             variant="solid"
@@ -168,8 +215,8 @@ const UserRequisition = () => {
 
         {/* Table Body */}
         <Box>
-          {userRequisitionData.length > 0 ? (
-            userRequisitionData.map((requisitionItem, index) => (
+          {sortedRequisitionData.length > 0 ? (
+            sortedRequisitionData.map((requisitionItem, index) => (
               <Box
                 key={index}
                 className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
