@@ -166,7 +166,7 @@ const DiaAlertModal = ({ closeModal }) => {
   const viewProfile = async () => {
     try {
       const patientId = alerts[0].patientId;
-      navigate(`/userProfile/${patientId}`, {});
+      navigate(`/patients/${patientId}`, {});
     } catch (error) {}
   };
   // console.log(alerts);
@@ -301,3 +301,4 @@ const DiaAlertModal = ({ closeModal }) => {
 };
 
 export default DiaAlertModal;
+

@@ -29,6 +29,7 @@ import ThemeProvider from "../../components/ThemeProvider";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
+import { ROUTES } from "../../routes/routeConstants";
 
 /**
  * PatientDetailLayout Component
@@ -64,7 +65,7 @@ const PatientDetailLayout = ({
     if (onBackClick) {
       onBackClick();
     } else {
-      navigate("/patient");
+      navigate(ROUTES.PATIENTS);
     }
   };
 
@@ -82,7 +83,7 @@ const PatientDetailLayout = ({
             <PageHeader
               title={title}
               breadcrumbs={[
-                { label: "Patient", path: `/userProfile/${patientId}`, active: false },
+                { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
                 { label: title, active: true },
               ]}
               onBack={handleBackClick}

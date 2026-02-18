@@ -237,11 +237,11 @@ function UserProfile() {
             <PageHeader
               title="Patient Profile"
               breadcrumbs={[
-               // { label: "All Patients", path: "/patient" },
-                { label: "Patient", path: `/userProfile/${id}`, active: false },
+               // { label: "All Patients", path: "/patients" },
+                { label: "Patient", path: `/patients/${id}`, active: false },
                 { label: "Patient Profile", active: true }
               ]}
-              onBack={() => navigate("/patient")}
+              onBack={() => navigate("/patients")}
             />
           </Flex>
 
@@ -444,3 +444,4 @@ function UserProfile() {
 }
 
 export default UserProfile;
+

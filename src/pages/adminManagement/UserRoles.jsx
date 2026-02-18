@@ -60,7 +60,7 @@ const UserRoles = () => {
             <div className="admin-card">
               <div className="admin-card__header flex justify-between items-center">
                 <h3 className="admin-card__title">User Roles</h3>
-                <Link to="/add-role">
+                <Link to="/users/roles/new">
                   <Button variant="primary">
                     Add Role
                   </Button>
@@ -111,3 +111,4 @@ const UserRoles = () => {
 };
 
 export default UserRoles;
+

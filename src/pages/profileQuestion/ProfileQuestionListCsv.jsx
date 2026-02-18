@@ -80,7 +80,7 @@ function ProfileQuestionListCsv() {
                 Open Bulk Upload
               </button>
               <Link
-                to="/profileQuestion"
+                to="/profile-questions"
                 className="admin-btn admin-btn--secondary"
                 style={{ textDecoration: 'none' }}
               >
@@ -119,3 +119,4 @@ function ProfileQuestionListCsv() {
 }
 
 export default ProfileQuestionListCsv;
+

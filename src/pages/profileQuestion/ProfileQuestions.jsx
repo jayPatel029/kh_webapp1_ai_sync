@@ -20,6 +20,7 @@ import { useSelector } from "react-redux";
 import { FormModal } from "../../component-library/modals/FormModal";
 import PageHeader from "../../components/PageHeader";
 import ThemeProvider from "../../components/ThemeProvider";
+import ProfileQuestionsBulkUploadModal from "./ProfileQuestionsBulkUploadModal";
 import {
   Button,
   FormControl,
@@ -44,6 +45,7 @@ function ProfileQuestions() {
   const [modelOpen, setModelOpen] = useState(false);
   const [modelOpenOpt, setModelOpenOpt] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [translations, setTranslations] = useState({});
   const [optTranslations, setOptTranslations] = useState({});
   const role = useSelector((state) => state.permission);
@@ -289,13 +291,12 @@ function ProfileQuestions() {
                     >
                       Add Question
                     </button>
-                    <Link
-                      to="/ProfileQuestionCsv"
+                    <button
+                      onClick={() => setIsBulkUploadModalOpen(true)}
                       className="admin-btn admin-btn--secondary"
-                      style={{ textDecoration: 'none' }}
                     >
                       Bulk Upload Questions
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -529,10 +530,18 @@ function ProfileQuestions() {
             </FormModal>
           </div>
 
+        <ProfileQuestionsBulkUploadModal
+          isOpen={isBulkUploadModalOpen}
+          onClose={() => {
+            setIsBulkUploadModalOpen(false);
+            setSuccessful("Bulk upload completed successfully!");
+          }}
+        />
       </Box>
     </ThemeProvider>
   );
 }
 
 export default ProfileQuestions;
+
 

@@ -16,7 +16,7 @@ const getPrescriptionDissapprovalAlert = async (id,date,type0) => {
         type0: type0,
         type: `Prescription Dissapproved by ${doctorName}`,
         date: date,
-        redirect: `/ShowAlarms/${patientID}`,
+        redirect: `/patients/${patientID}/alarms`,
         alarmId: alarmId,
     }
 
@@ -36,7 +36,7 @@ const doctorMessageToAdminAlert = async (id,date,type0) => {
         type0: type0,
         type: `${doctorName}: ${message}`,
         date: date,
-        redirect: `/adminChat/${patientId}`
+        redirect: `/chat/admin?patientId=${patientId}`
     }
 
     return data;
@@ -58,7 +58,7 @@ const newPrescriptionUploadedAlert = async (id,date,type0) => {
         type0: type0,
         type: `New Prescription Uploaded by ${patientName}`,
         date: date,
-        redirect: `/showAlarms/${patientID}`,
+        redirect: `/patients/${patientID}/alarms`,
         alarmId: alarmId,
         status: result2.data.data[0].status
     }
@@ -86,7 +86,7 @@ const newLabReportUploadedAlert = async (id,date,type0) => {
         type0: type0,
         type: `New Lab Report Uploaded by ${patientName}`,
         date: date,
-        redirect: `/userLabReports/${patientID}`,
+        redirect: `/medical/labs?patientId=${patientID}`,
         labReportId: labReportId
     }
 
@@ -131,7 +131,7 @@ const newEnrollmentAlert = async (id,date,type0) => {
         type0: type0,
         type: `New Enrollment by ${patientName}`,
         date: date,
-        redirect: `/userProgramSelection`
+        redirect: `/programs`
     }
 
     return data;
@@ -150,7 +150,7 @@ const newProgramEnrollmentAlert = async (id,date,type0) => {
         type0: type0,
         type: `New Program Enrollment request by ${patientName} in ${programName}`,
         date: date,
-        redirect: `/userProgramSelection`
+        redirect: `/programs`
     }
     return data;
 
@@ -172,7 +172,7 @@ const MissedPrescriptionAlert = async (id,date,type0) => {
         type0: type0,
         type: `Missed Prescription Alarm for ${patientName}`,
         date: date,
-        redirect: `/ShowAlarms/${patientID}`,
+        redirect: `/patients/${patientID}/alarms`,
         alarmId: alarmId
     
     }
@@ -234,3 +234,4 @@ const getAlertData = async (id,date,type0,type1) => {
 };
 
 export default getAlertData;
+

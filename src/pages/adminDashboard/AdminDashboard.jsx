@@ -25,7 +25,7 @@ import {
 } from "../../ApiCalls/adminDashApis";
 import { getDoctorComments } from "../../ApiCalls/GetComments";
 // Import CSS for modals (legacy styles)
-import "./AdminDashboard.css"; 
+import "./adminDashboard.css"; 
 
 // Components
 import PatientAlertCard from "./components/PatientAlertCard";
@@ -67,7 +67,7 @@ const AdminDashboard = () => {
 
       const role = localStorage.getItem("role");
       if (role === "Dialysis Technician") {
-        navigate("/patient");
+        navigate("/patients");
         return;
       }
 
@@ -276,3 +276,4 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+

@@ -6,11 +6,12 @@ import { MdSend } from "react-icons/md";
 import dummyAdmin from "../../assets/dummyadmin.png";
 import { getUsers } from "../../ApiCalls/authapis";
 import { getPatientById } from "../../ApiCalls/patientAPis";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { identifyRole } from "../../ApiCalls/authapis";
 import { getDoctors, getDoctorsChat } from "../../ApiCalls/doctorApis";
 import { Box, Button, Input, Badge, Card,Flex } from "../../component-library";
 import PageHeader from "../../components/PageHeader";
+import { ROUTES } from "../../routes/routeConstants";
 
 import {
   getChatId,
@@ -25,7 +26,9 @@ import PatientNavTabs from "../../components/PatientNavTabs";
 
 
 const ChatApp = () => {
-  const { pid } = useParams();
+  const { pid, id } = useParams();
+  const [searchParams] = useSearchParams();
+  const patientId = pid || id || searchParams.get("patientId");
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -70,7 +73,7 @@ const ChatApp = () => {
         const roleResult = await identifyRole();
         setRole(roleResult.data.data.role_name);
         if (roleResult.data.data.role_name === "Admin" || roleResult.data.data.role_name === "PSadmin") {
-          const getDoctorsResult = await getDoctorsChat(pid);
+          const getDoctorsResult = await getDoctorsChat(patientId);
           console.log("doctorRes", getDoctorsResult)
           if (getDoctorsResult.success) {
             setDoctors(getDoctorsResult.data.data);
@@ -81,7 +84,7 @@ const ChatApp = () => {
           roleResult.data.data.role_name === "Medical Staff" ||
           roleResult.data.data.role_name === "Doctor"
         ) {
-          const chatResult = await getAllChats(pid);
+          const chatResult = await getAllChats(patientId);
           let emailArray = [];
           if (chatResult.success) {
             emailArray = chatResult?.data.map((a) => a.receiverEmail);
@@ -94,7 +97,7 @@ const ChatApp = () => {
             console.error("Failed to fetch chats:", chatResult.data);
           }
 
-          const patientRes = await getPatientById(pid);
+          const patientRes = await getPatientById(patientId);
           const result = await getUsers();
           if (result.success && patientRes.success) {
             const userEmail = localStorage.getItem("email");
@@ -143,7 +146,7 @@ const ChatApp = () => {
   };
   const loadChats = async (receiverEmail) => {
     try {
-      const chatIdResp = await getChatId(receiverEmail, pid);
+      const chatIdResp = await getChatId(receiverEmail, patientId);
       if (chatIdResp.success) {
         setChatId(chatIdResp.data.chatId);
         loadMessages(chatIdResp.data.chatId);
@@ -157,7 +160,7 @@ const ChatApp = () => {
 
   const loadSWChats = async (senderEmail) => {
     try {
-      const SWResponse = await getAllSWChats(pid, senderEmail);
+      const SWResponse = await getAllSWChats(patientId, senderEmail);
       if (SWResponse.success) {
         setChats(SWResponse.data);
         console.log(chats)
@@ -185,7 +188,7 @@ const ChatApp = () => {
       const messageData = {
         message: currentMessage,
         receiver: activeReciever,
-        pid: pid,
+        pid: patientId,
       };
       const response = await sendMessage(messageData);
       if (response.success) {
@@ -218,17 +221,17 @@ const ChatApp = () => {
             <PageHeader
               title="Doctor Chat"
               breadcrumbs={[
-               // { label: "All Patients", path: "/patient" },
-                { label: patient?.name || "Patient", path: `/userProfile/${pid}`, active: false },
+               // { label: "All Patients", path: "/patients" },
+                { label: patient?.name || "Patient", path: ROUTES.patientDetail(patientId), active: false },
                 { label: "Doctor Chat", active: true }
               ]}
-              onBack={() => navigate(`/userProfile/${pid}`)}
+              onBack={() => navigate(ROUTES.patientDetail(patientId))}
             />
           </Flex>
 
           {/* Navigation Tabs */}
           <PatientNavTabs
-            patientId={pid}
+            patientId={patientId}
             userData={patient}
             unreadAdminCount={0}
             unreadDoctorCount={chats?.reduce((s, c) => s + (c.unreadCount || 0), 0)}
@@ -555,3 +558,4 @@ const ChatApp = () => {
 };
 
 export default ChatApp;
+

@@ -85,7 +85,7 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
           <div className="header flex justify-between items-center border-b pb-2 mb-4  lg:pt-0  ">
             <h2 className="text-2xl font-bold  ">Digitised Prescription Copy</h2>
             <div className="flex flex-col lg:flex-row items-center">
-              {/* <Link to={groupedData[1] ? `/userProfile/${groupedData[1][0].patientId}` : "#"}>
+              {/* <Link to={groupedData[1] ? `/patients/${groupedData[1][0].patientId}` : "#"}>
                 <div
                   className="rounded-lg text-primary border-2 border-primary w-40 py-2 justify-center flex shadow-lg m-1"
                   style={{ cursor: "pointer" }}
@@ -334,3 +334,4 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
 };
 
 export default PrescriptionModal;
+

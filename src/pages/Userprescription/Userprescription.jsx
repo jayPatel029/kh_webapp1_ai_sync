@@ -6,8 +6,9 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { ROUTES } from "../../routes/routeConstants";
 
 // Component Library
 import { Box, Flex, Button as ButtonPrimitive } from "../../component-library";
@@ -49,7 +50,9 @@ const Userprescription = () => {
     label: doctor.name,
   }));
 
-  const { id } = useParams();
+  const { id: idParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const id = idParam || searchParams.get("patientId");
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
@@ -189,7 +192,7 @@ const Userprescription = () => {
       totalUnreadCount={totalUnreadCount}
       totalUnreadCountDoc={totalUnreadCountDoc}
       loading={loading}
-      onBackClick={() => navigate("/patient")}
+      onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
       {/* Filter and Upload Section */}
       <Flex justify="between" align="center" className="mb-6">

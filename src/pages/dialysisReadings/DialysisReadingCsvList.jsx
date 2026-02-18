@@ -84,7 +84,7 @@ function DailyquestionCsv() {
                 Open Bulk Upload
               </button>
               <Link
-                to="/dialysisReadings"
+                to="/readings/dialysis"
                 className="admin-btn admin-btn--secondary"
                 style={{ textDecoration: 'none' }}
               >
@@ -126,3 +126,4 @@ function DailyquestionCsv() {
 }
 
 export default DailyquestionCsv;
+

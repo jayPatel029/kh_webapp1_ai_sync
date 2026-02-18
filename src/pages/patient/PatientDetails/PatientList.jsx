@@ -155,7 +155,7 @@ const PatientList = ({ data, patientId }) => {
   // Handle patient click
   const handlePatientClick = (patient) => {
     // Navigating to profile as per previous logic in DeletePatientList
-    navigate(`/userProfile/${patient.id}`, { state: patient });
+    navigate(`/patients/${patient.id}`, { state: patient });
   };
 
   // Profile Image or default
@@ -257,7 +257,7 @@ const PatientList = ({ data, patientId }) => {
           <Button
             variant="solid"
             size="lg"
-            onClick={() => navigate("/Addpatient")}
+            onClick={() => navigate("/patients/new")}
             style={{
               backgroundColor: '#4164df',
               borderRadius: '10px',
@@ -410,3 +410,5 @@ const PatientList = ({ data, patientId }) => {
 };
 
 export default PatientList;
+
+

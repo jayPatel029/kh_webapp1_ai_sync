@@ -14,7 +14,7 @@ function ProfileQuestionCsv() {
               title="Bulk Upload Questions"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
-                { label: "Profile Questions", path: "/profileQuestions" },
+                { label: "Profile Questions", path: "/profile-questions" },
                 { label: "Bulk Upload", active: true }
               ]}
             />
@@ -30,3 +30,4 @@ function ProfileQuestionCsv() {
 }
 
 export default ProfileQuestionCsv;
+

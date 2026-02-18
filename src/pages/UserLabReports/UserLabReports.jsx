@@ -7,8 +7,9 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { ROUTES } from "../../routes/routeConstants";
 
 // Component Library
 import { Button, Box, Flex } from "../../component-library";
@@ -59,7 +60,9 @@ const UserLabReports = () => {
   const [selectedFilter, setSelectedFilter] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { id } = useParams();
+  const { id: idParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const id = idParam || searchParams.get("patientId");
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
@@ -186,7 +189,7 @@ const UserLabReports = () => {
       totalUnreadCount={totalUnreadCount}
       totalUnreadCountDoc={totalUnreadCountDoc}
       loading={loading}
-      onBackClick={() => navigate("/patient")}
+      onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
       {/* Filter and Action Bar */}
       <Flex justify="between" align="center" className="mb-8">

@@ -78,7 +78,7 @@ const AddPatientForm = () => {
 
       if (response.success) {
         alert("Patient Registered Successfully!");
-        navigate("/patient");
+        navigate("/patients");
       } else {
         alert("Error: " + response.data);
       }
@@ -107,10 +107,10 @@ const AddPatientForm = () => {
               <PageHeader
                 title="Add New Patient"
                 breadcrumbs={[
-                  { label: "My Patients", path: "/patient" },
+                  { label: "My Patients", path: "/patients" },
                   { label: "Add New Patient", active: true }
                 ]}
-                onBackClick={() => navigate("/patient")}
+                onBackClick={() => navigate("/patients")}
               />
 
               <Card variant="elevated" style={{ borderRadius: '15px', overflow: 'hidden' }}>
@@ -309,7 +309,7 @@ const AddPatientForm = () => {
                         <Button
                           variant="outline"
                           size="lg"
-                          onClick={() => navigate("/patient")}
+                          onClick={() => navigate("/patients")}
                           style={{ width: '150px' }}
                         >
                           Cancel
@@ -340,3 +340,4 @@ const AddPatientForm = () => {
 };
 
 export default AddPatientForm;
+

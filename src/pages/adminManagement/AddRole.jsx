@@ -74,7 +74,7 @@ const AddRole = () => {
               title="Add Role"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
-                { label: "Manage Roles", path: "/manageRoles" },
+                { label: "Manage Roles", path: "/users/roles" },
                 { label: "Add Role", active: true }
               ]}
             />
@@ -162,3 +162,4 @@ const AddRole = () => {
 };
 
 export default AddRole;
+

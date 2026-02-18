@@ -10,8 +10,9 @@ import {
   getPatientById,
   getPatientMedicalTeam,
 } from "../../ApiCalls/patientAPis";
-import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
+import { useParams, Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { adminEmail } from "../../constants/constants";
+import { ROUTES } from "../../routes/routeConstants";
 import {
   getAllChatsAdmin,
   getChatId,
@@ -26,7 +27,9 @@ import { createMessageAlert } from "../../ApiCalls/alertsApis";
 import { Container, Box } from "../../component-library";
 
 const ChatApp = () => {
-  const { pid } = useParams();
+  const { pid, id } = useParams();
+  const [searchParams] = useSearchParams();
+  const patientId = pid || id || searchParams.get("patientId");
   const location = useLocation();
 
   const [role, setRole] = useState("");
@@ -73,7 +76,7 @@ const ChatApp = () => {
   };
   const loadChats = async (receiverEmail) => {
     try {
-      const chatIdResp = await getChatId(receiverEmail, pid);
+      const chatIdResp = await getChatId(receiverEmail, patientId);
       if (chatIdResp.success) {
         loadMessages(chatIdResp.data.chatId);
       } else {
@@ -89,7 +92,7 @@ const ChatApp = () => {
       try {
         const roleResult = await identifyRole();
         setRole(roleResult.data.data.role_name);
-        const patientRes = await getPatientById(pid);
+        const patientRes = await getPatientById(patientId);
         const userEmail = localStorage.getItem("email");
         setPatient(patientRes.data.data[0]);
         setSender(userEmail);
@@ -97,7 +100,7 @@ const ChatApp = () => {
           roleResult.data.data.role_name === "Doctor" ||
           roleResult.data.data.role_name === "Medical Staff"
         ) {
-          const adminTeamRes = await getPatientAdminTeam(pid);
+          const adminTeamRes = await getPatientAdminTeam(patientId);
           setAdminTeam(adminTeamRes.data.data);
 
           serActiveReciever(adminEmail);
@@ -117,7 +120,7 @@ const ChatApp = () => {
       try {
         const roleResult = await identifyRole();
         setRole(roleResult.data.data.role_name);
-        const patientRes = await getPatientById(pid);
+        const patientRes = await getPatientById(patientId);
         console.log(patientRes);
         const userEmail = localStorage.getItem("email");
         console.log(userEmail);
@@ -127,11 +130,11 @@ const ChatApp = () => {
           roleResult.data.data.role_name === "Admin" ||
           roleResult.data.data.role_name === "PSadmin"
         ) {
-          const chatResult = await getAllChatsAdmin(pid);
+          const chatResult = await getAllChatsAdmin(patientId);
           console.log("CHAT", chatResult.data);
           const emailArray = chatResult?.data.map((a) => a.receiverEmail);
           console.log(emailArray);
-          const result = await getPatientMedicalTeam(pid);
+          const result = await getPatientMedicalTeam(patientId);
           console.log("CHAT1", result.data.data);
 
           if (result.success && chatResult.success) {
@@ -206,12 +209,12 @@ const ChatApp = () => {
         const messageData = {
           message: currentMessage.trim(),
           receiver: activeReciever,
-          pid: pid,
+          pid: patientId,
         };
         const response = await sendMessage(messageData);
         if (response.success) {
           if (role === "Doctor") {
-            await createMessageAlert(response.data.chatId, currentMessage, pid);
+            await createMessageAlert(response.data.chatId, currentMessage, patientId);
           }
           socket.current.emit("send-message", {
             currentMessage,
@@ -243,17 +246,17 @@ const ChatApp = () => {
             <PageHeader
               title="Admin Chat"
               breadcrumbs={[
-               // { label: "All Patients", path: "/patient" },
-                { label: "Patient", path: `/userProfile/${pid}`, active: false },
+               // { label: "All Patients", path: "/patients" },
+                { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
                 { label: "Admin Chat", active: true }
               ]}
-              onBack={() => navigate(`/userProfile/${pid}`)}
+              onBack={() => navigate(ROUTES.patientDetail(patientId))}
             />
           </Flex>
 
           {/* Navigation Tabs */}
           <PatientNavTabs
-            patientId={pid}
+            patientId={patientId}
             userData={patient}
             unreadAdminCount={chats?.reduce((s, c) => s + (c.unreadCount || 0), 0)}
             unreadDoctorCount={0}
@@ -470,3 +473,4 @@ const ChatApp = () => {
 };
 
 export default ChatApp;
+

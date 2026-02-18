@@ -19,6 +19,7 @@ import TranslateIcon from "@mui/icons-material/Translate";
 import { useSelector } from "react-redux";
 import { Sidebar as DSidebar, SidebarHeader } from "../../component-library/navigation/Sidebar";
 import Account from "../../assets/Account.svg";
+import { ROUTES } from "../../routes/routeConstants";
 
 const Sidebar = ({ mobile = false }) => {
   const [dropdown, setDropdown] = useState(false);
@@ -69,7 +70,7 @@ const Sidebar = ({ mobile = false }) => {
         id: 'admin-dashboard',
         label: 'Admin Dashboard',
         mobileLabel: 'Dashboard',
-        href: '/',
+        href: ROUTES.DASHBOARD,
         icon: DashboardIcon,
         showInMobileBar: true,
       });
@@ -79,7 +80,7 @@ const Sidebar = ({ mobile = false }) => {
       items.push({
         id: 'patients',
         label: 'Patients',
-        href: '/patient',
+        href: ROUTES.PATIENTS,
         icon: PeopleAltIcon,
         showInMobileBar: true,
       });
@@ -89,7 +90,7 @@ const Sidebar = ({ mobile = false }) => {
       items.push({
         id: 'ailment-master',
         label: 'Aliment Master',
-        href: '/alimentMaster',
+        href: ROUTES.SETTINGS_AILMENTS,
         icon: MedicationIcon,
       });
     }
@@ -98,7 +99,7 @@ const Sidebar = ({ mobile = false }) => {
       items.push({
         id: 'profile-questions',
         label: 'Profile Questions',
-        href: '/profileQuestions',
+        href: ROUTES.PROFILE_QUESTIONS,
         icon: QuizIcon,
       });
     }
@@ -107,7 +108,7 @@ const Sidebar = ({ mobile = false }) => {
       items.push({
         id: 'language-master',
         label: 'Language Master',
-        href: '/languageMaster',
+        href: ROUTES.SETTINGS_LANGUAGE,
         icon: TranslateIcon,
       });
     }
@@ -116,7 +117,7 @@ const Sidebar = ({ mobile = false }) => {
       items.push({
         id: 'daily-readings',
         label: 'Daily Readings',
-        href: '/dailyReadings',
+        href: ROUTES.READINGS_DAILY,
         icon: MonitorHeartIcon,
         showInMobileBar: true,
       });
@@ -126,7 +127,7 @@ const Sidebar = ({ mobile = false }) => {
       items.push({
         id: 'dialysis-readings',
         label: 'Dialysis Readings',
-        href: '/dialysisReadings',
+        href: ROUTES.READINGS_DIALYSIS,
         icon: BloodtypeIcon,
       });
     }
@@ -135,7 +136,7 @@ const Sidebar = ({ mobile = false }) => {
       items.push({
         id: 'user-program',
         label: 'User Program',
-        href: '/userProgramSelection',
+        href: ROUTES.PROGRAMS,
         icon: AssignmentIndIcon,
       });
     }
@@ -144,7 +145,7 @@ const Sidebar = ({ mobile = false }) => {
       items.push({
         id: 'patient-feedback',
         label: 'Patient Feedback',
-        href: '/contactuspage',
+        href: ROUTES.SUPPORT,
         icon: RateReviewIcon,
       });
     }
@@ -153,13 +154,13 @@ const Sidebar = ({ mobile = false }) => {
       items.push({
         id: 'change-password',
         label: 'Change Password',
-        href: '/changePassword',
+        href: ROUTES.SETTINGS_PASSWORD,
         icon: LockResetIcon,
       });
       items.push({
         id: 'logs',
         label: 'Audit Logs',
-        href: '/logs',
+        href: ROUTES.SETTINGS_LOGS,
         icon: HistoryIcon,
       });
     }
@@ -253,9 +254,9 @@ const Sidebar = ({ mobile = false }) => {
         </button>
         {shouldShowChildren && (
           <div className="mt-2 flex flex-col gap-1 pl-4">
-            {role?.createAdmin && renderAdminChild('Create Admin', SubdirectoryArrowRightIcon, '/create-admin')}
-            {role?.createDoctor && renderAdminChild('Create Doctor', SubdirectoryArrowRightIcon, '/create-doctor')}
-            {role?.manageRoles && renderAdminChild('Manage Roles', SubdirectoryArrowRightIcon, '/manageRoles')}
+            {role?.createAdmin && renderAdminChild('Create Admin', SubdirectoryArrowRightIcon, ROUTES.USERS_ADMINS)}
+            {role?.createDoctor && renderAdminChild('Create Doctor', SubdirectoryArrowRightIcon, ROUTES.USERS_DOCTORS)}
+            {role?.manageRoles && renderAdminChild('Manage Roles', SubdirectoryArrowRightIcon, ROUTES.USERS_ROLES)}
           </div>
         )}
       </li>
@@ -275,7 +276,7 @@ const Sidebar = ({ mobile = false }) => {
     >
       <div className="flex flex-col gap-4">
         <SidebarHeader className={clsx('pt-4', isCollapsed && !mobile ? 'flex justify-center' : 'flex items-center gap-3')}>
-          <Link to="/" className={clsx('flex items-center transition-all', isCollapsed && !mobile ? 'justify-center' : 'gap-3')}>
+          <Link to={ROUTES.DASHBOARD} className={clsx('flex items-center transition-all', isCollapsed && !mobile ? 'justify-center' : 'gap-3')}>
             <img
               src={kifayti_logo}
               alt="Kifayti logo"

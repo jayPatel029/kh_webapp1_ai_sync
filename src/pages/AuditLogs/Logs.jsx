@@ -63,7 +63,7 @@ function Logs() {
                 {/* Log Type Cards */}
                 <Flex gap={6} wrap="wrap" justify="center">
                   {/* Patient Logs Card */}
-                  <Link to="/PatientLogs" className="no-underline">
+                  <Link to="/settings/logs/patient" className="no-underline">
                     <Card className="w-[280px] hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#4164df]">
                       <CardBody className="p-8 text-center">
                         <Box className="w-[80px] h-[80px] mx-auto mb-4 rounded-full bg-[#e8f4f8] flex items-center justify-center">
@@ -76,7 +76,7 @@ function Logs() {
                   </Link>
 
                   {/* Doctor Logs Card */}
-                  <Link to="/DocLogs" className="no-underline">
+                  <Link to="/settings/logs/doctor" className="no-underline">
                     <Card className="w-[280px] hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#4164df]">
                       <CardBody className="p-8 text-center">
                         <Box className="w-[80px] h-[80px] mx-auto mb-4 rounded-full bg-[#e8f4f8] flex items-center justify-center">
@@ -97,3 +97,4 @@ function Logs() {
 }
 
 export default Logs;
+

@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Flex, Box, Badge } from '../component-library';
 import '../design-system/styles/index.css';
 import alarmIcon from '../assets/alarm.svg';
@@ -16,6 +16,7 @@ import labIcon from '../assets/lab_Report.svg';
 import prescIcon from '../assets/prescription.svg';
 import reqIcon from '../assets/Requsition_report.svg';
 import manageIcon from '../assets/admin_management.png';
+import { ROUTES } from '../routes/routeConstants';
 
 export const PatientNavTabs = ({
   patientId,
@@ -25,16 +26,17 @@ export const PatientNavTabs = ({
   role,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const tabs = [
-    { id: 'alarms', label: 'Alarms', path: `/ShowAlarms/${patientId}`, visible: !(role?.role_name === 'Dialysis Technician') },
-    { id: 'diet', label: 'Diet Details', path: `/UserDietDetails/${patientId}`, state: userData, visible: !(role?.role_name === 'Dialysis Technician') },
-    { id: 'adminChat', label: 'Admin Chat', path: `/adminChat/${patientId}`, unread: unreadAdminCount, visible: !(role?.role_name === 'Dialysis Technician' || role?.role_name === 'Medical Staff') },
-    { id: 'doctorChat', label: 'Doctor Chat', path: `/doctorChat/${patientId}`, unread: unreadDoctorCount, visible: !(role?.role_name === 'Medical Staff' || role?.role_name === 'Dialysis Technician') },
-    { id: 'labs', label: 'Lab Reports', path: `/UserLabReports/${patientId}`, state: userData, visible: true },
-    { id: 'prescriptions', label: 'Prescriptions', path: `/Userprescription/${patientId}`, state: userData, visible: true },
-    { id: 'requisition', label: 'Requisition Reports', path: `/UserRequisition/${patientId}`, state: userData, visible: true },
-    { id: 'manage', label: 'Manage Parameters', path: `/manageparameters/${patientId}`, state: userData, visible: role?.role_name === 'Admin' },
+    { id: 'alarms', label: 'Alarms', path: ROUTES.patientAlarms(patientId), visible: !(role?.role_name === 'Dialysis Technician') },
+    { id: 'diet', label: 'Diet Details', path: ROUTES.withPatientQuery(ROUTES.MEDICAL_DIET, patientId), state: userData, visible: !(role?.role_name === 'Dialysis Technician') },
+    { id: 'adminChat', label: 'Admin Chat', path: ROUTES.chatAdmin(patientId), unread: unreadAdminCount, visible: !(role?.role_name === 'Dialysis Technician' || role?.role_name === 'Medical Staff') },
+    { id: 'doctorChat', label: 'Doctor Chat', path: ROUTES.chatDoctor(patientId), unread: unreadDoctorCount, visible: !(role?.role_name === 'Medical Staff' || role?.role_name === 'Dialysis Technician') },
+    { id: 'labs', label: 'Lab Reports', path: ROUTES.withPatientQuery(ROUTES.MEDICAL_LABS, patientId), state: userData, visible: true },
+    { id: 'prescriptions', label: 'Prescriptions', path: ROUTES.withPatientQuery(ROUTES.MEDICAL_PRESCRIPTIONS, patientId), state: userData, visible: true },
+    { id: 'requisition', label: 'Requisition Reports', path: ROUTES.withPatientQuery(ROUTES.MEDICAL_REQUISITIONS, patientId), state: userData, visible: true },
+    { id: 'manage', label: 'Manage Parameters', path: ROUTES.patientParameters(patientId), state: userData, visible: role?.role_name === 'Admin' },
   ];
 
   const icons = {
@@ -49,7 +51,7 @@ export const PatientNavTabs = ({
     kfre: manageIcon,
   };
 
-  const isActive = (path) => path === window.location.pathname;
+  const isActive = (path) => `${location.pathname}${location.search}` === path;
 
   return (
     <Flex

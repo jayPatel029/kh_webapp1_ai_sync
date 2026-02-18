@@ -17,7 +17,7 @@ function DialysisReadingCsv() {
               title="Bulk Upload Dialysis Readings"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
-                { label: "Dialysis Readings", path: "/dialysisReadings" },
+                { label: "Dialysis Readings", path: "/readings/dialysis" },
                 { label: "Bulk Upload", active: true }
               ]}
             />
@@ -33,3 +33,4 @@ function DialysisReadingCsv() {
 }
 
 export default DialysisReadingCsv;
+

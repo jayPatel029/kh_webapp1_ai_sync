@@ -16,6 +16,7 @@ export default function DailyTable({
   setTranslations,
   setIsFormModalOpen,
   resetFormState,
+  setIsBulkUploadModalOpen,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [tableData, setTableData] = useState([]);
@@ -63,13 +64,12 @@ export default function DailyTable({
               >
                 Add Dialysis Reading
               </button>
-              <Link
-                to="/dialysisReadingsCsv"
+              <button
+                onClick={() => setIsBulkUploadModalOpen(true)}
                 className="admin-btn admin-btn--secondary"
-                style={{ textDecoration: 'none' }}
               >
                 Bulk Upload Question
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -173,3 +173,4 @@ export default function DailyTable({
     </>
   );
 }
+

@@ -265,7 +265,7 @@ function KfreSingleList() {
   return (
     <div className="bg-white md:p-6 border p-28 ml-4 mr-4 mt-4 rounded-md border-t-primary border-t-4 shadow-md">
       <Link
-                to={`/userProfile/${id.id}`}
+                to={`/patients/${id.id}`}
                 className="text-primary border-b-2 border-primary">
                 go back
               </Link>
@@ -461,3 +461,4 @@ function KfreSingleList() {
 }
 
 export default KfreSingleList;
+

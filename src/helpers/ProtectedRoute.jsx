@@ -1,15 +1,38 @@
 import React from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setPermissions } from "../redux/permissionSlice";
 import { identifyRole } from "../ApiCalls/authapis";
 import { useEffect } from "react";
 
 const ProtectedRoute = ({ routeName, children }) => {
-  const navigator = useNavigate();
   const dispatch = useDispatch();
   const role = useSelector((state) => state.permission);
   const token = localStorage.getItem("token");
+
+  const permissionMap = {
+    CreateAdmin: "createAdmin",
+    AlimentMaster: "ailmentMaster",
+    ChangePassword: "changePassword",
+    DailyReadings: "dailyReadings",
+    DialysisReadings: "dialysisReadings",
+    ProfileQuestions: "profileQuestions",
+    UserProgramSelection: "userProgramSelection",
+    Patient: "patients",
+    UserRoles: "manageRoles",
+    DoctorManagement: "createDoctor",
+    ShowAlarms: "patients",
+    ManageParameters: "patients",
+    Userprescription: "patients",
+    UserLabReports: "patients",
+    UserDietDetails: "patients",
+    UserRequisition: "patients",
+    AdminChat: "patients",
+    DoctorChat: "patients",
+    LanguageMaster: "createAdmin",
+    ContactUsPage: "feedback",
+    logs: "changePassword",
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -26,69 +49,16 @@ const ProtectedRoute = ({ routeName, children }) => {
   }, []);
 
   if (!token) {
-    return <Navigate to="/doctorLogin" />;
-  } else {
-    switch (routeName) {
-      case "CreateAdmin":
-        if (role.createAdmin > 0) {
-          return children;
-        } else {
-          navigator("/login");
-        }
-        break;
-      case "AlimentMaster":
-        if (role.ailmentMaster > 0) {
-          return children;
-        } else {
-          navigator("/login");
-        }
-        break;
-      case "ChangePassword":
-        if (role.changePassword > 0) {
-          return children;
-        } else {
-          navigator("/login");
-        }
-        break;
-      case "DailyReadings":
-        if (role.dailyReadings > 0) {
-          return children;
-        } else {
-          navigator("/login");
-        }
-        break;
-      case "DialysisReadings":
-        if (role.dialysisReadings > 0) {
-          return children;
-        } else {
-          navigator("/login");
-        }
-        break;
-      case "ProfileQuestions":
-        if (role.profileQuestions > 0) {
-          return children;
-        } else {
-          navigator("/login");
-        }
-        break;
-      case "UserProgramSelection":
-        if (role.userProgramSelection > 0) {
-          return children;
-        } else {
-          navigator("/login");
-        }
-        break;
-      case "Patient":
-        if (role.patients > 0) {
-          return children;
-        } else {
-          navigator("/login");
-        }
-        break;
-      default:
-        return children;
-    }
+    return <Navigate to="/doctorLogin" replace />;
   }
+
+  const permissionKey = permissionMap[routeName];
+
+  if (permissionKey && !(role?.[permissionKey] > 0)) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 };
 
 export default ProtectedRoute;

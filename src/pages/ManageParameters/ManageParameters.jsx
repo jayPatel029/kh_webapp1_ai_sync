@@ -6,9 +6,10 @@
  */
 
 import React, { useState, useEffect, useLayoutEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Select from "react-select";
+import { ROUTES } from "../../routes/routeConstants";
 
 // Component Library
 import {
@@ -67,7 +68,9 @@ function ManageParameters() {
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
 
-  const { pid } = useParams();
+  const { pid, id } = useParams();
+  const [searchParams] = useSearchParams();
+  const patientId = pid || id || searchParams.get("patientId");
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
 
@@ -102,7 +105,7 @@ function ManageParameters() {
   }, []);
 
   async function getParameterData() {
-    getAllUserReadingsByPid(pid).then((response) => {
+    getAllUserReadingsByPid(patientId).then((response) => {
       if (response.success) {
         setParameterData(response.data);
       } else {
@@ -113,7 +116,7 @@ function ManageParameters() {
 
   const fetchPatientData = async () => {
     try {
-      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${pid}`);
+      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${patientId}`);
       setUserData(response.data.data);
     } catch (error) {
       console.error("Error fetching patient data:", error);
@@ -123,7 +126,7 @@ function ManageParameters() {
   useEffect(() => {
     const getUnreadMessagesFromAdmin = async () => {
       try {
-        const chatResult = await getAllChatsAdmin(pid);
+        const chatResult = await getAllChatsAdmin(patientId);
         if (chatResult.success) {
           const unreadMsgs = chatResult.data.filter((chat) => chat.unreadCount > 0);
           setTotalUnreadCount(unreadMsgs.reduce((acc, chat) => acc + chat.unreadCount, 0));
@@ -133,12 +136,12 @@ function ManageParameters() {
       }
     };
     getUnreadMessagesFromAdmin();
-  }, [pid]);
+  }, [patientId]);
 
   useEffect(() => {
     getParameterData();
     fetchPatientData();
-  }, [errMsg, pid]);
+  }, [errMsg, patientId]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -175,7 +178,7 @@ function ManageParameters() {
     try {
       var ailments = await selectedAilments.map((ailment) => ailment.value);
       const newData = {
-        id: pid,
+        id: patientId,
         title: selectTitle,
         parameterType: selectParameterType,
         type: selectReadingType,
@@ -259,17 +262,17 @@ function ManageParameters() {
               <PageHeader
                 title="Manage Parameters"
                 breadcrumbs={[
-                 // { label: "All Patients", path: "/patient" },
-                  { label: "Patient", path: `/userProfile/${pid}`, active: false },
+                 // { label: "All Patients", path: "/patients" },
+                  { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
                   { label: "Manage Parameters", active: true }
                 ]}
-                onBack={() => navigate(`/userProfile/${pid}`)}
+                onBack={() => navigate(ROUTES.patientDetail(patientId))}
               />
             </Flex>
 
             {/* Navigation Tabs */}
             <PatientNavTabs
-              patientId={pid}
+              patientId={patientId}
               userData={userData}
               unreadAdminCount={totalUnreadCount}
               unreadDoctorCount={totalUnreadCountDoc}
@@ -642,3 +645,4 @@ function ManageParameters() {
 }
 
 export default ManageParameters;
+

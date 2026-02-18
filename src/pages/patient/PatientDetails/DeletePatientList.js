@@ -88,7 +88,7 @@ export default function DelPatientList({ data, patientId }) {
   };
 
   const handleRowClick = (row) => {
-    navigate(`/userProfile/${row?.id}`, { state: row });
+    navigate(`/patients/${row?.id}`, { state: row });
   };
 
   const pageCount = Math.ceil(filteredData.length / recordsPerPage);
@@ -326,3 +326,4 @@ export default function DelPatientList({ data, patientId }) {
     </div>
   );
 }
+

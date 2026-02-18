@@ -12,6 +12,7 @@ import TranslationModal from "../../../components/modals/TranslationModel";
 import { se } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { FormModal } from "../../../component-library/modals/FormModal";
+import DialysisReadingsBulkUploadModal from "../DialysisReadingsBulkUploadModal";
 import {
   FormControl,
   FormLabel,
@@ -27,6 +28,7 @@ function DialysisReadingsList() {
 
   const [modelOpen, setModelOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [translations, setTranslations] = useState({});
 
   const closeModal = () => {
@@ -430,6 +432,14 @@ function DialysisReadingsList() {
         setSuccessful={setSuccessful}
         setIsFormModalOpen={setIsFormModalOpen}
         resetFormState={resetFormState}
+        setIsBulkUploadModalOpen={setIsBulkUploadModalOpen}
+      />
+      <DialysisReadingsBulkUploadModal
+        isOpen={isBulkUploadModalOpen}
+        onClose={() => {
+          setIsBulkUploadModalOpen(false);
+          setSuccessful("Bulk upload completed successfully!");
+        }}
       />
     </div>
   );

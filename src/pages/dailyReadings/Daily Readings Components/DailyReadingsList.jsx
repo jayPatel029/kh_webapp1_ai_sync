@@ -11,6 +11,7 @@ import { getLanguages } from "../../../ApiCalls/languageApis";
 import TranslationModal from "../../../components/modals/TranslationModel";
 import { Link } from "react-router-dom";
 import { FormModal } from "../../../component-library/modals/FormModal";
+import DailyReadingsBulkUploadModal from "../DailyReadingsBulkUploadModal";
 import {
   FormControl,
   FormLabel,
@@ -26,6 +27,7 @@ function DailyForm() {
 
   const [modelOpen, setModelOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [translations, setTranslations] = useState({});
 
   const closeModal = () => {

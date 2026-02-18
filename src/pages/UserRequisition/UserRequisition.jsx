@@ -6,8 +6,9 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { ROUTES } from "../../routes/routeConstants";
 
 // Component Library
 import { Box, Flex, Button as ButtonPrimitive } from "../../component-library";
@@ -48,7 +49,9 @@ const UserRequisition = () => {
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
   const [selectedSort, setSelectedSort] = useState("");
 
-  const { id } = useParams();
+  const { id: idParam } = useParams();
+  const [searchParams] = useSearchParams();
+  const id = idParam || searchParams.get("patientId");
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
@@ -164,7 +167,7 @@ const UserRequisition = () => {
       totalUnreadCount={totalUnreadCount}
       totalUnreadCountDoc={totalUnreadCountDoc}
       loading={loading}
-      onBackClick={() => navigate("/patient")}
+      onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
       {/* Sort Controls + Upload (single row) */}
       <Flex align="center" justify="between" className="mb-5 gap-4 flex-wrap">

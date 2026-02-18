@@ -6,8 +6,9 @@
  */
 
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { ROUTES } from "../../routes/routeConstants";
 
 // Component Library
 import { Box, Flex, Button } from "../../component-library";
@@ -47,7 +48,9 @@ const ShowAlarms = () => {
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const { pid } = useParams();
+  const { pid, id } = useParams();
+  const [searchParams] = useSearchParams();
+  const patientId = pid || id || searchParams.get("patientId");
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
 
@@ -116,7 +119,7 @@ const ShowAlarms = () => {
   const fetchData = async () => {
     try {
       const result = await axiosInstance.get(
-        `${server_url}/alarms/byPatientId/${pid}`
+        `${server_url}/alarms/byPatientId/${patientId}`
       );
       setUserAlarmData(result.data.data);
       setDosesData(result.data.doses);
@@ -127,7 +130,7 @@ const ShowAlarms = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${pid}`);
+      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${patientId}`);
       setUserData(response.data.data);
     } catch (error) {
       console.error("Error fetching patient data:", error);
@@ -152,7 +155,7 @@ const ShowAlarms = () => {
   useEffect(() => {
     const getUnreadMessagesFromAdmin = async () => {
       try {
-        const chatResult = await getAllChatsAdmin(pid);
+        const chatResult = await getAllChatsAdmin(patientId);
         if (chatResult.success) {
           const unreadMsgs = chatResult.data.filter((chat) => chat.unreadCount > 0);
           setTotalUnreadCount(unreadMsgs.reduce((acc, chat) => acc + chat.unreadCount, 0));
@@ -162,7 +165,7 @@ const ShowAlarms = () => {
       }
     };
     getUnreadMessagesFromAdmin();
-  }, [pid]);
+  }, [patientId]);
 
   const AlarmRow = ({ alarm }) => {
     const alarmId = localStorage.getItem("alarmId");
@@ -214,12 +217,12 @@ const ShowAlarms = () => {
   return (
     <PatientDetailLayout
       title="Alarm Details"
-      patientIdParam="pid"
+      patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
       totalUnreadCountDoc={totalUnreadCountDoc}
       loading={loading}
-      onBackClick={() => navigate("/patient")}
+      onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
       {/* Add Alarm Button */}
       <Flex justify="end" align="center" className="mb-6">
@@ -249,13 +252,13 @@ const ShowAlarms = () => {
       />
 
       {/* Modals */}
-      {showModal && <AlarmModal closeModal={closeModal} pid={pid} />}
+      {showModal && <AlarmModal closeModal={closeModal} pid={patientId} />}
 
       {showEditModal && !isDoctor && (
         <EditAlarmModal
           closeModal={closeEditModal}
           alarmData={editData}
-          pid={pid}
+          pid={patientId}
           dosesData={dosesData}
         />
       )}
@@ -264,7 +267,7 @@ const ShowAlarms = () => {
         <DoctorAlarmModal
           closeModal={closeDoctorModal}
           alarmData={editData}
-          pid={pid}
+          pid={patientId}
         />
       )}
     </PatientDetailLayout>
