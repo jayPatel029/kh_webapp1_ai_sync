@@ -16,7 +16,7 @@ const getPrescriptionDissapprovalAlert = async (id,date,type0) => {
         type0: type0,
         type: `Prescription Dissapproved by ${doctorName}`,
         date: date,
-        redirect: `/patients/${patientID}/alarms`,
+        redirect: `/userProfile/${patientID}/alarms`,
         alarmId: alarmId,
     }
 
@@ -36,7 +36,7 @@ const doctorMessageToAdminAlert = async (id,date,type0) => {
         type0: type0,
         type: `${doctorName}: ${message}`,
         date: date,
-        redirect: `/chat/admin?patientId=${patientId}`
+        redirect: `/userProfile/${patientId}/admin-chat`
     }
 
     return data;
@@ -58,7 +58,7 @@ const newPrescriptionUploadedAlert = async (id,date,type0) => {
         type0: type0,
         type: `New Prescription Uploaded by ${patientName}`,
         date: date,
-        redirect: `/patients/${patientID}/alarms`,
+        redirect: `/userProfile/${patientID}/alarms`,
         alarmId: alarmId,
         status: result2.data.data[0].status
     }
@@ -86,7 +86,7 @@ const newLabReportUploadedAlert = async (id,date,type0) => {
         type0: type0,
         type: `New Lab Report Uploaded by ${patientName}`,
         date: date,
-        redirect: `/medical/labs?patientId=${patientID}`,
+        redirect: `/userProfile/${patientID}/labs`,
         labReportId: labReportId
     }
 
@@ -172,7 +172,7 @@ const MissedPrescriptionAlert = async (id,date,type0) => {
         type0: type0,
         type: `Missed Prescription Alarm for ${patientName}`,
         date: date,
-        redirect: `/patients/${patientID}/alarms`,
+        redirect: `/userProfile/${patientID}/alarms`,
         alarmId: alarmId
     
     }

@@ -89,7 +89,7 @@ const getLegacyRedirectRoutes = () => [
     element: <LegacyParamRedirect buildTo={({ id }) => `${ROUTES.patientDetail(id)}/delete`} />,
   },
   {
-    path: "userProfile/:id",
+    path: "patients/:id",
     element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.patientDetail(id)} />,
   },
   {
@@ -114,30 +114,55 @@ const getLegacyRedirectRoutes = () => [
 
   {
     path: "Userprescription/:id",
-    element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.withPatientQuery(ROUTES.MEDICAL_PRESCRIPTIONS, id)} />,
+    element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.patientPrescriptions(id)} />,
   },
-  { path: "Userprescription", element: <Navigate to={ROUTES.MEDICAL_PRESCRIPTIONS} replace /> },
+  { path: "Userprescription", element: <Navigate to={ROUTES.PATIENTS} replace /> },
   {
     path: "Userlabreports/:id",
-    element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.withPatientQuery(ROUTES.MEDICAL_LABS, id)} />,
+    element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.patientLabs(id)} />,
   },
-  { path: "Userlabreports", element: <Navigate to={ROUTES.MEDICAL_LABS} replace /> },
+  { path: "Userlabreports", element: <Navigate to={ROUTES.PATIENTS} replace /> },
   {
     path: "UserDietDetails/:id",
-    element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.withPatientQuery(ROUTES.MEDICAL_DIET, id)} />,
+    element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.patientDiet(id)} />,
   },
   {
     path: "Userrequisition/:id",
-    element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.withPatientQuery(ROUTES.MEDICAL_REQUISITIONS, id)} />,
+    element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.patientRequisitions(id)} />,
   },
-  { path: "Userrequisition", element: <Navigate to={ROUTES.MEDICAL_REQUISITIONS} replace /> },
+  { path: "Userrequisition", element: <Navigate to={ROUTES.PATIENTS} replace /> },
   {
     path: "adminChat/:pid",
-    element: <LegacyParamRedirect buildTo={({ pid }) => ROUTES.chatAdmin(pid)} />,
+    element: <LegacyParamRedirect buildTo={({ pid }) => ROUTES.patientAdminChat(pid)} />,
   },
   {
     path: "doctorChat/:pid",
-    element: <LegacyParamRedirect buildTo={({ pid }) => ROUTES.chatDoctor(pid)} />,
+    element: <LegacyParamRedirect buildTo={({ pid }) => ROUTES.patientDoctorChat(pid)} />,
+  },
+
+  {
+    path: "medical/prescriptions",
+    element: <Navigate to={ROUTES.PATIENTS} replace />,
+  },
+  {
+    path: "medical/labs",
+    element: <Navigate to={ROUTES.PATIENTS} replace />,
+  },
+  {
+    path: "medical/diet",
+    element: <Navigate to={ROUTES.PATIENTS} replace />,
+  },
+  {
+    path: "medical/requisitions",
+    element: <Navigate to={ROUTES.PATIENTS} replace />,
+  },
+  {
+    path: "chat/admin",
+    element: <Navigate to={ROUTES.PATIENTS} replace />,
+  },
+  {
+    path: "chat/doctor",
+    element: <Navigate to={ROUTES.PATIENTS} replace />,
   },
 
   { path: "changePassword", element: <Navigate to={ROUTES.SETTINGS_PASSWORD} replace /> },
@@ -160,7 +185,7 @@ const getLegacyRedirectRoutes = () => [
 
   { path: "aiChat", element: <Navigate to={ROUTES.AI_CHAT} replace /> },
   { path: "doctorDashboard", element: <Navigate to={ROUTES.DOCTOR_DASHBOARD} replace /> },
-  { path: "labReports", element: <Navigate to={ROUTES.READINGS_IMPORT} replace /> },
+  { path: "labReports", element: <Navigate to={ROUTES.READINGS_DAILY} replace /> },
   { path: "logout", element: <Navigate to={ROUTES.DOCTOR_LOGIN} replace /> },
 ];
 

@@ -7,9 +7,17 @@ export const ROUTES = {
   PATIENTS_NEW: "/patients/new",
   PATIENTS_DELETED: "/patients/deleted",
   PATIENTS_LOGS: "/patients/logs",
-  patientDetail: (id = ":id") => `/patients/${id}`,
-  patientAlarms: (id = ":id") => `/patients/${id}/alarms`,
-  patientParameters: (id = ":id") => `/patients/${id}/parameters`,
+  USER_PROFILE: "/userProfile",
+  userProfile: (id = ":id") => `/userProfile/${id}`,
+  patientDetail: (id = ":id") => `/userProfile/${id}`,
+  patientAlarms: (id = ":id") => `/userProfile/${id}/alarms`,
+  patientParameters: (id = ":id") => `/userProfile/${id}/parameters`,
+  patientPrescriptions: (id = ":id") => `/userProfile/${id}/prescriptions`,
+  patientLabs: (id = ":id") => `/userProfile/${id}/labs`,
+  patientDiet: (id = ":id") => `/userProfile/${id}/diet`,
+  patientRequisitions: (id = ":id") => `/userProfile/${id}/requisitions`,
+  patientAdminChat: (id = ":id") => `/userProfile/${id}/admin-chat`,
+  patientDoctorChat: (id = ":id") => `/userProfile/${id}/doctor-chat`,
 
   READINGS_DAILY: "/readings/daily",
   READINGS_DIALYSIS: "/readings/dialysis",
@@ -38,9 +46,9 @@ export const ROUTES = {
   CHAT_ADMIN: "/chat/admin",
   CHAT_DOCTOR: "/chat/doctor",
   chatAdmin: (patientId) =>
-    patientId ? `/chat/admin?patientId=${patientId}` : "/chat/admin",
+    patientId ? `/userProfile/${patientId}/admin-chat` : "/chat/admin",
   chatDoctor: (patientId) =>
-    patientId ? `/chat/doctor?patientId=${patientId}` : "/chat/doctor",
+    patientId ? `/userProfile/${patientId}/doctor-chat` : "/chat/doctor",
 
   SETTINGS: "/settings",
   SETTINGS_LANGUAGE: "/settings/language",

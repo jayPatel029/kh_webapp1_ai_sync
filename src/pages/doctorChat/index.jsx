@@ -6,7 +6,7 @@ import { MdSend } from "react-icons/md";
 import dummyAdmin from "../../assets/dummyadmin.png";
 import { getUsers } from "../../ApiCalls/authapis";
 import { getPatientById } from "../../ApiCalls/patientAPis";
-import { useParams, Link, useSearchParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { identifyRole } from "../../ApiCalls/authapis";
 import { getDoctors, getDoctorsChat } from "../../ApiCalls/doctorApis";
 import { Box, Button, Input, Badge, Card,Flex } from "../../component-library";
@@ -26,9 +26,7 @@ import PatientNavTabs from "../../components/PatientNavTabs";
 
 
 const ChatApp = () => {
-  const { pid, id } = useParams();
-  const [searchParams] = useSearchParams();
-  const patientId = pid || id || searchParams.get("patientId");
+  const { id: patientId } = useParams();
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);

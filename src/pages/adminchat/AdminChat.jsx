@@ -10,7 +10,7 @@ import {
   getPatientById,
   getPatientMedicalTeam,
 } from "../../ApiCalls/patientAPis";
-import { useParams, Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { adminEmail } from "../../constants/constants";
 import { ROUTES } from "../../routes/routeConstants";
 import {
@@ -27,9 +27,7 @@ import { createMessageAlert } from "../../ApiCalls/alertsApis";
 import { Container, Box } from "../../component-library";
 
 const ChatApp = () => {
-  const { pid, id } = useParams();
-  const [searchParams] = useSearchParams();
-  const patientId = pid || id || searchParams.get("patientId");
+  const { id: patientId } = useParams();
   const location = useLocation();
 
   const [role, setRole] = useState("");

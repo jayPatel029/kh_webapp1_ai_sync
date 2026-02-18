@@ -54,6 +54,15 @@ const ProtectedRoute = ({ routeName, children }) => {
 
   const permissionKey = permissionMap[routeName];
 
+  // allow Admin and PSadmin to access patient-related routes even when permission bits are 0
+  const roleName = role?.role_name;
+  const isAdminRole = roleName === "Admin" || roleName === "PSadmin";
+
+  // bypass permission check for patient routes for admin roles
+  if (permissionKey === "patients" && isAdminRole) {
+    return children;
+  }
+
   if (permissionKey && !(role?.[permissionKey] > 0)) {
     return <Navigate to="/login" replace />;
   }

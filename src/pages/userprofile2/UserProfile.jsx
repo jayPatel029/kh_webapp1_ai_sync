@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { ROUTES } from "../../routes/routeConstants";
 
 // Redesigned components
 import NameModal from "./NameModal";
@@ -238,10 +239,10 @@ function UserProfile() {
               title="Patient Profile"
               breadcrumbs={[
                // { label: "All Patients", path: "/patients" },
-                { label: "Patient", path: `/patients/${id}`, active: false },
+                { label: "Patient", path: ROUTES.patientDetail(id), active: false },
                 { label: "Patient Profile", active: true }
               ]}
-              onBack={() => navigate("/patients")}
+              onBack={() => navigate(ROUTES.PATIENTS)}
             />
           </Flex>
 

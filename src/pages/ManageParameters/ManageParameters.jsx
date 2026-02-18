@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useLayoutEffect } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Select from "react-select";
 import { ROUTES } from "../../routes/routeConstants";
@@ -68,9 +68,7 @@ function ManageParameters() {
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
 
-  const { pid, id } = useParams();
-  const [searchParams] = useSearchParams();
-  const patientId = pid || id || searchParams.get("patientId");
+  const { id: patientId } = useParams();
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
 

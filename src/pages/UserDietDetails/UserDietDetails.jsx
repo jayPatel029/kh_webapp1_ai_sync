@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { ROUTES } from "../../routes/routeConstants";
 
@@ -39,9 +39,7 @@ const UserDietDetails = () => {
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
 
-  const { id: idParam } = useParams();
-  const [searchParams] = useSearchParams();
-  const id = idParam || searchParams.get("patientId");
+  const { id } = useParams();
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
 

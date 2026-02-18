@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { ROUTES } from "../../routes/routeConstants";
 
@@ -48,9 +48,7 @@ const ShowAlarms = () => {
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const { pid, id } = useParams();
-  const [searchParams] = useSearchParams();
-  const patientId = pid || id || searchParams.get("patientId");
+  const { id: patientId } = useParams();
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
 

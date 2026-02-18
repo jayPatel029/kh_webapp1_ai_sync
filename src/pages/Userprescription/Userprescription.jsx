@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { ROUTES } from "../../routes/routeConstants";
 
@@ -50,9 +50,7 @@ const Userprescription = () => {
     label: doctor.name,
   }));
 
-  const { id: idParam } = useParams();
-  const [searchParams] = useSearchParams();
-  const id = idParam || searchParams.get("patientId");
+  const { id } = useParams();
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
