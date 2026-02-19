@@ -93,21 +93,12 @@ export {
   Toast,
   Spinner,
   Skeleton,
-  SkeletonText,
-  SkeletonCircle,
 } from '../component-library/feedback';
 
 // Navigation
 export {
   Navbar,
-  NavbarBrand,
-  NavbarContent,
-  NavbarActions,
   Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarItem,
-  SidebarGroup,
   NavLink,
 } from '../component-library/navigation';
 
@@ -118,11 +109,28 @@ export { PatientNavTabs } from './PatientNavTabs';
 export { PatientProfileCard } from './PatientProfileCard';
 export { ParameterSection } from './ParameterSection';
 
+// Form Components
+export { SearchBar } from './SearchBar';
+
 // Theme
 export { ThemeProvider, useTheme, useThemeColors, useThemeTypography, ThemeContext } from './ThemeProvider';
 
 // Modals
 export * from './modals';
 
+// Tables & List Components (Unified)
+export {
+  UnifiedListTable,
+  PatientListTable,
+  ParametersListTable,
+  ReadingsListTable,
+  ReadingsTable,
+  DialysisTable,
+  Table,
+} from './table';
+
 // Questions
 export { default as QuestionsContainer } from './questions/QuestionsContainer';
+
+// Bulk Upload (Unified CSV Component)
+export { BulkUploadProof } from './BulkUploadProof';

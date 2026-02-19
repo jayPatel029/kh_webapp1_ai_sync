@@ -213,4 +213,4 @@ SidebarGroup.propTypes = {
   className: PropTypes.string,
 };
 
-export default Sidebar;
+export default Sidebar; 

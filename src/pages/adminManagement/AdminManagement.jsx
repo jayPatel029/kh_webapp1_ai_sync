@@ -10,6 +10,8 @@ import {
 } from "../../ApiCalls/authapis";
 import { useSelector } from "react-redux";
 import PageHeader from "../../components/PageHeader";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 import {
   Box,
@@ -22,6 +24,7 @@ import {
 } from "../../component-library";
 
 function AdminManagement() {
+  const navigate = useNavigate();
   const myRole = useSelector((state) => state.permission);
   const [roles, setRoles] = useState([]);
   const [successful, setSuccessful] = useState("");
@@ -197,15 +200,16 @@ function AdminManagement() {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-          <Container className="py-4 px-4 md:px-6 mx-0">
+           
             <PageHeader
               title="Create Admin"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
                 { label: "Create Admin", active: true }
               ]}
+              onBack={() => navigate(ROUTES.USERS_ADMINS)}
             />
-          </Container>
+           
         </Box>
 
 

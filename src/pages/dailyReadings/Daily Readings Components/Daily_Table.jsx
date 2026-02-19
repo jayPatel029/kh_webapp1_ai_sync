@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { ReactComponent as SearchIcon } from "../../../assets/search_icon.svg";
+import React, { useState, useEffect, useMemo } from "react";
 import { BsPencilSquare, BsTrash } from "react-icons/bs";
 import {
   deleteDailyReading,
   getDailyReadings,
 } from "../../../ApiCalls/readingsApis";
+import { UnifiedListTable, SearchBar } from "../../../components";
 import { useSelector } from "react-redux";
+import { Button } from "../../../component-library";
 
 export default function DailyTable({
   setEditMode,
@@ -16,162 +16,136 @@ export default function DailyTable({
   setTranslations,
   setIsFormModalOpen,
   resetFormState,
+  isBulkUploadModalOpen,
   setIsBulkUploadModalOpen,
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
   const [tableData, setTableData] = useState([]);
-  const [resetter, setResetter] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const role = useSelector((state) => state.permission);
-  useEffect(() => {
-    console.log("role here", role);
-    getDailyReadings()
-      .then((data) => setTableData(data.data))
-      .catch((error) => console.error("Error fetching data:", error));
-      console.log('data', tableData);
-  }, [successful, resetter]);
 
-  const filteredData = tableData.filter((item) =>
-    item.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  // console.log('data',filteredData);
+  useEffect(() => {
+    getDailyReadings()
+      .then((data) => setTableData(data.data || []))
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+        setTableData([]);
+      });
+  }, [successful]);
+
+  const columns = useMemo(() => [
+    { key: 'title', label: 'Title', type: 'text', width: '250px' },
+    { key: 'alertTextDoc', label: 'Alert Text', type: 'text', width: '200px' },
+    { key: 'ailmentsDisplay', label: 'Ailment', type: 'text', width: '200px' },
+    { key: 'condition', label: 'Condition', type: 'text', width: '150px' },
+    { key: 'actions', label: 'Action', type: 'actions', width: '100px' }
+  ], []);
+
+  const formattedData = useMemo(() => {
+    return tableData
+      .filter(item => item.showUser === 0)
+      .map((item) => ({
+        ...item,
+        ailmentsDisplay: item.ailments?.map((x) => x.name).join(", ") || "-",
+        actions: item
+      }));
+  }, [tableData]);
+
+  const handleEdit = (item) => {
+    setSuccessful("");
+    newReadingDsipatch({
+      type: "all",
+      payload: {
+        id: item.id,
+        ailment: item.ailments?.map((x) => ({ value: x.id, label: x.name })) || [],
+        type: item.type,
+        title: item.title,
+        assign_range: item.assign_range,
+        lower_assign_range: item.low_range,
+        upper_assign_range: item.high_range,
+        sendAlert: item.sendAlert ? 1 : 0,
+        unit: item.unit,
+        isGraph: item.is_graph ? 1 : 0,
+        alertTextDoc: item.alertTextDoc,
+        condition: item.condition,
+      },
+    });
+    if (item.daily_readings_translations) {
+      let translationDict = {};
+      item.daily_readings_translations.forEach((element) => {
+        translationDict[element.language_id] = element.title;
+      });
+      setTranslations(translationDict);
+    }
+    setEditMode(true);
+    setIsFormModalOpen?.(true);
+  };
+
+  const handleDelete = (item) => {
+    if (window.confirm(`Delete reading "${item.title}"?`)) {
+      setSuccessful("");
+      deleteDailyReading(item.id).then(() => {
+        setSuccessful("Reading Deleted Successful!");
+      });
+    }
+  };
 
   return (
-    <>
-      <div className="admin-card">
-        <div className="admin-card__header">
-          <div className="flex justify-between items-center w-full flex-wrap gap-4">
-            <div>
-              <p className="text-sm text-gray-500">
-                ({tableData.length} records found)
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="admin-search">
-                <SearchIcon className="admin-search__icon" />
-                <input
-                  type="text"
-                  placeholder="Search Term"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="admin-search__input"
-                />
-              </div>
-              <button
-                className="admin-btn admin-btn--primary"
-                onClick={() => {
-                  resetFormState();
-                  setIsFormModalOpen(true);
-                }}
-              >
-                Add Daily Reading
-              </button>
-              <button
-                onClick={() => setIsBulkUploadModalOpen(true)}
-                className="admin-btn admin-btn--secondary"
-              >
-                Bulk Upload Question
-              </button>
-            </div>
+    <div className="admin-card">
+      <div className="admin-card__header">
+        <div className="admin-toolbar">
+          <div className="admin-toolbar__left">
+            <SearchBar
+              placeholder="Search by title or condition..."
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: "250px" }}
+            />
           </div>
-        </div>
 
-        <div className="admin-card__body">
-          <div className="overflow-x-auto">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th scope="col" className="w-1/3">Title</th>
-                  <th scope="col">Alert Text</th>
-                  <th scope="col">Ailment</th>
-                  <th scope="col">Condition</th>
-                  <th scope="col">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.map((item, index) => {
-                  const displayAilment = item.ailments
-                    .map((x) => x.name)
-                    .join(", ");
-                  if (item.showUser === 0) {
-                    return (
-                      <tr key={index}>
-                        <td>{item.title}</td>
-                        <td>{item.alertTextDoc}</td>
-                        <td>{displayAilment}</td>
-                        <td>{item.condition}</td>
-                        <td>
-                          <div className="flex items-center gap-2">
-                            {role.canEditDailyReadings ? (
-                              <button
-                                className="admin-action-btn admin-action-btn--edit"
-                                onClick={() => {
-                                  setSuccessful("");
-                                  newReadingDsipatch({
-                                    type: "all",
-                                    payload: {
-                                      id: item.id,
-                                      ailment: item.ailments.map((x) => {
-                                        return { value: x.id, label: x.name };
-                                      }),
-                                      type: item.type,
-                                      title: item.title,
-                                      assign_range: item.assign_range,
-                                      lower_assign_range: item.low_range,
-                                      upper_assign_range: item.high_range,
-                                      sendAlert: item.sendAlert ? 1 : 0,
-                                      unit: item.unit,
-                                      isGraph: item.is_graph ? 1 : 0,
-                                      alertTextDoc: item.alertTextDoc,
-                                      condition: item.condition,
-                                    },
-                                  });
-                                  if (item.daily_readings_translations) {
-                                    let translationDict = {};
-
-                                    item.daily_readings_translations.forEach(
-                                      (element) => {
-                                        translationDict[element.language_id] =
-                                          element.title;
-                                      }
-                                    );
-                                    setTranslations(translationDict);
-                                  }
-                                  setEditMode(true);
-                                  setIsFormModalOpen?.(true);
-                                }}
-                              >
-                                <BsPencilSquare />
-                              </button>
-                            ) : null}
-
-                            {role.canDeleteDailyReadings ? (
-                              <button
-                                className="admin-action-btn admin-action-btn--delete"
-                                onClick={() => {
-                                  setSuccessful("");
-                                  deleteDailyReading(item.id).then(() => {
-                                    setSuccessful("Reading Deleted Successful!");
-                                    setResetter(!resetter);
-                                  });
-                                }}
-                              >
-                                <BsTrash />
-                              </button>
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  }
-                  return null;
-                })}
-              </tbody>
-            </table>
+          <div className="admin-toolbar__right">
+            <span className="admin-toolbar__count">
+              {formattedData.filter(item => 
+                item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (item.condition && item.condition.toLowerCase().includes(searchTerm.toLowerCase()))
+              ).length} Records Found
+            </span>
+            <Button
+              variant="primary"
+              // className="admin-btn admin-btn--primary"
+              onClick={() => {
+                resetFormState();
+                setIsFormModalOpen(true);
+              }}
+            >
+              Add Daily Reading
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setIsBulkUploadModalOpen(true)}
+              // className="admin-btn admin-btn--secondary"
+            >
+              Bulk Upload Question
+            </Button>
           </div>
         </div>
       </div>
-    </>
+
+      <div className="admin-card__body">
+        <UnifiedListTable
+          columns={columns}
+          data={formattedData.filter(item => 
+            item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (item.condition && item.condition.toLowerCase().includes(searchTerm.toLowerCase()))
+          )}
+          enableSearch={true}
+          renderSearchUI={false}
+          searchKeys={['title', 'condition']}
+          onEdit={role.canEditDailyReadings ? handleEdit : null}
+          onDelete={role.canDeleteDailyReadings ? handleDelete : null}
+          emptyMessage="No daily readings found"
+          actionButtons={role.canEditDailyReadings || role.canDeleteDailyReadings}
+        />
+      </div>
+    </div>
   );
 }
 

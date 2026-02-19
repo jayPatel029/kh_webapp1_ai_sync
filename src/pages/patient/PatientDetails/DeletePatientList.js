@@ -7,6 +7,7 @@ import { useSelector } from "react-redux";
 import { BsTrash, BsCloudDownload } from "react-icons/bs";
 import { canExportPatient } from "../../../ApiCalls/patientAPis";
 import getValidImageUrl from "../../../helpers/utils";
+import { SearchBar } from "../../../components";
 export default function DelPatientList({ data, patientId }) {
   const recordsPerPage = 10;
   const [filteredData, setFilteredData] = useState(data);
@@ -179,15 +180,11 @@ export default function DelPatientList({ data, patientId }) {
     <div className="w-5/6 p-7 ml-4 mr-4 mt-10 mb-4 bg-white shadow-md border-t-4 border-primary ">
       <div className="flex justify-between items-center mb-4 space-x-4">
         <div className="flex flex-wrap justify-between items-center">
-          <input
-            type="text"
+          <SearchBar
             placeholder="Search by Name"
             onChange={handleFilter}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-indigo-500 w-full sm:w-auto"
+            style={{ width: "auto", minWidth: "300px" }}
           />
-          <button className="mt-2 sm:mt-0 ml-0 sm:ml-2 px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 focus:outline-none focus:bg-indigo-600 w-full sm:w-auto">
-            <i className="fas fa-search"></i> Search
-          </button>
         </div>
 
         <div className="mt-5">

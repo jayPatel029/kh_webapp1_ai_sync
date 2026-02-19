@@ -19,7 +19,7 @@ import {
   Select,
   Button
 } from "../../../component-library";
-
+import { BulkUploadProof } from '../../../components';
 function DailyForm() {
   const [editMode, setEditMode] = useState(false);
   const [successful, setSuccessful] = useState("");
@@ -435,7 +435,14 @@ function DailyForm() {
           </Select>
         </FormControl>
       </FormModal>
-
+      {/* <BulkUploadProof
+        config={{ uploadType: 'lab' }}
+        // setData={setData}
+        // setSuccess={setSuccess}
+        // success={success}
+        isOpen={isBulkUploadModalOpen}
+        onClose={() => setIsBulkUploadModalOpen(false)}
+      /> */}
       <DailyTable
         successful={successful}
         newReadingDsipatch={newReadingDsipatch}
@@ -443,6 +450,9 @@ function DailyForm() {
         setEditMode={setEditMode}
         setSuccessful={setSuccessful}
         setIsFormModalOpen={setIsFormModalOpen}
+        isBulkUploadModalOpen={isBulkUploadModalOpen}
+        setIsBulkUploadModalOpen={setIsBulkUploadModalOpen}
+        resetFormState={resetFormState}
       />
     </div>
   );

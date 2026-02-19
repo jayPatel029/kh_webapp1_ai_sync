@@ -2,7 +2,7 @@ import React from "react";
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
 
 import { questionTypes } from "./consts";
-import { useState, useReducer, useEffect } from "react";
+import { useState, useReducer, useEffect, useMemo } from "react";
 import { newQuestionReducer } from "./reducers";
 import {
   createQuestion,
@@ -19,8 +19,11 @@ import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { FormModal } from "../../component-library/modals/FormModal";
 import PageHeader from "../../components/PageHeader";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 import ProfileQuestionsBulkUploadModal from "./ProfileQuestionsBulkUploadModal";
+import { UnifiedListTable, SearchBar } from "../../components";
 import {
   Button,
   FormControl,
@@ -32,6 +35,7 @@ import {
 } from "../../component-library";
 
 function ProfileQuestions() {
+  const navigate = useNavigate();
   const [editMode, setEditMode] = useState(false);
   const [successful, setSuccessful] = useState("");
   const [errMsg, setErrMsg] = useState("");
@@ -109,7 +113,6 @@ function ProfileQuestions() {
   }, [successful]);
 
   function searchQuestion(keyword) {
-    setSearchTerm(keyword);
     if (keyword.trim() === '') {
       setQuestions(questionsList);
     } else {
@@ -245,43 +248,41 @@ function ProfileQuestions() {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-          <Container className="py-4 px-4 md:px-6 mx-0">
+           
             <PageHeader
               title="Question Master"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
                 { label: "Profile Questions", active: true }
               ]}
+              onBack={() => navigate(ROUTES.HOME)}
             />
-          </Container>
+           
         </Box>
 
          
           <div className="admin-page-content">
           <div className="admin-card">
             <div className="admin-card__header">
-                <div className="flex justify-between items-center w-full flex-wrap gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">
-                      ({questions.length} records found)
-                    </p>
+                <div className="admin-toolbar">
+                  <div className="admin-toolbar__left">
+                    <SearchBar
+                      placeholder="Search by name or type..."
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      style={{ width: "250px" }}
+                    />
                   </div>
 
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="admin-search">
-                      <svg className="admin-search__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                      <input
-                        type="text"
-                        placeholder="Search by name..."
-                        value={searchTerm}
-                        onChange={(event) => searchQuestion(event.target.value)}
-                        className="admin-search__input"
-                      />
-                    </div>
-                    <button
-                      className="admin-btn admin-btn--primary"
+                  <div className="admin-toolbar__right">
+                    <span className="admin-toolbar__count">
+                      {questions.filter(q => 
+                        q.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        q.type.toLowerCase().includes(searchTerm.toLowerCase())
+                      ).length} Records Found
+                    </span>
+                  <Button
+                    variant="primary"
+                      // className="admin-btn admin-btn--primary"
                       onClick={() => {
                         setEditMode(false);
                         setErrMsg("");
@@ -290,13 +291,14 @@ function ProfileQuestions() {
                       }}
                     >
                       Add Question
-                    </button>
-                    <button
+                    </Button>
+                  <Button
+                    variant="secondary"
                       onClick={() => setIsBulkUploadModalOpen(true)}
                       className="admin-btn admin-btn--secondary"
                     >
                       Bulk Upload Questions
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -307,81 +309,63 @@ function ProfileQuestions() {
                   {successful && <div className="admin-message admin-message--success">{successful}</div>}
                 </div>
 
-                <div className="overflow-x-auto">
-                  <div className="admin-table-container">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Title</th>
-                        <th>Type</th>
-                        <th>Ailment</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {questions.map((q, index) => {
-                        const displayAilment = q.ailments.map((x) => x.name).join(", ");
-                        return (
-                          <tr key={index}>
-                            <td>{q.name}</td>
-                            <td>{q.type}</td>
-                            <td>{displayAilment}</td>
-                            <td>
-                              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                {role.canEditProfileQuestions && (
-                                  <button
-                                    className="admin-action-btn admin-action-btn--edit"
-                                    onClick={() => {
-                                      setSuccessful("");
-                                      newQuestionDispatch({
-                                        type: "all",
-                                        payload: {
-                                          id: q.id,
-                                          ailment: q.ailments.map((x) => ({
-                                            value: x.id,
-                                            label: x.name,
-                                          })),
-                                          type: q.type,
-                                          name: q.name,
-                                          options: q.options,
-                                        },
-                                      });
-                                      if (q.question_translations) {
-                                        let translationDict = {};
-                                        let optionDict = {};
-                                        q.question_translations.forEach((element) => {
-                                          translationDict[element.language_id] = {
-                                            text: element.name,
-                                            options: element.options,
-                                          };
-                                          optionDict[element.language_id] = element.options || "";
-                                        });
-                                        setTranslations(translationDict);
-                                        setOptTranslations(optionDict);
-                                      }
-                                      setEditMode(true);
-                                      setIsFormModalOpen(true);
-                                    }}
-                                  >
-                                    <BsPencilSquare size={18} />
-                                  </button>
-                                )}
-                                {role.canDeleteProfileQuestions && (
-                                  <button
-                                    className="admin-action-btn admin-action-btn--delete"
-                                    onClick={() => removeQuestion(q.id)}
-                                  >
-                                    <BsTrash size={18} />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <UnifiedListTable
+                  columns={[
+                    { key: 'name', label: 'Title', type: 'text', width: '250px' },
+                    { key: 'type', label: 'Type', type: 'text', width: '150px' },
+                    { key: 'ailmentsDisplay', label: 'Ailment', type: 'text', width: '250px' },
+                    { key: 'actions', label: 'Actions', type: 'actions', width: '100px' }
+                  ]}
+                  data={questions.filter(q => 
+                    q.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    q.type.toLowerCase().includes(searchTerm.toLowerCase())
+                  ).map((q) => ({
+                    ...q,
+                    ailmentsDisplay: q.ailments?.map((x) => x.name).join(", ") || "Generic Profile",
+                    actions: q
+                  }))}
+                  enableSearch={true}
+                  renderSearchUI={false}
+                  searchKeys={['name', 'type']}
+                  onEdit={(q) => {
+                    setSuccessful("");
+                    newQuestionDispatch({
+                      type: "all",
+                      payload: {
+                        id: q.id,
+                        ailment: q.ailments?.map((x) => ({
+                          value: x.id,
+                          label: x.name,
+                        })) || [],
+                        type: q.type,
+                        name: q.name,
+                        options: q.options,
+                      },
+                    });
+                    if (q.question_translations) {
+                      let translationDict = {};
+                      let optionDict = {};
+                      q.question_translations.forEach((element) => {
+                        translationDict[element.language_id] = {
+                          text: element.name,
+                          options: element.options,
+                        };
+                        optionDict[element.language_id] = element.options || "";
+                      });
+                      setTranslations(translationDict);
+                      setOptTranslations(optionDict);
+                    }
+                    setEditMode(true);
+                    setIsFormModalOpen(true);
+                  }}
+                  onDelete={(q) => {
+                    if (window.confirm(`Delete question "${q.name}"?`)) {
+                      removeQuestion(q.id);
+                    }
+                  }}
+                  emptyMessage="No questions found"
+                  actionButtons={role.canEditProfileQuestions || role.canDeleteProfileQuestions}
+                />
               </div>
             </div>
           </div>
@@ -527,8 +511,8 @@ function ProfileQuestions() {
                   </FormControl>
                 )}
               </div>
-            </FormModal>
-          </div>
+        </FormModal>
+          {/* </div> */}
 
         <ProfileQuestionsBulkUploadModal
           isOpen={isBulkUploadModalOpen}

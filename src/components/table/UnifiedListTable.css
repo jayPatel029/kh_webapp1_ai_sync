@@ -1,0 +1,451 @@
+/**
+ * UnifiedListTable Styles
+ * Unified styling for list/table components across the application
+ * Based on Figma design: Kifayti Operations File
+ * 
+ * @file src/components/table/UnifiedListTable.css
+ */
+
+/* Import design system tokens and fonts */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
+
+/* ===================== CONTAINER ===================== */
+.list-table__container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  /* padding: 20px; */
+  background-color: var(--color-background, #ffffff);
+  border-radius: 8px;
+}
+
+/* ===================== SEARCH BAR ===================== */
+.list-table__search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.list-table__search-input {
+  flex: 1;
+  max-width: 300px;
+  padding: 10px 15px;
+  font-size: 14px;
+  font-family: var(--font-family-primary, 'Sora', sans-serif);
+  border: 1px solid var(--color-border-light, #d9d9d9);
+  border-radius: 5px;
+  background-color: var(--color-background, #ffffff);
+  color: var(--color-text, #393939);
+  transition: border-color 0.2s ease;
+}
+
+.list-table__search-input:focus {
+  outline: none;
+  border-color: var(--color-accent, #5886a5);
+  box-shadow: 0 0 0 3px rgba(88, 134, 165, 0.1);
+}
+
+.list-table__search-input::placeholder {
+  color: var(--color-placeholder, #999999);
+}
+
+/* ===================== TABLE WRAPPER ===================== */
+.list-table__wrapper {
+  width: 100%;
+  overflow-x: auto;
+  background-color: var(--color-background, #ffffff);
+}
+
+/* ===================== TABLE STYLES ===================== */
+.list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-family-primary, 'Sora', sans-serif);
+  font-size: 14px;
+  background-color: var(--color-background, #ffffff);
+}
+
+/* ===================== TABLE HEADER ===================== */
+.list-table__header-row {
+  background-color: var(--color-accent, #5886a5);
+  color: var(--color-text-inverse, #ffffff);
+  font-weight: 600;
+  text-align: left;
+  border: var(--color-accent) solid 1px;
+  border-radius: 8px;;
+}
+
+.list-table__header-cell {
+  padding: 15px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'Sora', sans-serif;
+  color: var(--color-text-inverse, #ffffff);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* border-bottom: 2px solid rgba(0, 0, 0, 0.1); */
+}
+
+/* ===================== TABLE BODY & ROWS ===================== */
+.list-table tbody {
+  background-color: var(--color-background, #ffffff);
+}
+
+.list-table__row {
+  /* border-bottom: 1px solid var(--color-border-light, #d9d9d9); */
+  transition: background-color 0.2s ease;
+}
+
+.list-table__row:hover {
+  background-color: var(--color-surface-alt, #efefef);
+}
+
+.list-table__row:last-child {
+  border-bottom: none;
+}
+
+/* ===================== TABLE CELLS ===================== */
+.list-table__cell {
+  padding: 15px 20px;
+  vertical-align: top;
+  text-align: left;
+  height: 60px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ===================== CELL TYPES ===================== */
+
+/* Image Cell */
+.list-table__image-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 60px;
+  padding: 8px 15px;
+}
+
+.list-table__image-wrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: var(--color-surface, #fafafa);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-border-light, #d9d9d9);
+}
+
+.list-table__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Text Cell */
+.list-table__text-cell {
+  display: inline-block;
+  color: var(--color-text-muted, #989898);
+  font-size: 14px;
+  font-weight: 400;
+  font-family: 'Sora', sans-serif;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+/* Multi-line Cell */
+.list-table__multiline-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--color-text-muted, #989898);
+  font-size: 14px;
+  font-weight: 400;
+  font-family: 'Sora', sans-serif;
+}
+
+.list-table__multiline-item {
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* ===================== ACTIONS CELL ===================== */
+.list-table__actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.list-table__actions-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.list-table__action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  color: var(--color-text-muted, #989898);
+}
+
+.list-table__action-btn:hover {
+  background-color: var(--color-surface-alt, #efefef);
+  color: var(--color-text, #393939);
+  transform: translateY(-2px);
+}
+
+.list-table__action-btn:active {
+  transform: translateY(0);
+}
+
+.list-table__action-btn--edit {
+  color: var(--color-info-dark, #3965FF);
+}
+
+.list-table__action-btn--edit:hover {
+  background-color: rgba(57, 101, 255, 0.1);
+}
+
+.list-table__action-btn--download {
+  color: var(--color-primary, #4164df);
+}
+
+.list-table__action-btn--download:hover {
+  background-color: rgba(65, 100, 223, 0.1);
+}
+
+.list-table__action-btn--delete {
+  color: var(--color-danger, #de425b);
+}
+
+.list-table__action-btn--delete:hover {
+  background-color: rgba(222, 66, 91, 0.1);
+}
+
+.list-table__action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===================== EMPTY STATE ===================== */
+.list-table__empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--color-text-muted, #989898);
+  font-size: 14px;
+  background-color: var(--color-surface, #fafafa);
+}
+
+.list-table__loading {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--color-text-muted, #989898);
+  font-size: 14px;
+  background-color: var(--color-surface, #fafafa);
+}
+
+/* ===================== PAGINATION ===================== */
+.list-table__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  padding: 15px 20px;
+  background-color: var(--color-surface, #fafafa);
+  border-radius: 4px;
+  margin-top: 15px;
+}
+
+.list-table__pagination-btn {
+  padding: 8px 16px;
+  background-color: var(--color-primary, #4164df);
+  color: var(--color-text-inverse, #ffffff);
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-family-primary, 'Sora', sans-serif);
+}
+
+.list-table__pagination-btn:hover:not(:disabled) {
+  background-color: var(--color-primary-dark, #004c6d);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.list-table__pagination-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.list-table__pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.list-table__pagination-info {
+  color: var(--color-text-muted, #989898);
+  font-size: 13px;
+  font-family: var(--font-family-primary, 'Sora', sans-serif);
+  min-width: 120px;
+  text-align: center;
+}
+
+/* ===================== INFO ===================== */
+.list-table__info {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 20px;
+  color: var(--color-text-muted, #989898);
+  font-size: 16px;
+  font-family: var(--font-family-primary, 'Sora', sans-serif);
+}
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width: 1024px) {
+  .list-table__cell {
+    padding: 12px 15px;
+  }
+
+  .list-table__header-cell {
+    padding: 12px 15px;
+    font-size: 14px;
+  }
+
+  .list-table__image-wrapper {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (max-width: 768px) {
+  .list-table__container {
+    padding: 15px;
+    gap: 15px;
+  }
+
+  .list-table__cell {
+    padding: 10px 12px;
+    height: auto;
+    font-size: 13px;
+  }
+
+  .list-table__header-cell {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .list-table__search-input {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .list-table__image-wrapper {
+    width: 40px;
+    height: 40px;
+  }
+
+  .list-table__action-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .list-table__pagination {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 15px;
+  }
+
+  .list-table__pagination-btn {
+    padding: 7px 14px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .list-table__container {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .list-table__wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .list-table {
+    font-size: 12px;
+  }
+
+  .list-table__cell,
+  .list-table__header-cell {
+    padding: 8px 10px;
+  }
+
+  .list-table__text-cell {
+    font-size: 12px;
+  }
+
+  .list-table__image-wrapper {
+    width: 36px;
+    height: 36px;
+  }
+
+  .list-table__action-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+}
+
+/* ===================== ACCESSIBILITY ===================== */
+.list-table__action-btn:focus-visible {
+  outline: 2px solid var(--color-primary, #4164df);
+  outline-offset: 2px;
+}
+
+.list-table__search-input:focus-visible {
+  outline-color: var(--color-primary, #4164df);
+}
+
+/* ===================== UTILITY CLASSES ===================== */
+.list-table__row--selected {
+  background-color: rgba(88, 134, 165, 0.1);
+}
+
+.list-table__row--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.list-table__header-cell--sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.list-table__header-cell--sortable:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}

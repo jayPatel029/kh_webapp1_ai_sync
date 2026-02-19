@@ -8,6 +8,7 @@
 
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../routes/routeConstants";
 import { AddPatient } from "../../ApiCalls/patientAPis";
 import PageHeader from "../../components/PageHeader";
 import ThemeProvider from "../../components/ThemeProvider";
@@ -94,14 +95,6 @@ const AddPatientForm = () => {
     <ThemeProvider>
       <Flex className="w-full">
         {/* Form Content */}
-          <Container
-            style={{
-              flex: 1,
-              padding: '40px md:80px',
-              maxWidth: '1200px',
-              margin: '0 auto'
-            }}
-          >
             <VStack spacing={8} align="stretch" className="w-full">
               {/* Header with Breadcrumbs */}
               <PageHeader
@@ -110,7 +103,7 @@ const AddPatientForm = () => {
                   { label: "My Patients", path: "/patients" },
                   { label: "Add New Patient", active: true }
                 ]}
-                onBackClick={() => navigate("/patients")}
+                onBack={() => navigate(ROUTES.PATIENTS)}
               />
 
               <Card variant="elevated" style={{ borderRadius: '15px', overflow: 'hidden' }}>
@@ -333,7 +326,7 @@ const AddPatientForm = () => {
                 </CardBody>
               </Card>
             </VStack>
-        </Container>
+         
       </Flex>
     </ThemeProvider>
   );

@@ -4,6 +4,8 @@ import { BsTrash, BsPencilSquare } from "react-icons/bs";
 import { server_url } from "../../constants/constants.js";
 import axiosInstance from "../../helpers/axios/axiosInstance.js";
 import PageHeader from "../../components/PageHeader";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 import {
   Box,
@@ -12,6 +14,7 @@ import {
 } from "../../component-library";
 
 const UserRoles = () => {
+  const navigate = useNavigate();
   const [roles, setRoles] = useState([]);
 
   useEffect(() => {
@@ -44,15 +47,16 @@ const UserRoles = () => {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-          <Container className="py-4 px-4 md:px-6 mx-0">
+           
             <PageHeader
               title="User Roles"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
                 { label: "User Roles", active: true }
               ]}
+              onBack={() => navigate(ROUTES.HOME)}
             />
-          </Container>
+           
         </Box>
 
          

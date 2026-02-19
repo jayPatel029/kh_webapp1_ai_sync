@@ -1,0 +1,101 @@
+/**
+ * SearchBar Component Styles
+ * Unified search bar styling matching Figma design
+ */
+
+.search-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 15px;
+  border: 1px solid var(--color-border-dark);
+  border-radius: 10px;
+  background-color: #ffffff;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 393px;
+  box-sizing: border-box;
+  max-height: fit-content;
+}
+
+.search-bar-container:hover {
+  border-color: var(--color-info);
+  box-shadow: 0 2px 8px rgba(50, 97, 125, 0.1);
+}
+
+.search-bar-container:focus-within {
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 3px rgba(26, 154, 154, 0.1);
+  outline: none;
+}
+
+.search-bar-container.disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.search-bar-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.search-bar-icon {
+  width: 100%;
+  height: 100%;
+  color: var(--color-accent);
+  stroke-width: 2.5;
+}
+
+.search-bar-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-primary);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-primary-dark);
+  padding: 2px;
+  min-width: 0;
+}
+
+.search-bar-input::placeholder {
+  color: var(--color-icon);
+  /* opacity: 0.7; */
+}
+
+.search-bar-input:disabled {
+  cursor: not-allowed;
+  color: #999999;
+}
+
+.search-bar-input:disabled::placeholder {
+  color: #cccccc;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .search-bar-container {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .search-bar-input {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .search-bar-container {
+    padding: 8px 12px;
+  }
+
+  .search-bar-input {
+    font-size: 13px;
+  }
+}

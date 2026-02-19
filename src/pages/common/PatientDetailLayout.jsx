@@ -102,7 +102,7 @@ const PatientDetailLayout = ({
 
         {/* Main Content */}
         <Box className="flex-1 ">
-          <Container size="navmatch"  className="py-8 px-4 w-full md:px-12 mx-2">
+            
             <Box className="bg-white rounded-[15px] w-full p-8 shadow-[2px_2px_8px_8px_rgba(0,0,0,0.1)] shadow-[-2px_-2px_8px_8px_rgba(0,0,0,0.1)] ">
               {/* Header Section with Patient Info */}
               <Flex
@@ -130,7 +130,7 @@ const PatientDetailLayout = ({
               {/* Children Content (table and other custom content) */}
               {children}
             </Box>
-          </Container>
+           
         </Box>
       </Box>
     </ThemeProvider>

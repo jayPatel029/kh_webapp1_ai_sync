@@ -68,6 +68,21 @@ function UserProfile() {
 
   const navigate = useNavigate();
 
+  // Responsive handling based on window width
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1200
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isSmall = windowWidth < 768;
+  const isMedium = windowWidth >= 768 && windowWidth < 1024;
+
   const openLabReadingModal = (title, id) => setSelectedReading({ title, id });
   const closeLabReadingModal = () => setSelectedReading(null);
   const openEditalimentsModal = () => setEditalimentsModalOpen(true);
@@ -227,7 +242,7 @@ function UserProfile() {
 
   return (
     <ThemeProvider>
-      <Box className="flex-1 flex flex-col min-w-0">
+      <Box className="flex-1 flex flex-col w-full min-w-0">
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white ">
@@ -236,11 +251,11 @@ function UserProfile() {
 
             {/* Header with Breadcrumbs */}
             <PageHeader
-              title="Patient Profile"
+              title={userData?.name || "Patient"}
               breadcrumbs={[
                // { label: "All Patients", path: "/patients" },
                 { label: "Patient", path: ROUTES.patientDetail(id), active: false },
-                { label: "Patient Profile", active: true }
+                { label: userData?.name || "Patient", active: true }
               ]}
               onBack={() => navigate(ROUTES.PATIENTS)}
             />
@@ -256,7 +271,7 @@ function UserProfile() {
           />
         </Box>
 
-        <Flex className="py-4 flex-col gap-6 px-6">
+        <Flex className={`py-4 flex-col gap-6 ${isSmall ? "px-4" : "px-6"}`}>
           {/* Profile Card */}
           <PatientProfileCard
             userData={userData}
@@ -295,7 +310,7 @@ function UserProfile() {
             <Box className="space-y-6">
               <Box className="flex items-center gap-4">
                 {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-              <Box as="h2" className="text-2xl font-bold m-4">General Parameters</Box>
+              <Box as="h2" className={`${isSmall ? "text-xl" : "text-2xl"} font-bold m-4`}>General Parameters</Box>
               </Box>
 
               {/* Generic Profile Section */}
@@ -320,7 +335,7 @@ function UserProfile() {
                       {question.isGraph === 1 ? (
                         question.title.toLowerCase().includes("systolic") ? (
                           <LineChartComponentSys
-                            aspect={3 / 1}
+                            aspect={isSmall ? 2 / 1 : 3 / 1}
                             questionId={question.id}
                             user_id={userData.id}
                             title={questionTitle}
@@ -328,7 +343,7 @@ function UserProfile() {
                           />
                         ) : (
                           <LineChartComponent
-                            aspect={3 / 1}
+                            aspect={isSmall ? 2 / 1 : 3 / 1}
                             questionId={question.id}
                             user_id={userData.id}
                             title={questionTitle}
@@ -354,7 +369,7 @@ function UserProfile() {
             <Box className="space-y-6">
               <Box className="flex items-center gap-4">
                 {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-              <Box as="h2" className="text-2xl font-bold m-4">Dialysis Parameters</Box>
+              <Box as="h2" className={`${isSmall ? "text-xl" : "text-2xl"} font-bold m-4`}>Dialysis Parameters</Box>
               </Box>
 
               {dialysisParameters
@@ -367,7 +382,7 @@ function UserProfile() {
                   >
                     {question.isGraph === 1 ? (
                       <LineChartDialysis
-                        aspect={3 / 1}
+                        aspect={isSmall ? 2 / 1 : 3 / 1}
                         questionId={question.id}
                         user_id={userData.id}
                         title={question.title}
@@ -391,7 +406,7 @@ function UserProfile() {
             <Box className="space-y-6">
               <Box className="flex items-center gap-4">
                 {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-              <Box as="h2" className="text-2xl font-bold m-4">Lab Reports</Box>
+              <Box as="h2" className={`${isSmall ? "text-xl" : "text-2xl"} font-bold m-4`}>Lab Reports</Box>
               </Box>
 
               {labReadings.map((reading) => (
@@ -418,7 +433,7 @@ function UserProfile() {
                       </Flex>
                     )}
                     <LineChartComponentLab
-                      aspect={3 / 1}
+                      aspect={isSmall ? 2 / 1 : 3 / 1}
                       questionId={reading.id}
                       user_id={userData.id}
                       title={reading.title}

@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 // Component Library
@@ -20,6 +20,7 @@ import { Card, CardBody } from "../../component-library/primitives/Card";
 
 // Components
 import PageHeader from "../../components/PageHeader";
+import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 
 // APIs and Helpers
@@ -33,6 +34,7 @@ import "../../design-system/styles/index.css";
 import { FaDownload, FaArrowLeft } from "react-icons/fa";
 
 const DocLogPage = () => {
+  const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -96,7 +98,7 @@ const DocLogPage = () => {
 
           {/* Sticky Header Section */}
           <Box className="sticky top-[56px] z-20 bg-white">
-            <Container className="py-4 px-4 md:px-6 mx-0">
+             
               <PageHeader
                 title="Doctor Logs"
                 breadcrumbs={[
@@ -104,14 +106,13 @@ const DocLogPage = () => {
                   { label: "Audit Logs", path: "/logs" },
                   { label: "Doctor Logs", active: true }
                 ]}
-                onBack={() => window.history.back()}
+                onBack={() => navigate(ROUTES.LOGS)}
               />
-            </Container>
+             
           </Box>
 
           {/* Main Content Area */}
           <Box className="flex-1 bg-[#fafafa]">
-            <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
               <Box className="bg-white rounded-[15px] shadow-md p-8">
                 {/* Header Section */}
                 <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
@@ -209,7 +210,7 @@ const DocLogPage = () => {
                   </Box>
                 )}
               </Box>
-            </Container>
+             
         </Box>
       </Box>
     </ThemeProvider>

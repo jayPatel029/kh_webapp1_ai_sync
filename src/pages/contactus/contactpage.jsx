@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllContactUs, deleteContactUs } from "../../ApiCalls/contactus";
 import PageHeader from "../../components/PageHeader";
+import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 import { BsTrash } from "react-icons/bs";
 
@@ -44,15 +45,16 @@ export default function ContactUs() {
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white">
-          <Container className="py-4 px-4 md:px-6 mx-0">
+           
             <PageHeader
               title="Contact Us"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
                 { label: "Contact Us", active: true }
               ]}
+              onBack={() => navigate(ROUTES.HOME)}
             />
-          </Container>
+           
         </Box>
 
          

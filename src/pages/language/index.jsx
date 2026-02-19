@@ -10,7 +10,10 @@ import {
 import { FormModal } from "../../component-library/modals/FormModal";
 import FileUploadWithCamera from "../../components/FileUploadWithCamera";
 import PageHeader from "../../components/PageHeader";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
+import { UnifiedListTable, SearchBar } from "../../components";
 import {
   FormControl,
   FormLabel,
@@ -18,8 +21,10 @@ import {
   Box,
   Container
 } from "../../component-library";
+import { Button } from "reactstrap";
 
 function LanguageMaster() {
+  const navigate = useNavigate();
   const [editMode, setEditMode] = useState(false);
   const [successful, setSuccessful] = useState("");
   const [errMsg, setErrMsg] = useState("");
@@ -123,44 +128,38 @@ function LanguageMaster() {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-          <Container className="py-4 px-4 md:px-6 mx-0">
+           
             <PageHeader
               title="Language Master"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
                 { label: "Language Master", active: true }
               ]}
+              onBack={() => navigate(ROUTES.HOME)}
             />
-          </Container>
+           
         </Box>
 
          
           <div className="admin-page-content">
             <div className="admin-card">
               <div className="admin-card__header">
-                <div className="flex justify-between items-center w-full flex-wrap gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">
-                      ({languages.filter(lang => 
-                        lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
-                      ).length} records found)
-                    </p>
+                <div className="admin-toolbar">
+                  <div className="admin-toolbar__left">
+                    <SearchBar
+                      placeholder="Search by language name..."
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      style={{ width: "250px" }}
+                    />
                   </div>
 
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="admin-search">
-                      <svg className="admin-search__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                      <input
-                        type="text"
-                        placeholder="Search languages..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="admin-search__input"
-                      />
-                    </div>
-                    <button
+                  <div className="admin-toolbar__right">
+                    <span className="admin-toolbar__count">
+                      {languages.filter(lang => 
+                        lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
+                      ).length} Records Found
+                    </span>
+                    <Button
                       className="admin-btn admin-btn--primary"
                       onClick={() => {
                         resetForm();
@@ -168,7 +167,7 @@ function LanguageMaster() {
                       }}
                     >
                       Add Language
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -179,52 +178,36 @@ function LanguageMaster() {
                   {successful && <div className="admin-message admin-message--success">{successful}</div>}
                 </div>
 
-            <div className="overflow-x-auto">
-              <div className="admin-table-container">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Language</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {languages.filter(lang => 
-                      lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
-                    ).map((lang, index) => (
-                    <tr key={index}>
-                      <td>{lang.id}</td>
-                      <td>{lang.language_name}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button
-                            className="admin-action-btn admin-action-btn--edit"
-                            onClick={() => {
-                              setEditID(lang.id);
-                              setNewLanguage(lang.language_name);
-                              setEditMode(true);
-                              setIsFormModalOpen(true);
-                            }}
-                          >
-                            <BsPencilSquare size={18} />
-                          </button>
-                          <button
-                            className="admin-action-btn admin-action-btn--delete"
-                            onClick={() => removeLang(lang.id)}
-                          >
-                            <BsTrash size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  </tbody>
-                </table>
+                <UnifiedListTable
+                  columns={[
+                    { key: 'id', label: 'ID', type: 'text', width: '80px' },
+                    { key: 'language_name', label: 'Language', type: 'text', width: '300px' },
+                    { key: 'actions', label: 'Actions', type: 'actions', width: '100px' }
+                  ]}
+                  data={languages.filter(lang => 
+                    lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
+                  ).map((lang) => ({
+                    ...lang,
+                    actions: lang
+                  }))}
+                  enableSearch={true}
+                  renderSearchUI={false}
+                  searchKeys={['language_name']}
+                  onEdit={(lang) => {
+                    setEditID(lang.id);
+                    setNewLanguage(lang.language_name);
+                    setEditMode(true);
+                    setIsFormModalOpen(true);
+                  }}
+                  onDelete={(lang) => {
+                    if (window.confirm(`Delete language "${lang.language_name}"?`)) {
+                      removeLang(lang.id);
+                    }
+                  }}
+                  emptyMessage="No languages found"
+                />
               </div>
             </div>
-          </div>
-        </div>
             <FormModal
               isOpen={isFormModalOpen}
               onClose={() => {

@@ -54,6 +54,7 @@ export const ROUTES = {
   SETTINGS_LANGUAGE: "/settings/language",
   SETTINGS_PASSWORD: "/settings/password",
   SETTINGS_PARAMETERS: "/settings/parameters",
+  LOGS: "/logs",
   SETTINGS_LOGS: "/settings/logs",
   SETTINGS_LOGS_PATIENT: "/settings/logs/patient",
   SETTINGS_LOGS_DOCTOR: "/settings/logs/doctor",

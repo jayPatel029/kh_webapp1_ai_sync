@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import PageHeader from "../../components/PageHeader";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
@@ -15,6 +17,7 @@ import {
 } from "../../component-library";
 
 function ChangePassword() {
+  const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -48,15 +51,16 @@ function ChangePassword() {
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white">
-          <Container className="py-4 px-4 md:px-6 mx-0">
+           
             <PageHeader
               title="Change Password"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
                 { label: "Change Password", active: true }
               ]}
+              onBack={() => navigate(ROUTES.HOME)}
             />
-          </Container>
+           
         </Box>
 
          

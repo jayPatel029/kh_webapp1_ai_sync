@@ -187,14 +187,12 @@ function DialysisReadingsList() {
 
   return (
     <div className="admin-page-content">
-      {/* <div className="admin-card">
-        <div className="admin-card__body">
-          <div style={{ marginBottom: '1rem' }}>
-            {errMsg && <div className="admin-message admin-message--error">{errMsg}</div>}
-            {successful && <div className="admin-message admin-message--success">{successful}</div>}
-          </div>
+      <div className="admin-card__body">
+        <div style={{ marginBottom: '1rem' }}>
+          {errMsg && <div className="admin-message admin-message--error">{errMsg}</div>}
+          {successful && <div className="admin-message admin-message--success">{successful}</div>}
         </div>
-      </div> */}
+      </div>
 
       <FormModal
         isOpen={isFormModalOpen}

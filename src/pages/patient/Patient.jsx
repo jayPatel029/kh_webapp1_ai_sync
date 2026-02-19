@@ -35,9 +35,9 @@ function Patient() {
   console.log(patientData);
 
   return (
-    <Container className="p-4 md:p-12 bg-white">
+     
       <PatientList data={patientData} patientId={id} />
-    </Container>
+     
   );
 }
 

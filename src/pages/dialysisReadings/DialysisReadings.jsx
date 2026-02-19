@@ -1,5 +1,7 @@
 import React from "react";
 import PageHeader from "../../components/PageHeader";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 import DialysisReadingsList from "./DialysisComponents/DialysisReadingsList";
 
@@ -7,21 +9,23 @@ import DialysisReadingsList from "./DialysisComponents/DialysisReadingsList";
 import { Box, Container } from "../../component-library";
 
 function DialysisReadings() {
+  const navigate = useNavigate();
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white">
-          <Container className="py-4 px-4 md:px-6 mx-0">
+           
             <PageHeader
               title="Dialysis Readings"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
                 { label: "Dialysis Readings", active: true }
               ]}
+              onBack={() => navigate(ROUTES.HOME)}
             />
-          </Container>
+           
         </Box>
 
          

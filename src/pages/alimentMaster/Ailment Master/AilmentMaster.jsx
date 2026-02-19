@@ -1,22 +1,16 @@
 import React, { useState, useEffect } from "react";
-import AilmentList from "./AilmentList";
 import { getLanguages } from "../../../ApiCalls/languageApis";
 import {
   getAilments,
   addAilment,
   updateAilment,
+  deleteAilment,
 } from "../../../ApiCalls/ailmentApis";
 import { uploadFile } from "../../../ApiCalls/dataUpload";
 import FileUploadWithCamera from "../../../components/FileUploadWithCamera";
 import { FormModal } from "../../../component-library/modals/FormModal";
-// Design system primitives
-import {
-  Input,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  Text,
-} from "../../../component-library";
+import { UnifiedListTable, SearchBar } from "../../../components";
+import { Input, FormControl, FormLabel, Button } from "../../../component-library";
 
 export default function AilmentMasterComponent() {
   // State to hold the selected ailment data
@@ -28,10 +22,10 @@ export default function AilmentMasterComponent() {
   const [Ailment_Img, setAilment_Img] = useState(null);
   const [errmsg, setErrmsg] = useState("");
   const [successmsg, setSuccessmsg] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [id, setId] = useState(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -152,61 +146,93 @@ export default function AilmentMasterComponent() {
   };
 
   return (
-     
-      <div className="admin-page-content">
-        <div className="admin-card">
-          <div className="admin-card__header">
-            <div className="flex justify-between items-center w-full flex-wrap gap-4">
-              <div>
-                <p className="text-sm text-gray-500">
-                  ({ailments.filter(ailment => 
-                    ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
-                  ).length} records found)
-                </p>
-              </div>
+    <div className="admin-page-content">
+      <div className="admin-card">
+        <div className="admin-card__header">
+          <div className="admin-toolbar">
+            <div className="admin-toolbar__left">
+              <SearchBar
+                placeholder="Search by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ width: "250px" }}
 
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="admin-search">
-                  <svg className="admin-search__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Search ailments..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="admin-search__input"
-                  />
-                </div>
-                <button
-                  className="admin-btn admin-btn--primary"
-                  onClick={() => setIsFormModalOpen(true)}
-                >
-                  Add Ailment
-                </button>
-              </div>
+              />
             </div>
-          </div>
-
-          <div className="admin-card__body">
-            <div style={{ marginBottom: '1rem' }}>
-              {errmsg && <div className="admin-message admin-message--error">{errmsg}</div>}
-              {successmsg && <div className="admin-message admin-message--success">{successmsg}</div>}
+            <div className="admin-toolbar__right">
+              <span className="admin-toolbar__count">
+                {ailments.filter(ailment => 
+                  ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
+                ).length} Records Found
+              </span>
+              <Button
+                varient="primary"
+                className="admin-btn admin-btn--primary"
+                onClick={() => setIsFormModalOpen(true)}
+              >
+                Add Ailment
+              </Button>
             </div>
-
-            <AilmentList
-              setName={setName}
-              setTranslations={setTranslations}
-              ailments={ailments.filter(ailment => 
-                ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
-              )}
-              setEditMode={setEditMode}
-              setId={setId}
-              setSuccessful={setSuccessmsg}
-              onOpenEditModal={() => setIsFormModalOpen(true)}
-            />
           </div>
         </div>
+
+        {/* <div className="admin-card__body"> */}
+          {/* <div style={{ marginBottom: '1rem' }}>
+            {errmsg && <div className="admin-message admin-message--error">{errmsg}</div>}
+            {successmsg && <div className="admin-message admin-message--success">{successmsg}</div>}
+          </div> */}
+
+          <UnifiedListTable
+            columns={[
+              { key: 'name', label: 'Name', type: 'text', width: '200px' },
+              { key: 'Ailment_Img', label: 'Icon', type: 'image', width: '100px' },
+              { key: 'actions', label: 'Actions', type: 'actions', width: '100px' }
+            ]}
+            data={ailments.filter(ailment => 
+              ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
+            ).map((ailment) => ({
+              ...ailment,
+              actions: ailment
+            }))}
+            enableSearch={true}
+            renderSearchUI={false}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            searchKeys={['name']}
+            onEdit={(ailment) => {
+              setSuccessmsg("");
+              setName(ailment.name);
+              setId(ailment.id);
+              if (ailment.ailmentTranslations) {
+                let translationDict = {};
+                ailment.ailmentTranslations.forEach((element) => {
+                  translationDict[element.languageId] = element.name;
+                });
+                setTranslations(translationDict);
+              }
+              setEditMode(true);
+              setIsFormModalOpen(true);
+            }}
+            onDelete={(ailment) => {
+              if (window.confirm(`Delete ailment "${ailment.name}"?`)) {
+                deleteAilment(ailment.id)
+                  .then(() => {
+                    setSuccessmsg("Ailment deleted successfully!");
+                    getAilments().then((resultAilment) => {
+                      if (resultAilment.success && resultAilment.data.listOfAilments) {
+                        setAilments(resultAilment.data.listOfAilments);
+                      }
+                    });
+                  })
+                  .catch((error) => {
+                    console.error("Error deleting Ailment:", error);
+                    setErrmsg("Error deleting ailment");
+                  });
+              }
+            }}
+          />
+        </div>
+      {/* </div> */}
 
         <FormModal
           isOpen={isFormModalOpen}

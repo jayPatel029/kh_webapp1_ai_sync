@@ -214,8 +214,7 @@ const AdminDashboard = () => {
     <Box className="flex-1 flex flex-col min-h-0 bg-white">
       {/* Main Content Scrollable Area */}
       <Box className="flex-1 overflow-y-auto">
-        <Container maxW="container.xl" className="py-8 px-4 md:px-12">
-
+  
           {/* Header */}
           <Flex align="center" justify="between" className="pb-6 border-b-2 border-[#00cccc] mb-8">
             <Heading as="h1" size="2xl" className="text-[#32617d]">
@@ -252,7 +251,7 @@ const AdminDashboard = () => {
                   </Flex>
             )}
           </Box>
-        </Container>
+         
       </Box>
 
       {/* Modals */}

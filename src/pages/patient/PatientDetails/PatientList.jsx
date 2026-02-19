@@ -14,16 +14,12 @@ import {
   IconButton
 } from '../../../component-library/primitives/Button';
 import {
-  Input,
-  InputGroup,
-  InputLeftElement
-} from '../../../component-library/primitives/Input';
-import {
   Text,
   Heading
 } from '../../../component-library/primitives/Typography';
 import { Spinner } from '../../../component-library/feedback/Spinner';
 import { Alert } from '../../../component-library/feedback/Alert';
+import { SearchBar } from '../../../components';
 
 // Import icons
 import SearchIcon from '../../../assets/icons/search.svg';
@@ -229,22 +225,12 @@ const PatientList = ({ data, patientId }) => {
 
       {/* Toolbar */}
       <Flex justify="between" align="center" className="w-full">
-        <InputGroup style={{ width: '393px' }}>
-          <InputLeftElement>
-            <img src={SearchIcon} alt="Search" style={{ width: '20px', height: '20px' }} />
-          </InputLeftElement>
-          <Input
-            placeholder="Search by name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            size="lg"
-            style={{
-              borderRadius: '10px',
-              fontFamily: 'Sora, sans-serif',
-              fontSize: '16px',
-            }}
-          />
-        </InputGroup>
+        <SearchBar
+          placeholder="Search by name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ width: "250px" }}
+        />
 
         <Flex gap={4} align="right">
           <Flex gap={2} align="center">

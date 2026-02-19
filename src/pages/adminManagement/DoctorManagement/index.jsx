@@ -12,6 +12,8 @@ import ReadingsModal from "./readingsModal";
 import { useSelector } from "react-redux";
 import { uploadFile } from "../../../ApiCalls/dataUpload";
 import PageHeader from "../../../components/PageHeader";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../../routes/routeConstants";
 import ThemeProvider from "../../../components/ThemeProvider";
 import {
   Box,
@@ -28,6 +30,7 @@ import { FileUpload } from "@mui/icons-material";
 import FileUploadWithCamera from "../../../components/FileUploadWithCamera";
 
 function AdminManagement() {
+  const navigate = useNavigate();
   const roleoptions = ["Doctor", "Medical Staff", "Dialysis Technician"].map(
     (role, index) => {
       return (
@@ -388,15 +391,16 @@ function AdminManagement() {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-          <Container className="py-4 px-4 md:px-6 mx-0">
+           
             <PageHeader
               title="Doctor Management"
               breadcrumbs={[
                 { label: "Dashboard", path: "/" },
                 { label: "Doctor Management", active: true }
               ]}
+              onBack={() => navigate(ROUTES.USERS_DOCTORS)}
             />
-          </Container>
+           
         </Box>
 
          

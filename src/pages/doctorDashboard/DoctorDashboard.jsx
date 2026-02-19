@@ -21,7 +21,7 @@ function DoctorDashboard() {
   return (
     <Box className="flex-1 flex flex-col bg-gray-50 h-full overflow-hidden">
       <Box className="flex-1 overflow-y-auto p-10">
-        <Container maxW="container.xl">
+          
           <Heading as="h1" size="2xl" className="mb-6 text-[#32617d]">
             Doctor Dashboard
           </Heading>
@@ -31,7 +31,7 @@ function DoctorDashboard() {
               Section for alerts fetch alerts here
             </Text>
           </Box>
-        </Container>
+         
       </Box>
     </Box>
   );

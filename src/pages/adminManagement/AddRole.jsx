@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import PageHeader from "../../components/PageHeader";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 import {
   Box,
@@ -13,6 +15,7 @@ import {
 } from "../../component-library";
 
 const AddRole = () => {
+  const navigate = useNavigate();
   const [roleName, setRoleName] = useState("");
   const [permissions, setPermissions] = useState({
     manageRoles: { view: false, edit: false, delete: false, name: "Manage Roles" },
@@ -69,7 +72,7 @@ const AddRole = () => {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-          <Container className="py-4 px-4 md:px-6 mx-0">
+           
             <PageHeader
               title="Add Role"
               breadcrumbs={[
@@ -77,8 +80,9 @@ const AddRole = () => {
                 { label: "Manage Roles", path: "/users/roles" },
                 { label: "Add Role", active: true }
               ]}
+              onBack={() => navigate(ROUTES.USERS_ROLES)}
             />
-          </Container>
+           
         </Box>
 
          

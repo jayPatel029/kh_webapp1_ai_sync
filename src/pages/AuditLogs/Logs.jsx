@@ -20,6 +20,8 @@ import { Card, CardHeader, CardBody } from "../../component-library/primitives/C
 
 // Components
 import PageHeader from "../../components/PageHeader";
+import { useNavigate } from "react-router-dom";
+import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 
 // Design System
@@ -29,6 +31,7 @@ import "../../design-system/styles/index.css";
 import { FaUserInjured, FaUserMd } from "react-icons/fa";
 
 function Logs() {
+  const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
 
   return (
@@ -37,20 +40,20 @@ function Logs() {
 
           {/* Sticky Header Section */}
           <Box className="sticky top-[56px] z-20 bg-white">
-            <Container className="py-4 px-4 md:px-6 mx-0">
+             
               <PageHeader
                 title="Audit Logs"
                 breadcrumbs={[
                   { label: "Dashboard", path: "/" },
                   { label: "Audit Logs", active: true }
                 ]}
+                onBack={() => navigate(ROUTES.HOME)}
               />
-            </Container>
+             
           </Box>
 
           {/* Main Content Area */}
-          <Box className="flex-1 bg-[#fafafa]">
-            <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
+          <Box className="flex-1 bg-[#fafafa]">  
               <Box className="bg-white rounded-[15px] shadow-md p-8">
                 {/* Header Section */}
                 <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-8">
@@ -89,7 +92,7 @@ function Logs() {
                   </Link>
                 </Flex>
               </Box>
-            </Container>
+             
         </Box>
       </Box>
     </ThemeProvider>
