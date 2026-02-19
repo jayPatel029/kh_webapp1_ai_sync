@@ -13,7 +13,7 @@ import { FormModal } from "../../component-library/modals/FormModal";
 import { 
   FormControl, 
   FormLabel, 
-  FormHelperText
+  // FormHelperText
 } from "../../component-library/primitives/FormControl";
 import { Input } from "../../component-library/primitives/Input";
 import { Select } from "../../component-library/primitives/Select";
@@ -349,7 +349,7 @@ const EditAlarmModal = ({ closeModal, alarmData, pid, dosesData }) => {
             </option>
           ))}
         </Select>
-        <FormHelperText>Select the type of alarm</FormHelperText>
+        {/* <FormHelperText>Select the type of alarm</FormHelperText> */}
       </FormControl>
 
       {/* Health Parameter */}
@@ -462,13 +462,13 @@ const EditAlarmModal = ({ closeModal, alarmData, pid, dosesData }) => {
               setErrorMessage("");
             }}
           />
-          <FormHelperText>Provide brief description</FormHelperText>
+          {/* <FormHelperText>Provide brief description</FormHelperText> */}
         </FormControl>
       )}
 
       {/* Frequency */}
       <FormControl isRequired>
-        <FormLabel>Frequency</FormLabel>
+        {/* <FormLabel>Frequency</FormLabel> */}
         <Flex gap={6}>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -506,7 +506,7 @@ const EditAlarmModal = ({ closeModal, alarmData, pid, dosesData }) => {
       {/* Weekdays - for Daily/Weekly */}
       {selectTimings === "Daily/Weekly" && (
         <FormControl isRequired isInvalid={weekdays.length === 0 && errorMessage}>
-          <FormLabel>Select Days</FormLabel>
+          {/* <FormLabel>Select Days</FormLabel> */}
           <Flex gap={2} wrap="wrap">
             {["Mon", "Tues", "Wed", "Thurs", "Fri", "Sat", "Sun"].map((day) => (
               <Checkbox
@@ -526,7 +526,7 @@ const EditAlarmModal = ({ closeModal, alarmData, pid, dosesData }) => {
               </Checkbox>
             ))}
           </Flex>
-          <FormHelperText>Select day(s) for the alarm</FormHelperText>
+          {/* <FormHelperText>Select day(s) for the alarm</FormHelperText> */}
         </FormControl>
       )}
       
@@ -570,7 +570,7 @@ const EditAlarmModal = ({ closeModal, alarmData, pid, dosesData }) => {
             </option>
           ))}
         </Select>
-        <FormHelperText>Choose doctor who will approve this alarm</FormHelperText>
+        {/* <FormHelperText>Choose doctor who will approve this alarm</FormHelperText> */}
       </FormControl>
     </FormModal>
   );

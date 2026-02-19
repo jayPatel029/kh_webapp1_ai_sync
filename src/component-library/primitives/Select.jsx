@@ -49,7 +49,7 @@ export const Select = forwardRef(({
     >
       {placeholder && (
         <option value="" disabled>
-          {placeholder}
+          <div className='text-sm'>{placeholder}</div>
         </option>
       )}
       {children}

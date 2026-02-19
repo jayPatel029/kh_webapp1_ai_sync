@@ -55,7 +55,7 @@ export const FormModal = ({
       {errorMessage && (
         <Text color="danger" size="sm">{errorMessage}</Text>
       )}
-      <Flex justify="end" gap={3}>
+      <Flex justify="end" gap={4}>
         <Button
           variant={cancelVariant}
           onClick={onClose}

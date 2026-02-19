@@ -172,7 +172,7 @@ const UserDietDetails = () => {
 
   return (
     <PatientDetailLayout
-      title="Diet Details"
+      title={userData?.name ? userData.name : "Patient's Alarms"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}

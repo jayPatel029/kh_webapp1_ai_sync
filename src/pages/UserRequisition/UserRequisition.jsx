@@ -159,7 +159,7 @@ const UserRequisition = () => {
 
   return (
     <PatientDetailLayout
-      title="Requisition Details"
+      title={userData?.name ? userData.name : "Patient's Alarms"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}

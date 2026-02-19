@@ -55,7 +55,7 @@ export const PatientProfileCard = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <Flex align="center" justify="between" className="w-full">
-          <Heading size="sm" weight="bold" className=" uppercase tracking-wide text-black font-16 font-bold">
+          <Heading as="h4" size="sm" weight="bold" >
             Basic details & ailment
           </Heading>
           {/* <Box className={clsx("h-6 w-6 p-0 hover:bg-transparent transition-transform duration-200", isExpanded ? 'rotate-90' : '')}>
@@ -124,7 +124,7 @@ export const PatientProfileCard = ({
               <Box className="space-y-4">
                 <Box className="flex items-center gap-4">
                   <Box className="h-8 w-1 rounded-full" />
-                  <Heading size="sm" weight="bold" className="text-2xl font-bold text-[#333]">Ailment Details</Heading>
+                  <Heading as="h4" size="sm" weight="bold">Ailment Details</Heading>
                 </Box>
 
                 {userData?.ailments && userData.ailments.length > 0 ? (

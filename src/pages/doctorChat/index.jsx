@@ -10,7 +10,7 @@ import { useParams, Link } from "react-router-dom";
 import { identifyRole } from "../../ApiCalls/authapis";
 import { getDoctors, getDoctorsChat } from "../../ApiCalls/doctorApis";
 import { Box, Button, Input, Badge, Card,Flex } from "../../component-library";
-import PageHeader from "../../components/PageHeader";
+import PatientDetailLayout from "../common/PatientDetailLayout";
 import { ROUTES } from "../../routes/routeConstants";
 
 import {
@@ -22,7 +22,6 @@ import {
   getSWMessages,
 } from "../../ApiCalls/chatApis";
 import ReactLoading from "react-loading";
-import PatientNavTabs from "../../components/PatientNavTabs";
 
 
 const ChatApp = () => {
@@ -209,196 +208,173 @@ const ChatApp = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="userProfile flex flex-col bg-gray-50 min-h-screen">
-      <div className="flex-1 block w-full">
-
-        {/* Sticky Header Section */}
-        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-          <Flex justify="start" align="center" className="py-4 px-6">
-            {/* Header with Breadcrumbs */}
-            <PageHeader
-              title="Doctor Chat"
-              breadcrumbs={[
-               // { label: "All Patients", path: "/patients" },
-                { label: patient?.name || "Patient", path: ROUTES.patientDetail(patientId), active: false },
-                { label: "Doctor Chat", active: true }
-              ]}
-              onBack={() => navigate(ROUTES.patientDetail(patientId))}
-            />
-          </Flex>
-
-          {/* Navigation Tabs */}
-          <PatientNavTabs
-            patientId={patientId}
-            userData={patient}
-            unreadAdminCount={0}
-            unreadDoctorCount={chats?.reduce((s, c) => s + (c.unreadCount || 0), 0)}
-            role={{ role_name: role }}
-          />
-        </Box>
-
-        <div className="bg-gray-50 min-h-[calc(100vh-320px)] ">
-          <Card className="w-full h-[80vh] rounded-2xl shadow-lg border-0">
-            {/* Header Section */}
-            <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50 h-20 px-8 border-b border-gray-200 rounded-t-2xl">
-              <h1 className="text-2xl font-bold text-gray-800">
-                Doctor Chat
-              </h1>
-              <div className="flex items-center gap-4">
-                <span className="text-gray-700 font-medium">{patient?.name}</span>
-                <img
-                  className="h-12 w-12 rounded-full object-cover border-2 border-blue-200"
-                  src={
-                    patient?.profile_photo ? patient?.profile_photo : dummyAdmin
-                  }
-                  alt="Patient"
-                />
-              </div>
+    <PatientDetailLayout
+      title="Doctor Chat"
+      patientIdParam="id"
+      userData={patient}
+      totalUnreadCount={0}
+      totalUnreadCountDoc={chats?.reduce((s, c) => s + (c.unreadCount || 0), 0)}
+      onBackClick={() => navigate(ROUTES.PATIENTS)}
+    >
+      <div className="bg-gray-50 min-h-[calc(100vh-320px)] ">
+        <Card className="w-full h-[80vh] rounded-2xl shadow-lg border-0">
+          {/* Header Section */}
+          <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50 h-20 px-8 border-b border-gray-200 rounded-t-2xl">
+            <h1 className="text-2xl font-bold text-gray-800">
+              Doctor Chat
+            </h1>
+            <div className="flex items-center gap-4">
+              <span className="text-gray-700 font-medium">{patient?.name}</span>
+              <img
+                className="h-12 w-12 rounded-full object-cover border-2 border-blue-200"
+                src={
+                  patient?.profile_photo ? patient?.profile_photo : dummyAdmin
+                }
+                alt="Patient"
+              />
             </div>
+          </div>
 
-            {/* Main Chat Area */}
-            <div className="flex h-[calc(100%-80px)]">
-              {/* Chat List Sidebar */}
-              {role !== "Admin" && role !== "PSadmin" ? (
-                <div className="w-[35%] bg-white border-r border-gray-200 overflow-y-auto rounded-bl-2xl">
-                  {chats.length > 0 || users.length > 0 ? (
-                    <>
-                      {chats.map((chat, index) => {
-                        const isActive = chat.receiverEmail === activeReciever;
-                        return (
-                          <div
-                            key={index}
-                            onClick={async () => {
-                              serActiveReciever(chat.receiverEmail);
-                              setLoading(true);
-                              loadMessages(chat.id).then((res) => {
-                                setLoading(false);
-                              });
-                            }}
-                            className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${isActive
-                                ? "bg-blue-50 border-l-4 border-l-blue-600"
-                                : "hover:bg-gray-50"
-                              }`}
-                          >
-                            <img
-                              className="h-12 w-12 rounded-full object-cover flex-shrink-0"
-                              src={dummyAdmin}
-                              alt={chat.firstname}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-gray-800 truncate">
-                                {chat.firstname} {chat.lastname}
-                              </p>
-                            </div>
-                            {chat.unreadCount > 0 && (
-                              <Badge className="bg-blue-600 text-white font-bold">
-                                {chat.unreadCount}
-                              </Badge>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {users.map((user, index) => (
+          {/* Main Chat Area */}
+          <div className="flex h-[calc(100%-80px)]">
+            {/* Chat List Sidebar */}
+            {role !== "Admin" && role !== "PSadmin" ? (
+              <div className="w-[35%] bg-white border-r border-gray-200 overflow-y-auto rounded-bl-2xl">
+                {chats.length > 0 || users.length > 0 ? (
+                  <>
+                    {chats.map((chat, index) => {
+                      const isActive = chat.receiverEmail === activeReciever;
+                      return (
                         <div
                           key={index}
                           onClick={async () => {
-                            serActiveReciever(user.email);
+                            serActiveReciever(chat.receiverEmail);
                             setLoading(true);
-                            setChatId(null);
-                            loadChats(user.email).then((res) => {
+                            loadMessages(chat.id).then((res) => {
                               setLoading(false);
                             });
                           }}
-                          className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${user.email === activeReciever
+                          className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${isActive
                               ? "bg-blue-50 border-l-4 border-l-blue-600"
                               : "hover:bg-gray-50"
-                            }`}
-                        >
+                            }`}>
                           <img
                             className="h-12 w-12 rounded-full object-cover flex-shrink-0"
                             src={dummyAdmin}
-                            alt={user.firstname}
+                            alt={chat.firstname}
                           />
-                          <div className="flex-1">
-                            <p className="font-semibold text-gray-800">
-                              {user.firstname} {user.lastname}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-800 truncate">
+                              {chat.firstname} {chat.lastname}
                             </p>
                           </div>
+                          {chat.unreadCount > 0 && (
+                            <Badge className="bg-blue-600 text-white font-bold">
+                              {chat.unreadCount}
+                            </Badge>
+                          )}
                         </div>
-                      ))}
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      No chats available
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="w-[35%] bg-white border-r border-gray-200 overflow-y-auto rounded-bl-2xl">
-                  {doctors.length > 0 ? (
-                    doctors.map((doc, index) => (
+                      );
+                    })}
+                    {users.map((user, index) => (
                       <div
                         key={index}
                         onClick={async () => {
-                          setSender(doc.email);
-                          serActiveReciever("");
+                          serActiveReciever(user.email);
                           setLoading(true);
-                          loadSWChats(doc.email).then((res) => {
+                          setChatId(null);
+                          loadChats(user.email).then((res) => {
                             setLoading(false);
                           });
                         }}
-                        className="flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-all"
-                      >
+                        className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${user.email === activeReciever
+                            ? "bg-blue-50 border-l-4 border-l-blue-600"
+                            : "hover:bg-gray-50"
+                          }`}>
                         <img
                           className="h-12 w-12 rounded-full object-cover flex-shrink-0"
                           src={dummyAdmin}
-                          alt={doc.name}
+                          alt={user.firstname}
                         />
                         <div className="flex-1">
                           <p className="font-semibold text-gray-800">
-                            {doc.name}
+                            {user.firstname} {user.lastname}
                           </p>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      No doctors available
+                    ))}
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No chats available
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="w-[35%] bg-white border-r border-gray-200 overflow-y-auto rounded-bl-2xl">
+                {doctors.length > 0 ? (
+                  doctors.map((doc, index) => (
+                    <div
+                      key={index}
+                      onClick={async () => {
+                        setSender(doc.email);
+                        serActiveReciever("");
+                        setLoading(true);
+                        loadSWChats(doc.email).then((res) => {
+                          setLoading(false);
+                        });
+                      }}
+                      className="flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-all"
+                    >
+                      <img
+                        className="h-12 w-12 rounded-full object-cover flex-shrink-0"
+                        src={dummyAdmin}
+                        alt={doc.name}
+                      />
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800">
+                          {doc.name}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
+                  ))
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No doctors available
+                  </div>
+                )}
+              </div>
+            )}
 
-              {/* Messages Area */}
-              <div className="w-[65%] flex flex-col bg-gradient-to-br from-gray-50 to-white rounded-br-2xl">
-                {role === "Admin" || role === "PSadmin" ? (
-                  <>
-                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                      {chats.length > 0 ? (
-                        chats.map((chat, index) => (
-                          <Card key={index} className="p-4 border border-gray-200">
-                            <details className="group">
-                              <summary className="flex items-center gap-3 cursor-pointer font-semibold text-gray-800 hover:text-blue-600">
-                                <svg
-                                  className="h-5 w-5 rotate-0 transform group-open:rotate-180 transition-transform"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  strokeWidth="2"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M19 9l-7 7-7-7"
-                                  />
-                                </svg>
-                                <img
-                                  className="h-10 w-10 rounded-full object-cover flex-shrink-0"
-                                  src={dummyAdmin}
-                                  alt={chat.firstname}
+            {/* Messages Area */}
+            <div className="w-[65%] flex flex-col bg-gradient-to-br from-gray-50 to-white rounded-br-2xl">
+              {role === "Admin" || role === "PSadmin" ? (
+                <>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                    {chats.length > 0 ? (
+                      chats.map((chat, index) => (
+                        <Card key={index} className="p-4 border border-gray-200">
+                          <details className="group">
+                            <summary className="flex items-center gap-3 cursor-pointer font-semibold text-gray-800 hover:text-blue-600">
+                              <svg
+                                className="h-5 w-5 rotate-0 transform group-open:rotate-180 transition-transform"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth="2"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M19 9l-7 7-7-7"
                                 />
-                                {chat.firstname} {chat.lastname}
+                              </svg>
+                              <img
+                                className="h-10 w-10 rounded-full object-cover flex-shrink-0"
+                                src={dummyAdmin}
+                                alt={chat.firstname}
+                              />                                {chat.firstname} {chat.lastname}
                               </summary>
                               <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
                                 {loading ? (
@@ -550,8 +526,7 @@ const ChatApp = () => {
             </div>
           </Card>
         </div>
-      </div>
-    </div>
+    </PatientDetailLayout>
   );
 };
 

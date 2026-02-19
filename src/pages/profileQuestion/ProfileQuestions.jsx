@@ -244,7 +244,7 @@ function ProfileQuestions() {
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
-        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+        <Box className="sticky top-[56px] z-20 bg-white">
           <Container className="py-4 px-4 md:px-6 mx-0">
             <PageHeader
               title="Question Master"
@@ -258,8 +258,8 @@ function ProfileQuestions() {
 
          
           <div className="admin-page-content">
-            <div className="admin-card">
-              <div className="admin-card__header">
+          <div className="admin-card">
+            <div className="admin-card__header">
                 <div className="flex justify-between items-center w-full flex-wrap gap-4">
                   <div>
                     <p className="text-sm text-gray-500">

@@ -5,7 +5,7 @@ import dummyAdmin from "../../assets/dummyadmin.png";
 import { getUsers } from "../../ApiCalls/authapis";
 import { Button, Input, Badge, Card,Flex } from "../../component-library";
 import PageHeader from "../../components/PageHeader";
-
+import PatientDetailLayout from "../common/PatientDetailLayout";
 import {
   getPatientById,
   getPatientMedicalTeam,
@@ -234,239 +234,216 @@ const ChatApp = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="userProfile flex flex-col bg-gray-50 min-h-screen">
-      <div className="flex-1 block w-full">
-
-        {/* Sticky Header Section */}
-        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
-          <Flex justify="start" align="center" className="py-4 px-6">
-            {/* Header with Breadcrumbs */}
-            <PageHeader
-              title="Admin Chat"
-              breadcrumbs={[
-               // { label: "All Patients", path: "/patients" },
-                { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
-                { label: "Admin Chat", active: true }
-              ]}
-              onBack={() => navigate(ROUTES.patientDetail(patientId))}
-            />
-          </Flex>
-
-          {/* Navigation Tabs */}
-          <PatientNavTabs
-            patientId={patientId}
-            userData={patient}
-            unreadAdminCount={chats?.reduce((s, c) => s + (c.unreadCount || 0), 0)}
-            unreadDoctorCount={0}
-            role={{ role_name: role }}
-          />
-        </Box>
-
-        <div className="bg-gray-50 min-h-[calc(100vh-320px)] ">
-          <Card className="w-full h-[80vh] rounded-2xl shadow-lg border-0">
-            {/* Header Section */}
-            <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50 h-20 px-8 border-b border-gray-200 rounded-t-2xl">
-              <h1 className="text-2xl font-bold text-gray-800">
-                Admin Chat
-              </h1>
-              <div className="flex items-center gap-4">
-                <span className="text-gray-700 font-medium">{patient?.name}</span>
-                <img
-                  className="h-12 w-12 rounded-full object-cover border-2 border-blue-200"
-                  src={
-                    patient?.profile_photo ? patient?.profile_photo : dummyAdmin
-                  }
-                  alt="Patient"
-                />
-              </div>
+    <PatientDetailLayout
+      title="Admin Chat"
+      patientIdParam="id"
+      userData={patient}
+      totalUnreadCount={chats?.reduce((s, c) => s + (c.unreadCount || 0), 0)}
+      totalUnreadCountDoc={0}
+      onBackClick={() => navigate(ROUTES.PATIENTS)}
+    >
+      <div className="bg-gray-50 min-h-[calc(100vh-320px)] ">
+        <Card className="w-full h-[80vh] rounded-2xl shadow-lg border-0">
+          {/* Header Section */}
+          <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50 h-20 px-8 border-b border-gray-200 rounded-t-2xl">
+            <h1 className="text-2xl font-bold text-gray-800">
+              Admin Chat
+            </h1>
+            <div className="flex items-center gap-4">
+              <span className="text-gray-700 font-medium">{patient?.name}</span>
+              <img
+                className="h-12 w-12 rounded-full object-cover border-2 border-blue-200"
+                src={
+                  patient?.profile_photo ? patient?.profile_photo : dummyAdmin
+                }
+                alt="Patient"
+              />
             </div>
+          </div>
 
-            {/* Main Chat Area */}
-            <div className="flex h-[calc(100%-80px)]">
-              {/* Chat List Sidebar */}
-              {role === "Admin" || role === "PSadmin" ? (
-                <div className="w-[35%] bg-white border-r border-gray-200 overflow-y-auto rounded-bl-2xl">
-                  {chats.length > 0 ? (
-                    chats.map((chat, index) => {
-                      const isInMedicalTeam = medicalTeam.some(
-                        (member) => member.email === chat.receiverEmail
-                      );
-                      const isActive = chat.receiverEmail === activeReciever;
+          {/* Main Chat Area */}
+          <div className="flex h-[calc(100%-80px)]">
+            {/* Chat List Sidebar */}
+            {role === "Admin" || role === "PSadmin" ? (
+              <div className="w-[35%] bg-white border-r border-gray-200 overflow-y-auto rounded-bl-2xl">
+                {chats.length > 0 ? (
+                  chats.map((chat, index) => {
+                    const isInMedicalTeam = medicalTeam.some(
+                      (member) => member.email === chat.receiverEmail
+                    );
+                    const isActive = chat.receiverEmail === activeReciever;
 
-                      return (
-                        <div
-                          key={index}
-                          onClick={async () => {
-                            serActiveReciever(chat.receiverEmail);
-                            setLoading(true);
-                            loadMessages(chat.id).then((res) => {
-                              setLoading(false);
-                            });
-                          }}
-                          className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${
-                            isActive
-                              ? "bg-blue-50 border-l-4 border-l-blue-600"
-                              : "hover:bg-gray-50"
-                          }`}
-                        >
-                          <img
-                            className="h-12 w-12 rounded-full object-cover flex-shrink-0"
-                            src={dummyAdmin}
-                            alt={chat.firstname}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-800 truncate">
-                              {chat.firstname} {chat.lastname}
-                            </p>
-                            {!isInMedicalTeam && (
-                              <span className="text-xs text-red-500 font-medium">
-                                Not Assigned
-                              </span>
-                            )}
-                          </div>
-                          {chat.unreadCount > 0 && (
-                            <Badge className="bg-blue-600 text-white font-bold">
-                              {chat.unreadCount}
-                            </Badge>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      No chats available
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="w-[35%] bg-white border-r border-gray-200 overflow-y-auto rounded-bl-2xl">
-                  <div className="sticky top-0 bg-blue-50 p-4 border-b border-gray-200 text-center">
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      Assigned Admins
-                    </h3>
-                  </div>
-                  {adminTeam.length > 0 ? (
-                    adminTeam.map((admin, index) => (
+                    return (
                       <div
                         key={index}
-                        className="flex items-center gap-4 p-4 border-b border-gray-100"
-                      >
+                        onClick={async () => {
+                          serActiveReciever(chat.receiverEmail);
+                          setLoading(true);
+                          loadMessages(chat.id).then((res) => {
+                            setLoading(false);
+                          });
+                        }}
+                        className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer transition-all ${
+                          isActive
+                            ? "bg-blue-50 border-l-4 border-l-blue-600"
+                            : "hover:bg-gray-50"
+                        }`}>
                         <img
                           className="h-12 w-12 rounded-full object-cover flex-shrink-0"
                           src={dummyAdmin}
-                          alt={admin.firstname}
+                          alt={chat.firstname}
                         />
-                        <div className="flex-1">
-                          <p className="font-semibold text-gray-800">
-                            {admin.firstname} {admin.lastname}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-800 truncate">
+                            {chat.firstname} {chat.lastname}
+                          </p>
+                          {!isInMedicalTeam && (
+                            <span className="text-xs text-red-500 font-medium">
+                              Not Assigned
+                            </span>
+                          )}
+                        </div>
+                        {chat.unreadCount > 0 && (
+                          <Badge className="bg-blue-600 text-white font-bold">
+                            {chat.unreadCount}
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No chats available
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="w-[35%] bg-white border-r border-gray-200 overflow-y-auto rounded-bl-2xl">
+                <div className="sticky top-0 bg-blue-50 p-4 border-b border-gray-200 text-center">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Assigned Admins
+                  </h3>
+                </div>
+                {adminTeam.length > 0 ? (
+                  adminTeam.map((admin, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-4 p-4 border-b border-gray-100"
+                    >
+                      <img
+                        className="h-12 w-12 rounded-full object-cover flex-shrink-0"
+                        src={dummyAdmin}
+                        alt={admin.firstname}
+                      />
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800">
+                          {admin.firstname} {admin.lastname}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No admins assigned
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Messages Area */}
+            <div className="w-[65%] flex flex-col bg-gradient-to-br from-gray-50 to-white rounded-br-2xl">
+              <div
+                className="flex-1 overflow-y-auto p-6 space-y-4"
+                style={{ transform: "scaleY(-1)" }}
+              >
+                {loading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <ReactLoading
+                      type="bubbles"
+                      color={"#3b82f6"}
+                      height={80}
+                      width={80}
+                    />
+                  </div>
+                ) : messages.length > 0 ? (
+                  messages.map((message, index) => {
+                    const sent_at = new Date(message.sent_at);
+                    const isOwn = message.sender === sender;
+
+                    return (
+                      <div
+                        key={index}
+                        className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                        style={{ transform: "scaleY(-1)" }}
+                      >
+                        <div className={`max-w-xs lg:max-w-md ${isOwn ? "items-end" : "items-start"}`}>
+                          <p className="text-xs text-gray-600 px-2 mb-1">
+                            {message.firstname} {message.lastname}
+                          </p>
+                          <div
+                            className={`px-4 py-3 rounded-2xl text-gray-800 ${isOwn
+                                ? "bg-blue-500 text-white rounded-br-none"
+                                : "bg-white border border-gray-200 rounded-bl-none shadow-sm"
+                              }`}
+                          >
+                            {message.message}
+                          </div>
+                          <p className="text-xs text-gray-500 px-2 mt-1">
+                            {sent_at.toLocaleTimeString("en-GB", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </p>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      No admins assigned
-                    </div>
-                  )}
-                </div>
-              )}
+                    );
+                  })
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-400">
+                    <p>No messages yet. Start a conversation!</p>
+                  </div>
+                )}
+              </div>
 
-              {/* Messages Area */}
-              <div className="w-[65%] flex flex-col bg-gradient-to-br from-gray-50 to-white rounded-br-2xl">
-                <div
-                  className="flex-1 overflow-y-auto p-6 space-y-4"
-                  style={{ transform: "scaleY(-1)" }}
-                >
-                  {loading ? (
-                    <div className="h-full flex items-center justify-center">
-                      <ReactLoading
-                        type="bubbles"
-                        color={"#3b82f6"}
-                        height={80}
-                        width={80}
-                      />
-                    </div>
-                  ) : messages.length > 0 ? (
-                    messages.map((message, index) => {
-                      const sent_at = new Date(message.sent_at);
-                      const isOwn = message.sender === sender;
-
-                      return (
-                        <div
-                          key={index}
-                          className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-                          style={{ transform: "scaleY(-1)" }}
-                        >
-                          <div className={`max-w-xs lg:max-w-md ${isOwn ? "items-end" : "items-start"}`}>
-                            <p className="text-xs text-gray-600 px-2 mb-1">
-                              {message.firstname} {message.lastname}
-                            </p>
-                            <div
-                              className={`px-4 py-3 rounded-2xl text-gray-800 ${
-                                isOwn
-                                  ? "bg-blue-500 text-white rounded-br-none"
-                                  : "bg-white border border-gray-200 rounded-bl-none shadow-sm"
-                              }`}
-                            >
-                              {message.message}
-                            </div>
-                            <p className="text-xs text-gray-500 px-2 mt-1">
-                              {sent_at.toLocaleTimeString("en-GB", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-gray-400">
-                      <p>No messages yet. Start a conversation!</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Message Input Area */}
-                <div className="bg-white border-t border-gray-200 p-4 rounded-br-2xl">
-                  {activeReciever !== "" ? (
-                    <div className="flex items-center gap-3">
-                      <Input
-                        type="text"
-                        placeholder="Type your message here..."
-                        value={currentMessage}
-                        onChange={(e) => {
-                          setCurrentMessage(e.target.value);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            sendCurrentMessage();
-                          }
-                        }}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <Button
-                        onClick={sendCurrentMessage}
-                        variant="primary"
-                        size="md"
-                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 flex items-center justify-center"
-                      >
-                        <MdSend className="text-xl" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <p className="text-center text-gray-500 py-4">
-                      Select a chat to start messaging
-                    </p>
-                  )}
-                </div>
+              {/* Message Input Area */}
+              <div className="bg-white border-t border-gray-200 p-4 rounded-br-2xl">
+                {activeReciever !== "" ? (
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="text"
+                      placeholder="Type your message here..."
+                      value={currentMessage}
+                      onChange={(e) => {
+                        setCurrentMessage(e.target.value);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          sendCurrentMessage();
+                        }
+                      }}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <Button
+                      onClick={sendCurrentMessage}
+                      variant="primary"
+                      size="md"
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 flex items-center justify-center"
+                    >
+                      <MdSend className="text-xl" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-center text-gray-500 py-4">
+                    Select a chat to start messaging
+                  </p>
+                )}
               </div>
             </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
       </div>
-    </div>
+    </PatientDetailLayout>
   );
 };
 

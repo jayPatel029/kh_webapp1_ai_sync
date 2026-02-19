@@ -16,6 +16,7 @@ module.exports = {
         overlay: "rgba(234, 234, 234, 0.4)",
         text: "#393939",
         textMuted: "#989898",
+        textLight: "#656565",
         border: "#5886a5",
         borderLight: "#d9d9d9",
         divider: "#989898",

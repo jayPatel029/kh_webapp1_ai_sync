@@ -181,7 +181,7 @@ const UserLabReports = () => {
 
   return (
     <PatientDetailLayout
-      title="Lab Reports"
+      title={userData?.name ? userData.name : "Patient's Alarms"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
@@ -230,7 +230,7 @@ const UserLabReports = () => {
       </Box> */}
 
       {/* Table Layout */}
-      <Box className="border border-gray-100 rounded-[5px] overflow-hidden">
+      <Box className="rounded-[5px] overflow-hidden">
         {/* Table Header */}
         <Flex
           className="bg-[#5886a5] text-white py-4 px-6 md:px-12"

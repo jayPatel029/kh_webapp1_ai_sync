@@ -184,7 +184,7 @@ const Userprescription = () => {
 
   return (
     <PatientDetailLayout
-      title="Prescriptions"
+      title={userData?.name ? userData.name : "Patient's Alarms"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}

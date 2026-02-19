@@ -19,7 +19,6 @@ import {
 import { Input } from "../../component-library/primitives/Input";
 import { Select } from "../../component-library/primitives/Select";
 import { Checkbox, CheckboxGroup } from "../../component-library/primitives/Checkbox";
-import { SortDropdown } from "../../component-library/primitives";
 
 // Layout & Typography
 import { Box, Flex, VStack, HStack, Stack } from "../../component-library/layout/Layout";
@@ -37,14 +36,8 @@ import {
 
 // Import design system styles
 import "../../design-system/styles/index.css";
-import sortIcon from "../../assets/Sort_Amount_Up.svg";
 
-const ALARM_TYPE_DROPDOWN_OPTIONS = alarmTypeOptions.map((option) => ({
-  value: option.label,
-  label: option.label,
-}));
-
-const AlarmModal = ({ closeModal, pid }) => {
+const AlarmModal = ({ closeModal, pid, patient }) => {
   // Form state
   const [selectedAlarmType, setSelectedAlarmType] = useState("Dialysis");
   const [selectedHealthParameter, setSelectedHealthParameter] = useState("");
@@ -222,8 +215,7 @@ const AlarmModal = ({ closeModal, pid }) => {
 
         if (medicalTeam.success && medicalTeam.data.data?.length > 0) {
           setConsultDoctor(medicalTeam.data.data);
-          const defaultDoctorId = medicalTeam.data.data[0]?.id;
-          setDoctorid(defaultDoctorId ? String(defaultDoctorId) : "");
+          setDoctorid(medicalTeam.data.data[0]?.id || "");
         }
 
         if (prescriptionData.success && prescriptionData.data.data?.length > 0) {
@@ -328,11 +320,6 @@ const AlarmModal = ({ closeModal, pid }) => {
     ));
   };
 
-  const doctorDropdownOptions = consultDoctor.map((doc) => ({
-    value: String(doc.id),
-    label: doc.name,
-  }));
-
   return (
     <FormModal
       isOpen={true}
@@ -350,18 +337,20 @@ const AlarmModal = ({ closeModal, pid }) => {
       {/* Alarm Type */}
       <FormControl isRequired isInvalid={!selectedAlarmType && errorMessage}>
         <FormLabel>Alarm Type</FormLabel>
-        <SortDropdown
+        <Select
           value={selectedAlarmType}
           onChange={(e) => {
             setSelectedAlarmType(e.target.value);
             setSelectedHealthParameter("");
             setErrorMessage("");
           }}
-          options={ALARM_TYPE_DROPDOWN_OPTIONS}
-          placeholder="Select Alarm Type"
-          icon={<img src={sortIcon} alt="Sort" />}
-          className="sort-dropdown--block"
-        />
+        >
+          {alarmTypeOptions.map((type) => (
+            <option key={type.label} value={type.label}>
+              {type.label}
+            </option>
+          ))}
+        </Select>
         {/* <FormHelperText>Select the type of alarm</FormHelperText> */}
       </FormControl>
 
@@ -369,17 +358,20 @@ const AlarmModal = ({ closeModal, pid }) => {
       {selectedAlarmType === "Health Reading" && (
         <FormControl isRequired isInvalid={!selectedHealthParameter && errorMessage}>
           <FormLabel>Health Parameter</FormLabel>
-          <SortDropdown
+          <Select
             value={selectedHealthParameter}
             onChange={(e) => {
               setSelectedHealthParameter(e.target.value);
               setErrorMessage("");
             }}
-            options={drOptions}
-            placeholder="Select Parameter"
-            icon={<img src={sortIcon} alt="Sort" />}
-            className="sort-dropdown--block"
-          />
+            placeholder="Select parameter"
+          >
+            {drOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
         </FormControl>
       )}
 
@@ -387,14 +379,18 @@ const AlarmModal = ({ closeModal, pid }) => {
       {selectedAlarmType === "Dialysis" && (
         <FormControl isRequired>
           <FormLabel>Set Dialysis Parameter</FormLabel>
-          <SortDropdown
+          <Select
             value={selectedHealthParameter}
             onChange={(e) => setSelectedHealthParameter(e.target.value)}
-            options={dirOptions}
-            placeholder="Select Parameter"
-            icon={<img src={sortIcon} alt="Sort" />}
-            className="sort-dropdown--block"
-          />
+            // placeholder="Select parameter"
+          >
+            {/* <option value="">Select Parameter</option> */}
+            {dirOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
         </FormControl>
       )}
 
@@ -563,17 +559,20 @@ const AlarmModal = ({ closeModal, pid }) => {
       {/* Doctor Selection */}
       <FormControl isRequired isInvalid={!doctorid && errorMessage}>
         <FormLabel>Select Doctor for Approval</FormLabel>
-        <SortDropdown
+        <Select
           value={doctorid}
           onChange={(e) => {
             setDoctorid(e.target.value);
             setErrorMessage("");
           }}
-          options={doctorDropdownOptions}
-          placeholder="Select Doctor"
-          icon={<img src={sortIcon} alt="Sort" />}
-          className="sort-dropdown--block"
-        />
+        >
+          <option value="">Select Doctor</option>
+          {consultDoctor.map((doc) => (
+            <option key={doc.id} value={doc.id}>
+              {doc.name}
+            </option>
+          ))}
+        </Select>
         {/* <FormHelperText>Choose doctor who will approve this alarm</FormHelperText> */}
       </FormControl>
     </FormModal>

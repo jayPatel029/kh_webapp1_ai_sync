@@ -159,7 +159,7 @@
   /* 12px */
   --font-size-sm: 0.875rem;
   /* 14px */
-  --font-size-md: 1rem;
+  --font-size-md: 0.95rem;
   /* 16px */
   --font-size-lg: 1.125rem;
   /* 18px */
@@ -415,6 +415,7 @@
   --container-md: 768px;
   --container-lg: 1024px;
   --container-xl: 1280px;
+  --container-navmatch: 97.75%;
 }
 
 /* Typography Utility Classes */

@@ -241,7 +241,7 @@ Container.displayName = 'Container';
 
 Container.propTypes = {
   children: PropTypes.node,
-  size: PropTypes.oneOf(['sm', 'md', 'lg', 'xl', 'full']),
+  size: PropTypes.oneOf(['sm', 'md', 'lg', 'xl', 'full', 'navmatch']),
   centerContent: PropTypes.bool,
   className: PropTypes.string,
 };

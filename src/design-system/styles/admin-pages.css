@@ -9,13 +9,13 @@
 :root {
   --admin-teal: #1A9A9A;
   --admin-teal-light: #E6F7F7;
-  --admin-teal-dark: #157878;
+  --admin-teal-dark: #2b00ff;
   --admin-coral: #E86850;
   --admin-coral-light: #FEF0ED;
   --admin-navy: #1E3A5F;
   --admin-navy-light: #2D4A6F;
   --admin-slate: #5A6B7E;
-  --admin-table-header: #5A6B7E;
+  --admin-table-header: var(--color-accent);
   --admin-green: #22C55E;
   --admin-red: #EF4444;
   --admin-gray-50: #F9FAFB;
@@ -84,7 +84,9 @@
 .admin-card {
   background: white;
   border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+/* hadow-[2px_2px_8px_0px_rgba(0, 0, 0, 0.25)] mt-5 */
+  box-shadow: 2px 2px 8px 8px rgba(0, 0, 0, 0.10);
+  margin-top: 1.5rem;
   overflow: hidden;
   margin-bottom: 1.5rem;
 }
@@ -95,7 +97,7 @@
 
 .admin-card__header {
   padding: 1.25rem 1.5rem;
-  border-bottom: 2px solid var(--admin-teal);
+  border-bottom: 2px solid var(--color-info);
 }
 
 .admin-card__header-title {

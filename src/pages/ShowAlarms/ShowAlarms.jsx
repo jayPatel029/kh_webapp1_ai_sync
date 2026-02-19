@@ -214,7 +214,7 @@ const ShowAlarms = () => {
 
   return (
     <PatientDetailLayout
-      title="Alarm Details"
+      title={userData?.name ? userData.name : "Patient's Alarms"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
@@ -250,7 +250,7 @@ const ShowAlarms = () => {
       />
 
       {/* Modals */}
-      {showModal && <AlarmModal closeModal={closeModal} pid={patientId} />}
+      {showModal && <AlarmModal closeModal={closeModal} pid={patientId} patient={userData} />}
 
       {showEditModal && !isDoctor && (
         <EditAlarmModal

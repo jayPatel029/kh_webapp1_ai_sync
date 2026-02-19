@@ -196,7 +196,7 @@ function AdminManagement() {
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
-        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+        <Box className="sticky top-[56px] z-20 bg-white">
           <Container className="py-4 px-4 md:px-6 mx-0">
             <PageHeader
               title="Create Admin"

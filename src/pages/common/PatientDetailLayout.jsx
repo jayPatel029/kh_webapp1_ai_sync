@@ -77,7 +77,7 @@ const PatientDetailLayout = ({
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         {/* Sticky Header Section */}
-        <Box className="sticky top-[56px] z-20 bg-white border-b border-gray-200">
+        <Box className="sticky top-[56px] z-20 bg-white">
           <Flex justify="start" align="center" className="py-4 px-6">
             {/* Header with Breadcrumbs */}
             <PageHeader
@@ -101,14 +101,14 @@ const PatientDetailLayout = ({
         </Box>
 
         {/* Main Content */}
-        <Box className="flex-1 bg-[#fafafa]">
-          <Container className="py-8 px-4 md:px-12 max-w-[1440px] mx-auto">
-            <Box className="bg-white rounded-[15px] shadow-md p-8">
+        <Box className="flex-1 ">
+          <Container size="navmatch"  className="py-8 px-4 w-full md:px-12 mx-2">
+            <Box className="bg-white rounded-[15px] w-full p-8 shadow-[2px_2px_8px_8px_rgba(0,0,0,0.1)] shadow-[-2px_-2px_8px_8px_rgba(0,0,0,0.1)] ">
               {/* Header Section with Patient Info */}
               <Flex
                 justify="between"
                 align="center"
-                className="pb-4 border-b border-gray-200 mb-6"
+                className="pb-4  border-b-2 !border-info mb-6"
               >
                 <Box>
                   <h2 className="text-[18px] font-bold text-[#393939]">{title}</h2>

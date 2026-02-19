@@ -30,12 +30,12 @@ export const PatientNavTabs = ({
 
   const tabs = [
     { id: 'alarms', label: 'Alarms', path: ROUTES.patientAlarms(patientId), visible: !(role?.role_name === 'Dialysis Technician') },
-    { id: 'diet', label: 'Diet Details', path: ROUTES.patientDiet(patientId), state: userData, visible: !(role?.role_name === 'Dialysis Technician') },
+    { id: 'diet', label: 'Diet details', path: ROUTES.patientDiet(patientId), state: userData, visible: !(role?.role_name === 'Dialysis Technician') },
     { id: 'adminChat', label: 'Admin Chat', path: ROUTES.patientAdminChat(patientId), unread: unreadAdminCount, visible: !(role?.role_name === 'Dialysis Technician' || role?.role_name === 'Medical Staff') },
     { id: 'doctorChat', label: 'Doctor Chat', path: ROUTES.patientDoctorChat(patientId), unread: unreadDoctorCount, visible: !(role?.role_name === 'Medical Staff' || role?.role_name === 'Dialysis Technician') },
-    { id: 'labs', label: 'Lab Reports', path: ROUTES.patientLabs(patientId), state: userData, visible: true },
+    { id: 'labs', label: 'Lab reports', path: ROUTES.patientLabs(patientId), state: userData, visible: true },
     { id: 'prescriptions', label: 'Prescriptions', path: ROUTES.patientPrescriptions(patientId), state: userData, visible: true },
-    { id: 'requisition', label: 'Requisition Reports', path: ROUTES.patientRequisitions(patientId), state: userData, visible: true },
+    { id: 'requisition', label: 'Requisition reports', path: ROUTES.patientRequisitions(patientId), state: userData, visible: true },
     { id: 'manage', label: 'Manage Parameters', path: ROUTES.patientParameters(patientId), state: userData, visible: role?.role_name === 'Admin' },
   ];
 
@@ -67,7 +67,7 @@ export const PatientNavTabs = ({
 
           variant={isActive(tab.path) ? 'secondary' : 'outline'}
           onClick={() => navigate(tab.path, { state: tab.state })}
-          className=" h-10 px-4 rounded-xl flex items-center gap-3 shrink-0 bg-white border-2 border-divider transition-colors"
+          className=" h-10 px-4  py-4 rounded-md flex items-center gap-3 shrink-0 bg-white border-2 border-textLight transition-colors"
           aria-label={tab.label}
         >
           <Flex align="center" gap={2} className="w-full justify-start ">
@@ -76,15 +76,15 @@ export const PatientNavTabs = ({
                 src={icons[tab.id]}
                 alt={tab.label}
                 style={{
-                  width: 22,
-                  height: 22,
+                  width: 24,
+                  height: 24,
                   filter: isActive(tab.path)
                     ? 'brightness(0) invert(1)' // White
                     : 'brightness(0) saturate(100%) invert(39%) sepia(0%) saturate(0%) hue-rotate(173deg) brightness(95%) contrast(87%)' // Muted
                 }}
               />
             </Box>
-            <span className={`truncate   ${isActive(tab.path) ? 'text-white' : 'text-gray-700'}`}>{tab.label}</span>
+            <span className={`truncate text-md ${isActive(tab.path) ? 'text-white' : 'text-textLight'}`}>{tab.label}</span>
             <Box className="ml-auto flex items-center gap-2">
               {tab.unread > 0 && (
                 <Badge colorScheme="error" isPill size="sm" className="badge-error">
