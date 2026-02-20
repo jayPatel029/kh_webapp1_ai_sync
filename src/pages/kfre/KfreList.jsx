@@ -7,6 +7,7 @@ import { useParams } from "react-router-dom";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import { calculateAge } from "../../helpers/utils";
+import { useIsMobile } from "../../components/mobile/useIsMobile";
 
 function KfreList() {
   const [patients, setPatients] = useState([]);
@@ -32,6 +33,7 @@ function KfreList() {
   const [kfre, setKfre] = useState();
 
   const id = useParams();
+  const { isMobile } = useIsMobile();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -234,8 +236,8 @@ function KfreList() {
   }, [extractedPdfData]);
 
   return (
-    <div className="bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
-      <div className="border-b-gray border-b-2 p-2 pt-4 md:pb-4 font-semibold text-primary tracking-wide text-xl">
+    <div className={`bg-white border rounded-md border-t-primary border-t-4 shadow-md ${isMobile ? 'p-3' : 'md:p-6 p-2'}`}>
+      <div className={`border-b-gray border-b-2 p-2 pt-4 font-semibold text-primary tracking-wide ${isMobile ? 'text-lg pb-2' : 'md:pb-4 text-xl'}`}>
         KFRE Calculation
       </div>
       {/* <div className="flex gap-2 flex-row mb-3">
@@ -405,7 +407,7 @@ function KfreList() {
       </div>
       <button
         onClick={calculate}
-        className="border mt-5 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-full md:w-[12vw] rounded-lg block p-1.5">
+        className={`border mt-5 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 rounded-lg block p-1.5 ${isMobile ? 'w-full' : 'w-full md:w-[12vw]'}`}>
         CALCULATE
       </button>
       {kfre && (

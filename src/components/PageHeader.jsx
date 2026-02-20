@@ -1,6 +1,6 @@
 /**
  * Page Header Component
- * Breadcrumb and page title
+ * Breadcrumb and page title — supports desktop and mobile variants
  * 
  * @file src/components/PageHeader.jsx
  */
@@ -11,16 +11,74 @@ import { Text, Heading, Box, Flex, IconButton, Button } from '../component-libra
 import * as assets from '../assets';
 import '../design-system/styles/index.css';
 import onBackButton from '../assets/onBackButton.svg';
+import { useIsMobile } from './mobile/useIsMobile';
+
 export const PageHeader = ({
   breadcrumbs = [],
   title = 'Patient Name',
   onBack,
+  variant, // 'mobile' | undefined (auto-detects)
+  rightAction, // optional right-side element for mobile header
 }) => {
+  const { isMobile: autoMobile } = useIsMobile();
+  const isMobileView = variant === 'mobile' || (variant !== 'desktop' && autoMobile);
+
   // Normalize breadcrumbs: accept array of strings or objects { label, path, active, icon }
   const crumbs = Array.isArray(breadcrumbs)
     ? breadcrumbs.map((b) => (typeof b === 'string' ? { label: b } : b))
     : [{ label: String(breadcrumbs) }];
 
+  // Mobile compact header
+  if (isMobileView) {
+    return (
+      <Box className="w-full px-0 py-2">
+        <Flex align="center" justify="between" className="min-h-[44px]">
+          <Flex align="center" gap={2}>
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="inline-flex items-center justify-center w-9 h-9 rounded-lg border-none bg-transparent cursor-pointer"
+                aria-label="Go back"
+                style={{ transition: 'var(--transition-fast)' }}
+              >
+                <img src={onBackButton} alt="back" className="w-5 h-5" />
+              </button>
+            )}
+            <div
+              className="text-accent font-bold font-['Sora'] truncate"
+              style={{ fontSize: 'var(--font-size-lg)' }}
+            >
+              {title}
+            </div>
+          </Flex>
+          {rightAction && (
+            <Flex align="center" gap={2}>
+              {rightAction}
+            </Flex>
+          )}
+        </Flex>
+        {/* Compact breadcrumbs on mobile - single line */}
+        {crumbs.length > 1 && (
+          <Text size="xs" weight="normal" className="text-muted mt-1 truncate">
+            {crumbs.map((c, i) => (
+              <span key={i}>
+                {i > 0 && <span className="mx-1">/</span>}
+                {c.path && !c.active ? (
+                  <Link to={c.path} className="text-muted hover:text-primary" style={{ textDecoration: 'none' }}>
+                    {c.label}
+                  </Link>
+                ) : (
+                  <span>{c.label}</span>
+                )}
+              </span>
+            ))}
+          </Text>
+        )}
+      </Box>
+    );
+  }
+
+  // Desktop header (original)
   return (
     <Box className="w-full mt-3 px-0 py-2 noscrollbar">
       <Flex direction="rows" align="center" gap={6}>
@@ -55,12 +113,7 @@ export const PageHeader = ({
             ))}
           </Text>
 
-
           <div className="self-stretch justify-start text-accent text-2xl font-bold font-['Sora']">{title}</div>
-
-          {/* <Heading size="xl" weight="bold" className="text-slate-600">
-          {title}
-          </Heading> */}
         </Flex>
       </Flex>
     </Box>

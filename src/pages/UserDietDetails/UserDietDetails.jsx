@@ -17,6 +17,9 @@ import { Box, Flex, Button as ButtonPrimitive } from "../../component-library";
 import PatientDetailLayout from "../common/PatientDetailLayout";
 import PatientDetailTable from "../common/PatientDetailTable";
 
+// Mobile
+import { useIsMobile } from "../../components/mobile/useIsMobile";
+
 // Page Components
 import DietModal from "./DietModal";
 import FileViewModal from "../../components/modals/FileViewModal";
@@ -42,6 +45,7 @@ const UserDietDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
+  const { isMobile } = useIsMobile();
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -180,23 +184,13 @@ const UserDietDetails = () => {
       loading={loading}
       onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
-      {/* Filter and Upload Section */}
-      <Flex justify="between" align="center" className="mb-6">
-        <Flex gap={4} align="center">
-          {/* Placeholder for filters - hidden per Figma design */}
-          <Box className="opacity-0">
-            <select className="h-[50px] px-4 pr-10 rounded-[10px] border border-i">
-              <option>Sort by</option>
-            </select>
-          </Box>
-        </Flex>
-
-        {/* Upload Button - Only show for non-Doctor roles */}
+      {/* Upload Section */}
+      <Flex justify="end" className={isMobile ? 'mb-3' : 'mb-6'}>
         {role?.role_name !== "Doctor" && (
           <ButtonPrimitive
             variant="solid"
             onClick={openModal}
-            className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
+            className={`${isMobile ? 'h-[40px] px-4 text-[13px] rounded-lg w-full' : 'h-[50px] px-6 rounded-[10px] text-[16px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3451c9]`}
           >
             Upload
           </ButtonPrimitive>

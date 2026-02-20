@@ -11,6 +11,7 @@ import FileUploadWithCamera from "../../../components/FileUploadWithCamera";
 import { FormModal } from "../../../component-library/modals/FormModal";
 import { UnifiedListTable, SearchBar } from "../../../components";
 import { Input, FormControl, FormLabel, Button } from "../../../component-library";
+import { useIsMobile } from "../../../components/mobile/useIsMobile";
 
 export default function AilmentMasterComponent() {
   // State to hold the selected ailment data
@@ -26,6 +27,7 @@ export default function AilmentMasterComponent() {
   const [id, setId] = useState(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const { isMobile } = useIsMobile();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -146,21 +148,20 @@ export default function AilmentMasterComponent() {
   };
 
   return (
-    <div className="admin-page-content">
+    <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : ''}`}>
       <div className="admin-card">
         <div className="admin-card__header">
-          <div className="admin-toolbar">
-            <div className="admin-toolbar__left">
+          <div className={`admin-toolbar ${isMobile ? 'flex-col gap-2' : ''}`}>
+            <div className="admin-toolbar__left" style={isMobile ? { width: '100%' } : {}}>
               <SearchBar
                 placeholder="Search by name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ width: "250px" }}
-
+                style={isMobile ? { width: '100%' } : { width: "250px" }}
               />
             </div>
-            <div className="admin-toolbar__right">
-              <span className="admin-toolbar__count">
+            <div className={`admin-toolbar__right ${isMobile ? 'w-full justify-between' : ''}`}>
+              <span className={`admin-toolbar__count ${isMobile ? 'text-xs' : ''}`}>
                 {ailments.filter(ailment => 
                   ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
                 ).length} Records Found
@@ -188,6 +189,8 @@ export default function AilmentMasterComponent() {
               { key: 'Ailment_Img', label: 'Icon', type: 'image', width: '100px' },
               { key: 'actions', label: 'Actions', type: 'actions', width: '100px' }
             ]}
+            cardTitleKey="name"
+            cardImageKey="Ailment_Img"
             data={ailments.filter(ailment => 
               ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
             ).map((ailment) => ({

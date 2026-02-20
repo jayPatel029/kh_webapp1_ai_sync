@@ -24,6 +24,7 @@ import {
   getUsersThisWeekSub,
 } from "../../ApiCalls/adminDashApis";
 import { getDoctorComments } from "../../ApiCalls/GetComments";
+import { useIsMobile } from "../../components/mobile/useIsMobile";
 // Import CSS for modals (legacy styles)
 import "./adminDashboard.css"; 
 
@@ -36,6 +37,7 @@ import DiaAlertModal from "./components/DialysisTechModal";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const { isMobile } = useIsMobile();
   const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
   const [isDoctor, setIsDoctor] = useState(false);
@@ -211,20 +213,57 @@ const AdminDashboard = () => {
   };   
 
   return (
-    <Box className="flex-1 flex flex-col min-h-0 bg-white">
+    <Box className={`flex-1 flex flex-col min-h-0 bg-white ${isMobile ? 'px-3 pt-2' : ''}`}>
       {/* Main Content Scrollable Area */}
       <Box className="flex-1 overflow-y-auto">
   
           {/* Header */}
-          <Flex align="center" justify="between" className="pb-6 border-b-2 border-[#00cccc] mb-8">
-          <Heading as="h1" size="2xl" className="text-[#3F6B85] mt-3">
+          <Flex
+            align="center"
+            justify="between"
+            className={`border-b-2 border-[#00cccc] ${isMobile ? 'pb-3 mb-4' : 'pb-6 mb-8'}`}
+          >
+            <Heading as="h1" size={isMobile ? 'lg' : '2xl'} className="text-[#3F6B85] mt-3">
               My Dashboard
             </Heading>
+            {/* Mobile stat pills */}
+            {isMobile && (
+              <Flex gap={2} align="center">
+                <Box
+                  className="flex items-center gap-1 px-3 py-1 rounded-full"
+                  style={{ background: 'var(--color-primary-light, #dbeafe)' }}
+                >
+                  <Text size="xs" weight="bold" className="text-primary">{stats.totalUsers}</Text>
+                  <Text size="xs" className="text-primary">Total</Text>
+                </Box>
+                <Box
+                  className="flex items-center gap-1 px-3 py-1 rounded-full"
+                  style={{ background: 'var(--color-success-light, #d1fae5)' }}
+                >
+                  <Text size="xs" weight="bold" className="text-success">{stats.newUsers}</Text>
+                  <Text size="xs" className="text-success">New</Text>
+                </Box>
+              </Flex>
+            )}
           </Flex>
 
+          {/* Desktop stats summary */}
+          {!isMobile && (
+            <Flex gap={4} className="mb-6">
+              <Box className="flex-1 p-4 rounded-xl border border-gray-200">
+                <Text size="sm" className="text-muted">Total Patients</Text>
+                <Text size="2xl" weight="bold" className="text-accent">{stats.totalUsers}</Text>
+              </Box>
+              <Box className="flex-1 p-4 rounded-xl border border-gray-200">
+                <Text size="sm" className="text-muted">New This Week</Text>
+                <Text size="2xl" weight="bold" className="text-success">{stats.newUsers}</Text>
+              </Box>
+            </Flex>
+          )}
+
           {/* Alerts Section */}
-          <Box className="pb-8">
-            <Heading as="h2" size="xl" className="mb-6 text-black font-bold">
+          <Box className={isMobile ? 'pb-20' : 'pb-8'}>
+            <Heading as="h2" size={isMobile ? 'md' : 'xl'} className={`${isMobile ? 'mb-3' : 'mb-6'} text-black font-bold`}>
               Important Alerts
             </Heading>
 
@@ -245,7 +284,7 @@ const AdminDashboard = () => {
                           onAction={handleAction}
                         />
                     {/* Divider */}
-                    <Box className="h-[2px] bg-gray-200 my-6" />
+                    <Box className={`h-[2px] bg-gray-200 ${isMobile ? 'my-3' : 'my-6'}`} />
                   </React.Fragment>
                 ))}
                   </Flex>

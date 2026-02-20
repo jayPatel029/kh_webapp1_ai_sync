@@ -20,6 +20,7 @@ import {
 import { Spinner } from '../../../component-library/feedback/Spinner';
 import { Alert } from '../../../component-library/feedback/Alert';
 import { SearchBar } from '../../../components';
+import { useIsMobile } from '../../../components/mobile/useIsMobile';
 
 // Import icons
 import SearchIcon from '../../../assets/icons/search.svg';
@@ -29,6 +30,7 @@ import PlusIcon from '../../../assets/icons/plus.svg';
 
 const PatientList = ({ data, patientId }) => {
   const navigate = useNavigate();
+  const { isMobile } = useIsMobile();
 
   // State management
   const [patients, setPatients] = useState([]);
@@ -190,30 +192,32 @@ const PatientList = ({ data, patientId }) => {
   }
 
   return (
-    <VStack spacing={6} align="stretch" className="w-full">
+    <VStack spacing={isMobile ? 3 : 6} align="stretch" className="w-full">
       {error && (
         <Alert status="error" isClosable onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
-      {/* Header section matches Figma */}
+      {/* Header section */}
       <Box
-        className="border-b-2 border-solid"
+        className={`border-b-2 border-solid ${isMobile ? 'pb-2' : ''}`}
         style={{
           borderColor: 'var(--color-info)',
-          height: '100px',
+          height: isMobile ? 'auto' : '100px',
           position: 'relative'
         }}
       >
         <Heading
           as="h1"
-          size="2xl"
+          size={isMobile ? 'lg' : '2xl'}
           style={{
-            position: 'absolute',
-            left: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
+            ...(isMobile ? {} : {
+              position: 'absolute',
+              left: 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }),
             color: 'var(--color-accent)',
             fontFamily: 'Sora, sans-serif',
             fontWeight: 'bold'
@@ -224,6 +228,56 @@ const PatientList = ({ data, patientId }) => {
       </Box>
 
       {/* Toolbar */}
+      {isMobile ? (
+        <VStack spacing={3} align="stretch">
+          <SearchBar
+            placeholder="Search by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: "100%" }}
+          />
+          <Flex justify="between" align="center">
+            <Text style={{ fontFamily: 'Sora, sans-serif', fontSize: '13px' }}>
+              <strong>{filteredPatients.length}</strong> patients
+            </Text>
+            <Flex gap={2}>
+              <Button
+                variant="solid"
+                size="sm"
+                onClick={() => navigate("/patients/new")}
+                style={{
+                  backgroundColor: '#4164df',
+                  borderRadius: '8px',
+                  fontFamily: 'Sora, sans-serif',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  padding: '6px 12px',
+                }}
+              >
+                <Flex gap={1} align="center">
+                  <img src={PlusIcon} alt="Add" style={{ width: '14px' }} />
+                  <span style={{ color: 'white' }}>Add</span>
+                </Flex>
+              </Button>
+              <Button
+                variant="solid"
+                size="sm"
+                onClick={handleExportAll}
+                style={{
+                  backgroundColor: '#4164df',
+                  borderRadius: '8px',
+                  fontFamily: 'Sora, sans-serif',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  padding: '6px 12px',
+                }}
+              >
+                Export
+              </Button>
+            </Flex>
+          </Flex>
+        </VStack>
+      ) : (
       <Flex justify="between" align="center" className="w-full">
         <SearchBar
           placeholder="Search by name..."
@@ -231,7 +285,6 @@ const PatientList = ({ data, patientId }) => {
           onChange={(e) => setSearchTerm(e.target.value)}
           style={{ width: "250px" }}
         />
-
         <Flex gap={4} align="right">
           <Flex gap={2} align="center">
             <Text style={{ fontFamily: 'Sora, sans-serif', fontSize: '16px' }}>Total patients:</Text>
@@ -239,7 +292,6 @@ const PatientList = ({ data, patientId }) => {
               {filteredPatients.length}
             </Text>
           </Flex>
-
           <Button
             variant="solid"
             size="lg"
@@ -259,7 +311,6 @@ const PatientList = ({ data, patientId }) => {
               <Text style={{ color: 'white', fontWeight: '600' }}>Add Patient</Text>
             </Flex>
           </Button>
-
           <Button
             variant="solid"
             size="lg"
@@ -278,8 +329,90 @@ const PatientList = ({ data, patientId }) => {
           </Button>
         </Flex>
       </Flex>
+      )}
 
-      {/* Table Section */}
+      {/* Mobile Card List */}
+      {isMobile ? (
+        <VStack spacing={3} align="stretch" className="w-full pb-20">
+          {filteredPatients.length === 0 ? (
+            <Box className="p-8 text-center">
+              <Text color="gray" size="md">No patients found</Text>
+            </Box>
+          ) : (
+            filteredPatients.map((patient, index) => (
+              <Box
+                key={patient.id || index}
+                className="bg-white rounded-xl border border-gray-200 p-3 cursor-pointer"
+                style={{ transition: 'var(--transition-fast)' }}
+                onClick={() => handlePatientClick(patient)}
+              >
+                <Flex gap={3} align="start">
+                  {/* Avatar */}
+                  <img
+                    src={getProfileImageUrl(patient.profile_photo)}
+                    alt=""
+                    className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+                    style={{ border: '1px solid #e5e7eb' }}
+                  />
+                  {/* Info */}
+                  <Box className="flex-1 min-w-0">
+                    <Flex justify="between" align="start" className="mb-1">
+                      <Text style={{ fontFamily: 'Sora', fontSize: '14px', fontWeight: 600, color: '#1e293b' }} className="truncate">
+                        {patient.name || '-'}
+                      </Text>
+                      <span className={`${getConditionStyles(patient.condition)} px-2 py-0.5 text-[10px] font-medium rounded-full flex-shrink-0 ml-2`}>
+                        {patient.condition || '-'}
+                      </span>
+                    </Flex>
+                    <Flex gap={3} className="mt-1" wrap="wrap">
+                      <Text style={{ fontSize: '12px', color: '#6b7280' }}>
+                        #{patient.number || '-'}
+                      </Text>
+                      <Text style={{ fontSize: '12px', color: '#6b7280' }}>
+                        {patient.program || '-'}
+                      </Text>
+                      <Text style={{ fontSize: '12px', color: '#6b7280' }}>
+                        {formatDateString(patient.registered_date)}
+                      </Text>
+                    </Flex>
+                    {/* Medical team & admin */}
+                    <Flex gap={3} className="mt-1.5" wrap="wrap">
+                      {medicalTeamNames[patient.id] && (
+                        <Text style={{ fontSize: '11px', color: '#94a3b8' }}>
+                          Dr: {medicalTeamNames[patient.id]}
+                        </Text>
+                      )}
+                      {adminNames[patient.id] && (
+                        <Text style={{ fontSize: '11px', color: '#94a3b8' }}>
+                          Admin: {adminNames[patient.id]}
+                        </Text>
+                      )}
+                    </Flex>
+                  </Box>
+                </Flex>
+                {/* Action buttons */}
+                <Flex gap={2} justify="end" className="mt-2 pt-2 border-t border-gray-100">
+                  <button
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-[11px] font-medium border border-gray-200 bg-transparent cursor-pointer"
+                    style={{ color: 'var(--color-accent)', transition: 'var(--transition-fast)' }}
+                    onClick={(e) => { e.stopPropagation(); handleDownload(patient.id); }}
+                  >
+                    <img src={DownloadIcon} style={{ width: '14px' }} alt="" /> Export
+                  </button>
+                  <button
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-[11px] font-medium border border-gray-200 bg-transparent cursor-pointer"
+                    style={{ color: 'var(--color-danger, #dc2626)', transition: 'var(--transition-fast)' }}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(patient.id); }}
+                  >
+                    <img src={TrashIcon} style={{ width: '14px' }} alt="" /> Delete
+                  </button>
+                </Flex>
+              </Box>
+            ))
+          )}
+        </VStack>
+      ) : (
+      /* Desktop Table Section */
       <VStack spacing={0} align="stretch" className="w-full">
         {/* Table Header */}
         <Flex
@@ -391,6 +524,7 @@ const PatientList = ({ data, patientId }) => {
           ))
         )}
       </VStack>
+      )}
     </VStack>
   );
 };
