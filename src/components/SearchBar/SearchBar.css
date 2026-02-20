@@ -12,8 +12,8 @@
   border-radius: 10px;
   background-color: #ffffff;
   transition: all 0.2s ease;
-  width: 100%;
-  max-width: 393px;
+  width: fit-content;
+  /* max-width: 393px; */
   box-sizing: border-box;
   max-height: fit-content;
 }

@@ -12,7 +12,7 @@ import * as assets from '../assets';
 import '../design-system/styles/index.css';
 import onBackButton from '../assets/onBackButton.svg';
 export const PageHeader = ({
-  breadcrumbs = ['My patients'],
+  breadcrumbs = [],
   title = 'Patient Name',
   onBack,
 }) => {
@@ -22,12 +22,12 @@ export const PageHeader = ({
     : [{ label: String(breadcrumbs) }];
 
   return (
-    <Box className="w-full px-0 py-2 noscrollbar">
+    <Box className="w-full mt-3 px-0 py-2 noscrollbar">
       <Flex direction="rows" align="center" gap={6}>
         {onBack && (
           <img src={onBackButton} alt="back" onClick={onBack} className="w-6 h-6" />
         )}
-        <Flex gap={4} direction="column" align="flex-start">
+        <Flex gap={3} direction="column" align="flex-start">
           <Text size="sm" weight="normal" className="text-muted">
             {crumbs.map((c, i) => (
               <span key={i}>

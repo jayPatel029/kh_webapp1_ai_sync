@@ -242,7 +242,7 @@ function UserProfile() {
 
   return (
     <ThemeProvider>
-      <Box className="flex-1 flex flex-col w-full min-w-0">
+      <Box className="flex-1 flex flex-col w-full z-20 min-w-0">
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white ">

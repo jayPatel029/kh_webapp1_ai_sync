@@ -14,12 +14,14 @@ import RateReviewIcon from "@mui/icons-material/RateReview";
 import HistoryIcon from "@mui/icons-material/History";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SubdirectoryArrowRightIcon from "@mui/icons-material/SubdirectoryArrowRight";
-import { AdminPanelSettings } from "@mui/icons-material";
+import { AdminPanelSettings, ArrowBack } from "@mui/icons-material";
 import TranslateIcon from "@mui/icons-material/Translate";
 import { useSelector } from "react-redux";
 import { Sidebar as DSidebar, SidebarHeader } from "../../component-library/navigation/Sidebar";
 import Account from "../../assets/Account.svg";
 import { ROUTES } from "../../routes/routeConstants";
+import { IconButton } from "../../component-library";
+import { is } from "date-fns/locale";
 
 const Sidebar = ({ mobile = false }) => {
   const [dropdown, setDropdown] = useState(false);
@@ -30,6 +32,17 @@ const Sidebar = ({ mobile = false }) => {
       return false;
     }
   });
+
+  // toggle sidebar collapsed state and notify other components
+  const toggleCollapse = () => {
+    const next = !isCollapsed;
+    setIsCollapsed(next);
+    try {
+      localStorage.setItem('sidebarCollapsed', next ? 'true' : 'false');
+    } catch (e) { }
+    // dispatch custom event so Sidebar can listen
+    window.dispatchEvent(new CustomEvent('sidebar:toggle', { detail: { isCollapsed: next } }));
+  };
 
   const isIconOnly = isCollapsed && !mobile;
 
@@ -192,7 +205,7 @@ const Sidebar = ({ mobile = false }) => {
               isIconOnly
                 ? 'flex flex-col items-center justify-center rounded-xl px-2 py-2 hover:bg-white/8 space-y-1'
                 : 'flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold',
-              isActive ? (isIconOnly ? 'bg-white/12' : 'bg-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.35)]') : 'text-white/90 hover:bg-white/10',
+              isActive ? (isIconOnly ? 'bg-white/20' : 'bg-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.35)]') : 'text-white/90 hover:bg-white/10',
               'text-white'
             );
           }}
@@ -264,9 +277,9 @@ const Sidebar = ({ mobile = false }) => {
   };
 
   const desktopSidebarClasses = clsx(
-    'flex flex-col justify-between text-white transition-all duration-300 shadow-2xl',
+    'flex flex-col justify-between text-white transition-all duration-300 shadow-2xl !z-[200]',
     isCollapsed && !mobile ? 'w-20 px-0.5' : 'w-[250px] px-3',
-    'bg-gradient-to-b from-[#004c6d] to-[#003a52] min-h-screen'
+    'bg-primaryDark min-h-screen'
   );
 
   const renderDesktop = () => (
@@ -274,9 +287,13 @@ const Sidebar = ({ mobile = false }) => {
       isCollapsed={isCollapsed}
       className={desktopSidebarClasses}
     >
-      <div className="flex flex-col gap-4">
-        <SidebarHeader className={clsx('pt-4', isCollapsed && !mobile ? 'flex justify-center' : 'flex items-center gap-3')}>
+      <div className="flex flex-col  gap-4">
+        {!isCollapsed && !mobile && (
+          <IconButton variant="outline" size="sm" icon={<ArrowBack className="fill-white hover:fill-primaryDark" style={{ fill: "white" }} />}  onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="hover:bg-primaryDark !hover:float-none  border-white  absolute right-0 mt-2  mr-2 " />
+        )}
+        <SidebarHeader className={clsx('pt-6' , isCollapsed && !mobile ? 'flex justify-center' : 'flex items-center gap-3')}>
           <Link to={ROUTES.DASHBOARD} className={clsx('flex items-center transition-all', isCollapsed && !mobile ? 'justify-center' : 'gap-3')}>
+
             <img
               src={kifayti_logo}
               alt="Kifayti logo"
@@ -287,6 +304,10 @@ const Sidebar = ({ mobile = false }) => {
             />
             {!isCollapsed && !mobile && <span className="text-lg font-semibold">Kifayti Health</span>}
           </Link>
+
+
+
+
         </SidebarHeader>
 
         <div className={clsx('flex flex-col', isCollapsed && !mobile ? 'gap-2' : 'gap-4')}>

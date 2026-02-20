@@ -65,7 +65,7 @@ const MainLayout = () => {
         <Box className="flex min-h-screen w-full">
             {/* Conditionally render sidebar */}
             {showSidebar && (
-            <Box className="fixed top-0 left-0 h-screen z-50">
+            <Box className="fixed top-0 left-0 h-screen z-[--z-banner]">
                 <Sidebar />
             </Box>
             )}

@@ -217,7 +217,7 @@ const AdminDashboard = () => {
   
           {/* Header */}
           <Flex align="center" justify="between" className="pb-6 border-b-2 border-[#00cccc] mb-8">
-            <Heading as="h1" size="2xl" className="text-[#32617d]">
+          <Heading as="h1" size="2xl" className="text-[#3F6B85] mt-3">
               My Dashboard
             </Heading>
           </Flex>

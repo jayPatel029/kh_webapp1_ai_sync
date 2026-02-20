@@ -12,12 +12,27 @@ import { TiThMenu } from "react-icons/ti";
 import dummyadmin from "../../assets/dummyadmin.png";
 import { Flex, Button, IconButton, Box } from "../../component-library";
 import '../../design-system/styles/index.css';
+import { use } from "react";
+import { ArrowBack } from "@mui/icons-material";
 
 const Navbar = () => {
     const [uname, setUname] = useState("");
     const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
     const [dropdownVisible, setDDVisible] = useState(false);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        // const handleStorageChange = () => {
+        //     const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        //     setIsCollapsed(collapsed);
+        // };
+        const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        setIsCollapsed(collapsed);
+        // window.addEventListener('storage', handleStorageChange);
+        // return () => {
+        //     window.removeEventListener('storage', handleStorageChange);
+        // };
+    }, [localStorage.getItem('sidebarCollapsed')]);
 
     const logout = () => {
         localStorage.removeItem("token");
@@ -43,12 +58,11 @@ const Navbar = () => {
 
     return (
         <>
-            <Box className="sticky top-0 left-0 right-0 w-full px-2 z-[100]">
+            <Box className="sticky top-0 left-0 right-0  px-2 z-[50]">
                 <Flex align="center" justify="between" className="bg-white h-14 navbar-container">
                     <Flex align="center" gap={4}>
 
-                        <IconButton variant="outline" icon={<TiThMenu />} onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-                        </IconButton>
+
                         {/* <div onClick={toggleCollapse} className="text-black text-2xl  border border-black p-1 rounded-xl cursor-pointer">
                             <TiThMenu />
                         </div> */}
@@ -57,6 +71,7 @@ const Navbar = () => {
                     </Flex>
 
                     <Flex align="center" gap={4}>
+                        {isCollapsed && (<IconButton variant="outline" icon={<ArrowBack />} onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} />)}
                         <span className="text-base text-dark hidden md:inline">{uname || 'User'}</span>
                         <Button variant="ghost" onClick={logout} className="p-0">
                             <img src={dummyadmin} alt="profile" className="h-9 w-9 rounded-full border border-border" />
