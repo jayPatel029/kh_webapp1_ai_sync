@@ -34,3 +34,14 @@ export async function getAdminData(id) {
     return { success: false, data: error.response?.data || error.message };
   }
 }
+
+export async function getAssignedAdminData(id) {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/assignedAdmin/getAdmin/${id}`
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}

@@ -131,18 +131,18 @@ export async function canExportPatient() {
   }
 }
 
-export async function exportPatientData() {
+export async function exportPatientData(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/patientdata/export");
+    const response = await axiosInstance.get(server_url + "/patientdata/export", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
   }
 }
 
-export async function exportPatientDataById(id) {
+export async function exportPatientDataById(id, config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/patientdata/export/" + id);
+    const response = await axiosInstance.get(server_url + "/patientdata/export/" + id, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

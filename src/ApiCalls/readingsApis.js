@@ -145,3 +145,25 @@ export const postBulkDailyReadings = async (data) => {
     throw error;
   }
 };
+
+export const getSystolicIdByTitle = async (questionTitle) => {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/readings/get/sysid/${questionTitle}`
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+};
+
+export const getDialysisSystolicIdByTitle = async (questionTitle) => {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/readings/get/dia/sysid/${questionTitle}`
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+};
