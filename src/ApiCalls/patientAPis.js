@@ -130,3 +130,165 @@ export async function canExportPatient() {
     return { success: false, data: error.response.data.message };
   }
 }
+
+export async function exportPatientData() {
+  try {
+    const response = await axiosInstance.get(server_url + "/patientdata/export");
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function exportPatientDataById(id) {
+  try {
+    const response = await axiosInstance.get(server_url + "/patientdata/export/" + id);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function extractTextFromCsv(payload) {
+  try {
+    const response = await axiosInstance.post(
+      server_url + "/patientdata/extractTextFromCsv",
+      payload
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function extractTextFromPdf(payload) {
+  try {
+    const response = await axiosInstance.post(
+      server_url + "/patientdata/extractTextFromPdf",
+      payload
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getKfreDetails(payload) {
+  try {
+    const response = await axiosInstance.post(
+      server_url + "/patientdata/kfredetails",
+      payload
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function deletePatient(id) {
+  try {
+    const response = await axiosInstance.delete(server_url + "/patient/deletePatient/" + id);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getPatientAilments(id) {
+  try {
+    const response = await axiosInstance.get(server_url + "/patient/getAilments/" + id);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getDeletedPatients() {
+  try {
+    const response = await axiosInstance.get(server_url + "/patient/getDeletdPatients");
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getPatientLog() {
+  try {
+    const response = await axiosInstance.get(server_url + "/patient/patientLog");
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function removeAdminFromPatient(id) {
+  try {
+    const response = await axiosInstance.delete(server_url + "/patient/removeAdmin/" + id);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updateAdmin(id, payload) {
+  try {
+    const response = await axiosInstance.put(server_url + "/patient/updateAdmin/" + id, payload);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updateAilments(payload) {
+  try {
+    const response = await axiosInstance.put(server_url + "/patient/updateAilments", payload);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updateDryWeight(payload) {
+  try {
+    const response = await axiosInstance.put(server_url + "/patient/updateDryWeight", payload);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updateGFR(payload) {
+  try {
+    const response = await axiosInstance.put(server_url + "/patient/updateGFR", payload);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updateMedical(id, payload) {
+  try {
+    const response = await axiosInstance.put(server_url + "/patient/updateMedical/" + id, payload);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updatePatient(payload) {
+  try {
+    const response = await axiosInstance.put(server_url + "/patient/updatePatient", payload);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updateProgram(payload) {
+  try {
+    const response = await axiosInstance.put(server_url + "/patient/updateProgram", payload);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}

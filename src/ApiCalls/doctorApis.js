@@ -45,3 +45,30 @@ export async function deleteDoctor(doctorId) {
     return { success: false, data: error.response.data.message };
   }
 }
+
+export async function getDoctorLogs() {
+  try {
+    const response = await axiosInstance.get(server_url + "/doctor/doctorLogs");
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getDoctorNameById(id) {
+  try {
+    const response = await axiosInstance.get(server_url + "/doctor/name/" + id);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getDoctorReportLogs() {
+  try {
+    const response = await axiosInstance.get(server_url + "/doctor/ReportLogs");
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}

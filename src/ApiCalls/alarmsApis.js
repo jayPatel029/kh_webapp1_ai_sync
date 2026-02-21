@@ -122,3 +122,35 @@ export async function deleteAlarm(alarmId) {
     return { success: false, data: error.response.data.message };
   }
 }
+
+export async function answerAlarm(data) {
+  try {
+    const response = await axiosInstance.post(
+      server_url + "/alarms/answerAlarm",
+      data
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response.data.message };
+  }
+}
+
+export async function getAlarmById(id) {
+  try {
+    const response = await axiosInstance.get(server_url + "/alarms/byId/" + id);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response.data.message };
+  }
+}
+
+export async function getAlarmByPatientId(id) {
+  try {
+    const response = await axiosInstance.get(
+      server_url + "/alarms/byPatientId/" + id
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response.data.message };
+  }
+}

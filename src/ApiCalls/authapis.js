@@ -115,3 +115,121 @@ export async function identifyRole() {
     return { success: false, data: error.response.data };
   }
 }
+
+export async function changePassword(payload) {
+  try {
+    const response = await axiosInstance.post(
+      server_url + "/auth/changePassword",
+      payload
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getPrivateAuth() {
+  try {
+    const response = await axiosInstance.get(server_url + "/auth/private");
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function createRole(roleData) {
+  try {
+    const response = await axiosInstance.post(server_url + "/roles", roleData);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getRoleByName(roleName) {
+  try {
+    const response = await axiosInstance.get(server_url + "/roles/byName/" + roleName);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updateRoleByName(roleName, roleData) {
+  try {
+    const response = await axiosInstance.put(
+      server_url + "/roles/byName/" + roleName,
+      roleData
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function deleteRoleByName(roleName) {
+  try {
+    const response = await axiosInstance.delete(server_url + "/roles/byName/" + roleName);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function isDoctorRole() {
+  try {
+    const response = await axiosInstance.get(server_url + "/roles/isDoctor");
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getAdmins() {
+  try {
+    const response = await axiosInstance.get(server_url + "/users/admins");
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getUsersByRole(role) {
+  try {
+    const response = await axiosInstance.get(server_url + "/users/byRole/" + role);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getUsersAssignedToPatient(id) {
+  try {
+    const response = await axiosInstance.get(
+      server_url + "/users/assignedToPatient/" + id
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getDoctorsAssignedToPatient(id) {
+  try {
+    const response = await axiosInstance.get(
+      server_url + "/users/docAssignedToPatient/" + id
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function isUserDoctor() {
+  try {
+    const response = await axiosInstance.get(server_url + "/users/isDoctor");
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}

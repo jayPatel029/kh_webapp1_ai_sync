@@ -62,3 +62,68 @@ export async function deleteQuestion(id) {
     return { success: false, data: error.response.data.message };
   }
 }
+
+export async function getQuestionsByType(type) {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axiosInstance.get(server_url + "/questions/" + type, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data?.message || error.message };
+  }
+}
+
+export async function getDialysisParameterQuestions(type) {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axiosInstance.get(
+      server_url + "/questions/dialysisParameter/" + type,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data?.message || error.message };
+  }
+}
+
+export async function getGeneralParameterQuestions() {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axiosInstance.get(
+      server_url + "/questions/generalParameter/fetchQuestions",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data?.message || error.message };
+  }
+}
+
+export async function getGeneralParameterResponses() {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axiosInstance.get(
+      server_url + "/questions/generalParameter/fetchResponse",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data?.message || error.message };
+  }
+}

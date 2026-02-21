@@ -67,3 +67,26 @@ export async function getPrescriptionsById(id) {
     return { success: false, data: error.response.data.message };
   }
 }
+
+export async function addPrescriptionComment(id, payload) {
+  try {
+    const response = await axiosInstance.post(
+      server_url + "/prescription/addComment/" + id,
+      payload
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function deletePrescriptionByRoute(id) {
+  try {
+    const response = await axiosInstance.delete(
+      server_url + "/prescription/deletePrescription/" + id
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}

@@ -63,4 +63,32 @@ const getDoctorAlerts = async () => {
   return alertData;
 };
 
-export { getTotalUsers, getUsersThisWeek, getAlerts, getDoctorAlerts ,getUsersThisWeekSub};
+const sendAlertEmails = async () => {
+  try {
+    const response = await axiosInstance.get(`${server_url}/sortAlerts/emails/sendEmails`);
+    return response.data;
+  } catch (error) {
+    console.error("Error sending alert emails:", error);
+  }
+};
+
+const getSuperAdminAlerts = async (adminId) => {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/sortAlerts/superAdminAlerts/${adminId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching super admin alerts:", error);
+  }
+};
+
+export {
+  getTotalUsers,
+  getUsersThisWeek,
+  getAlerts,
+  getDoctorAlerts,
+  getUsersThisWeekSub,
+  sendAlertEmails,
+  getSuperAdminAlerts,
+};

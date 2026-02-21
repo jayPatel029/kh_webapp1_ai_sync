@@ -24,4 +24,31 @@ export const addComment = async (content, fileId, fileType, userId, iSDoctor) =>
     }
 };
 
+export const getComments = async (payload) => {
+    try {
+        const response = await axiosInstance.post(`${server_url}/comments/getComments`, payload);
+        return response.data;
+    } catch (error) {
+        console.error("Error getting comments:", error);
+    }
+};
+
+export const getPatientComments = async (payload) => {
+    try {
+        const response = await axiosInstance.post(`${server_url}/comments/getPatientComments`, payload);
+        return response.data;
+    } catch (error) {
+        console.error("Error getting patient comments:", error);
+    }
+};
+
+export const updateReadTable = async (payload) => {
+    try {
+        const response = await axiosInstance.post(`${server_url}/comments/updateReadTable`, payload);
+        return response.data;
+    } catch (error) {
+        console.error("Error updating read table:", error);
+    }
+};
+
 

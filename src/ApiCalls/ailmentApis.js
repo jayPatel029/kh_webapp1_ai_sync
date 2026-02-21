@@ -36,3 +36,21 @@ export async function updateAilment(id, data) {
     return { success: false, data: error.response.data.message };
   }
 }
+
+export async function getAilmentsByLanguage(lang) {
+  try {
+    const response = await axiosInstance.get(server_url + "/ailment/" + lang);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response.data.message };
+  }
+}
+
+export async function getAilmentByName(name) {
+  try {
+    const response = await axiosInstance.get(server_url + "/ailment/getAilmentByName/" + name);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response.data.message };
+  }
+}

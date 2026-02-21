@@ -11,5 +11,15 @@ const insertAlert = async (doctorEmail, patientId, category, mess) => {
     return data;
 };
 
+const insertAlertAppApis = async (doctorEmail, patientId, category, mess) => {
+    const { data } = await axiosInstance.post(`${server_url}/app_apis/appAlerts/insertAlert`, {
+        doctorEmail,
+        patientId,
+        category,
+        mess
+    });
+    return data;
+};
 
-export { insertAlert };
+
+export { insertAlert, insertAlertAppApis };

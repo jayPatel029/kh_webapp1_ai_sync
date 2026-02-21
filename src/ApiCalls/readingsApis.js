@@ -132,3 +132,16 @@ export const updateDialysisReading = async (data) => {
     throw error;
   }
 };
+
+export const postBulkDailyReadings = async (data) => {
+  try {
+    const response = await axiosInstance.post(
+      server_url + "/readings/postBulkDailyReadings",
+      data
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
