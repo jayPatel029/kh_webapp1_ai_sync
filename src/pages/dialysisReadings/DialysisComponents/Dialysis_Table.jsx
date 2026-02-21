@@ -95,9 +95,10 @@ export default function DialysisTableComponent({
         <div className="admin-toolbar">
           <div className="admin-toolbar__left">
             <SearchBar
-              placeholder="Search by title or condition..."
+              placeholder="Search by title..."
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: "250px" }}
+              value={searchTerm}
+              // style={{ width: "250px" }}
             />
           </div>
 

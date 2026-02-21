@@ -61,57 +61,49 @@ function QuestionsContainer({ aliment, user_id }) {
   }
 
   return (
-    <Box className="questions-container">
-      <Box className="w-full overflow-hidden rounded-md border border-border">
-        {/* Table Header */}
-        <Flex className="bg-surface px-4 py-3 border-b border-border">
-          <Box className="flex-1">
-            <Text size="xs" weight="bold" className="text-muted uppercase">Question</Text>
-          </Box>
-          <Box className="flex-1">
-            <Text size="xs" weight="bold" className="text-muted uppercase">Answer</Text>
-          </Box>
-          {role?.canEditPatients && (
-            <Box className="w-24">
-              <Text size="xs" weight="bold" className="text-muted uppercase">Action</Text>
-            </Box>
-          )}
-        </Flex>
-
-        {/* Table Body */}
-        {questions.map((question, index) => (
+    <Box className="questions-container flex flex-col gap-5">
+      {questions.map((question, index) => (
+        <Flex
+          key={index}
+          direction="column"
+          gap={2}
+          className="w-full"
+        >
+          {/* Question Label */}
           <Flex
-            key={index}
-            className="px-4 py-3 border-b border-border last:border-b-0 bg-white hover:bg-surface/50 transition-colors"
-            align="center"
+            className="items-center gap-2"
+            onClick={() => role?.canEditPatients && openModal(question)}
+            style={{ cursor: role?.canEditPatients ? 'pointer' : 'default' }}
           >
-            <Box className="flex-1">
-              <Text size="sm" className="text-dark">{question.name}</Text>
-            </Box>
-            <Box className="flex-1">
-              <Text size="sm" className="text-muted-foreground">{question.response || '-'}</Text>
-            </Box>
+            <Text
+              size="sm"
+              weight="bold"
+              className="text-slate-400 uppercase"
+            >
+              {question.name}
+            </Text>
             {role?.canEditPatients && (
-              <Box className="w-24">
-                <Button
-                  variant="ghost"
-                  onClick={() => openModal(question)}
-                  className="p-1"
-                  aria-label={`Edit ${question.name}`}
-                >
-                  <BorderColorIcon className="text-primary" style={{ fontSize: 18 }} />
-                </Button>
-              </Box>
+              <BorderColorIcon className="text-primary" style={{ fontSize: 16 }} />
             )}
           </Flex>
-        ))}
 
-        {questions.length === 0 && (
-          <Box className="px-4 py-8 text-center bg-white">
-            <Text className="text-muted">No questions available.</Text>
+          {/* Answer */}
+          <Box className="pl-2">
+            <Text
+              size="sm"
+              className="text-black whitespace-pre-wrap"
+            >
+              {question.response || '-'}
+            </Text>
           </Box>
-        )}
-      </Box>
+        </Flex>
+      ))}
+
+      {questions.length === 0 && (
+        <Box className="py-4">
+          <Text className="text-muted">No questions available.</Text>
+        </Box>
+      )}
 
       {showModal && selectedQuestion && (
         <DynamicModal

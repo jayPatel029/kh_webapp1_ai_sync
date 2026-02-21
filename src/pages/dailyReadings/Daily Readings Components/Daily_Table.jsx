@@ -95,9 +95,10 @@ export default function DailyTable({
         <div className="admin-toolbar">
           <div className="admin-toolbar__left">
             <SearchBar
-              placeholder="Search by title or condition..."
+              placeholder="Search by title..."
+              value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: "250px" }}
+              // style={{ width: "250px" }}
             />
           </div>
 
@@ -123,7 +124,7 @@ export default function DailyTable({
               onClick={() => setIsBulkUploadModalOpen(true)}
               // className="admin-btn admin-btn--secondary"
             >
-              Bulk Upload Question
+              Bulk Upload Readings
             </Button>
           </div>
         </div>

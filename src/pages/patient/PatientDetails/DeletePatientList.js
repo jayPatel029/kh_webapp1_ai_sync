@@ -181,7 +181,7 @@ export default function DelPatientList({ data, patientId }) {
       <div className="flex justify-between items-center mb-4 space-x-4">
         <div className="flex flex-wrap justify-between items-center">
           <SearchBar
-            placeholder="Search by Name"
+            placeholder="Search by name..."
             onChange={handleFilter}
             style={{ width: "auto", minWidth: "300px" }}
           />

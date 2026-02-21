@@ -73,7 +73,7 @@ const Navbar = () => {
                     </Flex>
 
                     <Flex align="center" gap={4}>
-                        {isCollapsed && (<IconButton variant="outline" icon={<ArrowBack />} onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} />)}
+                        {isCollapsed && (<IconButton variant="outline" icon={<ArrowBack className="rotate-180" />} onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} />)}
                         <span className="text-base text-dark hidden md:inline">{uname || 'User'}</span>
                         <Button variant="ghost" onClick={logout} className="p-0">
                             <img src={dummyadmin} alt="profile" className="h-9 w-9 rounded-full border border-border" />

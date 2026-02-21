@@ -40,7 +40,7 @@ export const ParameterSection = ({
       <Card
         variant="elevated"
         className="w-full card-elevated cursor-pointer select-none"
-        onClick={() => setIsExpanded(!isExpanded)}
+        
         // className="cursor-pointer select-none"
       >
         <CardBody>

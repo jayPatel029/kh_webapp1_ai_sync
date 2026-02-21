@@ -77,26 +77,33 @@ export const PatientProfileCard = ({
         <CardBody className="p-4 transition-all duration-300 ease-in-out">
           <Flex direction="flex-row" gap={8} align="start">
             <Flex direction="column" align="center" gap={3}>
-              <Box className="relative">
-                <Box
-                  as="img"
-                  src={getValidImageUrl(userData?.profile_photo)}
-                  alt={userData?.name}
-                  className="rounded-full object-cover shadow-sm"
-                  style={{ width: 84, height: 84, border: '4px solid #fff' }}
-                />
+              <Flex align="end" justify="between" className="w-full">
+                <Flex align="center" direction="column" gap={2}>
+                  <Box
+                    as="img"
+                    src={getValidImageUrl(userData?.profile_photo)}
+                    alt={userData?.name}
+                    className="rounded-full object-cover shadow-sm"
+                    style={{
+                      width: 130,
+                      height: 130,
+                      border: '4px solid #fff',
+                      objectPosition: 'center top'
+                    }}
+                  />
+                  <Box className={clsx('px-2 py-0.5 rounded-full w-fit text-[10px] font-bold uppercase tracking-tight', getConditionStyle(userData?.condition))}>
+                    {userData?.condition || 'Unknown'}
+                  </Box>
+                </Flex>
                 <IconButton
                   onClick={(e) => { e.stopPropagation(); onEditName(); }}
                   variant="ghost"
-                  className="absolute bottom-0 right-0 bg-white shadow border rounded-full h-7 w-7 p-0 flex items-center justify-center"
-                  icon={<Edit />}
+                  className="bg-white shadow rounded-full h-9 w-9 p-0 flex items-center justify-center hover:bg-gray-100"
+                  icon={<Edit style={{ fontSize: 20, color: '#00A89B' }} />}
                 />
+              </Flex>
 
-              </Box>
-
-              <Box className={clsx('px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight', getConditionStyle(userData?.condition))}>
-                {userData?.condition || 'Unknown'}
-              </Box>
+             
 
               <Box className="w-full mt-2">
                 <Box className="space-y-2 text-sm">
@@ -122,16 +129,17 @@ export const PatientProfileCard = ({
             <div className="w-0 self-stretch origin-top-left outline outline-[1px] outline-offset-[-0.5px] outline-info" />
             <Box className="flex-1 w-full">
               <Box className="space-y-4">
-                <Box className="flex items-center gap-4">
-                  <Box className="h-8 w-1 rounded-full" />
-                  <Heading as="h4" size="sm" weight="bold">Ailment Details</Heading>
-                </Box>
+                <Heading as="h4" size="sm" weight="bold">Ailment Details</Heading>
+
 
                 {userData?.ailments && userData.ailments.length > 0 ? (
                   userData.ailments.map((ailment, idx) => (
-                    <ParameterSection key={idx} title={ailment}>
+                    // <ParameterSection key={idx} title={ailment}>
+                    <>
+                      <Heading as="h5" size="xs" weight="bold" className="text-accent mb-2">{ailment}</Heading>
                       <QuestionsContainer aliment={ailment} user_id={userData?.id} />
-                    </ParameterSection>
+                    </>
+                    // </ParameterSection>
                   ))
                 ) : (
                   <Text size="sm" className="text-slate-500">No ailments listed.</Text>

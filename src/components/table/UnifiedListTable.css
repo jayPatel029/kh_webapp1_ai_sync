@@ -234,6 +234,8 @@
 }
 
 .list-table__action-btn--edit {
+  width: 1.75rem;
+  height: 1.75rem;
   color: var(--color-info-dark, #3965FF);
 }
 
@@ -242,6 +244,8 @@
 }
 
 .list-table__action-btn--download {
+  width: 1.75rem;
+  height: 1.75rem;
   color: var(--color-primary, #4164df);
 }
 
@@ -250,6 +254,8 @@
 }
 
 .list-table__action-btn--delete {
+  width: 1.25rem;
+  height:1.25rem;
   color: var(--color-danger, #de425b);
 }
 

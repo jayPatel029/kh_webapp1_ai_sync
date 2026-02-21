@@ -138,7 +138,7 @@ export const PatientNavTabs = ({
       gap={3}
       align="center"
       justify="start"
-      className="patient-nav-tabs noscrollbar px-6 py-4 overflow-x-auto bg-white sticky top-0"
+      className="patient-nav-tabs noscrollbar px-6 py-4 overflow-x-auto bg-white justify-between sticky top-0"
       aria-label="Patient Navigation Tabs"
     >
       {tabs.filter(tab => tab.visible).map((tab) => (

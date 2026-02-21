@@ -267,7 +267,7 @@ function ProfileQuestions() {
                 <div className="admin-toolbar">
                   <div className="admin-toolbar__left">
                     <SearchBar
-                      placeholder="Search by name or type..."
+                      placeholder="Search by name..."
                       onChange={(e) => setSearchTerm(e.target.value)}
                       style={{ width: "250px" }}
                     />

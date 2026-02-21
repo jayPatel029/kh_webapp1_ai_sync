@@ -32,6 +32,9 @@ import { Box, Flex } from '../../component-library';
 import { BsTrash, BsPencilSquare, BsDownload } from 'react-icons/bs';
 import { useIsMobile } from '../mobile/useIsMobile';
 import './UnifiedListTable.css';
+import DeleteIcon from '../../assets/Delete.svg';
+import EditIcon from '../../assets/Edit.svg';
+import DownloadIcon from '../../assets/Download.svg';
 
 const UnifiedListTable = ({
     columns = [],
@@ -149,7 +152,7 @@ const UnifiedListTable = ({
                                         title="Edit"
                                         aria-label="Edit row"
                                     >
-                                        <BsPencilSquare />
+                                        <img src={EditIcon} alt="Edit" />
                                     </button>
                                 )}
                                 {onDownload && (
@@ -159,7 +162,7 @@ const UnifiedListTable = ({
                                         title="Download"
                                         aria-label="Download"
                                     >
-                                        <BsDownload />
+                                        <img src={DownloadIcon} alt="Download" />
                                     </button>
                                 )}
                                 {onDelete && (
@@ -169,7 +172,7 @@ const UnifiedListTable = ({
                                         title="Delete"
                                         aria-label="Delete row"
                                     >
-                                        <BsTrash />
+                                        <img src={DeleteIcon} alt="Delete" />
                                     </button>
                                 )}
                             </div>
@@ -309,7 +312,7 @@ const UnifiedListTable = ({
                                                     onClick={(e) => { e.stopPropagation(); onDelete(row); }}
                                                     aria-label="Delete"
                                                 >
-                                                    <BsTrash /> Delete
+                                                    <DeleteIcon /> Delete
                                                 </button>
                                             )}
                                         </div>

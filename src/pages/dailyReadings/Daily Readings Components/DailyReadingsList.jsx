@@ -20,6 +20,8 @@ import {
   Button
 } from "../../../component-library";
 import { BulkUploadProof } from '../../../components';
+import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton } from "../../../component-library/primitives/Modal";
+import { set } from "date-fns";
 function DailyForm() {
   const [editMode, setEditMode] = useState(false);
   const [successful, setSuccessful] = useState("");
@@ -29,6 +31,8 @@ function DailyForm() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [translations, setTranslations] = useState({});
+  const [data, setData] = useState([]);
+
 
   const closeModal = () => {
     setModelOpen(false);
@@ -435,14 +439,7 @@ function DailyForm() {
           </Select>
         </FormControl>
       </FormModal>
-      {/* <BulkUploadProof
-        config={{ uploadType: 'lab' }}
-        // setData={setData}
-        // setSuccess={setSuccess}
-        // success={success}
-        isOpen={isBulkUploadModalOpen}
-        onClose={() => setIsBulkUploadModalOpen(false)}
-      /> */}
+
       <DailyTable
         successful={successful}
         newReadingDsipatch={newReadingDsipatch}
@@ -454,6 +451,29 @@ function DailyForm() {
         setIsBulkUploadModalOpen={setIsBulkUploadModalOpen}
         resetFormState={resetFormState}
       />
+
+      {/* <Modal isOpen={isBulkUploadModalOpen} onClose={() => setIsBulkUploadModalOpen(false)} size="2xl">
+        <ModalOverlay />
+        <ModalContent>
+          <BulkUploadProof
+            config={{ uploadType: 'lab' }}
+            setData={setData}
+            setSuccess={setSuccessful}
+            success={successful}
+            isOpen={isBulkUploadModalOpen}
+            onClose={() => setIsBulkUploadModalOpen(false)}
+          />
+        </ModalContent>
+      </Modal> */}
+      <DailyReadingsBulkUploadModal
+        isOpen={isBulkUploadModalOpen}
+        onClose={() => setIsBulkUploadModalOpen(false)}
+        setSuccessful={setSuccessful}
+        successful={successful}
+        setTranslations={setTranslations}
+        languages={languages}
+      />
+
     </div>
   );
 }
