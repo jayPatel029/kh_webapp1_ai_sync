@@ -3,8 +3,7 @@ import React from "react";
 
 import DeletePatientList from "./PatientDetails/DeletePatientList"
 import { useState, useEffect } from "react";
-import { server_url } from "../../constants/constants";
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import { getPatients } from "../../ApiCalls/patientAPis";
 import { useParams } from "react-router-dom";
 
 function DeletePatient() {
@@ -13,10 +12,11 @@ function DeletePatient() {
   const {id} = useParams();
 
   useEffect(() => {
-    axiosInstance
-      .get(`${server_url}/patient/getPatients`)
+    getPatients()
       .then((response) => {
-        setPatientData(response.data.data);
+        if (response.success) {
+          setPatientData(response.data?.data || []);
+        }
         setLoading(false);
       })
       .catch((error) => {

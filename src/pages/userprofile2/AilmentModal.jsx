@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { server_url } from "../../constants/constants";
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import { getAilments } from "../../ApiCalls/ailmentApis";
+import { updateAilments, updateGFR, updateDryWeight } from "../../ApiCalls/patientAPis";
 import { useNavigate } from "react-router-dom";
 import {
   Modal,
@@ -34,15 +34,17 @@ const AilmentModal = ({
   useEffect(() => {
     const fetchAilments = async () => {
       try {
-        const response = await axiosInstance.get(`${server_url}/ailment`);
-        const fetchedAilments = response.data.listOfAilments;
-        setAilmentOptions(
-          fetchedAilments.map((ailment) => ({
-            label: ailment.name,
-            id: ailment.id,
-            selected: initialAilments.includes(ailment.name),
-          }))
-        );
+        const result = await getAilments();
+        if (result.success) {
+          const fetchedAilments = result.data.listOfAilments;
+          setAilmentOptions(
+            fetchedAilments.map((ailment) => ({
+              label: ailment.name,
+              id: ailment.id,
+              selected: initialAilments.includes(ailment.name),
+            }))
+          );
+        }
       } catch (error) {
         console.error("Error fetching ailments:", error);
       }
@@ -88,9 +90,9 @@ const AilmentModal = ({
     };
 
     try {
-      await axiosInstance.put(`${server_url}/patient/updateAilments`, updatedUserData);
+      await updateAilments(updatedUserData);
       if (egfr !== "") {
-        await axiosInstance.put(`${server_url}/patient/updateGFR`, {
+        await updateGFR({
           id: user_id,
           eGFR: egfr,
           GFR: gfr,
@@ -98,7 +100,7 @@ const AilmentModal = ({
         });
       }
       if (dryWeight !== "") {
-        await axiosInstance.put(`${server_url}/patient/updateDryWeight`, {
+        await updateDryWeight({
           id: user_id,
           dry_weight: dryWeight,
         });

@@ -27,8 +27,6 @@ import ThemeProvider from "../../components/ThemeProvider";
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 
 // APIs and Helpers
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
 import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
 import { ROUTES } from "../../routes/routeConstants";
 

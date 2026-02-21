@@ -6,11 +6,11 @@
  */
 
 import React, { useState } from "react";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
 import { getFileRes } from "../../helpers/fileuploadHelper";
 import getCurrentDate from "../../helpers/formatDate";
 import jsPDF from "jspdf";
+import { addRequisition } from "../../ApiCalls/remainingApis";
+import { createNewRequisitionAlert } from "../../ApiCalls/alertsApis";
 
 // Component Library
 import {
@@ -65,7 +65,7 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess }) => {
       setMsg("Please select a valid date");
       return;
     }
-    if(!selectedImage) {
+    if (!selectedImage && selectedImages.length === 0) {
       setMsg("Please upload at least one document or image");
       return;
     }
@@ -145,14 +145,14 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess }) => {
   };
 
   const UploadRequisition = async (data) => {
-    axiosInstance
-      .post(`${server_url}/requisition/add`, data)
-      .then((response) => {
-        createAlert(response.data.data);
-      })
-      .catch((error) => {
-        console.error("Error:", error.message);
-      });
+    try {
+      const response = await addRequisition(data);
+      if (response.success) {
+        await createAlert(response?.data?.data);
+      }
+    } catch (error) {
+      console.error("Error:", error?.message || error);
+    }
   };
 
   const createAlert = async (id) => {
@@ -160,10 +160,7 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess }) => {
       requisitionId: id,
       patientId: user_id,
     };
-    const response = await axiosInstance.post(
-      `${server_url}/alerts/newRequisition`,
-      data
-    );
+    await createNewRequisitionAlert(data);
   };
 
   return (

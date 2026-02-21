@@ -30,9 +30,7 @@ import {
 } from "../../component-library";
 
 // APIs and Helpers
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
-import { addComment } from "../../ApiCalls/commentApi";
+import { addComment, getComments } from "../../ApiCalls/commentApi";
 import { getPatientByIdad } from "../../ApiCalls/patientAPis";
 import MyPDFViewer from "../../components/pdf/MyPDFViewer";
 
@@ -94,8 +92,8 @@ export const FileViewModal = ({
         fileId: fileId,
         fileType: fileType,
       };
-      const commentsRes = await axiosInstance.post(`${server_url}/comments/getComments`, commentData);
-      setPrevComments(commentsRes.data.data || []);
+      const commentsRes = await getComments(commentData);
+      setPrevComments(commentsRes?.data || []);
     } catch (err) {
       console.error("Error fetching modal context:", err);
     } finally {

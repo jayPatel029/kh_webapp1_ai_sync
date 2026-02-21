@@ -30,8 +30,7 @@ import attachIcon from "../../assets/attachIcon.svg";
 import FileUploadWithCamera from "../../components/FileUploadWithCamera";
 
 // APIs and Helpers
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { postDietdetailsInsertDietDetailsAdmin } from "../../ApiCalls/remainingApis";
 import { getFileRes } from "../../helpers/fileuploadHelper";
 import getCurrentDate from "../../helpers/formatDate";
 
@@ -229,10 +228,10 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
 
   const uploadDietDetails = async (data) => {
     try {
-      const result = await axiosInstance.post(
-        `${server_url}/dietdetails/insertDietDetailsAdmin`,
-        data
-      );
+      const result = await postDietdetailsInsertDietDetailsAdmin(data);
+      if (!result.success) {
+        throw new Error("Upload failed");
+      }
       console.log("Response:", result.data);
     } catch (error) {
       console.error("Error:", error.message);

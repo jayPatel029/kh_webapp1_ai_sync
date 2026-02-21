@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, Rectangle, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import axiosInstance from "../../helpers/axios/axiosInstance"
-import { server_url } from '../../constants/constants';
+import { getAdherenceMedicine } from '../../ApiCalls/analyticsApis';
 
 const BarChartComponentAdh = ({ title }) => {
     const [chartData, setChartData] = useState([]);
@@ -9,11 +8,11 @@ const BarChartComponentAdh = ({ title }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await axiosInstance.get(server_url + '/analytics/getAdherenceMedicine');
-                if (response.data.success) {
+                const response = await getAdherenceMedicine();
+                if (response.success && response.data.success) {
                     setChartData(response.data.data);
                 } else {
-                    console.error('Failed to fetch data:', response.data.error);
+                    console.error('Failed to fetch data:', response.data?.error);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);

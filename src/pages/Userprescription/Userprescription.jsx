@@ -25,9 +25,9 @@ import FileViewModal from "../../components/modals/FileViewModal";
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 
 // APIs and Helpers
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
 import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
+import { getPrescriptionsById, deletePrescriptionByRoute, addPrescriptionComment } from "../../ApiCalls/prescriptionApis";
+import { getPatientGetPatientByid, getPatientGetMedicalTeamByid } from "../../ApiCalls/remainingApis";
 
 // Icons
 import { BsTrash } from "react-icons/bs";
@@ -44,6 +44,9 @@ const Userprescription = () => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [doctorOptions, setDoctorOptions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [commentingId, setCommentingId] = useState(null);
+  const [commentText, setCommentText] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
   const [userData, setUserData] = useState({});
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
@@ -79,11 +82,11 @@ const Userprescription = () => {
 
   const fetchData = async () => {
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/prescription/getPrescription/${id}`
-      );
-      setUserPrescriptionData(response.data.data);
-      setFilteredPrescriptionData(response.data.data);
+      const response = await getPrescriptionsById(id);
+      if (response.success) {
+        setUserPrescriptionData(response?.data?.data || []);
+        setFilteredPrescriptionData(response?.data?.data || []);
+      }
     } catch (error) {
       console.error("Error fetching prescription data:", error);
     }
@@ -91,8 +94,10 @@ const Userprescription = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${id}`);
-      setUserData(response.data.data);
+      const response = await getPatientGetPatientByid(id);
+      if (response.success) {
+        setUserData(response?.data?.data || {});
+      }
     } catch (error) {
       console.error("Error fetching patient data:", error);
     }
@@ -101,10 +106,10 @@ const Userprescription = () => {
   const fetchMedicalTeam = async (user_id) => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/patient/getMedicalTeam/${user_id}`
-      );
-      setDoctorOptions(response.data.data);
+      const response = await getPatientGetMedicalTeamByid(user_id);
+      if (response.success) {
+        setDoctorOptions(response?.data?.data || []);
+      }
     } catch (error) {
       console.error("Error fetching medical team:", error);
     } finally {
@@ -139,14 +144,10 @@ const Userprescription = () => {
     );
     if (isConfirmed) {
       try {
-        await axiosInstance.delete(
-          `${server_url}/prescription/deletePrescription/${prescriptionId}`,
-          {
-            data: {
-              email: email,
-            },
-          }
-        );
+        const result = await deletePrescriptionByRoute(prescriptionId);
+        if (!result.success) {
+          throw new Error("Delete failed");
+        }
 
         setUserPrescriptionData((prevData) =>
           prevData.filter((prescription) => prescription.id !== prescriptionId)
@@ -180,6 +181,29 @@ const Userprescription = () => {
   const handleClearFilters = () => {
     setSelectedDoctor("");
     setFilteredPrescriptionData(userPrescriptionData);
+  };
+
+  const handleAddComment = async (prescriptionId) => {
+    if (!commentText.trim()) return;
+    try {
+      setSubmittingComment(true);
+      const res = await addPrescriptionComment(prescriptionId, {
+        comment: commentText,
+        email: email,
+      });
+      if (res.success) {
+        setCommentText("");
+        setCommentingId(null);
+        fetchData();
+      } else {
+        alert("Failed to add comment.");
+      }
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      alert("Failed to add comment.");
+    } finally {
+      setSubmittingComment(false);
+    }
   };
 
   if (loading) {
@@ -263,6 +287,41 @@ const Userprescription = () => {
                     <img src={item.Prescription} alt="Prescription" className="w-full h-full object-cover" />
                   )}
                 </Box>
+                {/* Comment section */}
+                {commentingId === item.id ? (
+                  <Box className="mt-2">
+                    <input
+                      type="text"
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      placeholder="Add comment..."
+                      className="text-xs border border-gray-300 rounded px-2 py-1 w-full mb-1"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment(item.id)}
+                    />
+                    <Flex gap={2}>
+                      <button
+                        onClick={() => handleAddComment(item.id)}
+                        disabled={submittingComment}
+                        className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                      >
+                        {submittingComment ? '...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => { setCommentingId(null); setCommentText(''); }}
+                        className="text-xs text-gray-500"
+                      >
+                        Cancel
+                      </button>
+                    </Flex>
+                  </Box>
+                ) : (
+                  <button
+                    onClick={() => setCommentingId(item.id)}
+                    className="text-xs text-[#5886a5] hover:text-[#4164df] underline mt-2"
+                  >
+                    + Add Comment
+                  </button>
+                )}
               </Box>
             ))
           ) : (
@@ -280,6 +339,7 @@ const Userprescription = () => {
             <Box style={{ flex: "0 0 150px" }}>Date</Box>
             <Box style={{ flex: "0 0 200px" }}>Prescribing doctor</Box>
             <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Prescription</Box>
+            <Box style={{ flex: "0 0 120px", textAlign: "center" }}>Comment</Box>
             <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
           </Flex>
         </Box>
@@ -319,6 +379,42 @@ const Userprescription = () => {
                             className="w-full h-full object-cover"
                           />
                         </Box>
+                    )}
+                  </Box>
+                  <Box style={{ flex: "0 0 120px" }} className="flex justify-center">
+                    {commentingId === prescriptionItem.id ? (
+                      <Box className="flex flex-col gap-1">
+                        <input
+                          type="text"
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          placeholder="Add comment..."
+                          className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                          onKeyDown={(e) => e.key === 'Enter' && handleAddComment(prescriptionItem.id)}
+                        />
+                        <Flex gap={1}>
+                          <button
+                            onClick={() => handleAddComment(prescriptionItem.id)}
+                            disabled={submittingComment}
+                            className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded hover:bg-blue-600"
+                          >
+                            {submittingComment ? '...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => { setCommentingId(null); setCommentText(''); }}
+                            className="text-xs text-gray-500 hover:text-gray-700"
+                          >
+                            Cancel
+                          </button>
+                        </Flex>
+                      </Box>
+                    ) : (
+                      <button
+                        onClick={() => setCommentingId(prescriptionItem.id)}
+                        className="text-xs text-[#5886a5] hover:text-[#4164df] underline"
+                      >
+                        Comment
+                      </button>
                     )}
                   </Box>
                   <Box style={{ flex: "0 0 100px" }} className="flex justify-center">

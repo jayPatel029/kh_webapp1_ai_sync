@@ -24,8 +24,7 @@ import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 
 // APIs and Helpers
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { getPatientLog } from "../../ApiCalls/patientAPis";
 
 // Design System
 import "../../design-system/styles/index.css";
@@ -44,13 +43,12 @@ const LogsPage = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get(
-        `${server_url}/patient/patientLog`
-      );
-      if (!response) {
+      const response = await getPatientLog();
+      if (response.success) {
+        setLogs(response.data?.logs || []);
+      } else {
         throw new Error("Failed to fetch logs");
       }
-      setLogs(response.data.logs);
     } catch (err) {
       setError(err.message);
     } finally {

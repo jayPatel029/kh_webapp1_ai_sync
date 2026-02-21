@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { getRoleByName, updateRoleByName } from "../../ApiCalls/authapis";
 import { useParams, useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { ROUTES } from "../../routes/routeConstants";
@@ -111,8 +110,7 @@ const EditRole = () => {
     const role = {
       auth_arr: auth_arr,
     };
-    axiosInstance
-      .put(`${server_url}/roles/byName/${rolename}`, role)
+    updateRoleByName(rolename, role)
       .then((res) => {
         alert("Role updated successfully");
         window.location.reload();
@@ -123,26 +121,26 @@ const EditRole = () => {
   };
 
   useEffect(() => {
-    axiosInstance
-      .get(`${server_url}/roles/byName/${rolename}`)
+    getRoleByName(rolename)
       .then((res) => {
-        console.log(res);
-        setRoleName(res.data.data.role_name);
-        const auth_arr = [
-          res.data.data.can_vud_mr,
-          res.data.data.can_vud_am,
-          res.data.data.can_vud_ca,
-          res.data.data.can_vud_cd,
-          res.data.data.can_vud_pq,
-          res.data.data.can_vud_p,
-          res.data.data.can_vud_dr,
-          res.data.data.can_vud_dir,
-          res.data.data.can_vud_cp,
-          res.data.data.can_vud_ups,
-          res.data.data.can_vud_docr,
-          res.data.data.can_vud_fb,
+        if (res.success) {
+          console.log(res);
+          setRoleName(res.data.data.role_name);
+          const auth_arr = [
+            res.data.data.can_vud_mr,
+            res.data.data.can_vud_am,
+            res.data.data.can_vud_ca,
+            res.data.data.can_vud_cd,
+            res.data.data.can_vud_pq,
+            res.data.data.can_vud_p,
+            res.data.data.can_vud_dr,
+            res.data.data.can_vud_dir,
+            res.data.data.can_vud_cp,
+            res.data.data.can_vud_ups,
+            res.data.data.can_vud_docr,
+            res.data.data.can_vud_fb,
 
-        ];
+          ];
         console.log("at",auth_arr);
         const binaryArr = auth_arr.map((auth) =>
           auth.toString(2).padStart(3, "0")
@@ -159,6 +157,7 @@ const EditRole = () => {
         });
         setPermissions(permiss);
         console.log(permiss);
+        }
       })
       .catch((err) => {
         console.log(err);

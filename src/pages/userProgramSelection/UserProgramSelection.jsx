@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import { getPatients, updateProgram } from "../../ApiCalls/patientAPis";
+import { getAlertByCategory } from "../../ApiCalls/alertsApis";
 import PageHeader from "../../components/PageHeader";
 import ThemeProvider from "../../components/ThemeProvider";
 import dummyadmin from "../../assets/dummyadmin.png";
-import { server_url } from "../../constants/constants";
 import { Navigate, useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes/routeConstants";
 import { useSelector } from "react-redux";
@@ -21,16 +21,16 @@ function UserProgramSelection() {
 
   useEffect(() => {
     // Fetch patients data when component mounts
-    getPatients();
+    getPatientsList();
   }, []);
   console.log(records);
 
-  const getPatients = async () => {
+  const getPatientsList = async () => {
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/patient/getPatients`
-      );
-      setRecords(response.data.data);
+      const response = await getPatients();
+      if (response.success) {
+        setRecords(response?.data?.data || []);
+      }
     } catch (error) {
       console.error("Error fetching patients:", error);
     }
@@ -39,9 +39,9 @@ function UserProgramSelection() {
   useEffect(()=>{
     const getProgramChangeAlert = async ()=>{
       try {
-        const response= await axiosInstance.get(`${server_url}/alerts/byCategory`);
+        const response = await getAlertByCategory();
         console.log("Program",response);
-        setrequest(response.data)
+        setrequest(response)
       }
       catch(error){
   console.log(error)
@@ -56,13 +56,10 @@ function UserProgramSelection() {
         alert("You are not authorized to perform this action");
         return;
       }
-      const response = await axiosInstance.put(
-        `${server_url}/patient/updateProgram`,
-        {
-          id: patientId,
-          program_id: program,
-        }
-      );
+      await updateProgram({
+        id: patientId,
+        program_id: program,
+      });
 
       // Update the records state with the updated program for the specific patient
       setRecords(

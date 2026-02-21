@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { createRole } from "../../ApiCalls/authapis";
 import PageHeader from "../../components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes/routeConstants";
@@ -59,8 +58,8 @@ const AddRole = () => {
       auth_arr: auth_arr,
     };
 
-    await axiosInstance.post(`${server_url}/roles/`, role).then((res) => {
-      if (res.status === 200) {
+    await createRole(role).then((res) => {
+      if (res.success) {
         alert("Role Added Successfully");
       } else {
         alert("Role Already Exists");

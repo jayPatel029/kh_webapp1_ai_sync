@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { addComment } from "../../../ApiCalls/commentApi";
+import { addComment, getComments } from "../../../ApiCalls/commentApi";
 import { useLocation } from "react-router-dom";
-import axiosInstance from "../../../helpers/axios/axiosInstance";
-import { server_url } from "../../../constants/constants";
 import MyPDFViewer from "../../../components/pdf/MyPDFViewer";
 
 const ThumbnailModal = ({ closeModal, image, comment }) => {
@@ -17,11 +15,10 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
       fileId: comment.fileId || 0,
       fileType: comment.fileType || 0,
     };
-    axiosInstance
-      .post(`${server_url}/comments/getComments`, data)
+    getComments(data)
       .then((res) => {
-        console.log("Comments", res.data.data);
-        setPrevComments(res.data.data);
+        console.log("Comments", res?.data);
+        setPrevComments(res?.data || []);
       })
       .catch((err) => {
         console.log(err);

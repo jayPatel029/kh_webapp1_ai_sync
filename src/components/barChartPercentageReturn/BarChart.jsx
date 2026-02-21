@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, Rectangle, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import axiosInstance from "../../helpers/axios/axiosInstance"
-import { server_url } from '../../constants/constants';
+import { getPercentageReturn } from '../../ApiCalls/analyticsApis';
 
 const BarChartComponentPercentageReturn = ({ title }) => {
     const [chartData, setChartData] = useState([]);
@@ -9,11 +8,11 @@ const BarChartComponentPercentageReturn = ({ title }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await axiosInstance.get(server_url + '/analytics/getPercentageReturn');
-                if (response.data.success) {
+                const response = await getPercentageReturn();
+                if (response.success && response.data.success) {
                     setChartData(response.data.data);
                 } else {
-                    console.error('Failed to fetch data:', response.data.error);
+                    console.error('Failed to fetch data:', response.data?.error);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);

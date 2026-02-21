@@ -25,16 +25,28 @@ import { useIsMobile } from "../../components/mobile/useIsMobile";
 // Original Layout Components (containing actual logic/content)
 
 // APIs and Helpers
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import {
+  getPatientGetPatientByid,
+  deleteLabreportDeleteLabReadingByid,
+  getLabreportLabReadings,
+} from "../../ApiCalls/remainingApis";
 import getValidImageUrl from "../../helpers/utils";
 import { getUsers, identifyRole } from "../../ApiCalls/authapis";
 import {
   getPatientById,
   getPatientMedicalTeam,
+  getPatientAdminTeam,
+  getPatientAilments,
+  removeAdminFromPatient,
+  updateMedical,
 } from "../../ApiCalls/patientAPis";
+import { addDoctorToPatient, deleteAssignedDoctor } from "../../ApiCalls/doctorPatientApis";
+import { addAdminToPatient, deleteAssignedAdmin } from "../../ApiCalls/adminPatientApis";
+import { getDoctors } from "../../ApiCalls/doctorApis";
+import { getAdmins } from "../../ApiCalls/authapis";
 import { getAllChats, getAllChatsAdmin } from "../../ApiCalls/chatApis";
 import { getDoctorsChat } from "../../ApiCalls/doctorApis";
+import { getGeneralParameterQuestions, getDialysisParameterQuestions } from "../../ApiCalls/questionApis";
 
 // Legacy components (to be replaced or kept if still needed)
 import LineChartComponent from "../../components/Linechart/LineChartComponent";
@@ -56,7 +68,12 @@ function UserProfile() {
   const [patient1, setPatient1] = useState({});
   const [patient2, setPatient2] = useState({});
   const [medicalTeam, setMedicalTeam] = useState([]);
+  const [adminTeam, setAdminTeam] = useState([]);
   const [doctors, setDoctors] = useState([]);
+  const [availableDoctors, setAvailableDoctors] = useState([]);
+  const [availableAdmins, setAvailableAdmins] = useState([]);
+  const [showDoctorPicker, setShowDoctorPicker] = useState(false);
+  const [showAdminPicker, setShowAdminPicker] = useState(false);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editalimentsModalOpen, setEditalimentsModalOpen] = useState(false);
@@ -89,10 +106,12 @@ function UserProfile() {
   const fetchPatientData = async () => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${id}`);
-      setUserData(response.data.data);
-      setAilments(response.data.data.ailments);
-      return response.data;
+      const response = await getPatientGetPatientByid(id);
+      if (response.success) {
+        setUserData(response?.data?.data || { ailments: [] });
+        setAilments(response?.data?.data?.ailments || []);
+      }
+      return response?.data || [];
     } catch (error) {
       console.error("Error fetching patient data:", error);
       return [];
@@ -104,7 +123,7 @@ function UserProfile() {
   const deleteLabReading = async (readingId) => {
     if (!window.confirm("Are you sure you want to delete this reading?")) return;
     try {
-      await axiosInstance.delete(`${server_url}/labreport/deleteLabReading/${readingId}`);
+      await deleteLabreportDeleteLabReadingByid(readingId);
       window.location.reload();
     } catch (e) {
       console.error("Error deleting lab reading:", e);
@@ -113,10 +132,11 @@ function UserProfile() {
 
   async function fetchQuestionsForAilment(ailment) {
     try {
-      const response = await axiosInstance.get(`${server_url}/questions/generalParameter/fetchQuestions`, {
-        params: { user: id, ailment: ailment }
-      });
-      return response.data;
+      const response = await getGeneralParameterQuestions();
+      if (response.success) {
+        return response.data || [];
+      }
+      return [];
     } catch (error) {
       console.error("Error fetching questions:", error);
       return [];
@@ -125,8 +145,11 @@ function UserProfile() {
 
   async function fetchQuestionsForAilmentDialysis(ailment) {
     try {
-      const response = await axiosInstance.get(`${server_url}/questions/dialysisParameter/${ailment}?user=${id}`);
-      return response.data;
+      const response = await getDialysisParameterQuestions(ailment);
+      if (response.success) {
+        return response.data || [];
+      }
+      return [];
     } catch (error) {
       console.error("Error fetching dialysis questions:", error);
       return [];
@@ -191,8 +214,10 @@ function UserProfile() {
   useEffect(() => {
     const fetchLabReadings = async () => {
       try {
-        const response = await axiosInstance.get(`${server_url}/labreport/LabReadings`);
-        setLabReadings(response.data.data);
+        const response = await getLabreportLabReadings();
+        if (response.success) {
+          setLabReadings(response?.data?.data || []);
+        }
       } catch (err) {
         setError(err.message);
       }
@@ -210,9 +235,13 @@ function UserProfile() {
         if (roleResult.data.data.role_name === "Admin") {
           const chatResult = await getAllChatsAdmin(id);
           const medicalResult = await getPatientMedicalTeam(id);
+          const adminResult = await getPatientAdminTeam(id);
           if (chatResult.success && medicalResult.success) {
             setChats(chatResult.data.filter(c => c.role === "Doctor" || c.role === "Medical Staff"));
             setMedicalTeam(medicalResult.data.data);
+          }
+          if (adminResult.success) {
+            setAdminTeam(adminResult.data?.data || []);
           }
         }
       } catch (error) {
@@ -229,6 +258,76 @@ function UserProfile() {
   }, [chats1]);
 
   const handleUpdateSuccess = () => fetchPatientData();
+
+  // Team Management
+  const fetchTeams = async () => {
+    try {
+      const [medRes, admRes] = await Promise.all([
+        getPatientMedicalTeam(id),
+        getPatientAdminTeam(id),
+      ]);
+      if (medRes.success) setMedicalTeam(medRes.data?.data || []);
+      if (admRes.success) setAdminTeam(admRes.data?.data || []);
+    } catch (e) {
+      console.error('Error refreshing teams:', e);
+    }
+  };
+
+  const handleAssignDoctor = async (doctorId) => {
+    try {
+      await addDoctorToPatient(id, { doctorId });
+      setShowDoctorPicker(false);
+      fetchTeams();
+    } catch (e) {
+      console.error('Error assigning doctor:', e);
+    }
+  };
+
+  const handleRemoveDoctor = async (assignmentId) => {
+    if (!window.confirm('Remove this doctor from the patient?')) return;
+    try {
+      await deleteAssignedDoctor(assignmentId);
+      fetchTeams();
+    } catch (e) {
+      console.error('Error removing doctor:', e);
+    }
+  };
+
+  const handleAssignAdmin = async (adminId) => {
+    try {
+      await addAdminToPatient(id, { adminId });
+      setShowAdminPicker(false);
+      fetchTeams();
+    } catch (e) {
+      console.error('Error assigning admin:', e);
+    }
+  };
+
+  const handleRemoveAdmin = async (assignmentId) => {
+    if (!window.confirm('Remove this admin from the patient?')) return;
+    try {
+      await deleteAssignedAdmin(assignmentId);
+      fetchTeams();
+    } catch (e) {
+      console.error('Error removing admin:', e);
+    }
+  };
+
+  const loadAvailableDoctors = async () => {
+    try {
+      const res = await getDoctors();
+      if (res.success) setAvailableDoctors(res.data?.data || []);
+    } catch (e) { console.error(e); }
+    setShowDoctorPicker(true);
+  };
+
+  const loadAvailableAdmins = async () => {
+    try {
+      const res = await getAdmins();
+      if (res.success) setAvailableAdmins(res.data?.data || res.data || []);
+    } catch (e) { console.error(e); }
+    setShowAdminPicker(true);
+  };
 
   if (loading) return <Box className="p-20 text-center">Loading...</Box>;
 
@@ -271,6 +370,116 @@ function UserProfile() {
             onEditName={openEditModal}
             onEditAilments={openEditalimentsModal}
           />
+
+          {/* Medical & Admin Team */}
+          {/* Team Management Section */}
+          <Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Medical Team */}
+            <Box className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <Flex justify="space-between" align="center" className="mb-3">
+                <Box as="h3" className="text-lg font-bold text-[#32617d]">Medical Team</Box>
+                <button
+                  onClick={loadAvailableDoctors}
+                  className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors font-medium"
+                >
+                  + Add Doctor
+                </button>
+              </Flex>
+
+              {showDoctorPicker && (
+                <Box className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <select
+                    onChange={(e) => e.target.value && handleAssignDoctor(e.target.value)}
+                    className="w-full p-2 rounded border border-blue-300 text-sm mb-2"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Select a doctor...</option>
+                    {availableDoctors
+                      .filter(d => !medicalTeam.some(m => m.id === d.id || m.doctor_id === d.id))
+                      .map(d => (
+                        <option key={d.id} value={d.id}>{d.name || d.email} {d.specialization ? `(${d.specialization})` : ''}</option>
+                      ))}
+                  </select>
+                  <button onClick={() => setShowDoctorPicker(false)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                </Box>
+              )}
+
+              <Box className="space-y-2">
+                {medicalTeam.length === 0 && <Box className="text-sm text-gray-400 italic">No doctors assigned yet</Box>}
+                {medicalTeam.map((member, idx) => (
+                  <Flex key={idx} align="center" gap={3} className="p-2 rounded-lg hover:bg-gray-50 group">
+                    <Box className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-sm font-bold shrink-0">
+                      {(member.name || member.email || '?')[0].toUpperCase()}
+                    </Box>
+                    <Box className="flex-1 min-w-0">
+                      <Box className="text-sm font-medium text-gray-800 truncate">{member.name || member.email}</Box>
+                      {member.role && <Box className="text-xs text-gray-500">{member.role}</Box>}
+                    </Box>
+                    <button
+                      onClick={() => handleRemoveDoctor(member.assignment_id || member.id)}
+                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-lg transition-opacity shrink-0"
+                      title="Remove doctor"
+                    >
+                      ×
+                    </button>
+                  </Flex>
+                ))}
+              </Box>
+            </Box>
+
+            {/* Admin Team */}
+            <Box className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <Flex justify="space-between" align="center" className="mb-3">
+                <Box as="h3" className="text-lg font-bold text-[#32617d]">Admin Team</Box>
+                <button
+                  onClick={loadAvailableAdmins}
+                  className="text-xs bg-green-50 text-green-600 px-3 py-1 rounded-full hover:bg-green-100 transition-colors font-medium"
+                >
+                  + Add Admin
+                </button>
+              </Flex>
+
+              {showAdminPicker && (
+                <Box className="mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <select
+                    onChange={(e) => e.target.value && handleAssignAdmin(e.target.value)}
+                    className="w-full p-2 rounded border border-green-300 text-sm mb-2"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Select an admin...</option>
+                    {availableAdmins
+                      .filter(a => !adminTeam.some(m => m.id === a.id || m.admin_id === a.id))
+                      .map(a => (
+                        <option key={a.id} value={a.id}>{a.name || a.email}</option>
+                      ))}
+                  </select>
+                  <button onClick={() => setShowAdminPicker(false)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                </Box>
+              )}
+
+              <Box className="space-y-2">
+                {adminTeam.length === 0 && <Box className="text-sm text-gray-400 italic">No admins assigned yet</Box>}
+                {adminTeam.map((member, idx) => (
+                  <Flex key={idx} align="center" gap={3} className="p-2 rounded-lg hover:bg-gray-50 group">
+                    <Box className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-sm font-bold shrink-0">
+                      {(member.name || member.email || '?')[0].toUpperCase()}
+                    </Box>
+                    <Box className="flex-1 min-w-0">
+                      <Box className="text-sm font-medium text-gray-800 truncate">{member.name || member.email}</Box>
+                      {member.role && <Box className="text-xs text-gray-500">{member.role}</Box>}
+                    </Box>
+                    <button
+                      onClick={() => handleRemoveAdmin(member.assignment_id || member.id)}
+                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-lg transition-opacity shrink-0"
+                      title="Remove admin"
+                    >
+                      ×
+                    </button>
+                  </Flex>
+                ))}
+              </Box>
+            </Box>
+          </Box>
 
           {/* Modals */}
           {editModalOpen && (

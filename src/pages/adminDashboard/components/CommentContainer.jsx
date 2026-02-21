@@ -2,8 +2,6 @@ import React from "react";
 import ThumbnailModal from "./ThumbnailModal";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import axiosInstance from "../../../helpers/axios/axiosInstance";
-import { server_url } from "../../../constants/constants";
 import { insertAlert } from "../../../ApiCalls/appAlerts";
 import SendMessage from "./SendMessage";
 import { checkURl, isValidHttpUrl } from "../../../helpers/utils";

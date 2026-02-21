@@ -30,8 +30,7 @@ import { Text, Heading } from "../../component-library/primitives/Typography";
 // APIs and Helpers
 import { addPrescriptionById } from "../../ApiCalls/prescriptionApis";
 import { getFileRes } from "../../helpers/fileuploadHelper";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { getPatientGetMedicalTeamByid } from "../../ApiCalls/remainingApis";
 import getCurrentDate from "../../helpers/formatDate";
 
 const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
@@ -52,12 +51,12 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
   const fetchMedicalTeam = async (uid) => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/patient/getMedicalTeam/${uid}`
-      );
-      setDoctorOptions(response.data.data);
-      if (response.data.data.length > 0) {
-        setSelectedDoctorId(response.data.data[0].id);
+      const response = await getPatientGetMedicalTeamByid(uid);
+      if (response.success) {
+        setDoctorOptions(response?.data?.data || []);
+        if (response.data.data.length > 0) {
+          setSelectedDoctorId(response.data.data[0].id);
+        }
       }
     } catch (error) {
       console.error("Error fetching medical team:", error);

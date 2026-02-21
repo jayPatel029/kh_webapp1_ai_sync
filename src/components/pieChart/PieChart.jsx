@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, ResponsiveContainer,Sector,Cell } from 'recharts';
-import axiosInstance from '../../helpers/axios/axiosInstance';
-import { server_url } from '../../constants/constants';
+import { getPatientsByGender } from '../../ApiCalls/analyticsApis';
 
 const renderActiveShape = (props) => {
     const RADIAN = Math.PI / 180;
@@ -56,8 +55,8 @@ const PieChartComponent = ({ title }) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await axiosInstance.get(`${server_url}/analytics/getPatientsByGender`);
-                if (response.data.success) {
+                const response = await getPatientsByGender();
+                if (response.success && response.data.success) {
                     const genderData = response.data.data;
 
                     // Format data for PieChart component
@@ -69,7 +68,7 @@ const PieChartComponent = ({ title }) => {
 
                     setData(formattedData);
                 } else {
-                    console.error('Failed to fetch data:', response.data.error);
+                    console.error('Failed to fetch data:', response.data?.error);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);

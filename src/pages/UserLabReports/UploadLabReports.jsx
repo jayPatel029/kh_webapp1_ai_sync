@@ -6,8 +6,7 @@
  */
 
 import React, { useState } from "react";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { postLabreportExtract, postLabreportConfirm } from "../../ApiCalls/remainingApis";
 import { getFileRes } from "../../helpers/fileuploadHelper";
 import getCurrentDate from "../../helpers/formatDate";
 
@@ -76,16 +75,14 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
         Lab_Report: pdfUrl,
       };
 
-      const extractRes = await axiosInstance.post(
-        `${server_url}/labReport/extract`, data
-      );
+      const extractRes = await postLabreportExtract(data);
 
-      if (extractRes.data.message === "Lab Report confirmed and saved successfully") {
+      if (extractRes?.data?.message === "Lab Report confirmed and saved successfully") {
         alert("Data saved successfully.");
         onSuccess();
         closeModal();
       }
-      setExtractedValues(extractRes.data.extractedValues);
+      setExtractedValues(extractRes?.data?.extractedValues);
     } catch (error) {
       console.error("Error during extraction:", error);
       setErrorMsg("Something went wrong while extracting data.");
@@ -114,7 +111,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
         confirmedValues: extractedValues,
       };
 
-      await axiosInstance.post(`${server_url}/labReport/confirm`, finalData);
+      await postLabreportConfirm(finalData);
       alert("Data saved successfully.");
       onSuccess();
       closeModal();

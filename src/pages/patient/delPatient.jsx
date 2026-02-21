@@ -2,8 +2,7 @@ import React from "react";
 // import "./patient.scss";
 import PatientList from "./PatientDetails/PatientList";
 import { useState, useEffect } from "react";
-import { server_url } from "../../constants/constants";
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import { getDeletedPatients } from "../../ApiCalls/patientAPis";
 import { useParams } from "react-router-dom";
 import DelPatientList from "./PatientDetails/DeletePatientList";
 import { da } from "date-fns/locale";
@@ -15,11 +14,12 @@ function DelPatient() {
   const {id} = useParams();
 
   useEffect(() => {
-    axiosInstance
-      .get(`${server_url}/patient/getDeletdPatients`)
+    getDeletedPatients()
       .then((response) => {
-        const data = response.data.data.filter((patient) => !patient.name);
-        setPatientData(data);
+        if (response.success) {
+          const data = (response.data?.data || []).filter((patient) => !patient.name);
+          setPatientData(data);
+        }
         setLoading(false);
       })
       .catch((error) => {

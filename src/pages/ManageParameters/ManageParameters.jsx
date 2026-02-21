@@ -39,8 +39,7 @@ import {
   updateDialysisReading,
 } from "../../ApiCalls/readingsApis";
 import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { getPatientGetPatientByid } from "../../ApiCalls/remainingApis";
 
 // Icons
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
@@ -119,8 +118,10 @@ function ManageParameters() {
 
   const fetchPatientData = async () => {
     try {
-      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${patientId}`);
-      setUserData(response.data.data);
+      const response = await getPatientGetPatientByid(patientId);
+      if (response.success) {
+        setUserData(response.data?.data);
+      }
     } catch (error) {
       console.error("Error fetching patient data:", error);
     }

@@ -25,9 +25,12 @@ import DietModal from "./DietModal";
 import FileViewModal from "../../components/modals/FileViewModal";
 
 // APIs and Helpers
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
 import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
+import {
+  getDietdetailsGetPatientDietDetailsAdminByid,
+  deleteDietdetailsDeleteDietDetailsByid,
+  getPatientGetPatientByid,
+} from "../../ApiCalls/remainingApis";
 
 // Icons
 import { BsTrash } from "react-icons/bs";
@@ -67,10 +70,10 @@ const UserDietDetails = () => {
 
   const fetchData = async () => {
     try {
-      const result = await axiosInstance.get(
-        `${server_url}/dietdetails/getPatientDietDetailsAdmin/${id}`
-      );
-      setDietData(result.data.data || []);
+      const result = await getDietdetailsGetPatientDietDetailsAdminByid(id);
+      if (result.success) {
+        setDietData(result?.data?.data || []);
+      }
     } catch (error) {
       console.error("Error fetching diet data:", error);
     }
@@ -78,8 +81,10 @@ const UserDietDetails = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${id}`);
-      setUserData(response.data.data);
+      const response = await getPatientGetPatientByid(id);
+      if (response.success) {
+        setUserData(response?.data?.data || {});
+      }
     } catch (error) {
       console.error("Error fetching patient data:", error);
     }
@@ -111,9 +116,10 @@ const UserDietDetails = () => {
     );
     if (isConfirmed) {
       try {
-        await axiosInstance.delete(
-          `${server_url}/dietdetails/deleteDietDetails/${dietId}`
-        );
+        const result = await deleteDietdetailsDeleteDietDetailsByid(dietId);
+        if (!result.success) {
+          throw new Error("Delete failed");
+        }
         await fetchData(); // Refresh the data
       } catch (error) {
         console.error("Error deleting diet details:", error);

@@ -7,10 +7,9 @@ import {
 } from "../../ApiCalls/authapis";
 import { Navigate, useNavigate } from "react-router-dom";
 import { getUserByEmail } from "../../ApiCalls/authapis";
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import { postMailSentotp, postMailVerifyOtp } from "../../ApiCalls/remainingApis";
 import { useDispatch } from "react-redux";
 import { setPermissions } from "../../redux/permissionSlice";
-import { server_url } from "../../constants/constants";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import SendIcon from "@mui/icons-material/Send";
@@ -48,11 +47,11 @@ function DoctorLogin() {
   const sendOTP = async (email) => {
     setIsLoading(true);
     try {
-      const response = await axiosInstance.post(`${server_url}/mail/sentotp`, {
-        email,
-      });
+      const response = await postMailSentotp({ email });
       setIsLoading(false);
-      return response.data;
+      if (response.success) {
+        return response.data;
+      }
     } catch (error) {
       setIsLoading(false);
       console.error("Error sending OTP:", error?.response?.data || error.message);
@@ -62,8 +61,10 @@ function DoctorLogin() {
 
   const verifyOTP = async (email, otp) => {
     try {
-      const response = await axiosInstance.post(`${server_url}/mail/verifyOtp`, { email, otp });
-      return response.data;
+      const response = await postMailVerifyOtp({ email, otp });
+      if (response.success) {
+        return response.data;
+      }
     } catch (error) {
       console.error("Error verifying OTP:", error);
       throw new Error("Failed to verify OTP. Please try again later.");

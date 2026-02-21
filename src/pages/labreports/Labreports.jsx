@@ -4,11 +4,10 @@ import {
   lightenDarkenColor,
   formatFileSize,
 } from "react-papaparse";
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import { postLabreportAddBulkIndividual } from "../../ApiCalls/remainingApis";
 
 import PdfComponent from "../../components/pdf/PdfComponent";
 import UploadBulkProfile from "./uploadBulkProfileQuestions";
-import { server_url } from "../../constants/constants";
 
 const GREY = "#CCC";
 const GREY_LIGHT = "rgba(255, 255, 255, 0.4)";
@@ -173,8 +172,7 @@ export default function CSVReader({ predefinedColumns }) {
         data: trimmedMappedData,
       };
 
-      axiosInstance
-        .post(`${server_url}/api/labreport/addBulkIndividual`, data)
+      postLabreportAddBulkIndividual(data)
         .then((response) => {
           // Handle the response data
           console.log("Response:", response.data);

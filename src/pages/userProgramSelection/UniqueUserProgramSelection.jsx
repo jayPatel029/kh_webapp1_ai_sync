@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import { getPatients, updateProgram } from "../../ApiCalls/patientAPis";
+import { getAlertByCategory } from "../../ApiCalls/alertsApis";
 import dummyadmin from "../../assets/dummyadmin.png";
-import { server_url } from "../../constants/constants";
 
 function UniqueUserProgramSelection() {
   const { id } = useParams(); // Get the id from the URL
@@ -11,19 +11,21 @@ function UniqueUserProgramSelection() {
 
   useEffect(() => {
     // Fetch patients data when component mounts
-    getPatients();
+    getPatientsList();
   }, [id]); // Dependency array includes id
 
-  const getPatients = async () => {
+  const getPatientsList = async () => {
     try {
-      const response = await axiosInstance.get(`${server_url}/patient/getPatients`);
-      const records = response.data.data;
-      const selectedPatient = records.find(record => record.id === Number(id));
+      const response = await getPatients();
+      if (response.success) {
+        const records = response?.data?.data || [];
+        const selectedPatient = records.find(record => record.id === Number(id));
 
-      if (selectedPatient) {
-        setPatient(selectedPatient);
-      } else {
-        console.error("Patient not found.");
+        if (selectedPatient) {
+          setPatient(selectedPatient);
+        } else {
+          console.error("Patient not found.");
+        }
       }
     } catch (error) {
       console.error("Error fetching patients:", error);
@@ -33,8 +35,8 @@ function UniqueUserProgramSelection() {
   useEffect(() => {
     const getProgramChangeAlert = async () => {
       try {
-        const response = await axiosInstance.get(`${server_url}/alerts/byCategory`);
-        setRequest(response.data);
+        const response = await getAlertByCategory();
+        setRequest(response);
       } catch (error) {
         console.log(error);
       }
@@ -44,7 +46,7 @@ function UniqueUserProgramSelection() {
 
   const handleSubmit = async (program, patientId) => {
     try {
-      await axiosInstance.put(`${server_url}/patient/updateProgram`, {
+      await updateProgram({
         id: patientId,
         program_id: program,
       });

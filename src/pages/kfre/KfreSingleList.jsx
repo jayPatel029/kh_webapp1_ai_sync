@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { getPatients, getPatientById } from "../../ApiCalls/patientAPis";
+import { getKfreDetails } from "../../ApiCalls/patientAPis";
+import { getLabreportGetLabReportsByid } from "../../ApiCalls/remainingApis";
 import CSVReader from "../../components/csvlab/CSVLab";
 import PdfDataExtractor from "../../components/pdfExtractor/PdfDataExtractor";
 import { Link, useParams } from "react-router-dom";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
 import { calculateAge } from "../../helpers/utils";
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 import {
@@ -51,11 +51,11 @@ function KfreSingleList() {
     const fetchData = async () => {
       try {
         try {
-      const response = await axiosInstance.get(
-        `${server_url}/labreport/getLabReports/${id.id}`
-      );
-      setLabReportData(response.data.data);
-      console.log("Lab Report Data:", response.data.data);
+      const labResponse = await getLabreportGetLabReportsByid(id.id);
+      if (labResponse.success) {
+        setLabReportData(labResponse.data?.data || []);
+        console.log("Lab Report Data:", labResponse.data?.data);
+      }
     } catch (error) {
       console.error("Error fetching lab report data:", error);
     }
@@ -107,22 +107,22 @@ function KfreSingleList() {
 
   const uploadData = async (result,data) => {
     try {
-      const response = axiosInstance.post(server_url+"/patientdata/kfredetails", {
-        patient_id: id.id,  // Assuming selectedPatient has 'value' property for patient ID
+      const response = await getKfreDetails({
+        patient_id: id.id,
         eGFR: data.eGFR,
         Phosphorous: data.phosphorous,
         Bicarbonate: data.bicarbonate,
         Albumin: data.albumin,
         Calcium: data.calcium,
         Albumin_to_Creatinine_Ratio: data.acr,
-        lab_id: lab_id>0?lab_id:null,  // Assuming lab_id exists in the data
+        lab_id: lab_id>0?lab_id:null,
         kfre: result,
       });
 
-      if (response) {
+      if (response.success) {
         console.log("KFRE details successfully updated");
       } else {
-        console.error("Error updating KFRE details", response.data.error);
+        console.error("Error updating KFRE details", response.data);
       }
     } catch (error) {
       console.error("Error while submitting KFRE details to backend:", error);
@@ -146,11 +146,11 @@ function KfreSingleList() {
 
     // Fetch lab report data for the selected patient
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/labreport/getLabReports/${selectedOption.value}`
-      );
-      setLabReportData(response.data.data);
-      console.log("Lab Report Data:", response.data.data);
+      const labResponse = await getLabreportGetLabReportsByid(selectedOption.value);
+      if (labResponse.success) {
+        setLabReportData(labResponse.data?.data || []);
+        console.log("Lab Report Data:", labResponse.data?.data);
+      }
     } catch (error) {
       console.error("Error fetching lab report data:", error);
     }

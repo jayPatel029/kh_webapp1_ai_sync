@@ -1,8 +1,8 @@
 import React from "react";
 import { useRef, useState, useEffect } from "react";
-import axiosInstance from "../../../helpers/axios/axiosInstance";
+import { postDailyAlertsUpdateIsRead, postNotifsPushNotifs } from "../../../ApiCalls/remainingApis";
+import { updateIsReadAlert, deleteAlertById } from "../../../ApiCalls/alertsApis";
 import SimpleModal from "./SimpleModal";
-import { server_url } from "../../../constants/constants";
 import { insertAlert } from "../../../ApiCalls/appAlerts";
 import { Link, useNavigate } from "react-router-dom";
 import GraphModal from "./graphModal";
@@ -99,7 +99,7 @@ const AlertModal = ({ closeModal }) => {
     console.log("Send", sendAlerts);
     if (sendAlerts.length > 0) {
       try {
-        await axiosInstance.post(`${server_url}/dailyAlerts/updateisRead`, {
+        await postDailyAlertsUpdateIsRead({
           alerts: sendAlerts,
           email: email,
         });
@@ -155,11 +155,31 @@ const AlertModal = ({ closeModal }) => {
 
   const cosultDoctor = async (alert) => {
     // http://localhost:8080/api/notifs/pushNotifs
-    const res = await axiosInstance.post(`${server_url}/notifs/pushNotifs`, {
+    const res = await postNotifsPushNotifs({
       user_id: 10,
       message: "Test",
       title: "Test",
     });
+  };
+
+  const handleMarkRead = async (alertId, index) => {
+    try {
+      await updateIsReadAlert({ id: alertId, isRead: 1 });
+      setAlerts(prev => prev.map((a, i) => i === index ? { ...a, isRead: 1 } : a));
+    } catch (error) {
+      console.error('Error marking alert as read:', error);
+    }
+  };
+
+  const handleDeleteAlert = async (alertId, index) => {
+    if (!window.confirm('Delete this alert?')) return;
+    try {
+      await deleteAlertById(alertId);
+      setAlerts(prev => prev.filter((_, i) => i !== index));
+    } catch (error) {
+      console.error('Error deleting alert:', error);
+      alert('Failed to delete alert.');
+    }
   };
 
   const viewProfile = async () => {
@@ -271,6 +291,25 @@ const AlertModal = ({ closeModal }) => {
                           .reverse()
                           .join("-")}
                       </p>
+                      {(alert.isRead === 0 || alert.isRead === false || alert.isRead === "0") && (
+                        <button
+                          onClick={() => handleMarkRead(alert.id, index)}
+                          className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                          title="Mark as read"
+                        >
+                          Mark Read
+                        </button>
+                      )}
+                      {alert.isRead === 1 && (
+                        <span className="text-xs text-green-500 px-2 py-1">✓ Read</span>
+                      )}
+                      <button
+                        onClick={() => handleDeleteAlert(alert.id, index)}
+                        className="text-xs text-red-400 hover:text-red-600 px-2 py-1 transition-colors"
+                        title="Delete alert"
+                      >
+                        ✕
+                      </button>
                       {alert.questionId && (
                         <div>
                           {alert.isGraph === 1 && (

@@ -1,6 +1,5 @@
 import React, { useState, CSSProperties } from 'react';
-import { server_url } from '../../constants/constants';
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import { postBulkDailyReadings } from '../../ApiCalls/readingsApis';
 import {
   useCSVReader,
   lightenDarkenColor,
@@ -90,7 +89,7 @@ export default function UploadBulkProfile() {
 
   const handleSubmit = () => {
     
-    axiosInstance.post(`${server_url}/readings/postBulkDailyReadings`, data)
+    postBulkDailyReadings(data)
       .then(response => {
         console.log('Response:', response.data);
       })

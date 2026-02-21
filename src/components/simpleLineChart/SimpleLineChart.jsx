@@ -1,7 +1,6 @@
 import React, { PureComponent, useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import axiosInstance from '../../helpers/axios/axiosInstance';
-import { server_url } from '../../constants/constants';
+import { getPatientsByDoctorId } from '../../ApiCalls/analyticsApis';
 
 
 const SimpleLineChart = ({ title }) => {
@@ -13,9 +12,11 @@ const SimpleLineChart = ({ title }) => {
         setLoading(true);
         const fetchData = async () => {
             try {
-                const response = await axiosInstance.get(`${server_url}/analytics/getPatientsByDoctorId`);
-                console.log(response.data.data)
-                setData(response.data.data);
+                const response = await getPatientsByDoctorId();
+                if (response.success) {
+                    console.log(response.data.data)
+                    setData(response.data.data);
+                }
                 setLoading(false)
                 
             } catch (error) {

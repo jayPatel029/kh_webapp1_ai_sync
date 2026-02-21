@@ -24,9 +24,11 @@ import EditAlarmModal from "./EditAlarmModal";
 import DoctorAlarmModal from "./DoctorAlarmModal";
 
 // APIs and Helpers
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
 import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
+import { deleteAlarm, getAlarmByPatientId } from "../../ApiCalls/alarmsApis";
+import { approveOrDisapprovePrescription } from "../../ApiCalls/alertsApis";
+import { getPatientGetPatientByid } from "../../ApiCalls/remainingApis";
+import { isDoctorRole } from "../../ApiCalls/authapis";
 
 // Icons
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
@@ -74,16 +76,20 @@ const ShowAlarms = () => {
 
   const closeDoctorModal = () => setShowDoctorModal(false);
 
-  const deleteAlarm = async (id) => {
+  const handleDeleteAlarm = async (id) => {
     const isConfirmed = window.confirm(
       "Are you sure you want to delete this alarm?"
     );
     if (isConfirmed) {
       try {
-        await axiosInstance.delete(`${server_url}/alarms/${id}`);
-        setUserAlarmData((prevData) =>
-          prevData.filter((alarm) => alarm.id !== id)
-        );
+        const result = await deleteAlarm(id);
+        if (result.success) {
+          setUserAlarmData((prevData) =>
+            prevData.filter((alarm) => alarm.id !== id)
+          );
+        } else {
+          throw new Error("Delete failed");
+        }
       } catch (error) {
         console.error("Error:", error.message);
         alert("Failed to delete alarm. Please try again.");
@@ -96,10 +102,7 @@ const ShowAlarms = () => {
       alarmId: id,
       status: status,
     };
-    const result = await axiosInstance.put(
-      `${server_url}/alerts/approveOrDisapprovePrescription`,
-      reqbody
-    );
+    await approveOrDisapprovePrescription(reqbody);
     if (status === "Approved") {
       alert("Prescription Approved Successfully");
       window.location.reload();
@@ -120,11 +123,11 @@ const ShowAlarms = () => {
 
   const fetchData = async () => {
     try {
-      const result = await axiosInstance.get(
-        `${server_url}/alarms/byPatientId/${patientId}`
-      );
-      setUserAlarmData(result.data.data);
-      setDosesData(result.data.doses);
+      const result = await getAlarmByPatientId(patientId);
+      if (result.success) {
+        setUserAlarmData(result.data.data || []);
+        setDosesData(result.data.doses);
+      }
     } catch (error) {
       console.error("Error fetching alarm data:", error);
     }
@@ -132,8 +135,10 @@ const ShowAlarms = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${patientId}`);
-      setUserData(response.data.data);
+      const response = await getPatientGetPatientByid(patientId);
+      if (response.success) {
+        setUserData(response?.data?.data || {});
+      }
     } catch (error) {
       console.error("Error fetching patient data:", error);
     }
@@ -141,12 +146,10 @@ const ShowAlarms = () => {
 
   useEffect(() => {
     const isDoctorfunc = async () => {
-      const response = await axiosInstance.get(`${server_url}/roles/isDoctor`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      setIsDoctor(response.data.data);
+      const response = await isDoctorRole();
+      if (response.success) {
+        setIsDoctor(response.data.data);
+      }
     };
 
     fetchData();
@@ -201,7 +204,7 @@ const ShowAlarms = () => {
               </button>
               <button
                 className="text-[#de425b] hover:text-[#c93850] transition-colors"
-                onClick={() => deleteAlarm(alarm.id)}
+                onClick={() => handleDeleteAlarm(alarm.id)}
               >
                 <BsTrash size={20} />
               </button>
@@ -266,7 +269,7 @@ const ShowAlarms = () => {
                     <button className="flex items-center gap-1 text-[#87ca9c] text-[12px] font-medium" onClick={() => openEditModal(alarm)}>
                       <BsPencilSquare size={14} /> Edit
                     </button>
-                    <button className="flex items-center gap-1 text-[#de425b] text-[12px] font-medium" onClick={() => deleteAlarm(alarm.id)}>
+                    <button className="flex items-center gap-1 text-[#de425b] text-[12px] font-medium" onClick={() => handleDeleteAlarm(alarm.id)}>
                       <BsTrash size={14} /> Delete
                     </button>
                   </Flex>
