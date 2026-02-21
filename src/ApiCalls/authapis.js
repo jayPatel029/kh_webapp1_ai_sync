@@ -233,3 +233,16 @@ export async function isUserDoctor() {
     return { success: false, data: error.response?.data || error.message };
   }
 }
+
+export async function getIdByEmail(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(
+      server_url + "/users/byEmail/id",
+      payload,
+      config
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}

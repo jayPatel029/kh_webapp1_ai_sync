@@ -714,3 +714,32 @@ export async function postUserResponsesSave(payload, config = {}) {
     return { success: false, data: error.response?.data || error.message };
   }
 }
+
+// --- Requisition (missing CRUD endpoints) ---
+
+export async function deleteRequisitionById(id, config = {}) {
+  try {
+    const response = await axiosInstance.delete(`${server_url}/requisition/${id}`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updateRequisitionById(id, payload, config = {}) {
+  try {
+    const response = await axiosInstance.put(`${server_url}/requisition/${id}`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function addRequisition(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(server_url + "/requisition/add", payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
