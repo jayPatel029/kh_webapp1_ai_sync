@@ -1,14 +1,15 @@
 import React, { useState } from "react";
-import KfreList from "./KfreList";
 import KfreSingleList from "./KfreSingleList";
+import { Box } from "../../component-library/layout/Layout";
+
 function KfreSingle() {
   return (
-    <div className="flex-1 block w-full">
-      <div className="max-w-4xl">
+    <Box className="flex-1 block w-full">
+      <Box className="max-w-4xl w-full">
         <KfreSingleList />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
-export default  KfreSingle;
+export default KfreSingle;

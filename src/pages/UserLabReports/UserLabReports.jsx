@@ -19,6 +19,9 @@ import { SortDropdown } from "../../component-library/primitives";
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
 
+// Mobile
+import { useIsMobile } from "../../components/mobile/useIsMobile";
+
 // Page Components
 import UploadLabReports from "./UploadLabReports";
 import FileViewModal from "../../components/modals/FileViewModal";
@@ -64,6 +67,7 @@ const UserLabReports = () => {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
+  const { isMobile } = useIsMobile();
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -190,8 +194,14 @@ const UserLabReports = () => {
       onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
       {/* Filter and Action Bar */}
-      <Flex justify="between" align="center" className="mb-8">
-        <Flex align="center" gap={4}>
+      <Flex
+        justify="between"
+        align={isMobile ? "start" : "center"}
+        direction={isMobile ? "column" : "row"}
+        gap={isMobile ? 3 : 0}
+        className={isMobile ? 'mb-4' : 'mb-8'}
+      >
+        <Flex align="center" gap={isMobile ? 2 : 4} wrap={isMobile ? 'wrap' : 'nowrap'}>
           <SortDropdown
             value={selectedFilter}
             onChange={handleSelectChange}
@@ -199,10 +209,9 @@ const UserLabReports = () => {
             icon={<img src={sortIcon} alt="Sort" />}
             placeholder="Sort by"
           />
-
           <button
             onClick={handleClearFilters}
-            className="text-[16px] font-semibold text-[#5886a5] underline hover:text-primary transition-colors cursor-pointer"
+            className={`${isMobile ? 'text-[13px]' : 'text-[16px]'} font-semibold text-[#5886a5] underline hover:text-primary transition-colors cursor-pointer`}
           >
             Clear filters
           </button>
@@ -211,7 +220,7 @@ const UserLabReports = () => {
         {role?.role_name !== "Dialysis Technician" && (
           <Button
             variant="solid"
-            className="h-[50px] px-8 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3453c1] transition-colors"
+            className={`${isMobile ? 'h-[40px] px-4 text-[13px] rounded-lg w-full' : 'h-[50px] px-8 rounded-[10px] text-[16px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3453c1] transition-colors`}
             onClick={openModal}
           >
             Upload Lab Report
@@ -229,7 +238,42 @@ const UserLabReports = () => {
         />
       </Box> */}
 
-      {/* Table Layout */}
+      {/* Mobile Card View */}
+      {isMobile ? (
+        <Box className="flex flex-col gap-3 pb-20">
+          {loading ? (
+            <Box className="py-8 text-center"><Text className="text-gray-500">Loading...</Text></Box>
+          ) : filteredReportData.length > 0 ? (
+            filteredReportData.map((report, index) => (
+              <Box key={index} className="bg-white rounded-xl border border-gray-200 p-3">
+                <Flex justify="between" align="start" className="mb-2">
+                  <Box>
+                    <p className="text-[13px] font-semibold text-[#1e293b]">{report.Report_Type || 'Lab Report'}</p>
+                    <p className="text-[11px] text-[#6b7280] mt-0.5">{formatDate(report.date || report.Date)}</p>
+                  </Box>
+                  <button
+                    onClick={() => deleteLabReport(report.id, email)}
+                    className="p-1 cursor-pointer"
+                  >
+                    <img src={deleteIcon} alt="Delete" className="w-5 h-5" />
+                  </button>
+                </Flex>
+                <Box
+                  className="w-full h-[120px] rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
+                  onClick={() => openFileModal(report.id, report.Lab_Report)}
+                >
+                  <img src={report.Lab_Report} alt="Lab Report" className="w-full h-full object-cover" />
+                </Box>
+              </Box>
+            ))
+          ) : (
+            <Box className="py-8 text-center">
+              <Text size="sm" className="italic text-gray-400">No lab reports found</Text>
+            </Box>
+          )}
+        </Box>
+      ) : (
+      /* Desktop Table Layout */
       <Box className="rounded-[5px] overflow-hidden">
         {/* Table Header */}
         <Flex
@@ -329,6 +373,7 @@ const UserLabReports = () => {
           )}
         </Box>
       </Box>
+      )}
 
       {/* Modals */}
       {showModal && (

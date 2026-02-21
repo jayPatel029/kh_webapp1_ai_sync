@@ -30,6 +30,7 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Flex } from '../../component-library';
 import { BsTrash, BsPencilSquare, BsDownload } from 'react-icons/bs';
+import { useIsMobile } from '../mobile/useIsMobile';
 import './UnifiedListTable.css';
 
 const UnifiedListTable = ({
@@ -50,8 +51,18 @@ const UnifiedListTable = ({
     customRowRender = null,
     searchTerm,
     setSearchTerm,
-    renderSearchUI = false
+    renderSearchUI = false,
+    // Mobile card mode props
+    displayMode, // 'table' | 'cards' | undefined (auto)
+    cardTitleKey, // key for card title field
+    cardSubtitleKey, // key for card subtitle field
+    cardImageKey, // key for card image/avatar
+    cardFieldKeys, // array of keys to show as detail fields
+    onCardClick, // callback when a card is tapped
+    cardStatusKey, // key for status badge
+    mobileCardRender, // optional custom card render fn(row, columns, renderCell)
 }) => {
+    const { isMobile } = useIsMobile();
     const [currentPage, setCurrentPage] = useState(1);
     //   const [searchTerm, setSearchTerm] = useState('');
 
@@ -78,6 +89,9 @@ const UnifiedListTable = ({
     }, [filteredData, enablePagination, currentPage, rowsPerPage]);
 
     const totalPages = enablePagination ? Math.ceil(filteredData.length / rowsPerPage) : 1;
+
+    // Determine if we should show cards
+    const showCards = displayMode === 'cards' || (displayMode !== 'table' && isMobile);
 
     // Render cell content based on column type
     const renderCell = (row, column) => {
@@ -189,11 +203,128 @@ const UnifiedListTable = ({
                 </div>
             )}
 
-            {/* Table */}
+            {/* Mobile Card Mode */}
+            {showCards ? (
+                <div className="list-table__cards-container">
+                    {isLoading ? (
+                        <div className="list-table__cards-loading">Loading...</div>
+                    ) : paginatedData.length === 0 ? (
+                        <div className="list-table__cards-empty">{emptyMessage}</div>
+                    ) : (
+                        paginatedData.map((row, rowIdx) => {
+                            // Custom card render
+                            if (mobileCardRender) {
+                                return (
+                                    <div key={rowIdx} className="list-table__card-wrapper">
+                                        {mobileCardRender(row, columns, renderCell)}
+                                    </div>
+                                );
+                            }
+
+                            // Default card rendering
+                            const imageCol = columns.find(c => c.key === cardImageKey || c.type === 'image');
+                            const titleCol = columns.find(c => c.key === cardTitleKey) || columns.find(c => c.type === 'text');
+                            const subtitleCol = cardSubtitleKey ? columns.find(c => c.key === cardSubtitleKey) : null;
+                            const statusCol = cardStatusKey ? columns.find(c => c.key === cardStatusKey) : null;
+                            const detailCols = cardFieldKeys
+                                ? columns.filter(c => cardFieldKeys.includes(c.key))
+                                : columns.filter(c => c.type !== 'image' && c.type !== 'actions' && c.key !== titleCol?.key && c.key !== subtitleCol?.key);
+
+                            return (
+                                <div
+                                    key={rowIdx}
+                                    className="list-table__card"
+                                    onClick={() => onCardClick?.(row)}
+                                    role={onCardClick ? 'button' : undefined}
+                                    tabIndex={onCardClick ? 0 : undefined}
+                                >
+                                    {/* Card Header */}
+                                    <div className="list-table__card-header">
+                                        {imageCol && row[imageCol.key] && (
+                                            <div className="list-table__card-avatar">
+                                                <img src={row[imageCol.key]} alt="" />
+                                            </div>
+                                        )}
+                                        <div className="list-table__card-title-area">
+                                            {titleCol && (
+                                                <div className="list-table__card-title">
+                                                    {row[titleCol.key] || '-'}
+                                                </div>
+                                            )}
+                                            {subtitleCol && (
+                                                <div className="list-table__card-subtitle">
+                                                    {row[subtitleCol.key] || '-'}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {statusCol && row[statusCol.key] && (
+                                            <div className={`list-table__card-status list-table__card-status--${String(row[statusCol.key]).toLowerCase().replace(/\s+/g, '-')}`}>
+                                                {row[statusCol.key]}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Card Details */}
+                                    {detailCols.length > 0 && (
+                                        <div className="list-table__card-details">
+                                            {detailCols.map((col) => (
+                                                <div key={col.key} className="list-table__card-field">
+                                                    <span className="list-table__card-field-label">{col.label}</span>
+                                                    <span className="list-table__card-field-value">
+                                                        {col.type === 'date' && row[col.key]
+                                                            ? new Date(row[col.key]).toISOString().split('T')[0]
+                                                            : col.type === 'custom' && col.render
+                                                                ? col.render(row, row[col.key])
+                                                                : (row[col.key] || '-')}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Card Actions */}
+                                    {actionButtons && (onEdit || onDelete || onDownload) && (
+                                        <div className="list-table__card-actions">
+                                            {onEdit && (
+                                                <button
+                                                    className="list-table__card-action-btn list-table__card-action-btn--edit"
+                                                    onClick={(e) => { e.stopPropagation(); onEdit(row); }}
+                                                    aria-label="Edit"
+                                                >
+                                                    <BsPencilSquare /> Edit
+                                                </button>
+                                            )}
+                                            {onDownload && (
+                                                <button
+                                                    className="list-table__card-action-btn list-table__card-action-btn--download"
+                                                    onClick={(e) => { e.stopPropagation(); onDownload(row); }}
+                                                    aria-label="Download"
+                                                >
+                                                    <BsDownload /> Download
+                                                </button>
+                                            )}
+                                            {onDelete && (
+                                                <button
+                                                    className="list-table__card-action-btn list-table__card-action-btn--delete"
+                                                    onClick={(e) => { e.stopPropagation(); onDelete(row); }}
+                                                    aria-label="Delete"
+                                                >
+                                                    <BsTrash /> Delete
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            ) : (
+            /* Desktop Table Mode */
             <div className="list-table__wrapper">
                 <table className="list-table">
                     {/* Header */}
-                    <thead>
+                    <thead className="list-table__header">
                         <tr className="list-table__header-row">
                             {columns.map((column) => (
                                 <th
@@ -245,6 +376,7 @@ const UnifiedListTable = ({
                     </tbody>
                 </table>
             </div>
+            )}
 
             {/* Pagination */}
             {enablePagination && totalPages > 1 && (

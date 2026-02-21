@@ -19,6 +19,9 @@ import {
   Container,
 } from "../../component-library";
 
+// Mobile
+import { useIsMobile } from "../../components/mobile/useIsMobile";
+
 // Original Layout Components (containing actual logic/content)
 
 // APIs and Helpers
@@ -67,21 +70,10 @@ function UserProfile() {
   const [selectedReading, setSelectedReading] = useState(null);
 
   const navigate = useNavigate();
+  const { isMobile } = useIsMobile();
 
-  // Responsive handling based on window width
-  const [windowWidth, setWindowWidth] = useState(
-    typeof window !== "undefined" ? window.innerWidth : 1200
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const isSmall = windowWidth < 768;
-  const isMedium = windowWidth >= 768 && windowWidth < 1024;
+  // Keep isSmall synced with isMobile for backward compat (charts aspect ratio etc.)
+  const isSmall = isMobile;
 
   const openLabReadingModal = (title, id) => setSelectedReading({ title, id });
   const closeLabReadingModal = () => setSelectedReading(null);
@@ -245,9 +237,9 @@ function UserProfile() {
       <Box className="flex-1 flex flex-col w-full z-20 min-w-0">
 
         {/* Sticky Header Section */}
-        <Box className="sticky top-[56px] z-20 bg-white ">
+        <Box className={`sticky ${isMobile ? 'top-0' : 'top-[56px]'} z-20 bg-white`}>
 
-          <Flex justify="start" align="center" className="py-4 px-6">
+          <Flex justify="start" align="center" className={isMobile ? "py-2 px-4" : "py-4 px-6"}>
 
             {/* Header with Breadcrumbs */}
             <PageHeader
@@ -271,7 +263,7 @@ function UserProfile() {
           />
         </Box>
 
-        <Flex className={`py-4 flex-col gap-6 ${isSmall ? "px-4" : "px-6"}`}>
+        <Flex className={`py-4 flex-col gap-6 ${isSmall ? "px-4 pb-20" : "px-6"}`}>
           {/* Profile Card */}
           <PatientProfileCard
             userData={userData}
@@ -417,7 +409,7 @@ function UserProfile() {
                 >
                   <Box className="relative">
                     {role?.role_name === "Admin" && (
-                      <Flex gap={2} className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10 bg-white/70 backdrop-blur-sm rounded-md p-1">
+                      <Flex gap={2} className={`absolute ${isMobile ? 'top-1 right-1' : 'top-2 left-1/2 transform -translate-x-1/2'} z-10 bg-white/70 backdrop-blur-sm rounded-md p-1`}>
                         <button
                           className="text-[#4164df] text-xl"
                           onClick={() => openLabReadingModal(reading.title, reading.id)}

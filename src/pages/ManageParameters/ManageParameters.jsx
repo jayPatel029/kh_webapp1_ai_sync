@@ -45,6 +45,9 @@ import { server_url } from "../../constants/constants";
 // Icons
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
 
+// Mobile
+import { useIsMobile } from "../../components/mobile/useIsMobile";
+
 // Import design system styles
 import "../../design-system/styles/index.css";
 
@@ -72,6 +75,7 @@ function ManageParameters() {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
+  const { isMobile } = useIsMobile();
 
   const parameterTypes = [
     { value: "General", label: "General" },
@@ -462,19 +466,94 @@ function ManageParameters() {
           </Select>
         </FormControl>
       </FormModal>
-      <Box className="bg-white rounded-[15px] p-8">
-        <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
-          <h2 className="text-[18px] font-bold text-[#393939]">Existing Parameters</h2>
+      <Box className={`bg-white rounded-[15px] ${isMobile ? 'p-4' : 'p-8'}`}>
+        <Flex justify="between" align="center" className={`pb-4 border-b border-gray-200 ${isMobile ? 'mb-3' : 'mb-6'}`}>
+          <h2 className={`${isMobile ? 'text-[15px]' : 'text-[18px]'} font-bold text-[#393939]`}>Existing Parameters</h2>
           <Button
             variant="solid"
             onClick={() => { clearAllFields(); setIsModalOpen(true); }}
-            className="h-[40px] px-4 rounded-[8px] bg-[#4164df] text-white text-[14px] font-semibold hover:bg-[#3451c9]"
+            className={`${isMobile ? 'h-[34px] px-3 rounded-[6px] text-[12px]' : 'h-[40px] px-4 rounded-[8px] text-[14px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3451c9]`}
           >
             + Add Parameter
           </Button>
         </Flex>
 
-        {/* Table */}
+        {isMobile ? (
+          /* Mobile: Card-based parameter list */
+          <Box className="space-y-3">
+            {/* Daily Parameters */}
+            {parameterData?.daily && parameterData.daily.length > 0 && parameterData.daily.map((data, index) => (
+              <Box key={`daily-${index}`} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <Flex justify="between" align="start" className="mb-2">
+                  <Box>
+                    <h3 className="text-[14px] font-bold text-[#393939]">{data.title}</h3>
+                    <span className="text-[11px] font-medium text-white bg-[#5886a5] rounded-full px-2 py-0.5 inline-block mt-1">General</span>
+                  </Box>
+                  <Flex align="center" gap={2}>
+                    <button className="text-[#5886a5] hover:text-[#4164df] p-1.5" onClick={() => {
+                      setEditMode(true); setEditId(data.id); setSelectedParameterType("General");
+                      setSelectedAilments(data.daily_reading_ailments?.map((a) => ({ value: a.ailmentID, label: ailmentOptions.find((o) => o.id === a.ailmentID)?.name })) || []);
+                      setSelectTitle(data.title); setSelectedReadingType(data.type);
+                      setHighRange(data.high_range); setLowRange(data.low_range);
+                      setGraphOption(data.isGraph === 1); setIsParamDisabled(true);
+                      setErrMsg({ type: "success", msg: "" }); setIsModalOpen(true);
+                    }}><BsPencilSquare size={16} /></button>
+                    <button className="text-[#de425b] hover:text-[#c93850] p-1.5" onClick={async () => {
+                      if (window.confirm("Are you sure you want to delete this parameter?")) {
+                        try { await deleteDailyReading(data.id); setErrMsg({ type: "success", msg: "Deleted Successfully" }); getParameterData(); } catch (err) { console.error(err); }
+                      }
+                    }}><BsTrash size={16} /></button>
+                  </Flex>
+                </Flex>
+                <Box className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[#989898]">
+                  <span><strong>Type:</strong> {data.type}</span>
+                  <span><strong>Graph:</strong> {data.isGraph ? "Yes" : "No"}</span>
+                  {data.low_range && <span><strong>Range:</strong> {data.low_range}-{data.high_range}</span>}
+                </Box>
+              </Box>
+            ))}
+
+            {/* Dialysis Parameters */}
+            {parameterData?.dialysis && parameterData.dialysis.length > 0 && parameterData.dialysis.map((data, index) => (
+              <Box key={`dialysis-${index}`} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <Flex justify="between" align="start" className="mb-2">
+                  <Box>
+                    <h3 className="text-[14px] font-bold text-[#393939]">{data.title}</h3>
+                    <span className="text-[11px] font-medium text-white bg-[#de425b] rounded-full px-2 py-0.5 inline-block mt-1">Dialysis</span>
+                  </Box>
+                  <Flex align="center" gap={2}>
+                    <button className="text-[#5886a5] hover:text-[#4164df] p-1.5" onClick={() => {
+                      setEditMode(true); setEditId(data.id); setSelectedParameterType("Dialysis");
+                      setSelectedAilments(data.dialysis_reading_ailments?.map((a) => ({ value: a.ailmentID, label: ailmentOptions.find((o) => o.id === a.ailmentID)?.name })) || []);
+                      setSelectTitle(data.title); setSelectedReadingType(data.type);
+                      setHighRange(data.high_range); setLowRange(data.low_range);
+                      setGraphOption(data.isGraph === 1); setIsParamDisabled(true);
+                      setErrMsg({ type: "success", msg: "" }); setIsModalOpen(true);
+                    }}><BsPencilSquare size={16} /></button>
+                    <button className="text-[#de425b] hover:text-[#c93850] p-1.5" onClick={async () => {
+                      if (window.confirm("Are you sure you want to delete this parameter?")) {
+                        try { await deleteDialysisReading(data.id); setErrMsg({ type: "success", msg: "Deleted Successfully" }); getParameterData(); } catch (err) { console.error(err); }
+                      }
+                    }}><BsTrash size={16} /></button>
+                  </Flex>
+                </Flex>
+                <Box className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[#989898]">
+                  <span><strong>Type:</strong> {data.type}</span>
+                  <span><strong>Graph:</strong> {data.isGraph ? "Yes" : "No"}</span>
+                  {data.low_range && <span><strong>Range:</strong> {data.low_range}-{data.high_range}</span>}
+                </Box>
+              </Box>
+            ))}
+
+            {(!parameterData?.daily || parameterData.daily.length === 0) &&
+              (!parameterData?.dialysis || parameterData.dialysis.length === 0) && (
+                <Box className="py-8 text-center">
+                  <p className="text-[#989898] text-[14px] italic">No parameters found</p>
+                </Box>
+              )}
+          </Box>
+        ) : (
+        /* Desktop: Original Table */
         <Box className="overflow-x-auto">
           {/* Table Header */}
           <Box className="bg-[#5886a5] rounded-[5px] px-6 py-3 mb-0">
@@ -642,6 +721,7 @@ function ManageParameters() {
               )}
           </Box>
         </Box>
+        )}
       </Box>
     </PatientDetailLayout>
   );

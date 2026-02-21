@@ -13,7 +13,7 @@ import {
     Badge,
     Heading
 } from '../../../component-library';
-// Importing directly from assets folder
+import { useIsMobile } from '../../../components/mobile/useIsMobile';
 import dummyadmin from '../../../assets/dummyadmin.png'; 
 
 const PatientAlertCard = ({ patient, onAction }) => {
@@ -25,7 +25,73 @@ const PatientAlertCard = ({ patient, onAction }) => {
         dialysisCount = 0,
         avatar,
     } = patient;
+    const { isMobile } = useIsMobile();
 
+    // Mobile compact card
+    if (isMobile) {
+        return (
+            <Box
+                className="py-3 bg-white"
+                onClick={() => onAction && onAction(patient, 'view')}
+            >
+                <Flex align="center" gap={3}>
+                    <img
+                        src={avatar || dummyadmin}
+                        alt={name}
+                        className="w-12 h-12 rounded-full object-cover border border-gray-200 flex-shrink-0"
+                    />
+                    <Box className="flex-1 min-w-0">
+                        <Heading as="h3" size="sm" className="text-black font-semibold truncate mb-2">
+                            {name}
+                        </Heading>
+                        <Flex gap={2} wrap="wrap">
+                            {prescriptionCount > 0 && (
+                                <button
+                                    className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold text-white border-none cursor-pointer"
+                                    style={{ background: '#00cccc' }}
+                                    onClick={(e) => { e.stopPropagation(); onAction(patient, 'prescription'); }}
+                                >
+                                    {prescriptionCount} Rx
+                                </button>
+                            )}
+                            {dialysisCount > 0 && (
+                                <button
+                                    className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold text-white border-none cursor-pointer"
+                                    style={{ background: '#6b21a8' }}
+                                    onClick={(e) => { e.stopPropagation(); onAction(patient, 'dialysis'); }}
+                                >
+                                    {dialysisCount} DT
+                                </button>
+                            )}
+                            {commentCount > 0 && (
+                                <button
+                                    className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold text-white border-none cursor-pointer"
+                                    style={{ background: '#00c008' }}
+                                    onClick={(e) => { e.stopPropagation(); onAction(patient, 'comment'); }}
+                                >
+                                    {commentCount} Cmt
+                                </button>
+                            )}
+                            {alertCount > 0 && (
+                                <button
+                                    className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold text-white border-none cursor-pointer"
+                                    style={{ background: '#fd0000' }}
+                                    onClick={(e) => { e.stopPropagation(); onAction(patient, 'alert'); }}
+                                >
+                                    {alertCount} Alert
+                                </button>
+                            )}
+                            {prescriptionCount === 0 && commentCount === 0 && alertCount === 0 && dialysisCount === 0 && (
+                                <span className="text-[11px] text-gray-400 font-medium">No alerts</span>
+                            )}
+                        </Flex>
+                    </Box>
+                </Flex>
+            </Box>
+        );
+    }
+
+    // Desktop card (original)
     return (
         <Box
             className="p-6 bg-white hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-0"

@@ -1,0 +1,749 @@
+/**
+ * Mobile Styles
+ * Mobile-specific styles using design system CSS variables/tokens
+ * All styles scoped to mobile breakpoint or explicit mobile variant classes
+ * 
+ * @file src/components/mobile/mobile.css
+ */
+
+/* ==================== MOBILE PAGE CONTAINER ==================== */
+
+.mobile-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for mobile browsers */
+  width: 100%;
+  background-color: var(--color-background, #ffffff);
+  overflow-x: hidden;
+  position: relative;
+  padding-bottom: calc(var(--space-16) + env(safe-area-inset-bottom, 0px));
+}
+
+.mobile-page__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+  gap: var(--space-4);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ==================== MOBILE HEADER (COMPACT) ==================== */
+
+.mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  min-height: 48px;
+  background-color: var(--color-background, #ffffff);
+  border-bottom: 1px solid var(--color-border-light, #d9d9d9);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky, 1100);
+}
+
+.mobile-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.mobile-header__center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.mobile-header__title {
+  font-family: var(--font-primary, 'Sora', sans-serif);
+  font-size: var(--font-size-lg, 1.125rem);
+  font-weight: var(--font-weight-semi-bold, 600);
+  color: var(--color-accent, #5886a5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.mobile-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.mobile-header__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md, 8px);
+  border: none;
+  background: transparent;
+  color: var(--color-text, #393939);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  padding: 0;
+}
+
+.mobile-header__icon-btn:hover {
+  background-color: var(--color-surface-alt, #efefef);
+}
+
+.mobile-header__icon-btn:active {
+  transform: scale(0.95);
+}
+
+/* ==================== MOBILE STAT CARDS ==================== */
+
+.mobile-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0;
+}
+
+.mobile-stats--horizontal {
+  flex-direction: row;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: var(--space-1);
+}
+
+.mobile-stats--horizontal::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-stat-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-white, #ffffff);
+  border-radius: var(--radius-xl, 12px);
+  box-shadow: var(--shadow-card);
+  min-width: 0;
+  transition: var(--transition-fast);
+  scroll-snap-align: start;
+}
+
+.mobile-stats--horizontal .mobile-stat-card {
+  min-width: 160px;
+  flex-shrink: 0;
+}
+
+.mobile-stat-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-round, 50%);
+  flex-shrink: 0;
+}
+
+.mobile-stat-card__icon--primary {
+  background-color: var(--color-primary-50, #F5F3FF);
+  color: var(--color-primary, #4164df);
+}
+
+.mobile-stat-card__icon--success {
+  background-color: var(--color-success-light, #E6FAF5);
+  color: var(--color-success, #00c008);
+}
+
+.mobile-stat-card__icon--warning {
+  background-color: var(--color-warning-light, #FFF6DA);
+  color: var(--color-warning, #ff9800);
+}
+
+.mobile-stat-card__icon--danger {
+  background-color: var(--color-danger-light, #FEEFEE);
+  color: var(--color-danger, #de425b);
+}
+
+.mobile-stat-card__icon--info {
+  background-color: var(--color-info-light, #EFF4FB);
+  color: var(--color-info, #00cccc);
+}
+
+.mobile-stat-card__icon--accent {
+  background-color: rgba(88, 134, 165, 0.1);
+  color: var(--color-accent, #5886a5);
+}
+
+.mobile-stat-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  min-width: 0;
+}
+
+.mobile-stat-card__label {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-muted, #989898);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider, 0.05em);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-stat-card__value {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-2xl, 1.5rem);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-text, #393939);
+  line-height: 1.2;
+}
+
+.mobile-stat-card__indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-primary);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.mobile-stat-card__indicator--up {
+  color: var(--color-success, #00c008);
+}
+
+.mobile-stat-card__indicator--down {
+  color: var(--color-danger, #de425b);
+}
+
+/* ==================== MOBILE FILTER ROW ==================== */
+
+.mobile-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  position: sticky;
+  top: 48px; /* Below mobile header */
+  z-index: calc(var(--z-sticky, 1100) - 1);
+  background-color: var(--color-background, #ffffff);
+}
+
+.mobile-filter-row::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1-5) var(--space-3);
+  border-radius: var(--radius-pill, 20px);
+  border: 1px solid var(--color-border-light, #d9d9d9);
+  background-color: var(--color-background, #ffffff);
+  font-family: var(--font-primary);
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text, #393939);
+  white-space: nowrap;
+  cursor: pointer;
+  scroll-snap-align: start;
+  flex-shrink: 0;
+  transition: var(--transition-fast);
+  user-select: none;
+}
+
+.mobile-filter-chip:hover {
+  border-color: var(--color-accent, #5886a5);
+  background-color: var(--color-surface, #fafafa);
+}
+
+.mobile-filter-chip--active {
+  background-color: var(--color-accent, #5886a5);
+  color: var(--color-text-inverse, #ffffff);
+  border-color: var(--color-accent, #5886a5);
+}
+
+.mobile-filter-chip--active:hover {
+  background-color: var(--color-accent, #5886a5);
+  opacity: 0.9;
+}
+
+.mobile-filter-chip__icon {
+  display: flex;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.mobile-filter-chip__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full, 9999px);
+  background-color: var(--color-danger, #de425b);
+  color: var(--color-text-inverse, #ffffff);
+  font-size: 10px;
+  font-weight: var(--font-weight-bold, 700);
+}
+
+.mobile-filter-select {
+  padding: var(--space-1-5) var(--space-3);
+  padding-right: var(--space-7);
+  border-radius: var(--radius-pill, 20px);
+  border: 1px solid var(--color-border-light, #d9d9d9);
+  background-color: var(--color-background, #ffffff);
+  font-family: var(--font-primary);
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-text, #393939);
+  cursor: pointer;
+  flex-shrink: 0;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23989898' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+/* ==================== MOBILE DATA CARD ==================== */
+
+.mobile-data-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-white, #ffffff);
+  border-radius: var(--radius-xl, 12px);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: var(--transition-fast);
+}
+
+.mobile-data-card:active {
+  transform: scale(0.99);
+  box-shadow: var(--shadow-sm);
+}
+
+.mobile-data-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-light, #d9d9d9);
+}
+
+.mobile-data-card__header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-data-card__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-round, 50%);
+  object-fit: cover;
+  border: 2px solid var(--color-border-light, #d9d9d9);
+  flex-shrink: 0;
+  background-color: var(--color-surface, #fafafa);
+}
+
+.mobile-data-card__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  min-width: 0;
+}
+
+.mobile-data-card__title {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-md, 0.95rem);
+  font-weight: var(--font-weight-semi-bold, 600);
+  color: var(--color-text, #393939);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.mobile-data-card__subtitle {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-text-muted, #989898);
+  margin: 0;
+}
+
+.mobile-data-card__body {
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mobile-data-card__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.mobile-data-card__label {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-muted, #989898);
+  flex-shrink: 0;
+  min-width: 80px;
+}
+
+.mobile-data-card__value {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-text, #393939);
+  text-align: right;
+  word-break: break-word;
+  flex: 1;
+}
+
+.mobile-data-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border-top: 1px solid var(--color-border-light, #d9d9d9);
+}
+
+.mobile-data-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ==================== MOBILE DATA CARD LIST ==================== */
+
+.mobile-data-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* ==================== MOBILE BOTTOM ACTION BAR ==================== */
+
+.mobile-bottom-action {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  background-color: var(--color-background, #ffffff);
+  border-top: 1px solid var(--color-border-light, #d9d9d9);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+  z-index: var(--z-sticky, 1100);
+}
+
+.mobile-bottom-action__primary {
+  flex: 1;
+  max-width: 400px;
+}
+
+/* ==================== MOBILE SEARCH ==================== */
+
+.mobile-search {
+  position: relative;
+  width: 100%;
+}
+
+.mobile-search__input {
+  width: 100%;
+  padding: var(--space-2-5) var(--space-4);
+  padding-left: var(--space-10);
+  border-radius: var(--radius-pill, 20px);
+  border: 1px solid var(--color-border-light, #d9d9d9);
+  background-color: var(--color-surface, #fafafa);
+  font-family: var(--font-primary);
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-text, #393939);
+  transition: var(--transition-fast);
+}
+
+.mobile-search__input:focus {
+  outline: none;
+  border-color: var(--color-accent, #5886a5);
+  background-color: var(--color-background, #ffffff);
+  box-shadow: 0 0 0 3px rgba(88, 134, 165, 0.15);
+}
+
+.mobile-search__input::placeholder {
+  color: var(--color-placeholder, #999999);
+}
+
+.mobile-search__icon {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-muted, #989898);
+  pointer-events: none;
+}
+
+/* ==================== MOBILE TABLE CARD VIEW ==================== */
+
+/* Applied when UnifiedListTable has displayMode="cards" */
+.list-table--card-mode .list-table__wrapper,
+.list-table--card-mode .list-table__header-row {
+  display: none;
+}
+
+.list-table--card-mode .list-table__container {
+  gap: var(--space-3);
+}
+
+/* ==================== MOBILE-SPECIFIC OVERRIDES ==================== */
+
+@media (max-width: 768px) {
+  /* Reduce MainLayout padding on mobile */
+  .mobile-layout-content {
+    padding: var(--space-2) !important;
+  }
+  
+  /* Stack stats vertically on very small screens */
+  .mobile-stats--responsive {
+    flex-direction: column;
+  }
+  
+  /* Full-width filter chips on small screens */
+  .mobile-filter-row--wrap {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 380px) {
+  .mobile-page__content {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+  
+  .mobile-stat-card {
+    padding: var(--space-3);
+  }
+  
+  .mobile-stat-card__value {
+    font-size: var(--font-size-xl, 1.25rem);
+  }
+  
+  .mobile-data-card__body {
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
+/* ==================== CHAT MOBILE RESPONSIVE ==================== */
+/* Makes the split-panel chat layout work on mobile */
+@media (max-width: 768px) {
+  /* Chat card container */
+  .bg-gray-50 > [class*="rounded-2xl"][class*="shadow-lg"] {
+    height: calc(100vh - 180px) !important;
+    border-radius: var(--radius-lg, 12px) !important;
+  }
+
+  /* Chat header - compact */
+  .bg-gray-50 [class*="from-blue-50"][class*="to-cyan-50"] {
+    height: 48px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .bg-gray-50 [class*="from-blue-50"] h1 {
+    font-size: 14px !important;
+  }
+
+  .bg-gray-50 [class*="from-blue-50"] img {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  /* Make sidebar full-width on mobile, hide messages area until active */
+  .bg-gray-50 .flex[class*="h-[calc"] > div[class*="w-[35%]"],
+  .bg-gray-50 .flex[class*="h-[calc"] > div[class*="w-[65%]"] {
+    width: 100% !important;
+  }
+
+  /* Stack the chat list and messages vertically */
+  .bg-gray-50 .flex[class*="h-[calc"] {
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Sidebar shrinks to max 50vh showing chat list */
+  .bg-gray-50 .flex[class*="h-[calc"] > div:first-child {
+    max-height: 35%;
+    flex-shrink: 0;
+    border-right: none !important;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  /* Messages area takes the rest */
+  .bg-gray-50 .flex[class*="h-[calc"] > div:last-child {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Make chat list items more compact */
+  .bg-gray-50 .flex[class*="h-[calc"] > div:first-child [class*="gap-4"][class*="p-4"] {
+    padding: 8px 12px !important;
+    gap: 8px !important;
+  }
+
+  .bg-gray-50 .flex[class*="h-[calc"] > div:first-child img[class*="h-12"] {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  /* Message input compact */
+  .bg-gray-50 [class*="border-t"][class*="p-4"] {
+    padding: 8px 12px !important;
+  }
+
+  /* Message bubbles - smaller */
+  .bg-gray-50 [class*="max-w-xs"] {
+    max-width: 85% !important;
+  }
+
+  .bg-gray-50 [class*="px-4"][class*="py-3"][class*="rounded-2xl"] {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* ==================== ADMIN PAGES MOBILE RESPONSIVE ==================== */
+/* Makes admin toolbar, cards, and table pages work on mobile */
+@media (max-width: 768px) {
+  .admin-page-content {
+    padding: 12px !important;
+    padding-bottom: 80px !important;
+  }
+
+  .admin-card {
+    border-radius: 12px !important;
+    overflow: hidden;
+  }
+
+  .admin-card__header {
+    padding: 12px !important;
+  }
+
+  .admin-toolbar {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .admin-toolbar__left {
+    width: 100% !important;
+  }
+
+  .admin-toolbar__left input,
+  .admin-toolbar__left .search-bar {
+    width: 100% !important;
+  }
+
+  .admin-toolbar__right {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .admin-toolbar__count {
+    font-size: 12px !important;
+  }
+
+  .admin-btn {
+    font-size: 12px !important;
+    padding: 6px 12px !important;
+    height: 34px !important;
+  }
+
+  /* Admin management cards responsive */
+  .admin-card__body {
+    padding: 12px !important;
+  }
+
+  /* Admin table responsive - horizontal scroll */
+  .admin-table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-table {
+    font-size: 12px !important;
+    min-width: 500px;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+
+  .admin-action-btn {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+  }
+
+  /* Admin form fields stacked on mobile */
+  .admin-card__body .flex {
+    flex-direction: column;
+  }
+
+  .admin-card__body .flex > .flex-1,
+  .admin-card__body .flex > [class*="w-1/"] {
+    width: 100% !important;
+  }
+
+  .admin-card__title {
+    font-size: 16px !important;
+  }
+
+  /* Compact form modals on mobile */
+  .form-modal__overlay .form-modal__content {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 10px !important;
+    max-height: 90vh !important;
+  }
+
+  /* Patient detail page mobile adjustments */
+  .patient-detail-content {
+    padding: 12px !important;
+  }
+
+  /* Parameter section headers compact */
+  .parameter-section-header {
+    font-size: 14px !important;
+  }
+}

@@ -17,6 +17,7 @@ import prescIcon from '../assets/prescription.svg';
 import reqIcon from '../assets/Requsition_report.svg';
 import manageIcon from '../assets/admin_management.png';
 import { ROUTES } from '../routes/routeConstants';
+import { useIsMobile } from './mobile/useIsMobile';
 
 export const PatientNavTabs = ({
   patientId,
@@ -27,6 +28,7 @@ export const PatientNavTabs = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isMobile } = useIsMobile();
 
   const tabs = [
     { id: 'alarms', label: 'Alarms', path: ROUTES.patientAlarms(patientId), visible: !(role?.role_name === 'Dialysis Technician') },
@@ -53,6 +55,84 @@ export const PatientNavTabs = ({
 
   const isActive = (path) => `${location.pathname}${location.search}` === path;
 
+  // Mobile compact tabs - icon-only with label below, small pills
+  if (isMobile) {
+    return (
+      <Flex
+        gap={2}
+        align="center"
+        justify="start"
+        className="patient-nav-tabs noscrollbar px-2 py-2 overflow-x-auto bg-white"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+        aria-label="Patient Navigation Tabs"
+      >
+        {tabs.filter(tab => tab.visible).map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => navigate(tab.path, { state: tab.state })}
+            className="flex flex-col items-center gap-1 shrink-0 border-none bg-transparent cursor-pointer relative"
+            style={{
+              padding: '6px 10px',
+              borderRadius: 'var(--radius-md, 8px)',
+              background: isActive(tab.path) ? 'var(--color-accent, #5886a5)' : 'transparent',
+              transition: 'var(--transition-fast)',
+              minWidth: '56px',
+            }}
+            aria-label={tab.label}
+          >
+            <img
+              src={icons[tab.id]}
+              alt={tab.label}
+              style={{
+                width: 20,
+                height: 20,
+                filter: isActive(tab.path)
+                  ? 'brightness(0) invert(1)'
+                  : 'brightness(0) saturate(100%) invert(39%) sepia(0%) saturate(0%) hue-rotate(173deg) brightness(95%) contrast(87%)',
+              }}
+            />
+            <span
+              style={{
+                fontSize: '10px',
+                fontFamily: "var(--font-family-primary, 'Sora', sans-serif)",
+                fontWeight: isActive(tab.path) ? 600 : 400,
+                color: isActive(tab.path) ? '#fff' : 'var(--color-text-muted, #6b7280)',
+                whiteSpace: 'nowrap',
+                maxWidth: '60px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {tab.label}
+            </span>
+            {tab.unread > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 2,
+                  right: 4,
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  background: 'var(--color-danger, #dc2626)',
+                  color: '#fff',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {tab.unread}
+              </span>
+            )}
+          </button>
+        ))}
+      </Flex>
+    );
+  }
+
+  // Desktop tabs (original)
   return (
     <Flex
       gap={3}

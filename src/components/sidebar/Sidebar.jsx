@@ -14,14 +14,13 @@ import RateReviewIcon from "@mui/icons-material/RateReview";
 import HistoryIcon from "@mui/icons-material/History";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SubdirectoryArrowRightIcon from "@mui/icons-material/SubdirectoryArrowRight";
-import { AdminPanelSettings, ArrowBack } from "@mui/icons-material";
+import { AdminPanelSettings, ArrowBack, Assessment } from "@mui/icons-material";
 import TranslateIcon from "@mui/icons-material/Translate";
 import { useSelector } from "react-redux";
 import { Sidebar as DSidebar, SidebarHeader } from "../../component-library/navigation/Sidebar";
 import Account from "../../assets/Account.svg";
 import { ROUTES } from "../../routes/routeConstants";
 import { IconButton } from "../../component-library";
-import { is } from "date-fns/locale";
 
 const Sidebar = ({ mobile = false }) => {
   const [dropdown, setDropdown] = useState(false);
@@ -132,7 +131,7 @@ const Sidebar = ({ mobile = false }) => {
         label: 'Daily Readings',
         href: ROUTES.READINGS_DAILY,
         icon: MonitorHeartIcon,
-        showInMobileBar: true,
+        // showInMobileBar: true,
       });
     }
 
@@ -142,6 +141,18 @@ const Sidebar = ({ mobile = false }) => {
         label: 'Dialysis Readings',
         href: ROUTES.READINGS_DIALYSIS,
         icon: BloodtypeIcon,
+      });
+    }
+
+    // Add KFRE to navigation for dashboard access users
+    if (hasDashboardAccess) {
+      items.push({
+        id: 'kfre',
+        label: 'KFRE',
+        mobileLabel: 'KFRE',
+        href: ROUTES.REPORTS_KFRE,
+        icon: Assessment,
+        showInMobileBar: true,
       });
     }
 
@@ -390,9 +401,9 @@ const Sidebar = ({ mobile = false }) => {
     return (
       <DSidebar
         isMobile
-        className="fixed inset-x-0 bottom-0 z-50 w-full border-t border-gray-200 bg-white px-2 py-2 shadow-[0_-8px_30px_rgba(0,0,0,0.18)]"
+        className="fixed inset-x-0 bottom-0 z-50 w-full border-t border-gray-200 bg-white px-0 py-2 shadow-[0_-8px_30px_rgba(0,0,0,0.18)]"
       >
-        <nav aria-label="Mobile navigation" className="flex w-full items-center justify-between gap-2 overflow-x-auto">
+        <nav aria-label="Mobile navigation" className="flex w-full items-center justify-around gap-0">
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -401,7 +412,8 @@ const Sidebar = ({ mobile = false }) => {
                 to={item.href}
                 end={item.href === '/'}
                 className={({ isActive }) => clsx(
-                  'flex min-w-[70px] flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] transition-colors duration-200',
+                  'flex flex-col items-center gap-1 rounded-2xl px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] transition-colors duration-200',
+                  'w-[calc(100%/3)] justify-center',
                   isActive ? 'text-[#004c6d]' : 'text-slate-500'
                 )}
               >

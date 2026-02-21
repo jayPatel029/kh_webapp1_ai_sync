@@ -1,12 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { getPatients } from "../../ApiCalls/patientAPis";
-import Select from "react-select";
 import CSVReader from "../../components/csvlab/CSVLab";
 import PdfDataExtractor from "../../components/pdfExtractor/PdfDataExtractor";
 import { useParams } from "react-router-dom";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import { calculateAge } from "../../helpers/utils";
+import { useIsMobile } from "../../components/mobile/useIsMobile";
+import {
+  Card,
+  CardHeader,
+  CardBody,
+  Button,
+  Input,
+  Select,
+  FormControl,
+  FormLabel,
+  FormHelperText,
+} from "../../component-library";
+import { Flex, VStack, HStack, SimpleGrid, Box, Divider } from "../../component-library/layout/Layout";
+import { Heading, Text } from "../../component-library/primitives/Typography";
 
 function KfreList() {
   const [patients, setPatients] = useState([]);
@@ -32,6 +45,7 @@ function KfreList() {
   const [kfre, setKfre] = useState();
 
   const id = useParams();
+  const { isMobile } = useIsMobile();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -145,13 +159,13 @@ function KfreList() {
             0.929,
             Math.exp(
               -0.4936 * (Gfr / 5 - 7.22) +
-                0.16117 * (male - 0.56) +
-                0.35066 * (Math.log(acr) - 5.2775) -
-                0.19883 * (age / 10 - 7.04) -
-                0.33867 * (albumin - 3.99) +
-                0.24197 * (phosphorous - 3.93) -
-                0.07429 * (bicarbonate - 25.54) -
-                0.22129 * (calcium - 9.35)
+              0.16117 * (male - 0.56) +
+              0.35066 * (Math.log(acr) - 5.2775) -
+              0.19883 * (age / 10 - 7.04) -
+              0.33867 * (albumin - 3.99) +
+              0.24197 * (phosphorous - 3.93) -
+              0.07429 * (bicarbonate - 25.54) -
+              0.22129 * (calcium - 9.35)
             )
           );
         setKfre(result);
@@ -190,6 +204,14 @@ function KfreList() {
     });
 
     return formattedData;
+  };
+
+  // clicking the external button should just open the file selector inside CSVReader
+  const handleUploadCsv = () => {
+    const input = document.querySelector('input[type=file]'); // make click on another file input element to open the file selector of CSVReader
+
+    if (input) input.click();
+    else console.warn('CSV file input element not found');
   };
 
   useEffect(() => {
@@ -234,200 +256,269 @@ function KfreList() {
   }, [extractedPdfData]);
 
   return (
-    <div className="bg-white md:p-6 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
-      <div className="border-b-gray border-b-2 p-2 pt-4 md:pb-4 font-semibold text-primary tracking-wide text-xl">
-        KFRE Calculation
-      </div>
-      {/* <div className="flex gap-2 flex-row mb-3">
-        <button className="text-black border mt-5 bg-gray-200 font-semibold tracking-wide text-lg border-gray-300 w-full md:w-[12vw] rounded-lg block p-1.5">
-          Upload PDF
-        </button>
-      </div> */}
-      <div>
-        <PdfDataExtractor setExtractedPdfData={setExtractedPdfData} />
-      </div>
-      <div>
-        <CSVReader
-          setData={setCsvData}
-          setSuccess={setSuccess}
-          success={success}
-        />
-      </div>
-      <div className="text-center text-gray-600 text-sm mb-2">Or</div>
-      <div className="text-center text-lg font-semibold mb-4">Add manually</div>
-      <div className="flex flex-col md:flex-row">
-        <div className="w-full md:w-4/6 p-2">
-          <div className="block mb-1 text-xs font-medium text-gray-500 pt-3">
-            <label className="block mb-1 text-xs font-medium text-gray-500">
-              Patient*
-            </label>
-            <Select
-              placeholder="Name"
-              options={patientOptions}
-              onChange={(selectedOption) =>
-                handleSelectChange(0, selectedOption)
-              }
-              className="text-gray-500 text-xs rounded-lg block focus:outline-primary"
-            />
-          </div>
+    <Box className={`flex-1 block w-full ${isMobile ? "pb-20" : ""}`}>
 
-          <div className="my-1">
-            <label className="text-xs font-medium text-gray-500">
-              Select Lab Report*
-            </label>
-            <table className="w-full text-xs text-left rtl:text-right text-gray-800">
-              <thead className="text-xs text-gray-700 border-b border-gray-800">
-                <tr>
-                  <th scope="col" className="px-3 py-2">
-                    Image
-                  </th>
-                  <th scope="col" className="px-3 py-2">
-                    Date
-                  </th>
-                  <th scope="col" className="px-3 py-2">
-                    Select
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {labReportData.map((report, index) => (
-                  <tr key={index} className="my-2">
-                    <td className="px-3 py-2">
-                      <img
-                        src={report.Lab_Report}
-                        alt="Lab report"
-                        className="inline h-8 w-8 md:h-12 md:w-12 mx-2"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      {new Date(report.Date).toLocaleDateString()}
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="radio"
-                        name="prescription"
-                        onChange={() => {
-                          setViewPrescription(true);
-                          setReportimage(report.Lab_Report);
-                        }}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* <Card variant="elevated" className={`${isMobile ? "rounded-none mx-0" : "mx-4 mt-4"}`}> */}
+      {/* Mobile Header with branding */}
+      {/* {isMobile && (
+          <CardHeader className="border-b-4 border-accent pb-3 bg-gradient-to-r from-white to-gray-50">
+            <Flex justify="between" align="center">
+              <Box>
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="16" cy="8" r="4" fill="#0EA5E9"/>
+                  <circle cx="8" cy="22" r="4" fill="#0EA5E9"/>
+                  <circle cx="24" cy="22" r="4" fill="#0EA5E9"/>
+                  <line x1="16" y1="12" x2="8" y2="18" stroke="#0EA5E9" strokeWidth="2"/>
+                  <line x1="16" y1="12" x2="24" y2="18" stroke="#0EA5E9" strokeWidth="2"/>
+                </svg>
+              </Box>
+              <Heading size="md" weight="bold" className="text-primary">
+                Kifayti Health
+              </Heading>
+              <Box className="w-6" /> 
+            </Flex>
+          </CardHeader>
+        )} */}
 
-          <div className="block md:flex flex-wrap p-2 space-x-3  mb-1 space-y-2  md:space-y-0 md:space-x-1">
-            <div className="w-full md:w-1/3">
-              <label className="block mb-1 text-xs font-medium text-gray-500">
-                GFR
-              </label>
-              <input
-                type="number"
-                placeholder="GFR"
-                className="border border-gray-300 text-gray-500 text-xs rounded-lg block w-full p-1.5 focus:outline-primary"
-                value={patientData[0].Gfr}
-                onChange={handlePatientChange(0, "Gfr")}
-              />
-            </div>
-            <div className="w-full md:w-1/3">
-              <label className="block mb-1 text-xs font-medium text-gray-500">
-                Phosphorous
-              </label>
-              <input
-                type="number"
-                placeholder="Phosphorous"
-                className="border border-gray-300 text-gray-500 text-xs rounded-lg block w-full p-1.5 focus:outline-primary"
-                value={patientData[0].phosphorous}
-                onChange={handlePatientChange(0, "phosphorous")}
-              />
-            </div>
-            <div className="w-full md:w-1/3">
-              <label className="block mb-1 text-xs font-medium text-gray-500">
-                Bicarbonate
-              </label>
-              <input
-                type="number"
-                placeholder="Bicarbonate"
-                className="border border-gray-300 text-gray-500 text-xs rounded-lg block w-full p-1.5 focus:outline-primary"
-                value={patientData[0].bicarbonate}
-                onChange={handlePatientChange(0, "bicarbonate")}
-              />
-            </div>
-            <div className="w-full md:w-1/3">
-              <label className="block mb-1 text-xs font-medium text-gray-500">
-                Albumin
-              </label>
-              <input
-                type="number"
-                placeholder="Albumin"
-                className="border border-gray-300 text-gray-500 text-xs rounded-lg block w-full p-1.5 focus:outline-primary"
-                value={patientData[0].albumin}
-                onChange={handlePatientChange(0, "albumin")}
-              />
-            </div>
-            <div className="w-full md:w-1/3">
-              <label className="block mb-1 text-xs font-medium text-gray-500">
-                Calcium
-              </label>
-              <input
-                type="number"
-                placeholder="Calcium"
-                className="border border-gray-300 text-gray-500 text-xs rounded-lg block w-full p-1.5 focus:outline-primary"
-                value={patientData[0].calcium}
-                onChange={handlePatientChange(0, "calcium")}
-              />
-            </div>
-            <div className="w-full md:w-1/3">
-              <label className="block mb-1 text-xs font-medium text-gray-500">
-                Albumin to Creatinine Ratio
-              </label>
-              <input
-                type="number"
-                placeholder="ACR"
-                className="border border-gray-300 text-gray-500 text-xs rounded-lg block w-full p-1.5 focus:outline-primary"
-                value={patientData[0].acr}
-                onChange={handlePatientChange(0, "acr")}
-              />
-            </div>
-          </div>
-        </div>
-        {viewPrescription && (
-          <div className="p-3 mt-2 bg-white shadow-md border-t-4 md:w-1/2 rounded z-50 overflow-y-auto max-h-80 md:max-h-full">
-            <img
-              className="w-full object-contain"
-              src={reportimage}
-              alt="Selected Lab Report"
-            />
-          </div>
-        )}
-      </div>
-      <button
-        onClick={calculate}
-        className="border mt-5 text-white bg-primary font-semibold tracking-wide text-lg border-gray-300 w-full md:w-[12vw] rounded-lg block p-1.5">
-        CALCULATE
-      </button>
-      {kfre && (
-        <div
-          style={{
-            backgroundColor: "lightblue",
-            padding: "10px",
-            borderRadius: "5px",
-            margin: "10px 0",
-          }}>
-          <label
-            style={{
-              fontWeight: "bold",
-              marginBottom: "5px",
-              display: "block",
-            }}>
-            Calculated KFRE:
-          </label>
-          {kfre}
-        </div>
+      {/* Desktop Header */}
+      {!isMobile && (
+        <CardHeader className="border-b-4 pb-4">
+          <Heading size="lg" weight="bold" className="text-accent">
+            KFRE Calculation
+          </Heading>
+        </CardHeader>
       )}
-    </div>
+
+      <CardBody className={`${isMobile ? "p-3 pb-20" : "p-6"}`}>
+        <VStack gap={isMobile ? 4 : 6} align="stretch">
+          {/* CSV Upload Section */}
+          <Box className="flex gap-6">
+            <CSVReader
+              setData={setCsvData}
+              setSuccess={setSuccess}
+              success={success}
+              title={isMobile ? "Select to Upload CSV" : "Drop CSV or click here to upload"}
+            />
+            {!success && (
+              <Button onClick={handleUploadCsv}>
+                Upload CSV
+              </Button>
+            )}
+          </Box>
+
+          {/* Manual Entry Divider */}
+          {isMobile ? (
+            <Flex direction="row" justify="center" align="center">
+              <Text size="sm" className="text-gray-600 font-medium">
+                or Select Manually
+              </Text>
+            </Flex>
+          ) : (
+              <Heading as="h4" align="start"  className="mt-5 mb-5  font-bold">Select Manually</Heading>
+          )}
+
+          {/* Image Preview Section - Mobile */}
+          {isMobile && reportimage && viewPrescription && (
+            <Box className="rounded-lg overflow-hidden border-2 border-gray-200">
+              <img
+                className="w-full object-cover"
+                src={reportimage}
+                alt="Selected Lab Report"
+                style={{ maxHeight: "300px" }}
+              />
+            </Box>
+          )}
+
+          {/* Form Section */}
+          <VStack gap={isMobile ? 3 : 4} align="stretch">
+            {/* Patient Select Dropdown (Mobile-friendly) */}
+            <FormControl>
+              <FormLabel isRequired>Patient name</FormLabel>
+              <Select
+                placeholder="Select"
+                value={patientData[0].selectedPatient?.value || ""}
+                onChange={(e) => {
+                  const selected = patientOptions.find(
+                    (p) => p.value == e.target.value
+                  );
+                  if (selected) handleSelectChange(0, selected);
+                }}
+                // className="border-accent"
+              >
+                {patientOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Lab Report Selection */}
+            {labReportData.length > 0 && (
+              <FormControl>
+                <FormLabel isRequired>Select lab report</FormLabel>
+                <Select
+                  placeholder="Select"
+                  onChange={(e) => {
+                    const selected = labReportData[e.target.value];
+                    if (selected) {
+                      setViewPrescription(true);
+                      setReportimage(selected.Lab_Report);
+                    }
+                  }}
+                // className="border-accent"
+                >
+                  <option value="">Select</option>
+                  {labReportData.map((report, index) => (
+                    <option key={index} value={index}>
+                      {new Date(report.Date).toLocaleDateString()}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {/* Unified Form Fields - Responsive Grid */}
+            <SimpleGrid columns={isMobile ? 1 : 2} gap={isMobile ? 3 : 4} >
+              <FormControl isRequired className="mt-6" >
+                <FormLabel >GFR</FormLabel>
+                <Input
+                  type="number"
+                  placeholder="Enter GFR"
+                  value={patientData[0].Gfr}
+                  onChange={handlePatientChange(0, "Gfr")}
+                  ṇ variant="outline"
+                />
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel >Phosphorous</FormLabel>
+                <Input
+                  type="number"
+                  placeholder="Enter Phosphorous"
+                  value={patientData[0].phosphorous}
+                  onChange={handlePatientChange(0, "phosphorous")}
+                  variant="outline"
+                />
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel >Bicarbonate</FormLabel>
+                <Input
+                  type="number"
+                  placeholder="Enter Bicarbonate"
+                  value={patientData[0].bicarbonate}
+                  onChange={handlePatientChange(0, "bicarbonate")}
+                  variant="outline"
+                />
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel >Albumin</FormLabel>
+                <Input
+                  type="number"
+                  placeholder="Enter Albumin"
+                  value={patientData[0].albumin}
+                  onChange={handlePatientChange(0, "albumin")}
+                  variant="outline"
+                />
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel >Calcium</FormLabel>
+                <Input
+                  type="number"
+                  placeholder="Enter Calcium"
+                  value={patientData[0].calcium}
+                  onChange={handlePatientChange(0, "calcium")}
+                  variant="outline"
+                />
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel >Albumin to Creatinine Ratio</FormLabel>
+                <Input
+                  type="number"
+                  placeholder="Enter ACR"
+                  value={patientData[0].acr}
+                  onChange={handlePatientChange(0, "acr")}
+                  variant="outline"
+                />
+              </FormControl>
+            </SimpleGrid>
+          </VStack>
+
+          {/* Desktop: Image Preview and Calculate */}
+          {!isMobile && viewPrescription && reportimage && (
+            <Box className="p-4 bg-white border-t-4 border-accent rounded shadow-md">
+              <Heading size="sm" weight="semibold" className="mb-3">
+                Lab Report Preview
+              </Heading>
+              <Box className="max-h-80 overflow-y-auto">
+                <img
+                  className="w-full object-contain"
+                  src={reportimage}
+                  alt="Selected Lab Report"
+                />
+              </Box>
+            </Box>
+          )}
+        </VStack>
+      </CardBody>
+      {/* </Card> */}
+
+
+      {/* Mobile Calculate Button - Fixed */}
+      {isMobile && (
+        <Box className="fixed bottom-20 left-0 right-0 p-3 z-50 bg-white border-t border-gray-200">
+          <Button
+            variant="secondary"
+            onClick={calculate}
+            size="lg"
+            isFullWidth
+            className="bg-primary hover:bg-primary/90 text-white text-base font-semibold py-3"
+          >
+            Calculate
+          </Button>
+        </Box>
+      )}
+
+      {/* Desktop Calculate Button */}
+      {!isMobile && (
+        <Box className="mt-6">
+          <Button
+            variant="secondary"
+            onClick={calculate}
+            size="lg"
+            className="bg-primary hover:bg-primary/90 text-white"
+          >
+            CALCULATE
+          </Button>
+        </Box>
+      )}
+
+      {/* Results Display */}
+      {kfre && (
+        <Box
+          className={`${isMobile ? "fixed bottom-40 left-3 right-3" : "mt-6 w-full md:w-96"} p-4 bg-blue-50 border-l-4 border-accent rounded`}
+        >
+          <Text size="sm" weight="bold" className="text-gray-700">
+            Calculated KFRE:
+          </Text>
+          <Text size="lg" weight="bold" className="text-primary mt-1">
+            {(kfre * 100).toFixed(2)}%
+          </Text>
+        </Box>
+      )}
+
+      {/* PDF Extractor (Desktop only) */}
+      {/* {!isMobile && (
+        <Box className="mt-6">
+          <PdfDataExtractor setExtractedPdfData={setExtractedPdfData} />
+        </Box>
+      )} */}
+
+    </Box>
   );
 }
 

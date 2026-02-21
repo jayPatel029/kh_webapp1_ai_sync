@@ -31,6 +31,9 @@ import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
 // Icons
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
 
+// Mobile
+import { useIsMobile } from "../../components/mobile/useIsMobile";
+
 // Import design system styles
 import "../../design-system/styles/index.css";
 
@@ -51,6 +54,7 @@ const ShowAlarms = () => {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
+  const { isMobile } = useIsMobile();
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -223,18 +227,60 @@ const ShowAlarms = () => {
       onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
       {/* Add Alarm Button */}
-      <Flex justify="end" align="center" className="mb-6">
+      <Flex justify="end" align="center" className={isMobile ? "mb-3" : "mb-6"}>
         <ButtonPrimitive
           variant="solid"
           rightIcon={<div className="text-md">+</div>}
           onClick={openModal}
-          className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9] flex items-center gap-8"
+          className={`${isMobile ? 'h-[38px] px-4 rounded-[8px] text-[13px]' : 'h-[50px] px-6 rounded-[10px] text-[16px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3451c9] flex items-center gap-8`}
         >
           Add alarm
         </ButtonPrimitive>
       </Flex>
 
-      {/* Table */}
+      {isMobile ? (
+        /* Mobile: Card-based alarm list */
+        <Box className="space-y-3 pb-20">
+          {userAlarmData && userAlarmData.length > 0 ? userAlarmData.map((alarm) => {
+            const alarmId = localStorage.getItem("alarmId");
+            const isHighlighted = alarmId && parseInt(alarmId) === alarm.id;
+            return (
+              <Box key={alarm.id} className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${isHighlighted ? 'border-green-400 bg-green-50' : ''}`}>
+                <Flex justify="between" align="start" className="mb-2">
+                  <Box>
+                    <h3 className="text-[14px] font-bold text-[#393939]">{alarm.type || "No type"}</h3>
+                    <span className="text-[12px] text-[#989898]">{formatDate(alarm.dateadded)}</span>
+                  </Box>
+                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                    alarm.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                    alarm.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>{alarm.status}</span>
+                </Flex>
+                <Box className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[#989898] mb-2">
+                  <span><strong>Duration:</strong> {alarm.time}</span>
+                  <span><strong>Monthly:</strong> {alarm.timesamonth || "N/A"}</span>
+                </Box>
+                {!isDoctor && (
+                  <Flex gap={2} className="border-t border-gray-100 pt-2 mt-1">
+                    <button className="flex items-center gap-1 text-[#87ca9c] text-[12px] font-medium" onClick={() => openEditModal(alarm)}>
+                      <BsPencilSquare size={14} /> Edit
+                    </button>
+                    <button className="flex items-center gap-1 text-[#de425b] text-[12px] font-medium" onClick={() => deleteAlarm(alarm.id)}>
+                      <BsTrash size={14} /> Delete
+                    </button>
+                  </Flex>
+                )}
+              </Box>
+            );
+          }) : (
+            <Box className="py-8 text-center">
+              <p className="text-[#989898] text-[14px] italic">No Alarms found</p>
+            </Box>
+          )}
+        </Box>
+      ) : (
+      /* Desktop: Original Table */
       <PatientDetailTable
         columns={[
           { key: "date", label: "Date", flex: "0 0 150px" },
@@ -248,6 +294,7 @@ const ShowAlarms = () => {
         renderRow={(alarm) => <AlarmRow key={alarm.id} alarm={alarm} />}
         emptyMessage="No Alarms found"
       />
+      )}
 
       {/* Modals */}
       {showModal && <AlarmModal closeModal={closeModal} pid={patientId} patient={userData} />}

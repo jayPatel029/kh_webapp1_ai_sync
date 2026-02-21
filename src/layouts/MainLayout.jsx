@@ -2,19 +2,25 @@
  * MainLayout Component
  * Centralized layout wrapper for all protected routes
  * Handles Sidebar and Navbar rendering based on route and user role
+ * Responsive: hides desktop sidebar on mobile (<768px), shows mobile bottom nav
  * 
  * @file src/layouts/MainLayout.jsx
  */
 
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import Sidebar from '../components/sidebar/Sidebar';
 import Navbar from '../components/navbar/Navbar';
-import { Box, Flex } from '../component-library';
+import MobileTopBar from '../components/mobile/MobileTopBar';
+import MobileBottomNav from '../components/mobile/MobileBottomNav';
+import { Box } from '../component-library';
+import { useIsMobile } from '../components/mobile/useIsMobile';
+import { useMobileNavItems } from '../hooks/useMobileNavItems';
 
 const MainLayout = () => {
     const location = useLocation();
+    const { isMobile } = useIsMobile();
+    const mobileNavItems = useMobileNavItems();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
         try {
             return localStorage.getItem('sidebarCollapsed') === 'true';
@@ -22,10 +28,6 @@ const MainLayout = () => {
             return false;
         }
     });
-
-    // Get user role and permissions from Redux
-    const role = useSelector((state) => state.permission);
-    const user = useSelector((state) => state.auth?.user);
 
     // Sync collapsed state across tabs/windows
     useEffect(() => {
@@ -54,37 +56,48 @@ const MainLayout = () => {
     const noSidebarRoutes = ['/login', '/doctorLogin', '/forgotpassword'];
     const showSidebar = !noSidebarRoutes.includes(location.pathname);
 
+    // On mobile, always hide desktop sidebar; calculate offset only for desktop
+    const showDesktopSidebar = showSidebar && !isMobile;
+
     // Calculate sidebar width for layout offset
     const SIDEBAR_WIDTH = 250;
     const COLLAPSED_WIDTH = 96; // 24 * 4 (w-24 in tailwind)
-    const sidebarOffset = showSidebar
+    const sidebarOffset = showDesktopSidebar
         ? (isSidebarCollapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH)
         : 0;
 
     return (
         <Box className="flex min-h-screen w-full">
-            {/* Conditionally render sidebar */}
-            {showSidebar && (
-            <Box className="fixed top-0 left-0 h-screen z-[--z-banner]">
-                <Sidebar />
-            </Box>
+            {/* Desktop Sidebar — hidden on mobile */}
+            {showDesktopSidebar && (
+                <Box className="fixed top-0 left-0 h-screen z-[--z-banner] hidden md:block">
+                    <Sidebar />
+                </Box>
             )}
 
             {/* Main content area */}
             <Box
                 className="flex-1 min-h-screen transition-all duration-300"
                 style={{
-                    marginLeft: showSidebar ? `${sidebarOffset}px` : '0px',
+                    marginLeft: showDesktopSidebar ? `${sidebarOffset}px` : '0px',
                 }}
             >
-                {/* Navbar */}
-                {showSidebar && <Navbar />}
+                {/* Navbar — show on desktop; on mobile show compact version */}
+                {showSidebar && !isMobile && <Navbar />}
+
+                {/* Mobile top bar - show on mobile */}
+                {showSidebar && isMobile && <MobileTopBar />}
 
                 {/* Page content - rendered by nested routes */}
-                <Box className={showSidebar ? "p-4 md:p-6" : ""}>
+                <Box className={showSidebar ? (isMobile ? "p-0 pt-0 pb-20" : "p-4 md:p-6") : ""}>
                     <Outlet />
                 </Box>
             </Box>
+
+            {/* Mobile bottom navigation bar */}
+            {showSidebar && isMobile && (
+                <MobileBottomNav items={mobileNavItems} />
+            )}
         </Box>
     );
 };

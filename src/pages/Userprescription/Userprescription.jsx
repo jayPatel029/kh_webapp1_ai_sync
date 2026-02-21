@@ -21,6 +21,9 @@ import PatientDetailLayout from "../common/PatientDetailLayout";
 import PrescriptionModal from "./PrescriptionModal";
 import FileViewModal from "../../components/modals/FileViewModal";
 
+// Mobile
+import { useIsMobile } from "../../components/mobile/useIsMobile";
+
 // APIs and Helpers
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
@@ -54,6 +57,7 @@ const Userprescription = () => {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
+  const { isMobile } = useIsMobile();
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -193,8 +197,14 @@ const Userprescription = () => {
       onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
       {/* Filter and Upload Section */}
-      <Flex justify="between" align="center" className="mb-6">
-        <Flex gap={4} align="center">
+      <Flex
+        justify="between"
+        align={isMobile ? "start" : "center"}
+        direction={isMobile ? "column" : "row"}
+        gap={isMobile ? 3 : 0}
+        className="mb-4"
+      >
+        <Flex gap={isMobile ? 2 : 4} align="center" wrap={isMobile ? "wrap" : "nowrap"}>
           <SortDropdown
             value={selectedDoctor}
             onChange={handleSelectChange}
@@ -202,27 +212,67 @@ const Userprescription = () => {
             icon={<img src={sortIcon} alt="Sort" />}
             placeholder="Sort by"
           />
-
-          {/* Clear Filters */}
           <button
             onClick={handleClearFilters}
-            className="text-[16px] font-semibold text-[#5886a5] underline hover:text-[#4164df] transition-colors"
+            className={`${isMobile ? 'text-[13px]' : 'text-[16px]'} font-semibold text-[#5886a5] underline hover:text-[#4164df] transition-colors`}
           >
             Clear filters
           </button>
         </Flex>
-
-        {/* Upload Button */}
         <ButtonPrimitive
           variant="solid"
           onClick={openModal}
-          className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
+          className={`${isMobile ? 'h-[40px] px-4 text-[13px] rounded-lg w-full' : 'h-[50px] px-6 rounded-[10px] text-[16px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3451c9]`}
         >
           Upload
         </ButtonPrimitive>
       </Flex>
 
-      {/* Table */}
+      {/* Mobile Card View */}
+      {isMobile ? (
+        <Box className="flex flex-col gap-3 pb-20">
+          {filteredPrescriptionData.length > 0 ? (
+            filteredPrescriptionData.map((item, index) => (
+              <Box key={index} className="bg-white rounded-xl border border-gray-200 p-3">
+                <Flex justify="between" align="start" className="mb-2">
+                  <Box>
+                    <p className="text-[13px] font-semibold text-[#1e293b]">
+                      {item.prescriptionGivenByName || 'Unknown Doctor'}
+                    </p>
+                    <p className="text-[11px] text-[#6b7280] mt-0.5">
+                      {formatDate(item.Date)}
+                    </p>
+                  </Box>
+                  <button
+                    className="text-[#de425b] hover:text-[#c93850] p-1"
+                    onClick={() => handleDelete(item.id, email)}
+                  >
+                    <BsTrash size={16} />
+                  </button>
+                </Flex>
+                {/* Prescription thumbnail */}
+                <Box
+                  className="w-full h-[120px] rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
+                  onClick={() => openFileModal(item.id, item.Prescription)}
+                >
+                  {item.Prescription?.endsWith(".pdf") ? (
+                    <Flex align="center" justify="center" className="w-full h-full bg-gray-800">
+                      <FaFilePdf className="text-white text-3xl" />
+                    </Flex>
+                  ) : (
+                    <img src={item.Prescription} alt="Prescription" className="w-full h-full object-cover" />
+                  )}
+                </Box>
+              </Box>
+            ))
+          ) : (
+            <Box className="py-8 text-center">
+              <p className="text-[#989898] text-sm italic">No Prescription found</p>
+            </Box>
+          )}
+        </Box>
+      ) : (
+      /* Desktop Table */
       <Box className="overflow-x-auto">
         {/* Table Header */}
         <Box className="bg-[#5886a5] rounded-[5px] px-[70px] py-4 mb-0">
@@ -289,6 +339,7 @@ const Userprescription = () => {
           )}
         </Box>
       </Box>
+      )}
 
       {/* Modals */}
       {showModal && (

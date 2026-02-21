@@ -7,13 +7,12 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../sidebar/Sidebar";
-import { TiThMenu } from "react-icons/ti";
 import dummyadmin from "../../assets/dummyadmin.png";
 import { Flex, Button, IconButton, Box } from "../../component-library";
 import '../../design-system/styles/index.css';
-import { use } from "react";
 import { ArrowBack } from "@mui/icons-material";
+import { useIsMobile } from "../mobile/useIsMobile";
+import MobileTopBar from "../mobile/MobileTopBar";
 
 const Navbar = () => {
     const [uname, setUname] = useState("");
@@ -56,17 +55,20 @@ const Navbar = () => {
         window.dispatchEvent(new CustomEvent('sidebar:toggle', { detail: { isCollapsed: next } }));
     };
 
+    const { isMobile } = useIsMobile();
+
+    // mobile shortcut
+    if (isMobile) {
+        return <MobileTopBar />;
+    }
+
     return (
         <>
             <Box className="sticky top-0 left-0 right-0  px-2 z-[50]">
                 <Flex align="center" justify="between" className="bg-white h-14 navbar-container">
                     <Flex align="center" gap={4}>
 
-
-                        {/* <div onClick={toggleCollapse} className="text-black text-2xl  border border-black p-1 rounded-xl cursor-pointer">
-                            <TiThMenu />
-                        </div> */}
-
+                        {/* sidebar toggle could be added here if needed */}
 
                     </Flex>
 
@@ -78,11 +80,6 @@ const Navbar = () => {
                         </Button>
                     </Flex>
                 </Flex>
-            </Box>
-
-            {/* Mobile sidebar */}
-            <Box className={dropdownVisible ? "block md:hidden" : "hidden md:hidden"}>
-                <Sidebar mobile />
             </Box>
         </>
     );

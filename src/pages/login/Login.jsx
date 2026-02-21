@@ -80,10 +80,10 @@ function Login() {
       {localStorage.getItem("token") ? (
         <Navigate to="/" replace />
       ) : (
-        <div className="min-h-screen flex items-center justify-center bg-info px-6 py-12">
-          <Card variant="elevated" className="max-w-md w-full rounded-2xl">
-              <CardHeader className="!border-none flex flex-col items-center gap-4 pt-6">
-              <img src={logo} alt="Kifayti Health" className="w-14 h-14" />
+        <div className="min-h-screen flex items-center justify-center bg-info px-4 py-8 sm:px-6 sm:py-12">
+          <Card variant="elevated" className="max-w-md w-full rounded-2xl mx-auto">
+              <CardHeader className="!border-none flex flex-col items-center gap-3 pt-6 sm:gap-4">
+              <img src={logo} alt="Kifayti Health" className="w-12 h-12 sm:w-14 sm:h-14" />
               <div className="text-center">
                 <Heading as="h2" className="text-center text-lg">
                   Welcome to <span className="font-bold">Kifayti Health</span>
