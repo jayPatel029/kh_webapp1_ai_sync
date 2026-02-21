@@ -50,9 +50,9 @@ function Logs() {
               {/* Log Type Cards */}
               <Flex gap={6} wrap="wrap" justify="center" className="admin-card-grid">
                 {/* Patient Logs Card */}
-                <Link to="/settings/logs/patient" className="no-underline">
-                  <Card className=" w-[280px] hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#4164df]">
-                    <CardBody className="p-8 text-center">
+                <Link to="/settings/logs/patient" className="no-underline w-full sm:w-auto">
+                  <Card className="w-full sm:w-[280px] hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#4164df]">
+                    <CardBody className="p-6 sm:p-8 text-center">
                       <Box className="admin-card__icon w-[80px] h-[80px] mx-auto mb-4 rounded-full bg-[#e8f4f8] flex items-center justify-center">
                         <FaUserInjured className="text-[#5886a5] text-4xl" />
                       </Box>
@@ -63,9 +63,9 @@ function Logs() {
                 </Link>
 
                 {/* Doctor Logs Card */}
-                <Link to="/settings/logs/doctor" className="no-underline">
-                  <Card className=" w-[280px] hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#4164df]">
-                    <CardBody className="p-8 text-center">
+                <Link to="/settings/logs/doctor" className="no-underline w-full sm:w-auto">
+                  <Card className="w-full sm:w-[280px] hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-[#4164df]">
+                    <CardBody className="p-6 sm:p-8 text-center">
                       <Box className="admin-card__icon w-[80px] h-[80px] mx-auto mb-4 rounded-full bg-[#e8f4f8] flex items-center justify-center">
                         <FaUserMd className="text-[#5886a5] text-4xl" />
                       </Box>

@@ -107,7 +107,7 @@ const AddPatientForm = () => {
               />
 
               <Card variant="elevated" style={{ borderRadius: '15px', overflow: 'hidden' }}>
-                <CardBody className="p-8">
+                <CardBody className="p-4 md:p-8">
                   <form onSubmit={handleSubmit} encType="multipart/form-data">
                     <VStack spacing={6} align="stretch">
 

@@ -8,8 +8,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
-import { pdfjs } from "react-pdf";
-import jsPDF from "jspdf";
+// import jsPDF from "jspdf";
 
 // Component Library
 import {
@@ -42,8 +41,6 @@ import '../../design-system/styles/index.css';
 // Icons
 import downloadIcon from "../../assets/icons/download.svg";
 
-// Set PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export const FileViewModal = ({
   isOpen,
@@ -130,8 +127,7 @@ export const FileViewModal = ({
     } catch (error) {
       console.error("Error uploading comment:", error);
     } finally {
-      setIsSubmitting(true);
-      setTimeout(() => setIsSubmitting(false), 500);
+      setIsSubmitting(false);
     }
   };
 
@@ -149,81 +145,81 @@ export const FileViewModal = ({
     return `${day} ${month} ${year}, ${hours}:${minutes} ${ampm}`;
   };
 
-  const handleDownloadPDF = async () => {
-    setIsDownloading(true);
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = pdf.internal.pageSize.getWidth();
+  // const handleDownloadPDF = async () => {
+  //   setIsDownloading(true);
+  //   const pdf = new jsPDF("p", "mm", "a4");
+  //   const pageWidth = pdf.internal.pageSize.getWidth();
 
-    try {
-      if (isPdf) {
-        const loadingTask = pdfjs.getDocument(fileUrl);
-        const pdfDocument = await loadingTask.promise;
-        const numPages = pdfDocument.numPages;
+  //   try {
+  //     if (isPdf) {
+  //       const loadingTask = pdfjs.getDocument(fileUrl);
+  //       const pdfDocument = await loadingTask.promise;
+  //       const numPages = pdfDocument.numPages;
 
-        for (let i = 1; i <= numPages; i++) {
-          const page = await pdfDocument.getPage(i);
-          const viewport = page.getViewport({ scale: 2 });
-          const canvas = document.createElement("canvas");
-          const context = canvas.getContext("2d");
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
+  //       for (let i = 1; i <= numPages; i++) {
+  //         const page = await pdfDocument.getPage(i);
+  //         const viewport = page.getViewport({ scale: 2 });
+  //         const canvas = document.createElement("canvas");
+  //         const context = canvas.getContext("2d");
+  //         canvas.width = viewport.width;
+  //         canvas.height = viewport.height;
 
-          await page.render({ canvasContext: context, viewport: viewport }).promise;
-          const imgData = canvas.toDataURL("image/png");
-          const imgHeight = (canvas.height * pageWidth) / canvas.width;
+  //         await page.render({ canvasContext: context, viewport: viewport }).promise;
+  //         const imgData = canvas.toDataURL("image/png");
+  //         const imgHeight = (canvas.height * pageWidth) / canvas.width;
 
-          pdf.addImage(imgData, "PNG", 0, 10, pageWidth, imgHeight);
-          if (i < numPages) pdf.addPage();
-        }
-      } else {
-        const fetchImg = await fetch(fileUrl);
-        const blob = await fetchImg.blob();
-        const dataUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        });
+  //         pdf.addImage(imgData, "PNG", 0, 10, pageWidth, imgHeight);
+  //         if (i < numPages) pdf.addPage();
+  //       }
+  //     } else {
+  //       const fetchImg = await fetch(fileUrl);
+  //       const blob = await fetchImg.blob();
+  //       const dataUrl = await new Promise((resolve) => {
+  //         const reader = new FileReader();
+  //         reader.onloadend = () => resolve(reader.result);
+  //         reader.readAsDataURL(blob);
+  //       });
 
-        const img = new Image();
-        img.src = dataUrl;
-        await new Promise((resolve) => { img.onload = resolve; });
+  //       const img = new Image();
+  //       img.src = dataUrl;
+  //       await new Promise((resolve) => { img.onload = resolve; });
 
-        const imgWidth = pageWidth;
-        const imgHeight = (img.height * imgWidth) / img.width;
-        pdf.addImage(dataUrl, "JPEG", 0, 10, imgWidth, imgHeight);
-      }
+  //       const imgWidth = pageWidth;
+  //       const imgHeight = (img.height * imgWidth) / img.width;
+  //       pdf.addImage(dataUrl, "JPEG", 0, 10, imgWidth, imgHeight);
+  //     }
 
-      // Add Comments Page
-      pdf.addPage();
-      pdf.setFontSize(16);
-      pdf.text("Comments", 10, 20);
-      pdf.setFontSize(10);
-      let y = 30;
+  //     // Add Comments Page
+  //     pdf.addPage();
+  //     pdf.setFontSize(16);
+  //     pdf.text("Comments", 10, 20);
+  //     pdf.setFontSize(10);
+  //     let y = 30;
 
-      prevComments.forEach((comment) => {
-        const author = comment.isDoctor ? `Dr. ${comment.doctorName}` : "Patient";
-        const text = `${author}: ${comment.content} (${formatDate(comment.date)})`;
-        const lines = pdf.splitTextToSize(text, pageWidth - 20);
+  //     prevComments.forEach((comment) => {
+  //       const author = comment.isDoctor ? `Dr. ${comment.doctorName}` : "Patient";
+  //       const text = `${author}: ${comment.content} (${formatDate(comment.date)})`;
+  //       const lines = pdf.splitTextToSize(text, pageWidth - 20);
 
-        lines.forEach((line) => {
-          if (y > 280) { pdf.addPage(); y = 20; }
-          pdf.text(line, 10, y);
-          y += 7;
-        });
-        y += 5;
-      });
+  //       lines.forEach((line) => {
+  //         if (y > 280) { pdf.addPage(); y = 20; }
+  //         pdf.text(line, 10, y);
+  //         y += 7;
+  //       });
+  //       y += 5;
+  //     });
 
-      pdf.save(`${fileType.replace(" ", "_")}_Summary.pdf`);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Failed to download PDF. Please try again.");
-    } finally {
-      setIsDownloading(false);
-    }
-  };
+  //     pdf.save(`${fileType.replace(" ", "_")}_Summary.pdf`);
+  //   } catch (error) {
+  //     console.error("Error generating PDF:", error);
+  //     alert("Failed to download PDF. Please try again.");
+  //   } finally {
+  //     setIsDownloading(false);
+  //   }
+  // };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="6xl" isCentered>
+    <Modal isOpen={isOpen} onClose={onClose} size="full" isCentered>
       <ModalOverlay className="modal-overlay-blur" />
       <ModalContent
         className="rounded-2xl overflow-hidden flex flex-col bg-white file-view-modal"
@@ -240,7 +236,7 @@ export const FileViewModal = ({
               <Button
                 variant="outline"
                 size="md"
-                onClick={handleDownloadPDF}
+                // onClick={handleDownloadPDF}
                 isLoading={isDownloading}
                 className="rounded-xl btn-outline-secondary"
               >
@@ -254,9 +250,10 @@ export const FileViewModal = ({
           </HStack>
         </ModalHeader>
 
-        <ModalBody className="p-0 flex-1 overflow-hidden flex flex-col md:flex-row">
-          {/* Left Side: File Preview */}
-          <Box className="flex-1 bg-surface overflow-auto flex items-center justify-center p-6 relative">
+        <ModalBody className="p-0 flex-1 overflow-hidden flex gap-0">
+          {/* Left Side: File Preview (80%) */}
+          <Box className="w-2/3 bg-surface overflow-auto flex items-center justify-center p-4 relative">
+            {/* make it */}
             {loading && !imgError && (
               <VStack spacing={4} className="absolute inset-0 flex items-center justify-center bg-surface z-10">
                 <Spinner size="lg" />
@@ -267,61 +264,68 @@ export const FileViewModal = ({
             {imgError ? (
               <VStack spacing={2} align="center" justify="center" className="h-full text-muted">
                 <Text size="2xl">⚠️</Text>
-                <Text>Failed to load image</Text>
+                <Text>Failed to load file</Text>
                 <Text size="xs" className="text-muted-foreground">URL: {fileUrl || 'Empty'}</Text>
               </VStack>
             ) : isPdf ? (
-                <Box className="w-full h-full min-h-[500px] rounded-xl overflow-hidden shadow-sm border border-border">
-                <MyPDFViewer file={fileUrl} />
-              </Box>
+              <div className="w-full h-full flex items-center justify-center">
+                <MyPDFViewer
+                  file={fileUrl}
+                  onLoadSuccess={() => setLoading(false)}
+                  onLoadError={() => {
+                    setLoading(false);
+                    setImgError(true);
+                  }}
+                />
+              </div>
             ) : (
-              <Box className="relative group flex items-center justify-center p-4 w-full h-full">
+              <div className="w-full h-full flex items-center justify-center overflow-auto">
                 <img
                   src={fileUrl}
                   alt="File Preview"
-                      className={`max-w-full max-h-[70vh] shadow-2xl rounded-lg border border-border transition-opacity duration-300 ${loading ? 'opacity-0' : 'opacity-100'}`}
+                  className={`max-h-full object-contain rounded-lg transition-opacity duration-300 ${loading ? 'opacity-0' : 'opacity-100'}`}
                   onLoad={() => setLoading(false)}
                   onError={() => {
                     setLoading(false);
                     setImgError(true);
                   }}
                 />
-              </Box>
+              </div>
             )}
           </Box>
 
-          {/* Right Side: Comments Section */}
-          <Box className="w-full md:w-[380px] border-l border-border bg-white flex flex-col flex-none shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">
-            <Box className="p-6 border-b border-border">
-              <Heading size="xs" weight="bold" className="uppercase tracking-tight text-muted">
+          {/* Right Side: Comments Section (50%) */}
+          <Box className="w-1/3 border-l border-border bg-white flex flex-col">
+            <Box className="p-4 border-b border-border flex-none">
+              <Heading size="sm" weight="bold" className="text-dark">
                 Comments
               </Heading>
             </Box>
 
-            <Box className="flex-1 overflow-y-auto p-6 space-y-6 noscrollbar">
+            <Box className="flex-1 overflow-y-auto p-4 space-y-4 noscrollbar">
               {patientProgram ? (
                 prevComments.length > 0 ? (
                   prevComments.map((comment) => (
-                    <Box key={comment.id} className="group">
-                      <HStack spacing={3} align="start" className="mb-2">
-                        <Box className={`mt-1 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${comment.isDoctor ? 'bg-primary-dark' : 'bg-primary'}`}>
+                    <Box key={comment.id}>
+                      <HStack spacing={2} align="start">
+                        <Box className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${comment.isDoctor ? 'bg-primary-dark' : 'bg-primary'}`}>
                           {comment.isDoctor ? 'D' : 'P'}
                         </Box>
-                        <VStack spacing={1} align="start" className="flex-1">
-                          <HStack justify="between" className="w-full">
-                            <Text size="sm" weight="bold" className="text-dark">
+                        <VStack spacing={1} align="start" className="flex-1 min-w-0">
+                          <HStack justify="between" className="w-full gap-1">
+                            <Text size="sm" weight="bold" className="text-dark truncate">
                               {comment.isDoctor ? `Dr. ${comment.doctorName}` : "Patient"}
                             </Text>
-                            <Text size="xs" className="text-muted font-normal">
+                            <Text size="xs" className="text-muted flex-shrink-0">
                               {formatDate(comment.date).split(',')[1]}
                             </Text>
                           </HStack>
-                          <Box className={`p-3 rounded-2xl ${comment.isDoctor ? 'bg-surface rounded-tl-none' : 'bg-primary/5 rounded-tl-none border border-primary/10'}`}>
-                            <Text size="sm" className="text-dark leading-relaxed font-normal">
+                          <Box className={`p-2 rounded-lg text-sm ${comment.isDoctor ? 'bg-gray-100' : 'bg-primary/5 border border-primary/10'}`}>
+                            <Text size="sm" className="text-dark break-words">
                               {comment.content}
                             </Text>
                           </Box>
-                          <Text size="xs" className="text-muted-foreground pl-1 mt-1">
+                          <Text size="xs" className="text-muted-foreground">
                             {formatDate(comment.date).split(',')[0]}
                           </Text>
                         </VStack>
@@ -329,46 +333,41 @@ export const FileViewModal = ({
                     </Box>
                   ))
                 ) : (
-                  <Flex direction="column" align="center" justify="center" className="h-full py-10">
-                      <Box className="w-16 h-16 bg-surface rounded-full mb-4 flex items-center justify-center">
-                      <Text size="lg">💬</Text>
-                    </Box>
-                      <Text size="sm" className="text-muted italic font-medium">No comments posted yet</Text>
-                      <Text size="xs" className="text-muted-foreground mt-1">Be the first to share your thoughts</Text>
+                  <Flex direction="column" align="center" justify="center" className="h-full py-8 text-center">
+                    <Text size="3xl" className="mb-2">💬</Text>
+                    <Text size="sm" className="text-muted font-medium">No comments yet</Text>
                   </Flex>
                 )
               ) : (
-                  <Box className="p-6 bg-warning/10 border border-warning/20 rounded-2xl text-center">
-                    <Text size="sm" weight="semibold" className="text-warning-dark mb-1">
+                <Box className="p-4 bg-warning/10 border border-warning/20 rounded-lg text-center">
+                  <Text size="sm" weight="semibold" className="text-warning-dark mb-1">
                     🔒 Premium Feature
                   </Text>
-                    <Text size="xs" className="text-warning/80">
-                    Discussions are available only for Advanced and Standard program patients.
+                  <Text size="xs" className="text-warning/80">
+                    Available for Advanced & Standard programs
                   </Text>
                 </Box>
               )}
             </Box>
 
             {patientProgram && !isDialysisTech && (
-              <Box className="p-6 border-t border-border bg-surface/30">
-                <Box className="relative">
-                  <textarea
-                    placeholder="Share your observation..."
-                    className="w-full p-4 text-sm border-none rounded-2xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none min-h-[100px] text-dark textarea-comment"
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                  />
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    className="absolute bottom-3 right-3 rounded-xl"
-                    onClick={handleUploadComment}
-                    isLoading={isSubmitting}
-                    isDisabled={!newComment.trim()}
-                  >
-                    Post
-                  </Button>
-                </Box>
+              <Box className="p-4 border-t border-border bg-gray-50">
+                <textarea
+                  placeholder="Add comment..."
+                  className="w-full p-2 text-sm border border-border rounded-lg bg-white focus:ring-2 focus:ring-primary/20 outline-none resize-none min-h-[80px] text-dark"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                />
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="mt-2 w-full rounded-lg"
+                  onClick={handleUploadComment}
+                  isLoading={isSubmitting}
+                  isDisabled={!newComment.trim()}
+                >
+                  Post
+                </Button>
               </Box>
             )}
           </Box>

@@ -1,5 +1,7 @@
 /* Import Design System (CSS variables and semantic styles) */
 @import './design-system/styles/index.css';
+/* Import Mobile responsive styles globally */
+@import './components/mobile/mobile.css';
 
 @tailwind base;
 @tailwind components;
@@ -12,6 +14,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
   color: var(--color-text);
   background-color: var(--color-background);
+  /* Prevent horizontal overflow at root level */
+  overflow-x: hidden;
+}
+
+/* Ensure all pages are at least full width without overflowing */
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 code {

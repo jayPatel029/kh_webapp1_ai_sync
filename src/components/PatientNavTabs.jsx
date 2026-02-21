@@ -138,13 +138,12 @@ export const PatientNavTabs = ({
       gap={3}
       align="center"
       justify="start"
-      className="patient-nav-tabs noscrollbar px-6 py-4 overflow-x-auto bg-white justify-between sticky top-0"
+      className="patient-nav-tabs noscrollbar py-4 overflow-x-auto bg-white justify-between sticky top-0"
       aria-label="Patient Navigation Tabs"
     >
       {tabs.filter(tab => tab.visible).map((tab) => (
         <Button
           key={tab.id}
-
           variant={isActive(tab.path) ? 'secondary' : 'outline'}
           onClick={() => navigate(tab.path, { state: tab.state })}
           className=" h-10 px-4  py-4 rounded-md flex items-center gap-3 shrink-0 bg-white border-2 border-textLight transition-colors"

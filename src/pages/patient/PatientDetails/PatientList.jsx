@@ -2,16 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../../helpers/axios/axiosInstance.js';
 import { server_url } from '../../../constants/constants';
+import { ROUTES } from '../../../routes/routeConstants';
 import {
   Box,
   Flex,
-  Stack,
   VStack,
-  Container
+  Container,
 } from '../../../component-library/layout/Layout';
 import {
-  Button,
-  IconButton
+  Button
 } from '../../../component-library/primitives/Button';
 import {
   Text,
@@ -21,14 +20,12 @@ import { Spinner } from '../../../component-library/feedback/Spinner';
 import { Alert } from '../../../component-library/feedback/Alert';
 import { SearchBar } from '../../../components';
 import { useIsMobile } from '../../../components/mobile/useIsMobile';
+import UnifiedListTable from '../../../components/table/UnifiedListTable';
 
 // Import icons
-import SearchIcon from '../../../assets/icons/search.svg';
-import DownloadIcon from '../../../assets/icons/download.svg';
-import TrashIcon from '../../../assets/icons/trash.svg';
 import PlusIcon from '../../../assets/icons/plus.svg';
 
-const PatientList = ({ data, patientId }) => {
+const PatientList = ({ data }) => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
 
@@ -99,6 +96,65 @@ const PatientList = ({ data, patientId }) => {
     );
   }, [patients, searchTerm]);
 
+  // prepare columns for unified table (desktop + mobile card support)
+  const columns = useMemo(() => [
+    { key: 'profile', label: 'Profile', type: 'image', width: '111px' },
+    { key: 'name', label: 'Name', type: 'text', width: '107px' },
+    { key: 'condition', label: 'Condition', type: 'custom', width: '120px', render: (row) => (
+        <span className={getConditionStyles(row.condition)}>{row.condition || '-'}</span>
+      )
+    },
+    { key: 'number', label: 'Number', type: 'text', width: '125px' },
+    {
+      key: 'registered_date',
+      label: 'Registration Date',
+      type: 'custom',
+      width: '202px',
+      render: (row) => formatDateString(row.registered_date),
+    },
+    { key: 'program', label: 'Program', type: 'text', width: '129px' },
+    {
+      key: 'medical_team',
+      label: 'Medical team',
+      type: 'custom',
+      width: '170px',
+      render: (row) =>
+        medicalTeamNames[row.id]
+          ? medicalTeamNames[row.id].split(',').map((name, i) => (
+              <div key={i}>{name.trim()}</div>
+            ))
+          : '-',
+    },
+    {
+      key: 'admin',
+      label: 'Assigned to',
+      type: 'custom',
+      width: '157px',
+      render: (row) =>
+        adminNames[row.id]
+          ? adminNames[row.id].split(',').map((name, i) => (
+              <div key={i}>{name.trim()}</div>
+            ))
+          : '-',
+    },
+    { key: 'actions', label: 'Actions', type: 'actions', width: '90px' },
+  ], [medicalTeamNames, adminNames]);
+
+  // Profile Image or default
+  const getProfileImageUrl = (photoUrl) => {
+    if (!photoUrl) return '/assets/default-avatar.png';
+    if (photoUrl.startsWith('http')) return photoUrl;
+    return `${process.env.REACT_APP_API_BASE_URL}${photoUrl}`;
+  };
+
+  const tableData = useMemo(() =>
+    filteredPatients.map((p) => ({
+      ...p,
+      profile: getProfileImageUrl(p.profile_photo),
+    })),
+    [filteredPatients]
+  );
+
   // Handle export single patient
   const handleDownload = async (id) => {
     try {
@@ -152,15 +208,9 @@ const PatientList = ({ data, patientId }) => {
 
   // Handle patient click
   const handlePatientClick = (patient) => {
-    // Navigating to profile as per previous logic in DeletePatientList
-    navigate(`/patients/${patient.id}`, { state: patient });
-  };
-
-  // Profile Image or default
-  const getProfileImageUrl = (photoUrl) => {
-    if (!photoUrl) return '/assets/default-avatar.png';
-    if (photoUrl.startsWith('http')) return photoUrl;
-    return `${process.env.REACT_APP_API_BASE_URL}${photoUrl}`;
+    // Navigate to user profile page using route constants
+    // we import ROUTES at top
+    navigate(ROUTES.userProfile(patient.id), { state: patient });
   };
 
   // Date Formatter (DD-MM-YYYY as per original)
@@ -192,14 +242,10 @@ const PatientList = ({ data, patientId }) => {
   }
 
   return (
-    <VStack  spacing={isMobile ? 3 : 6} align="stretch" className={`w-full ${isMobile ? 'p-4' : ''}`}>
-      {error && (
-        <Alert status="error" isClosable onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+    <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : ''}`}>
+      <div className="">
 
-      {/* Header section */}
+      {/* Header & toolbar section */}
       {!isMobile && (
         <Box
           className={`border-b-2 border-solid ${isMobile ? 'pb-2' : ''}`}
@@ -228,305 +274,78 @@ const PatientList = ({ data, patientId }) => {
           </Heading>
         </Box>
       )}
-      {/* Toolbar */}
-      {isMobile ? (
-        <VStack spacing={3} align="stretch">
-          <SearchBar
-            placeholder="Search by name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: "100%" }}
-          />
-          <Flex justify="between" align="center">
-            <Text style={{ fontFamily: 'Sora, sans-serif', fontSize: '13px' }}>
-              Total patients: <strong>{filteredPatients.length}</strong>
-            </Text>
-            <Flex gap={2}>
+
+      <div className={`admin-card__header`}> 
+        <div className={`admin-toolbar ${isMobile ? 'flex-col gap-2' : ''}`}> 
+          <div className="admin-toolbar__left" style={isMobile ? { width: '100%' } : {}}>
+            <SearchBar
+              placeholder="Search by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={isMobile ? { width: '100%' } : { flex: 1, minWidth: '200px' }}
+            />
+          </div>
+          <div className={`admin-toolbar__right ${isMobile ? 'w-full justify-between' : ''}`}>
+              <span className={`admin-toolbar__count ${isMobile ? 'text-xs' : ''}`}>Total patients: <span className='font-bold'>{filteredPatients.length}</span></span>
+            <Flex gap={4} className={isMobile ? '' : ''}>
               <Button
                 variant="solid"
-                size="sm"
+                size="lg"
                 onClick={() => navigate("/patients/new")}
                 style={{
                   backgroundColor: '#4164df',
-                  borderRadius: '8px',
+                  borderRadius: '10px',
                   fontFamily: 'Sora, sans-serif',
-                  fontSize: '13px',
+                  fontSize: isMobile ? '13px' : '16px',
                   fontWeight: '600',
-                  padding: '6px 12px',
+                  padding: isMobile ? '6px 12px' : '9px 15px',
                 }}
               >
-                <Flex gap={1} align="center">
-                  <img src={PlusIcon} alt="Add" style={{ width: '14px' }} />
-                  <span style={{ color: 'white' }}>Add</span>
+                <Flex gap={isMobile ? 1 : 2} align="center">
+                  <img src={PlusIcon} alt="Add" style={{ width: isMobile ? '14px' : '18px' }} />
+                  <span style={{ color: 'white', fontWeight: 600 }}>{isMobile ? 'Add' : 'Add Patient'}</span>
                 </Flex>
               </Button>
               <Button
                 variant="solid"
-                size="sm"
+                size="lg"
                 onClick={handleExportAll}
                 style={{
                   backgroundColor: '#4164df',
-                  borderRadius: '8px',
+                  borderRadius: '10px',
                   fontFamily: 'Sora, sans-serif',
-                  fontSize: '13px',
+                  fontSize: isMobile ? '13px' : '16px',
                   fontWeight: '600',
-                  padding: '6px 12px',
+                  padding: isMobile ? '6px 12px' : '9px 15px',
                 }}
               >
                 Export all
               </Button>
             </Flex>
-          </Flex>
-        </VStack>
-      ) : (
-      <Flex justify="between" align="center" className="w-full">
-        <SearchBar
-          placeholder="Search by name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ width: "250px" }}
-        />
-        <Flex gap={4} align="right">
-          <Flex gap={2} align="center">
-            <Text style={{ fontFamily: 'Sora, sans-serif', fontSize: '16px' }}>Total patients:</Text>
-            <Text style={{ fontFamily: 'Sora, sans-serif', fontSize: '16px', fontWeight: 'bold' }}>
-              {filteredPatients.length}
-            </Text>
-          </Flex>
-          <Button
-            variant="solid"
-            size="lg"
-            onClick={() => navigate("/patients/new")}
-            style={{
-              backgroundColor: '#4164df',
-              borderRadius: '10px',
-              fontFamily: 'Sora, sans-serif',
-              fontSize: '16px',
-              fontWeight: '600',
-              padding: '9px 15px',
-              width: '160px'
-            }}
-          >
-            <Flex gap={2} align="center">
-              <img src={PlusIcon} alt="Add" style={{ width: '18px' }} />
-              <Text style={{ color: 'white', fontWeight: '600' }}>Add Patient</Text>
-            </Flex>
-          </Button>
-          <Button
-            variant="solid"
-            size="lg"
-            onClick={handleExportAll}
-            style={{
-              backgroundColor: '#4164df',
-              borderRadius: '10px',
-              fontFamily: 'Sora, sans-serif',
-              fontSize: '16px',
-              fontWeight: '600',
-              padding: '9px 15px',
-              width: '152px'
-            }}
-          >
-            Export all
-          </Button>
-        </Flex>
-      </Flex>
-      )}
+          </div>
+        </div>
+      </div>
 
-      {/* Mobile Card List */}
-      {isMobile ? (
-        <VStack spacing={3} align="stretch" className="w-full pb-20">
-          {filteredPatients.length === 0 ? (
-            <Box className="p-8 text-center">
-              <Text color="gray" size="md">No patients found</Text>
-            </Box>
-          ) : (
-            filteredPatients.map((patient, index) => (
-              <Box
-                key={patient.id || index}
-                className="bg-white rounded-xl border border-gray-200 p-3 cursor-pointer"
-                style={{ transition: 'var(--transition-fast)' }}
-                onClick={() => handlePatientClick(patient)}
-              >
-                <Flex gap={3} align="start">
-                  {/* Avatar */}
-                  <img
-                    src={getProfileImageUrl(patient.profile_photo)}
-                    alt=""
-                    className="w-11 h-11 rounded-full object-cover flex-shrink-0"
-                    style={{ border: '1px solid #e5e7eb' }}
-                  />
-                  {/* Info */}
-                  <Box className="flex-1 min-w-0">
-                    <Flex justify="between" align="start" className="mb-1">
-                      <Text style={{ fontFamily: 'Sora', fontSize: '14px', fontWeight: 600, color: '#1e293b' }} className="truncate">
-                        {patient.name || '-'}
-                      </Text>
-                      <span className={`${getConditionStyles(patient.condition)} px-2 py-0.5 text-[10px] font-medium rounded-full flex-shrink-0 ml-2`}>
-                        {patient.condition || '-'}
-                      </span>
-                    </Flex>
-                    <Flex gap={3} className="mt-1" wrap="wrap">
-                      <Text style={{ fontSize: '12px', color: '#6b7280' }}>
-                        #{patient.number || '-'}
-                      </Text>
-                      <Text style={{ fontSize: '12px', color: '#6b7280' }}>
-                        {patient.program || '-'}
-                      </Text>
-                      <Text style={{ fontSize: '12px', color: '#6b7280' }}>
-                        {formatDateString(patient.registered_date)}
-                      </Text>
-                    </Flex>
-                    {/* Medical team & admin */}
-                    <Flex gap={3} className="mt-1.5" wrap="wrap">
-                      {medicalTeamNames[patient.id] && (
-                        <Text style={{ fontSize: '11px', color: '#94a3b8' }}>
-                          Dr: {medicalTeamNames[patient.id]}
-                        </Text>
-                      )}
-                      {adminNames[patient.id] && (
-                        <Text style={{ fontSize: '11px', color: '#94a3b8' }}>
-                          Admin: {adminNames[patient.id]}
-                        </Text>
-                      )}
-                    </Flex>
-                  </Box>
-                </Flex>
-                {/* Action buttons */}
-                <Flex gap={2} justify="end" className="mt-2 pt-2 border-t border-gray-100">
-                  <button
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-[11px] font-medium border border-gray-200 bg-transparent cursor-pointer"
-                    style={{ color: 'var(--color-accent)', transition: 'var(--transition-fast)' }}
-                    onClick={(e) => { e.stopPropagation(); handleDownload(patient.id); }}
-                  >
-                    <img src={DownloadIcon} style={{ width: '14px' }} alt="" /> Export
-                  </button>
-                  <button
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-md text-[11px] font-medium border border-gray-200 bg-transparent cursor-pointer"
-                    style={{ color: 'var(--color-danger, #dc2626)', transition: 'var(--transition-fast)' }}
-                    onClick={(e) => { e.stopPropagation(); handleDelete(patient.id); }}
-                  >
-                    <img src={TrashIcon} style={{ width: '14px' }} alt="" /> Delete
-                  </button>
-                </Flex>
-              </Box>
-            ))
-          )}
-        </VStack>
-      ) : (
-      /* Desktop Table Section */
-      <VStack spacing={0} align="stretch" className="w-full">
-        {/* Table Header */}
-        <Flex
-          justify="between"
-          align="center"
-          className="px-5 py-4 bg-primary-dark border-xl fonr-Sora font-bold text-white"
-          style={{
-            backgroundColor: '#5886a5',
-            borderRadius: '5px',
-            fontFamily: 'Sora, sans-serif',
-            fontSize: '16px',
-            fontWeight: '600',
-            color: 'white',
-
-          }}
-        >
-          <Text className="min-w-[111px] text-white font-bold">Profile</Text>
-          <Text className="min-w-[107px] text-white font-bold">Name</Text>
-          <Text className="min-w-[125px] text-white font-bold">Number</Text>
-          <Text className="min-w-[202px] text-white font-bold">Registration Date</Text>
-          <Text className="min-w-[129px] text-white font-bold">Program</Text>
-          <Text className="min-w-[170px] text-white font-bold">Medical team</Text>
-          <Text className="min-w-[157px] text-white font-bold">Assigned to</Text>
-          <Text className="min-w-[90px] text-white font-bold">Actions</Text>
-        </Flex>
-
-        {/* Rows */}
-        {filteredPatients.length === 0 ? (
-          <Box className="p-12 text-center">
-            <Text color="gray" size="lg">No patients found</Text>
-          </Box>
-        ) : (
-          filteredPatients.map((patient, index) => (
-            <Flex
-              key={patient.id || index}
-              justify="space-between"
-              align="start"
-              className="px-5 py-4"
-              style={{
-                borderBottom: '1px solid #f0f0f0',
-                cursor: 'pointer',
-                transition: 'background 0.2s'
-              }}
-              onClick={() => handlePatientClick(patient)}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
-              <Box style={{ minWidth: '111px' }} align="center">
-                <VStack spacing={2}>
-                  <img
-                    src={getProfileImageUrl(patient.profile_photo)}
-                    alt="Profile"
-                    style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover' }}
-                  />
-                </VStack>
-              </Box>
-
-              <Box style={{ minWidth: '107px', paddingTop: '10px' }}>
-                <Text style={{ color: '#989898', fontSize: '16px' }}>{patient.name || '-'}</Text>
-
-                <Text className={`${getConditionStyles(patient.condition)} px-2 text-capitalize font-size-11 w-fit mt-4  rounded-full `} >
-                  {patient.condition || '-'}
-                </Text>
-              </Box>
-
-              <Box style={{ minWidth: '125px', paddingTop: '10px' }}>
-                <Text style={{ color: '#989898', fontSize: '16px' }}>{patient.number || '-'}</Text>
-              </Box>
-
-              <Box style={{ minWidth: '202px', paddingTop: '10px' }}>
-                <Text style={{ color: '#989898', fontSize: '16px' }}>{formatDateString(patient.registered_date)}</Text>
-              </Box>
-
-              <Box style={{ minWidth: '129px', paddingTop: '10px' }}>
-                <Text style={{ color: '#989898', fontSize: '16px' }}>{patient.program || '-'}</Text>
-              </Box>
-
-              <Box style={{ minWidth: '170px', paddingTop: '10px' }}>
-                {medicalTeamNames[patient.id] ? (
-                  medicalTeamNames[patient.id].split(',').map((name, i) => (
-                    <Text key={i} style={{ color: '#989898', fontSize: '16px', display: 'block' }}>{name.trim()}</Text>
-                  ))
-                ) : <Text style={{ color: '#989898', fontSize: '16px' }}>-</Text>}
-              </Box>
-
-              <Box style={{ minWidth: '157px', paddingTop: '10px' }}>
-                {adminNames[patient.id] ? (
-                  adminNames[patient.id].split(',').map((name, i) => (
-                    <Text key={i} style={{ color: '#989898', fontSize: '16px', display: 'block' }}>{name.trim()}</Text>
-                  ))
-                ) : <Text style={{ color: '#989898', fontSize: '16px' }}>-</Text>}
-              </Box>
-
-              <Flex gap={3} style={{ minWidth: '90px', paddingTop: '5px' }}>
-                <IconButton
-                  aria-label="Download"
-                  icon={<img src={DownloadIcon} style={{ width: '28px' }} />}
-                  variant="ghost"
-                  onClick={(e) => { e.stopPropagation(); handleDownload(patient.id); }}
-                />
-                <IconButton
-                  aria-label="Delete"
-                  icon={<img src={TrashIcon} style={{ width: '24px' }} />}
-                  variant="ghost"
-                  onClick={(e) => { e.stopPropagation(); handleDelete(patient.id); }}
-                />
-              </Flex>
-            </Flex>
-          ))
-        )}
-      </VStack>
-      )}
-    </VStack>
+      {/* unified list/table for patients (desktop + mobile) */}
+      <UnifiedListTable
+        columns={columns}
+        data={tableData}
+        onRowClick={handlePatientClick}
+        onEdit={handlePatientClick}
+        onDelete={(row) => handleDelete(row.id)}
+        onDownload={(row) => handleDownload(row.id)}
+        enableSearch={false}
+        enablePagination={false}
+        actionButtons={true}
+        displayMode={undefined} /* auto-switch based on isMobile */
+        cardTitleKey="name"
+        cardSubtitleKey="number"
+        cardImageKey="profile"
+        cardFieldKeys={[ 'program', 'registered_date' ]}
+        cardStatusKey="condition"
+      />
+    </div>
+  </div>
   );
 };
 
