@@ -324,7 +324,7 @@ const UnifiedListTable = ({
             <div className="list-table__wrapper">
                 <table className="list-table">
                     {/* Header */}
-                    <thead>
+                    <thead className="list-table__header">
                         <tr className="list-table__header-row">
                             {columns.map((column) => (
                                 <th

@@ -17,7 +17,7 @@
   width: 100%;
   /* padding: 20px; */
   background-color: var(--color-background, #ffffff);
-  border-radius: 8px;
+  /* border-radius: 8px; */
 }
 
 /* ===================== SEARCH BAR ===================== */
@@ -67,13 +67,25 @@
 }
 
 /* ===================== TABLE HEADER ===================== */
+
 .list-table__header-row {
   background-color: var(--color-accent, #5886a5);
   color: var(--color-text-inverse, #ffffff);
   font-weight: 600;
   text-align: left;
-  border: var(--color-accent) solid 1px;
-  border-radius: 8px;;
+  /* border: var(--color-accent) solid 1px; */
+  overflow: hidden;
+}
+
+/* Apply rounded corners only to the header cells so body stays square */
+.list-table__header-cell:first-child {
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+}
+
+.list-table__header-cell:last-child {
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
 }
 
 .list-table__header-cell {
@@ -87,8 +99,10 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* border-bottom: 2px solid rgba(0, 0, 0, 0.1); */
+
 }
+
+/* border-bottom: 2px solid rgba(0, 0, 0, 0.1); */
 
 /* ===================== TABLE BODY & ROWS ===================== */
 .list-table tbody {

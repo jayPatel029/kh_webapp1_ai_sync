@@ -9,15 +9,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import Sidebar from '../components/sidebar/Sidebar';
 import Navbar from '../components/navbar/Navbar';
-import { Box, Flex } from '../component-library';
+import MobileTopBar from '../components/mobile/MobileTopBar';
+import MobileBottomNav from '../components/mobile/MobileBottomNav';
+import { Box } from '../component-library';
 import { useIsMobile } from '../components/mobile/useIsMobile';
+import { useMobileNavItems } from '../hooks/useMobileNavItems';
 
 const MainLayout = () => {
     const location = useLocation();
     const { isMobile } = useIsMobile();
+    const mobileNavItems = useMobileNavItems();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
         try {
             return localStorage.getItem('sidebarCollapsed') === 'true';
@@ -25,10 +28,6 @@ const MainLayout = () => {
             return false;
         }
     });
-
-    // Get user role and permissions from Redux
-    const role = useSelector((state) => state.permission);
-    const user = useSelector((state) => state.auth?.user);
 
     // Sync collapsed state across tabs/windows
     useEffect(() => {
@@ -86,15 +85,18 @@ const MainLayout = () => {
                 {/* Navbar — show on desktop; on mobile show compact version */}
                 {showSidebar && !isMobile && <Navbar />}
 
+                {/* Mobile top bar - show on mobile */}
+                {showSidebar && isMobile && <MobileTopBar />}
+
                 {/* Page content - rendered by nested routes */}
-                <Box className={showSidebar ? (isMobile ? "p-0 pb-20" : "p-4 md:p-6") : ""}>
+                <Box className={showSidebar ? (isMobile ? "p-0 pt-0 pb-20" : "p-4 md:p-6") : ""}>
                     <Outlet />
                 </Box>
             </Box>
 
             {/* Mobile bottom navigation bar */}
             {showSidebar && isMobile && (
-                <Sidebar mobile />
+                <MobileBottomNav items={mobileNavItems} />
             )}
         </Box>
     );

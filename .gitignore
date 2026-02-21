@@ -61,3 +61,5 @@ coverage/
 # ===============================
 # Build
 build/
+
+src/assets/mobile-images/*

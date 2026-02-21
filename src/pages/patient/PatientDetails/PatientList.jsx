@@ -192,7 +192,7 @@ const PatientList = ({ data, patientId }) => {
   }
 
   return (
-    <VStack spacing={isMobile ? 3 : 6} align="stretch" className="w-full">
+    <VStack  spacing={isMobile ? 3 : 6} align="stretch" className={`w-full ${isMobile ? 'p-4' : ''}`}>
       {error && (
         <Alert status="error" isClosable onClose={() => setError(null)}>
           {error}
@@ -200,33 +200,34 @@ const PatientList = ({ data, patientId }) => {
       )}
 
       {/* Header section */}
-      <Box
-        className={`border-b-2 border-solid ${isMobile ? 'pb-2' : ''}`}
-        style={{
-          borderColor: 'var(--color-info)',
-          height: isMobile ? 'auto' : '100px',
-          position: 'relative'
-        }}
-      >
-        <Heading
-          as="h1"
-          size={isMobile ? 'lg' : '2xl'}
+      {!isMobile && (
+        <Box
+          className={`border-b-2 border-solid ${isMobile ? 'pb-2' : ''}`}
           style={{
-            ...(isMobile ? {} : {
-              position: 'absolute',
-              left: 0,
-              top: '50%',
-              transform: 'translateY(-50%)',
-            }),
-            color: 'var(--color-accent)',
-            fontFamily: 'Sora, sans-serif',
-            fontWeight: 'bold'
+            borderColor: 'var(--color-info)',
+            height: isMobile ? 'auto' : '100px',
+            position: 'relative'
           }}
         >
-          My Patients
-        </Heading>
-      </Box>
-
+          <Heading
+            as="h1"
+            size={isMobile ? 'none' : '2xl'}
+            style={{
+              ...(isMobile ? {} : {
+                position: 'absolute',
+                left: 0,
+                top: '50%',
+                transform: 'translateY(-50%)',
+              }),
+              color: 'var(--color-accent)',
+              fontFamily: 'Sora, sans-serif',
+              fontWeight: 'bold'
+            }}
+          >
+            My Patients
+          </Heading>
+        </Box>
+      )}
       {/* Toolbar */}
       {isMobile ? (
         <VStack spacing={3} align="stretch">
@@ -238,7 +239,7 @@ const PatientList = ({ data, patientId }) => {
           />
           <Flex justify="between" align="center">
             <Text style={{ fontFamily: 'Sora, sans-serif', fontSize: '13px' }}>
-              <strong>{filteredPatients.length}</strong> patients
+              Total patients: <strong>{filteredPatients.length}</strong>
             </Text>
             <Flex gap={2}>
               <Button
@@ -272,7 +273,7 @@ const PatientList = ({ data, patientId }) => {
                   padding: '6px 12px',
                 }}
               >
-                Export
+                Export all
               </Button>
             </Flex>
           </Flex>
