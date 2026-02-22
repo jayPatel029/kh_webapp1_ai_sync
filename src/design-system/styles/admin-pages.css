@@ -39,6 +39,21 @@
   margin: 0 auto;
 }
 
+/* ==================== ADMIN PAGE CONTENT WRAPPER ==================== */
+/* Used as the main content wrapper inside admin pages */
+.admin-page-content {
+  padding: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .admin-page-content {
+    padding: 0.75rem;
+    padding-bottom: 5rem;
+  }
+}
+
 /* ==================== PAGE HEADER ==================== */
 .admin-header {
   margin-bottom: 1.5rem;

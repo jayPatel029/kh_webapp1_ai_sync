@@ -117,8 +117,8 @@ export default function ForgotPassword() {
       {localStorage.getItem("token") ? (
         <Navigate to="/" replace />
       ) : (
-        <div className="bg-gradient-to-r from-primary to-highlight h-screen md:px-[35vw] py-[15vh] ">
-          <div className="bg-white p-10 max-h-max">
+        <div className="bg-gradient-to-r from-primary to-highlight min-h-screen flex items-center justify-center px-4 py-8 sm:px-6 md:px-[35vw] md:py-[15vh]">
+          <div className="bg-white p-4 sm:p-6 md:p-10 max-h-max w-full max-w-md mx-auto">
             <div className="flex justify-center items-center">
               <img
                 src="https://kifaytidata2024.s3.ap-south-1.amazonaws.com/kifayti_logo.png"

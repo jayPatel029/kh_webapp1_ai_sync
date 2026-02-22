@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { ROUTES } from "../../routes/routeConstants";
@@ -57,6 +57,7 @@ import DialysisTable from "../../components/table/DialysisTable";
 import LineChartComponentSys from "../../components/linecomponent-sys-dys/LineChartComponentSys";
 import LineChartComponentLab from "../../components/linechartlab/LineChartComponentLab";
 import LabRedingUpdateModal from "../../components/modals/LabReadingModal";
+import { PatientProfileShellContext } from "../common/PatientProfileShellContext";
 
 function UserProfile() {
   const [totalUnreadCount, settotalUnreadCount] = useState(0);
@@ -88,6 +89,9 @@ function UserProfile() {
 
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
+  const shellContext = useContext(PatientProfileShellContext);
+  const isInPatientProfileShell = Boolean(shellContext);
+  const WrapperComponent = isInPatientProfileShell ? React.Fragment : ThemeProvider;
 
   // Keep isSmall synced with isMobile for backward compat (charts aspect ratio etc.)
   const isSmall = isMobile;
@@ -332,37 +336,40 @@ function UserProfile() {
   if (loading) return <Box className="p-20 text-center">Loading...</Box>;
 
   return (
-    <ThemeProvider>
+    <WrapperComponent>
       <Box className="flex-1 flex flex-col w-full z-20 min-w-0">
 
         {/* Sticky Header Section */}
-        <Box className={`sticky ${isMobile ? 'top-0' : 'top-[56px]'} z-20 bg-white`}>
+        {/* <Box className={`sticky ${isMobile ? 'top-0' : 'top-[56px]'} z-20 bg-white`}> */}
 
-          <Flex justify="start" align="center" className={isMobile ? "py-2 px-4" : "py-4 px-6"}>
+          {/* <Flex justify="start" align="center" className={isMobile ? "py-2 px-4" : "py-4 px-6"}> */}
 
             {/* Header with Breadcrumbs */}
-            <PageHeader
-              title={userData?.name || "Patient"}
-              breadcrumbs={[
-               // { label: "All Patients", path: "/patients" },
-                { label: "Patient", path: ROUTES.patientDetail(id), active: false },
-                { label: userData?.name || "Patient", active: true }
-              ]}
-              onBack={() => navigate(ROUTES.PATIENTS)}
-            />
-          </Flex>
+            {!isInPatientProfileShell && (
+              <PageHeader
+                title={userData?.name || "Patient"}
+                breadcrumbs={[
+                // { label: "All Patients", path: "/patients" },
+                  { label: "Patient", path: ROUTES.patientDetail(id), active: false },
+                  { label: userData?.name || "Patient", active: true }
+                ]}
+                onBack={() => navigate(ROUTES.PATIENTS)}
+              />
+            )}
+          {/* </Flex> */}
 
           {/* Navigation Tabs */}
-          <PatientNavTabs
-            patientId={id}
-            userData={userData}
-            unreadAdminCount={totalUnreadCount}
-            unreadDoctorCount={totalUnreadCountDoc}
-            role={role}
-          />
-        </Box>
+          {!isInPatientProfileShell && (
+            <PatientNavTabs
+              patientId={id}
+              userData={userData}
+              unreadAdminCount={totalUnreadCount}
+              unreadDoctorCount={totalUnreadCountDoc}
+              role={role}
+            />
+          )}
 
-        <Flex className={`py-4 flex-col gap-6 ${isSmall ? "px-4 pb-20" : "px-6"}`}>
+        {/* <Flex className={`py-4 flex-col gap-6 ${isSmall ? "px-4 pb-20" : "px-6"}`}> */}
           {/* Profile Card */}
           <PatientProfileCard
             userData={userData}
@@ -654,9 +661,10 @@ function UserProfile() {
               )}
             </Box>
           )}
-        </Flex>
+        {/* </Flex> */}
+      {/* </Box> */}
       </Box>
-    </ThemeProvider>
+    </WrapperComponent>
   );
 }
 

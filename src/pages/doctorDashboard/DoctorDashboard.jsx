@@ -116,7 +116,11 @@ function DoctorDashboard() {
 
   return (
     <Box className="flex-1 flex flex-col bg-gray-50 h-full overflow-hidden">
-      <Box className="flex-1 overflow-y-auto p-4 md:p-10">
+      <Box className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
+          
+          <Heading as="h1" size="2xl" className="mb-6 text-[#32617d]">
+            Doctor Dashboard
+          </Heading>
 
         {/* Header */}
         <Flex

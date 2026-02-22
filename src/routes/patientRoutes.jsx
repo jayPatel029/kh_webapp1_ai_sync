@@ -14,6 +14,7 @@ const UserRequisition = lazy(() => import("../pages/UserRequisition/UserRequisit
 const AdminChat = lazy(() => import("../pages/adminchat/AdminChat"));
 const DoctorChat = lazy(() => import("../pages/doctorChat"));
 const LogsPage = lazy(() => import("../pages/AuditLogs/patientLog"));
+const PatientProfileRouteLayout = lazy(() => import("../pages/common/PatientProfileRouteLayout"));
 
 export const getPatientRoutes = ({ guard, ROUTE_NAMES }) => [
   {
@@ -28,6 +29,7 @@ export const getPatientRoutes = ({ guard, ROUTE_NAMES }) => [
   },
   {
     path: "userProfile/:id",
+    element: <PatientProfileRouteLayout />,
     children: [
       { index: true, element: guard(<UserProfile />, ROUTE_NAMES.PATIENTS) },
       { path: "alarms", element: guard(<ShowAlarms />, ROUTE_NAMES.ALARMS) },

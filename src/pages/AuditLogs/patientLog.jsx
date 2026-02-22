@@ -111,7 +111,7 @@ const LogsPage = () => {
 
           {/* Main Content Area */}
           <Box className="flex-1 bg-[#fafafa]">  
-              <Box className="bg-white rounded-[15px] shadow-md p-8">
+              <Box className="bg-white rounded-[15px] shadow-md p-4 md:p-8">
                 {/* Header Section */}
                 <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
                   <Box>

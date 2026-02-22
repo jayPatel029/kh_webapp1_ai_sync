@@ -467,13 +467,13 @@ function ManageParameters() {
           </Select>
         </FormControl>
       </FormModal>
-      <Box className={`bg-white rounded-[15px] ${isMobile ? 'p-4' : 'p-8'}`}>
-        <Flex justify="between" align="center" className={`pb-4 border-b border-gray-200 ${isMobile ? 'mb-3' : 'mb-6'}`}>
-          <h2 className={`${isMobile ? 'text-[15px]' : 'text-[18px]'} font-bold text-[#393939]`}>Existing Parameters</h2>
+      <Box className={`bg-white rounded-[15px] ${isMobile ? 'p-4' : ''}`}>
+        <Flex justify="end" align="center" className="mb-4">
+
           <Button
             variant="solid"
             onClick={() => { clearAllFields(); setIsModalOpen(true); }}
-            className={`${isMobile ? 'h-[34px] px-3 rounded-[6px] text-[12px]' : 'h-[40px] px-4 rounded-[8px] text-[14px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3451c9]`}
+            className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
           >
             + Add Parameter
           </Button>

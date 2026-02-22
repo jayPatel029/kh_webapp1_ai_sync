@@ -29,20 +29,17 @@ function DoctorReport() {
     }, []);
 
     return (
-      <div className="flex-1 block w-full overflow-y-auto p-4">
-          <h1 className="text-2xl font-bold text-[#32617d] mb-4">Doctor Reports</h1>
-
-          {/* Charts Section */}
-          <div className="flex flex-row flex-1">
+      <div className="flex-1 block w-full">
+          <div className="flex flex-col lg:flex-row flex-1">
                     <BarChart title="Patient by Age Group"/>
                     <PieChartComponent title="Patient by Gender"/>
                 </div>
-                <div className="flex flex-row flex-1">
+                <div className="flex flex-col lg:flex-row flex-1">
                     <SimpleLineChart title="Appointments"/>
                     <BarChartComponentPercentageReturn title="Percentage of Returning patients"/>
                 </div>
 
-                <div className="flex flex-row flex-1">
+                <div className="flex flex-col lg:flex-row flex-1">
                     <BarChartComponentAdh title="Adherence by Medicine"/>
                 </div>
 

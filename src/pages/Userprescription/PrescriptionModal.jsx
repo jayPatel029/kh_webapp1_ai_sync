@@ -6,26 +6,20 @@
  * @file src/pages/Userprescription/PrescriptionModal.jsx
  */
 
-import React, { useEffect, useState, useRef } from "react";
-import Webcam from "react-webcam";
+import React, { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 
 // Component Library
-import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton
-} from "../../component-library/primitives/Modal";
+import { FormModal } from "../../component-library/modals/FormModal";
 import { Button } from "../../component-library/primitives/Button";
-import { FormControl, FormLabel, FormErrorMessage } from "../../component-library/primitives/FormControl";
+import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
 import { Input } from "../../component-library/primitives/Input";
 import { Select } from "../../component-library/primitives/Select";
-import { VStack, HStack, Box, Flex } from "../../component-library/layout/Layout";
+import { VStack } from "../../component-library/layout/Layout";
 import { Text, Heading } from "../../component-library/primitives/Typography";
+
+// Shared components
+import FileUploadWithCamera from "../../components/FileUploadWithCamera";
 
 // APIs and Helpers
 import { addPrescriptionById } from "../../ApiCalls/prescriptionApis";
@@ -40,13 +34,8 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [showWebcam, setShowWebcam] = useState(false);
-  const [capturedImages, setCapturedImages] = useState([]);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedImages, setSelectedImages] = useState([]);
+  const [images, setImages] = useState([]);
   const [errorMsg, setErrorMsg] = useState("");
-
-  const webcamRef = useRef(null);
 
   const fetchMedicalTeam = async (uid) => {
     setLoading(true);
@@ -69,40 +58,12 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
     fetchMedicalTeam(user_id);
   }, [user_id]);
 
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
+  // images state is managed by FileUploadWithCamera: each item has {data,name,file}
+  const handleImageChange = (next) => {
+    setImages(next || []);
     setErrorMsg("");
-
-    if (files.length === 1) {
-      setSelectedImage(files[0]);
-      setSelectedImages([]);
-    } else if (files.length > 1) {
-      setSelectedImage(null);
-      const newImages = [];
-      let loaded = 0;
-      files.forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          newImages.push({
-            data: reader.result,
-            name: file.name,
-          });
-          loaded++;
-          if (loaded === files.length) {
-            setSelectedImages(newImages);
-          }
-        };
-        reader.readAsDataURL(file);
-      });
-    }
   };
 
-  const capture = () => {
-    const imageSrc = webcamRef.current.getScreenshot();
-    if (imageSrc) {
-      setCapturedImages((prev) => [...prev, imageSrc]);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!selectedDate) {
@@ -113,7 +74,7 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
       setErrorMsg("Please select the prescribing doctor.");
       return;
     }
-    if (!selectedImage && capturedImages.length === 0 && selectedImages.length === 0) {
+    if (images.length === 0) {
       setErrorMsg("Please upload or capture at least one prescription page.");
       return;
     }
@@ -122,19 +83,18 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
     try {
       let finalFileUrl = "";
 
-      if (selectedImage) {
-        const res = await getFileRes(selectedImage);
+      if (images.length === 1 && images[0].file) {
+        // single file upload
+        const res = await getFileRes(images[0].file);
         finalFileUrl = res.data.objectUrl;
-      } else if (capturedImages.length > 0 || selectedImages.length > 1) {
-        // Create PDF for multiple images
+      } else if (images.length > 0) {
+        // combine into pdf
         const doc = new jsPDF();
-        const imagesToInclude = capturedImages.length > 0 ? capturedImages : selectedImages.map(img => img.data);
-
-        imagesToInclude.forEach((imgData, i) => {
+        images.forEach((img, i) => {
+          const imgData = img.data;
           if (i > 0) doc.addPage();
           doc.addImage(imgData, "JPEG", 10, 10, 190, 250);
         });
-
         doc.setProperties({ title: "Prescription.pdf" });
         const pdfBlob = doc.output("blob");
         const res = await getFileRes(pdfBlob, "Prescription.pdf");
@@ -166,154 +126,71 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
 
   if (loading) {
     return (
-      <Modal isOpen={true} onClose={closeModal} isCentered>
-        <ModalOverlay />
-        <ModalContent className="p-10 flex items-center justify-center">
-          <Text>Loading form details...</Text>
-        </ModalContent>
-      </Modal>
+      <FormModal isOpen={true} onClose={closeModal} onSubmit={() => {}} title="" isLoading={true} size="lg">
+        <Text>Loading form details...</Text>
+      </FormModal>
     );
   }
 
   return (
-    <Modal isOpen={true} onClose={closeModal} size="lg" isCentered>
-      <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(4px)" />
-      <ModalContent className="rounded-xl overflow-hidden border-t-4 border-[#4164df]">
-        <ModalHeader className="border-b bg-gray-50/50 py-4 px-6">
-          <Heading size="md" weight="bold">Upload Prescription</Heading>
-          <ModalCloseButton className="p-0" />
-        </ModalHeader>
+    <FormModal
+      isOpen={true}
+      onClose={closeModal}
+      onSubmit={handleSubmit}
+      title="Upload Prescription"
+      submitText="Submit Prescription"
+      isLoading={isSubmitting}
+      isSubmitDisabled={images.length === 0 || !selectedDate || !selectedDoctorId || selectedDoctorId === "0"}
+      errorMessage={errorMsg}
+      size="lg"
+    >
+      {/* Date Field */}
+      <FormControl isRequired>
+        <FormLabel>Prescription Date</FormLabel>
+        <Input
+          type="date"
+          value={selectedDate}
+          max={getCurrentDate()}
+          onChange={(e) => {
+            setSelectedDate(e.target.value);
+            setErrorMsg("");
+          }}
+          size="md"
+        />
+      </FormControl>
 
-        <ModalBody className="py-6 overflow-y-auto max-h-[70vh]">
-          <VStack spacing={6} align="stretch">
-            {/* Date Field */}
-            <FormControl isRequired isInvalid={!!errorMsg && !selectedDate}>
-              <FormLabel className="text-gray-700 font-semibold mb-2">Prescription Date</FormLabel>
-              <Input
-                type="date"
-                value={selectedDate}
-                max={getCurrentDate()}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setErrorMsg("");
-                }}
-                className="h-11 rounded-lg border-gray-200 focus:border-[#4164df] focus:ring-1 focus:ring-[#4164df]"
-              />
-            </FormControl>
+      {/* Doctor Field */}
+      <FormControl isRequired>
+        <FormLabel>Prescribing Doctor</FormLabel>
+        <Select
+          value={selectedDoctorId}
+          onChange={(e) => {
+            setSelectedDoctorId(e.target.value);
+            setErrorMsg("");
+          }}
+          size="md"
+        >
+          <option value="0">Select Doctor</option>
+          {doctorOptions.map((doctor, index) => (
+            <option key={index} value={doctor.id}>
+              {doctor.name}
+            </option>
+          ))}
+        </Select>
+      </FormControl>
 
-            {/* Doctor Field */}
-            <FormControl isRequired isInvalid={!!errorMsg && (!selectedDoctorId || selectedDoctorId === "0")}>
-              <FormLabel className="text-gray-700 font-semibold mb-2">Prescribing Doctor</FormLabel>
-              <Select
-                value={selectedDoctorId}
-                onChange={(e) => {
-                  setSelectedDoctorId(e.target.value);
-                  setErrorMsg("");
-                }}
-                className="h-11 rounded-lg border-gray-200 focus:border-[#4164df]"
-              >
-                <option value="0">Select Doctor</option>
-                {doctorOptions.map((doctor, index) => (
-                  <option key={index} value={doctor.id}>
-                    {doctor.name}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-
-            {/* File Upload */}
-            <FormControl isRequired isInvalid={!!errorMsg && !selectedImage && capturedImages.length === 0 && selectedImages.length === 0}>
-              <FormLabel className="text-gray-700 font-semibold mb-2">Prescription Document</FormLabel>
-              <Box className="relative">
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleImageChange}
-                  className="w-full text-sm text-gray-500
-                    file:mr-4 file:py-2.5 file:px-4
-                    file:rounded-lg file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-blue-50 file:text-[#4164df]
-                    hover:file:bg-blue-100
-                    cursor-pointer border border-dashed border-gray-300 p-2 rounded-lg"
-                />
-              </Box>
-            </FormControl>
-
-            {/* Webcam Section */}
-            <Box className="mt-2 text-center">
-              {showWebcam ? (
-                <VStack spacing={4}>
-                  <Box className="rounded-xl overflow-hidden border-2 border-gray-100 shadow-sm bg-black relative">
-                    <Webcam
-                      audio={false}
-                      ref={webcamRef}
-                      screenshotFormat="image/jpeg"
-                      videoConstraints={{ width: 1280, height: 720, facingMode: "user" }}
-                      className="w-full h-auto"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={capture}
-                      className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#4164df] text-white hover:bg-[#3451c9] shadow-lg rounded-full px-6"
-                    >
-                      📸 Capture Page
-                    </Button>
-                  </Box>
-
-                  {capturedImages.length > 0 && (
-                    <Box className="w-full">
-                      <Text size="xs" weight="bold" className="uppercase text-gray-400 mb-2">Captured Pages ({capturedImages.length})</Text>
-                      <Flex gap={2} className="overflow-x-auto pb-2">
-                        {capturedImages.map((img, i) => (
-                          <Box key={i} className="w-20 h-24 shrink-0 rounded border border-gray-200 overflow-hidden shadow-sm">
-                            <img src={img} alt="" className="w-full h-full object-cover" />
-                          </Box>
-                        ))}
-                      </Flex>
-                    </Box>
-                  )}
-
-                  <Button variant="ghost" size="xs" onClick={() => setShowWebcam(false)} className="text-gray-400 underline">
-                    Switch to File Upload
-                  </Button>
-                </VStack>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowWebcam(true)}
-                  className="rounded-full border-[#4164df] text-[#4164df] py-5 px-6"
-                >
-                  📷 Take a Photo instead
-                </Button>
-              )}
-            </Box>
-
-            {errorMsg && (
-              <Box className="p-3 bg-red-50 border border-red-100 rounded-lg">
-                <Text size="sm" className="text-red-700 font-medium">⚠️ {errorMsg}</Text>
-              </Box>
-            )}
-          </VStack>
-        </ModalBody>
-
-        <ModalFooter className="bg-gray-50/50 border-t py-4 px-6 gap-3">
-          <Button variant="ghost" onClick={closeModal} isDisabled={isSubmitting} className="flex-1 text-gray-500 hover:bg-gray-100">
-            Cancel
-          </Button>
-          <Button
-            variant="solid"
-            isLoading={isSubmitting}
-            loadingText="Uploading..."
-            onClick={handleSubmit}
-            className="flex-2 min-w-[140px] bg-[#4164df] hover:bg-[#3453c1] text-white shadow-md rounded-lg"
-          >
-            Submit Prescription
-          </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+      {/* File Upload */}
+      <FormControl isRequired>
+        <FormLabel>Prescription Document</FormLabel>
+        <FileUploadWithCamera
+          images={images}
+          onChange={handleImageChange}
+          accept="image/*"
+          multiple={true}
+          showCamera={true}
+        />
+      </FormControl>
+    </FormModal>
   );
 };
 

@@ -44,6 +44,7 @@ const UnifiedListTable = ({
     onDelete = null,
     onDownload = null,
     onAction = null,
+    onRowClick = null,
     isLoading = false,
     emptyMessage = 'No data found',
     rowsPerPage = 10,
@@ -237,9 +238,13 @@ const UnifiedListTable = ({
                                 <div
                                     key={rowIdx}
                                     className="list-table__card"
-                                    onClick={() => onCardClick?.(row)}
-                                    role={onCardClick ? 'button' : undefined}
-                                    tabIndex={onCardClick ? 0 : undefined}
+                                    onClick={() => {
+                                        onCardClick?.(row);
+                                        onRowClick?.(row);
+                                    }}
+                                    role={onCardClick || onRowClick ? 'button' : undefined}
+                                    tabIndex={onCardClick || onRowClick ? 0 : undefined}
+                                    style={onRowClick || onCardClick ? { cursor: 'pointer' } : undefined}
                                 >
                                     {/* Card Header */}
                                     <div className="list-table__card-header">
@@ -361,6 +366,8 @@ const UnifiedListTable = ({
                                     key={rowIdx}
                                     className="list-table__row"
                                     data-row-index={rowIdx}
+                                    onClick={() => onRowClick?.(row)}
+                                    style={onRowClick ? { cursor: 'pointer' } : undefined}
                                 >
                                     {columns.map((column) => (
                                         <td

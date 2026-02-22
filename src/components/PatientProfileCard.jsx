@@ -49,7 +49,7 @@ export const PatientProfileCard = ({
   ];
 
   return (
-    <Card variant="elevated" className="w-full self-stretch bg-white rounded-2xl !shadow-[2px_2px_8px_0px_rgba(0,0,0,0.35)] !shadow-[-2px_-2px_8px_0px_rgba(0,0,0,0.10)]">
+    <Card variant="elevated" className="w-full mt-4 mb-4 self-stretch bg-white rounded-2xl !shadow-[2px_2px_8px_0px_rgba(0,0,0,0.35)] !shadow-[-2px_-2px_8px_0px_rgba(0,0,0,0.10)]">
       <CardHeader
         className="px-4 py-2  bg-white cursor-pointer select-none  "
         onClick={() => setIsExpanded(!isExpanded)}

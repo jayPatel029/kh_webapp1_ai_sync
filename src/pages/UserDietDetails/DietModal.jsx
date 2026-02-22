@@ -6,27 +6,19 @@
  * @file src/pages/UserDietDetails/DietModal.jsx
  */
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import jsPDF from "jspdf";
 
 // Component Library
-import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton
-} from "../../component-library/primitives/Modal";
-import { Button } from "../../component-library/primitives/Button";
+import { FormModal } from "../../component-library/modals/FormModal";
 import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
 import { Textarea } from "../../component-library/primitives/Textarea";
 import { Input } from "../../component-library/primitives/Input";
 import { Select } from "../../component-library/primitives/Select";
-import { VStack, Box, Flex } from "../../component-library/layout/Layout";
-import { Text, Heading } from "../../component-library/primitives/Typography";
-import attachIcon from "../../assets/attachIcon.svg";
+import { Box } from "../../component-library/layout/Layout";
+import { Text } from "../../component-library/primitives/Typography";
+
+// shared upload component
 import FileUploadWithCamera from "../../components/FileUploadWithCamera";
 
 // APIs and Helpers
@@ -34,96 +26,17 @@ import { postDietdetailsInsertDietDetailsAdmin } from "../../ApiCalls/remainingA
 import { getFileRes } from "../../helpers/fileuploadHelper";
 import getCurrentDate from "../../helpers/formatDate";
 
-// NOTE: unified file list (both uploaded and camera captures) stored in selectedImages
-// each item: { name: string, data: dataURL string, file?: File }
 const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedReportType, setSelectedReportType] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedImages, setSelectedImages] = useState([]);
+  const [images, setImages] = useState([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef(null);
-  const [showCamera, setShowCamera] = useState(false);
-  const videoRef = useRef(null);
 
-  const openCamera = async () => {
-    setShowCamera(true);
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      } catch (err) {
-        console.error("Camera error", err);
-      }
-    }
-  };
-
-  const closeCamera = () => {
-    setShowCamera(false);
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach((t) => t.stop());
-      videoRef.current.srcObject = null;
-    }
-  };
-
-  const captureFromCamera = () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg");
-    const name = `capture_${Date.now()}.jpg`;
-    setSelectedImages((prev) => [...prev, { data: dataUrl, name }]);
-    closeCamera();
-  };
-
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files || []);
+  const handleImageChange = (next) => {
+    setImages(next || []);
     setErrorMsg("");
-    if (!files.length) return;
-
-    const newImages = [];
-    let loaded = 0;
-
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        newImages.push({ data: reader.result, name: file.name, file });
-        loaded += 1;
-        if (loaded === files.length) {
-          // replace existing selection with newly picked files
-          setSelectedImages(newImages);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleRemoveImage = (index) => {
-    setSelectedImages((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      // if input exists and all removed, clear native input
-      if (next.length === 0 && fileInputRef.current) fileInputRef.current.value = null;
-      return next;
-    });
-    setErrorMsg("");
-  };
-
-  const dataURLToBlob = (dataURL) => {
-    const arr = dataURL.split(",");
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new Blob([u8arr], { type: mime });
   };
 
   const handleSubmit = async () => {
@@ -131,21 +44,17 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
       setErrorMsg("Please select a diet date.");
       return;
     }
-    if (selectedImages.length === 0) {
+    if (images.length === 0) {
       setErrorMsg("Please attach or capture at least one image.");
       return;
     }
-
     setIsSubmitting(true);
     try {
       let finalFileUrl = "";
 
-      // Convert all selected images (even a single one) into a single PDF and upload
-      if (selectedImages.length >= 1) {
-        // preload images to get natural dimensions so we can preserve aspect ratio
+      if (images.length >= 1) {
         const loadedImages = await Promise.all(
-          selectedImages.map(async (image) => {
-            // ensure we have a dataURL for the image; fall back to reading File if needed
+          images.map(async (image) => {
             let imgData = image.data;
             if (!imgData && image.file) {
               imgData = await new Promise((resolve) => {
@@ -155,8 +64,6 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
               });
             }
             if (!imgData) return null;
-
-            // create Image to read natural dimensions
             const imgEl = await new Promise((resolve) => {
               const img = new Image();
               img.onload = () => resolve(img);
@@ -171,7 +78,6 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
         const imgs = loadedImages.filter(Boolean);
         if (imgs.length === 0) throw new Error("No valid images to create PDF");
 
-        // create doc with orientation matching first image to avoid initial rotation issues
         const firstOrient = imgs[0].width > imgs[0].height ? "landscape" : "portrait";
         const doc = new jsPDF({ orientation: firstOrient, unit: "pt", format: "a4" });
 
@@ -184,11 +90,10 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
 
           const pageW = doc.internal.pageSize.getWidth();
           const pageH = doc.internal.pageSize.getHeight();
-          const margin = 20; // pts
+          const margin = 20;
           const maxW = pageW - margin * 2;
           const maxH = pageH - margin * 2;
 
-          // keep aspect ratio and fit within page
           const scale = Math.min(maxW / img.width, maxH / img.height);
           const displayW = img.width * scale;
           const displayH = img.height * scale;
@@ -240,116 +145,77 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
   };
 
   return (
-    <Modal isOpen={true} onClose={closeModal} size="xl" isCentered>
-      <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(4px)" />
-      <ModalContent className="rounded-xl overflow-hidden">
-        <ModalHeader className="border-b w-full bg-gray-50/50 gap-8 py-4 px-6 !border-info  ">
-          <Heading as="h4" className="text-nowrap" weight="bold">Upload Diet Details</Heading>
-          <Flex align="center" gap={3}>
-            <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
-              <span className="text-sm font-semibold text-gray-700">
-                {userData?.name?.charAt(0)?.toUpperCase() || "P"}
-              </span>
-            </Box>
-            <Heading as="h6" isTruncated  >{userData?.name || "User"}</Heading>
-            <ModalCloseButton />
-          </Flex>
-        </ModalHeader>
+    <FormModal
+      isOpen={true}
+      onClose={closeModal}
+      onSubmit={handleSubmit}
+      title="Upload Diet Details"
+      submitText="Submit"
+      isLoading={isSubmitting}
+      isSubmitDisabled={!selectedDate || images.length === 0}
+      errorMessage={errorMsg}
+      size="xl"
+    >
+      <FormControl isRequired>
+        <FormLabel>Diet Date</FormLabel>
+        <Input
+          type="date"
+          value={selectedDate}
+          max={getCurrentDate()}
+          onChange={(e) => {
+            setSelectedDate(e.target.value);
+            setErrorMsg("");
+          }}
+          size="md"
+        />
+      </FormControl>
 
-        <ModalBody className="py-6 overflow-y-auto max-h-[70vh]">
-          <VStack spacing={6} align="stretch">
-            {/* Date Field */}
-            <FormControl isRequired isInvalid={!!errorMsg && !selectedDate}>
-              <FormLabel >Diet Date</FormLabel>
-              <Input
-                type="date"
-                value={selectedDate}
-                max={getCurrentDate()}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setErrorMsg("");
-                }}
-              />
-            </FormControl>
+      <FormControl isRequired>
+        <FormLabel>Diet Type</FormLabel>
+        <Select
+          value={selectedReportType}
+          onChange={(e) => {
+            setSelectedReportType(e.target.value);
+            setErrorMsg("");
+          }}
+          size="md"
+        >
+          <option value="">Select</option>
+          <option value="Breakfast">Breakfast</option>
+          <option value="Lunch">Lunch</option>
+          <option value="Dinner">Dinner</option>
+          <option value="Other">Other</option>
+        </Select>
+      </FormControl>
 
-            {/* Diet Type Field */}
-            <FormControl isRequired isInvalid={!!errorMsg && (!selectedReportType || selectedReportType === "Select")}>
-              <FormLabel>Diet Type</FormLabel>
-              <Select
-                value={selectedReportType}
-                onChange={(e) => {
-                  setSelectedReportType(e.target.value);
-                  setErrorMsg("");
-                }}
-              >
-                <option value="Select">Select</option>
-                <option value="Breakfast">Breakfast</option>
-                <option value="Lunch">Lunch</option>
-                <option value="Dinner">Dinner</option>
-                <option value="Other">Other</option>
-              </Select>
-            </FormControl>
+      <FormControl>
+        <FormLabel>Description</FormLabel>
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows="5"
+          placeholder="Add any notes about this meal..."
+        />
+      </FormControl>
 
-            {/* Description Field */}
-            <FormControl>
-              <FormLabel>Description</FormLabel>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows="5"
-                placeholder="Add any notes about this meal..."
-              />
-            </FormControl>
+      <FormControl isRequired>
+        <FormLabel>Upload File</FormLabel>
+        <FileUploadWithCamera
+          images={images}
+          onChange={handleImageChange}
+          accept="image/*"
+          multiple={true}
+          showCamera={true}
+        />
+      </FormControl>
 
-            {/* File Upload with Attach & Capture (unified previews + names) */}
-              <FormControl isRequired isInvalid={!!errorMsg && selectedImages.length === 0}>
-                <FormLabel>Upload file</FormLabel>
-                <FileUploadWithCamera
-                  images={selectedImages}
-                  onChange={(next) => setSelectedImages(next)}
-                  accept="image/*"
-                  multiple={true}
-                  append={false}
-                  attachLabel={<>
-                    Attach file <img src={attachIcon} alt="attach" className="inline-block ml-1" />
-                  </>}
-                  captureLabel="Capture image"
-                  previewWidth={120}
-                  previewHeight={90}
-                />
-              </FormControl>
-
-            {errorMsg && (
-              <Box className="p-3 bg-red-50 border border-red-100 rounded-lg">
-                <Text size="sm" className="text-red-700 font-medium">⚠️ {errorMsg}</Text>
-              </Box>
-            )}
-          </VStack>
-        </ModalBody>
-
-        <ModalFooter className="!border-none" >
-          <Button
-            variant="danger"
-            onClick={closeModal}
-            isDisabled={isSubmitting}
-          // className="flex-1 text-gray-500 hover:bg-gray-100"
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="secondary"
-            isLoading={isSubmitting}
-            loadingText="Uploading..."
-            onClick={handleSubmit}
-          // className="flex-2 min-w-[140px] bg-[#4164df] hover:bg-[#3453c1] text-white shadow-md rounded-lg"
-          >
-            Submit
-          </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+      {errorMsg && (
+        <Box className="p-3 bg-red-50 border border-red-100 rounded-lg">
+          <Text size="sm" className="text-red-700 font-medium">⚠️ {errorMsg}</Text>
+        </Box>
+      )}
+    </FormModal>
   );
 };
 
 export default DietModal;
-

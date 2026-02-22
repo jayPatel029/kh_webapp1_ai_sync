@@ -29,7 +29,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pd
 
 // pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs-worker/pdf.worker.min.js";
 
-function MyPDFViewer({ file }) {
+function MyPDFViewer({ file, onLoadSuccess, onLoadError }) {
   const [numPages, setNumPages] = useState(null);
   const [scale, setScale] = useState(1.35); //zoom lvl
   const [error, setError] = useState(null);
@@ -45,10 +45,12 @@ function MyPDFViewer({ file }) {
         onLoadSuccess={({ numPages }) => {
           setNumPages(numPages);
           setError(null);
+          if (onLoadSuccess) onLoadSuccess({ numPages });
         }}
         onLoadError={err => {
           console.error("[MyPDFViewer] Failed to load PDF:", err);
           setError(err?.message || String(err));
+          if (onLoadError) onLoadError(err);
         }}
         className="border rounded shadow-md"
       >

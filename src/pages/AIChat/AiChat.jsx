@@ -169,13 +169,14 @@ const AiChat = () => {
         >
           AI Chat Interface
         </h1>
-        <div className="bg-white p-5 shadow-md rounded-lg h-full items-center justify-center">
+        <div className="bg-white p-3 sm:p-5 shadow-md rounded-lg h-full items-center justify-center overflow-x-auto">
           <DeepChat
             style={{
               borderRadius: "10px",
               borderColor: "#dcdcdc",
               backgroundColor: "#f3f6fc",
-              width: "70rem",
+              width: "100%",
+              maxWidth: "70rem",
               height: "70vh",
             }}
             textInput={textInputConfig}

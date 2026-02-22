@@ -183,7 +183,7 @@
   color: var(--color-info);
   cursor: pointer;
 
-  transition: var(--transition-fast);
+  transition: var(--transition-duration-normal);
 }
 
 .modal__close:hover {
