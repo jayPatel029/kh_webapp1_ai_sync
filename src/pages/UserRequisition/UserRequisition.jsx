@@ -22,9 +22,12 @@ import RequisitionModal from "./RequisitionModal";
 import FileViewModal from "../../components/modals/FileViewModal";
 
 // APIs and Helpers
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
 import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
+import {
+  getPatientGetPatientByid,
+  getRequisitionGetRequisitionByid,
+  deleteRequisitionById,
+} from "../../ApiCalls/remainingApis";
 
 // Icons
 import { BsTrash } from "react-icons/bs";
@@ -73,20 +76,27 @@ const UserRequisition = () => {
   };
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/requisition/getRequisition/${id}`
-      );
-      setUserRequisitionData(response.data.data);
+      const response = await getRequisitionGetRequisitionByid(id);
+      if (response.success) {
+        setUserRequisitionData(response?.data?.data || []);
+      } else {
+        setUserRequisitionData([]);
+      }
     } catch (error) {
       console.error("Error fetching requisition data:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchPatientData = async () => {
     try {
-      const response = await axiosInstance.get(`${server_url}/patient/getPatient/${id}`);
-      setUserData(response.data.data);
+      const response = await getPatientGetPatientByid(id);
+      if (response.success) {
+        setUserData(response?.data?.data || {});
+      }
     } catch (error) {
       console.error("Error fetching patient data:", error);
     }
@@ -134,14 +144,15 @@ const UserRequisition = () => {
     );
     if (isConfirmed) {
       try {
-        await axiosInstance.delete(
-          `${server_url}/requisition/${requisitionId}`,
-          {
-            data: {
-              email: email,
-            },
-          }
-        );
+        const response = await deleteRequisitionById(requisitionId, {
+          data: {
+            email: email,
+          },
+        });
+
+        if (!response.success) {
+          throw new Error(response?.data?.message || "Delete failed");
+        }
 
         setUserRequisitionData((prevData) =>
           prevData.filter((requisition) => requisition.id !== requisitionId)

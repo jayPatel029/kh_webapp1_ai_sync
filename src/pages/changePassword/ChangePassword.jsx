@@ -3,8 +3,7 @@ import PageHeader from "../../components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { changePassword } from "../../ApiCalls/authapis";
 
 // Component Library
 import {
@@ -31,14 +30,15 @@ function ChangePassword() {
 
     try {
       const token = localStorage.getItem("token"); // Assuming the token is stored in localStorage
-      const response = await axiosInstance.post(
-        `${server_url}/auth/changePassword`,
-        {
-          token: token, // Pass the token
-          newPassword: newPassword,
-        }
-      );
-      setMessage(response.data.message);
+      const response = await changePassword({
+        token: token,
+        newPassword: newPassword,
+      });
+      if (response.success) {
+        setMessage(response.data?.message || "Password changed successfully");
+      } else {
+        setMessage(response.data || "Something went wrong while changing the password");
+      }
     } catch (error) {
       console.error("Error changing password:", error);
       setMessage("Something went wrong while changing the password");

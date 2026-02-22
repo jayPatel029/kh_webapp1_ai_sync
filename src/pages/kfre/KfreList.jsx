@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { getPatients } from "../../ApiCalls/patientAPis";
+import { getLabreportGetLabReportsByid } from "../../ApiCalls/remainingApis";
 import CSVReader from "../../components/csvlab/CSVLab";
 import PdfDataExtractor from "../../components/pdfExtractor/PdfDataExtractor";
 import { useParams } from "react-router-dom";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
 import { calculateAge } from "../../helpers/utils";
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 import {
@@ -111,11 +110,11 @@ function KfreList() {
 
     // Fetch lab report data for the selected patient
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/labreport/getLabReports/${selectedOption.value}`
-      );
-      setLabReportData(response.data.data);
-      console.log("Lab Report Data:", response.data.data);
+      const labResponse = await getLabreportGetLabReportsByid(selectedOption.value);
+      if (labResponse.success) {
+        setLabReportData(labResponse.data?.data || []);
+        console.log("Lab Report Data:", labResponse.data?.data);
+      }
     } catch (error) {
       console.error("Error fetching lab report data:", error);
     }

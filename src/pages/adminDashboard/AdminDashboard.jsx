@@ -15,14 +15,18 @@ import {
   Text,
   Container
 } from "../../component-library";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { getIdByEmail, isDoctorRole } from "../../ApiCalls/authapis";
+import { getDoctorIdByEmail } from "../../ApiCalls/doctorApis";
+import { getDoctorSortAlerts } from "../../ApiCalls/doctorAlert";
 import {
   getTotalUsers,
   getUsersThisWeek,
   getAlerts,
   getUsersThisWeekSub,
+  sendAlertEmails,
+  getSuperAdminAlerts,
 } from "../../ApiCalls/adminDashApis";
+import { getAlertByType } from "../../ApiCalls/alertsApis";
 import { getDoctorComments } from "../../ApiCalls/GetComments";
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 // Import CSS for modals (legacy styles)
@@ -48,6 +52,9 @@ const AdminDashboard = () => {
     totalUsers: 0,
     newUsers: 0,
   });
+  const [sendingEmails, setSendingEmails] = useState(false);
+  const [alertTypeFilter, setAlertTypeFilter] = useState("");
+  const [allPatients, setAllPatients] = useState([]);
 
   // Modal State
   const [modals, setModals] = useState({
@@ -78,17 +85,21 @@ const AdminDashboard = () => {
 
       // Get Admin ID
       try {
-        const idRes = await axiosInstance.post(`${server_url}/users/byEmail/id`, { email });
-        localStorage.setItem("id", idRes.data.id);
+        const idRes = await getIdByEmail({ email });
+        if (idRes.success) {
+          localStorage.setItem("id", idRes.data?.id);
+        }
       } catch (err) {
         console.error("Error getting admin id:", err);
       }
 
       // Check if Doctor
       try {
-        const docRes = await axiosInstance.get(`${server_url}/roles/isDoctor`);
-        setIsDoctor(docRes.data.data);
-        localStorage.setItem("isDoctor", docRes.data.data);
+        const docRes = await isDoctorRole();
+        if (docRes.success) {
+          setIsDoctor(docRes.data?.data);
+          localStorage.setItem("isDoctor", docRes.data?.data);
+        }
       } catch (err) {
         console.error("Error checking isDoctor:", err);
       }
@@ -120,10 +131,22 @@ const AdminDashboard = () => {
       // Fetch Alerts
       let alerts = [];
       if (isDoc) {
-        const doctorIdRes = await axiosInstance.post(`${server_url}/doctor/byEmail/id`, { email });
-        const doctorId = doctorIdRes.data.data;
-        const alertsRes = await axiosInstance.get(`${server_url}/sortAlerts/doctor/${doctorId}`);
-        alerts = alertsRes.data || [];
+        const doctorIdRes = await getDoctorIdByEmail({ email });
+        const doctorId = doctorIdRes.success ? doctorIdRes.data?.data : null;
+        if (doctorId) {
+          const alertsRes = await getDoctorSortAlerts(doctorId);
+          alerts = alertsRes.success ? (alertsRes.data || []) : [];
+        }
+      } else if (adminId === "1") {
+        // Super admin: fetch consolidated super admin alerts
+        try {
+          const superRes = await getSuperAdminAlerts(adminId);
+          alerts = superRes?.data || [];
+        } catch {
+          // fallback to regular alerts
+          const alertsRes = await getAlerts();
+          alerts = (alertsRes.data || []).reverse();
+        }
       } else {
         const alertsRes = await getAlerts();
         alerts = (alertsRes.data || []).reverse();
@@ -186,6 +209,7 @@ const AdminDashboard = () => {
       }
 
       setPatients(Array.from(patientMap.values()));
+      setAllPatients(Array.from(patientMap.values()));
     } catch (error) {
       console.error("Dashboard data fetch error:", error);
     } finally {
@@ -210,6 +234,56 @@ const AdminDashboard = () => {
     if (type === 'alert' || type === 'comment') {
       fetchDashboardData();
     }
+  };
+
+  const handleSendAlertEmails = async () => {
+    try {
+      setSendingEmails(true);
+      await sendAlertEmails();
+      alert('Alert emails sent successfully!');
+    } catch (e) {
+      console.error('Error sending alert emails:', e);
+      alert('Failed to send alert emails.');
+    } finally {
+      setSendingEmails(false);
+    }
+  };
+
+  const handleAlertTypeFilter = async (type) => {
+    setAlertTypeFilter(type);
+    if (!type) {
+      setPatients(allPatients);
+      return;
+    }
+    try {
+      const res = await getAlertByType(type);
+      const filtered = res?.data || [];
+      // Rebuild patient map from filtered alerts
+      const patientMap = new Map();
+      for (const alert of filtered) {
+        const pId = alert.patientId;
+        if (!pId) continue;
+        if (!patientMap.has(pId)) {
+          patientMap.set(pId, {
+            id: pId,
+            name: alert.name || 'Unknown Patient',
+            avatar: alert.patientProfilePhoto,
+            prescriptionAlerts: [], commentAlerts: [],
+            alertAlerts: [], dialysisAlerts: [],
+            prescriptionCount: 0, commentCount: 0,
+            alertCount: 0, dialysisCount: 0,
+          });
+        }
+        const pData = patientMap.get(pId);
+        const t = (alert.type || '').toLowerCase();
+        if (t.includes('prescription')) { pData.prescriptionAlerts.push(alert); pData.prescriptionCount++; }
+        else if (t.includes('dialysis')) { pData.dialysisAlerts.push(alert); pData.dialysisCount++; }
+        else { pData.alertAlerts.push(alert); if (!alert.isRead) pData.alertCount++; }
+      }
+      setPatients(Array.from(patientMap.values()));
+    } catch (e) {
+      console.error('Error filtering by type:', e);
+    }
   };   
 
   return (
@@ -226,25 +300,36 @@ const AdminDashboard = () => {
             <Heading as="h1" size={isMobile ? 'lg' : '2xl'} className="text-[#3F6B85] mt-3">
               My Dashboard
             </Heading>
-            {/* Mobile stat pills */}
-            {isMobile && (
-              <Flex gap={2} align="center">
-                <Box
-                  className="flex items-center gap-1 px-3 py-1 rounded-full"
-                  style={{ background: 'var(--color-primary-light, #dbeafe)' }}
+            <Flex align="center" gap={3}>
+              {!isMobile && (
+                <button
+                  onClick={handleSendAlertEmails}
+                  disabled={sendingEmails}
+                  className="px-4 py-2 bg-[#32617d] text-white rounded-lg text-sm hover:bg-[#274f65] transition-colors disabled:opacity-50"
                 >
-                  <Text size="xs" weight="bold" className="text-primary">{stats.totalUsers}</Text>
-                  <Text size="xs" className="text-primary">Total</Text>
-                </Box>
-                <Box
-                  className="flex items-center gap-1 px-3 py-1 rounded-full"
-                  style={{ background: 'var(--color-success-light, #d1fae5)' }}
-                >
-                  <Text size="xs" weight="bold" className="text-success">{stats.newUsers}</Text>
-                  <Text size="xs" className="text-success">New</Text>
-                </Box>
-              </Flex>
-            )}
+                  {sendingEmails ? 'Sending...' : 'Send Alert Emails'}
+                </button>
+              )}
+              {/* Mobile stat pills */}
+              {isMobile && (
+                <Flex gap={2} align="center">
+                  <Box
+                    className="flex items-center gap-1 px-3 py-1 rounded-full"
+                    style={{ background: 'var(--color-primary-light, #dbeafe)' }}
+                  >
+                    <Text size="xs" weight="bold" className="text-primary">{stats.totalUsers}</Text>
+                    <Text size="xs" className="text-primary">Total</Text>
+                  </Box>
+                  <Box
+                    className="flex items-center gap-1 px-3 py-1 rounded-full"
+                    style={{ background: 'var(--color-success-light, #d1fae5)' }}
+                  >
+                    <Text size="xs" weight="bold" className="text-success">{stats.newUsers}</Text>
+                    <Text size="xs" className="text-success">New</Text>
+                  </Box>
+                </Flex>
+              )}
+            </Flex>
           </Flex>
 
           {/* Desktop stats summary */}
@@ -263,9 +348,34 @@ const AdminDashboard = () => {
 
           {/* Alerts Section */}
           <Box className={isMobile ? 'pb-20' : 'pb-8'}>
-            <Heading as="h2" size={isMobile ? 'md' : 'xl'} className={`${isMobile ? 'mb-3' : 'mb-6'} text-black font-bold`}>
-              Important Alerts
-            </Heading>
+            <Flex justify="between" align="center" className={isMobile ? 'mb-3' : 'mb-6'}>
+              <Heading as="h2" size={isMobile ? 'md' : 'xl'} className="text-black font-bold">
+                Important Alerts
+              </Heading>
+              <Flex gap={2} align="center">
+                <select
+                  value={alertTypeFilter}
+                  onChange={(e) => handleAlertTypeFilter(e.target.value)}
+                  className={`${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-2'} border border-gray-300 rounded-lg bg-white text-gray-700`}
+                >
+                  <option value="">All Types</option>
+                  <option value="prescription">Prescription</option>
+                  <option value="daily">Daily Readings</option>
+                  <option value="dialysis">Dialysis</option>
+                  <option value="lab">Lab Reports</option>
+                  <option value="enrollment">Enrollment</option>
+                  <option value="contact">Contact</option>
+                </select>
+                {alertTypeFilter && (
+                  <button
+                    onClick={() => handleAlertTypeFilter('')}
+                    className="text-xs text-[#5886a5] underline hover:text-[#4164df]"
+                  >
+                    Clear
+                  </button>
+                )}
+              </Flex>
+            </Flex>
 
             {loading ? (
               <Flex justify="center" align="center" className="py-12 text-gray-500">

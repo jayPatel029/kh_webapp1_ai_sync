@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
-import { server_url } from "../../constants/constants.js";
-import axiosInstance from "../../helpers/axios/axiosInstance.js";
+import { getRoles, deleteRoleByName } from "../../ApiCalls/authapis";
 import PageHeader from "../../components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes/routeConstants";
@@ -18,11 +17,12 @@ const UserRoles = () => {
   const [roles, setRoles] = useState([]);
 
   useEffect(() => {
-    axiosInstance
-      .get(`${server_url}/roles`)
+    getRoles()
       .then((res) => {
-        setRoles(res.data.data);
-        console.log(res.data.data);
+        if (res.success) {
+          setRoles(res.data?.data || []);
+          console.log(res.data?.data);
+        }
       })
       .catch((err) => {
         console.log(err);
@@ -31,8 +31,7 @@ const UserRoles = () => {
 
   const deleteRole = (role_name) => {
     console.log("object", role_name);
-    axiosInstance
-      .delete(`${server_url}/roles/byName/${role_name}`)
+    deleteRoleByName(role_name)
       .then((res) => {
         alert("Role deleted successfully");
         window.location.reload();

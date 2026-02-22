@@ -1,8 +1,7 @@
 import React from "react";
 import { useRef, useState, useEffect } from "react";
-import axiosInstance from "../../../helpers/axios/axiosInstance";
+import { postDailyAlertsUpdateIsRead, postNotifsPushNotifs } from "../../../ApiCalls/remainingApis";
 import SimpleModal from "./SimpleModal";
-import { server_url } from "../../../constants/constants";
 import { insertAlert } from "../../../ApiCalls/appAlerts";
 import { Link, useNavigate } from "react-router-dom";
 import GraphModal from "./graphModal";
@@ -100,7 +99,7 @@ const DiaAlertModal = ({ closeModal }) => {
     console.log("Send", sendAlerts);
     if (sendAlerts.length > 0) {
       try {
-        await axiosInstance.post(`${server_url}/dailyAlerts/updateisRead`, {
+        await postDailyAlertsUpdateIsRead({
           alerts: sendAlerts,
           email: email,
         });
@@ -156,7 +155,7 @@ const DiaAlertModal = ({ closeModal }) => {
 
   const cosultDoctor = async (alert) => {
     // http://localhost:8080/api/notifs/pushNotifs
-    const res = await axiosInstance.post(`${server_url}/notifs/pushNotifs`, {
+    const res = await postNotifsPushNotifs({
       user_id: 10,
       message: "Test",
       title: "Test",

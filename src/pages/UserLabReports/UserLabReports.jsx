@@ -27,9 +27,14 @@ import UploadLabReports from "./UploadLabReports";
 import FileViewModal from "../../components/modals/FileViewModal";
 
 // APIs and Helpers
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
 import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
+import {
+  getPatientGetPatientByid,
+  getPatientGetMedicalTeamByid,
+  getLabreportGetLabReportsByid,
+  deleteLabreportDeleteLabReportByid,
+  getLabreportGetColumnNames,
+} from "../../ApiCalls/remainingApis";
 
 // Icons
 import sortIcon from "../../assets/Sort_Amount_Up.svg";
@@ -62,6 +67,7 @@ const UserLabReports = () => {
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const [labColumns, setLabColumns] = useState([]);
 
   const { id } = useParams();
   const navigate = useNavigate();
@@ -89,10 +95,10 @@ const UserLabReports = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/patient/getPatient/${id}`
-      );
-      setUserData(response.data.data);
+      const response = await getPatientGetPatientByid(id);
+      if (response.success) {
+        setUserData(response?.data?.data || null);
+      }
     } catch (error) {
       console.error("Error fetching patient data:", error);
     }
@@ -100,10 +106,10 @@ const UserLabReports = () => {
 
   const fetchMedicalTeam = async () => {
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/patient/getMedicalTeam/${id}`
-      );
-      setMedicalTeam(response.data.data);
+      const response = await getPatientGetMedicalTeamByid(id);
+      if (response.success) {
+        setMedicalTeam(response?.data?.data || []);
+      }
     } catch (error) {
       console.error("Error fetching medical team:", error);
     }
@@ -112,11 +118,11 @@ const UserLabReports = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/labreport/getLabReports/${id}`
-      );
-      setLabReportData(response.data.data);
-      setFilteredReportData(response.data.data);
+      const response = await getLabreportGetLabReportsByid(id);
+      if (response.success) {
+        setLabReportData(response?.data?.data || []);
+        setFilteredReportData(response?.data?.data || []);
+      }
     } catch (error) {
       console.error("Error fetching lab report data:", error);
     } finally {
@@ -143,6 +149,18 @@ const UserLabReports = () => {
     fetchData();
     fetchPatientData();
     fetchMedicalTeam();
+    // Fetch available lab report column names
+    const fetchColumns = async () => {
+      try {
+        const res = await getLabreportGetColumnNames();
+        if (res.success) {
+          setLabColumns(res.data?.data || res.data || []);
+        }
+      } catch (e) {
+        console.error('Error fetching lab columns:', e);
+      }
+    };
+    fetchColumns();
   }, [id, showModal]);
 
   const deleteLabReport = async (reportId, email) => {
@@ -151,10 +169,10 @@ const UserLabReports = () => {
     );
     if (isConfirmed) {
       try {
-        await axiosInstance.delete(
-          `${server_url}/labreport/deleteLabReport/${reportId}`,
-          { data: { email } }
-        );
+        const result = await deleteLabreportDeleteLabReportByid(reportId, { email });
+        if (!result.success) {
+          throw new Error("Delete failed");
+        }
         fetchData();
       } catch (error) {
         console.error("Error deleting lab report:", error);
@@ -237,6 +255,20 @@ const UserLabReports = () => {
           success={success}
         />
       </Box> */}
+
+      {/* Lab Data Columns Summary */}
+      {labColumns.length > 0 && !isMobile && (
+        <Box className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <Text size="sm" weight="semibold" className="text-blue-700 mb-2">Available Lab Parameters:</Text>
+          <Flex gap={2} wrap="wrap">
+            {labColumns.map((col, i) => (
+              <Box key={i} className="text-xs bg-white text-blue-600 px-2 py-1 rounded-full border border-blue-200">
+                {typeof col === 'string' ? col : col.column_name || col.name || JSON.stringify(col)}
+              </Box>
+            ))}
+          </Flex>
+        </Box>
+      )}
 
       {/* Mobile Card View */}
       {isMobile ? (

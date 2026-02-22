@@ -9,8 +9,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import PatientList from "./PatientDetails/PatientList";
-import { server_url } from "../../constants/constants";
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import { getPatients } from "../../ApiCalls/patientAPis";
 import { Flex, Box, Container } from "../../component-library/layout/Layout";
 
 function Patient() {
@@ -19,11 +18,12 @@ function Patient() {
   const { id } = useParams();
 
   useEffect(() => {
-    axiosInstance
-      .get(`${server_url}/patient/getPatients`)
+    getPatients()
       .then((response) => {
-        const data = response.data.data.filter((patient) => patient.name);
-        setPatientData(data);
+        if (response.success) {
+          const data = (response.data?.data || []).filter((patient) => patient.name);
+          setPatientData(data);
+        }
         setLoading(false);
       })
       .catch((error) => {

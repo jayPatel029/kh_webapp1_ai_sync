@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axiosInstance from '../../../helpers/axios/axiosInstance.js';
-import { server_url } from '../../../constants/constants';
+import { getAssignedDoctorData } from '../../../ApiCalls/doctorPatientApis';
+import { getAssignedAdminData } from '../../../ApiCalls/adminPatientApis';
+import { exportPatientDataById, exportPatientData, deletePatient } from '../../../ApiCalls/patientAPis';
 import { ROUTES } from '../../../routes/routeConstants';
 import {
   Box,
@@ -55,10 +56,8 @@ const PatientList = ({ data }) => {
 
       // Fetch Medical Team
       try {
-        const docResponse = await axiosInstance.get(
-          `${server_url}/assignedDoctor/getDoctor/${row.id}`
-        );
-        if (docResponse.data?.data) {
+        const docResponse = await getAssignedDoctorData(row.id);
+        if (docResponse.success && docResponse.data?.data) {
           const names = docResponse.data.data.map((doc) => doc.name).join(', ');
           setMedicalTeamNames((prev) => ({ ...prev, [row.id]: names }));
         }
@@ -68,10 +67,8 @@ const PatientList = ({ data }) => {
 
       // Fetch Assigned Admin
       try {
-        const adminResponse = await axiosInstance.get(
-          `${server_url}/assignedAdmin/getAdmin/${row.id}`
-        );
-        if (adminResponse.data?.data) {
+        const adminResponse = await getAssignedAdminData(row.id);
+        if (adminResponse.success && adminResponse.data?.data) {
           const names = adminResponse.data.data.map((admin) => admin.firstname).join(', ');
           setAdminNames((prev) => ({ ...prev, [row.id]: names }));
         }
@@ -158,17 +155,18 @@ const PatientList = ({ data }) => {
   // Handle export single patient
   const handleDownload = async (id) => {
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/patientdata/export/${id}`,
-        { responseType: 'blob' }
-      );
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `patient_${id}_data.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const response = await exportPatientDataById(id, { responseType: 'blob' });
+      if (response.success) {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `patient_${id}_data.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } else {
+        setError('Failed to download data.');
+      }
     } catch (err) {
       console.error('Error downloading patient data:', err);
       setError('Failed to download data.');
@@ -178,16 +176,18 @@ const PatientList = ({ data }) => {
   // Handle export all
   const handleExportAll = async () => {
     try {
-      const response = await axiosInstance.get(`${server_url}/patientdata/export`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `all_patients_data_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const response = await exportPatientData({ responseType: 'blob' });
+      if (response.success) {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `all_patients_data_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } else {
+        setError('Failed to export all data.');
+      }
     } catch (err) {
       console.error('Error exporting all patients:', err);
       setError('Failed to export all data.');
@@ -198,7 +198,7 @@ const PatientList = ({ data }) => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this patient?")) return;
     try {
-      await axiosInstance.delete(`${server_url}/patient/deletePatient/${id}`);
+      await deletePatient(id);
       setPatients(patients.filter(p => p.id !== id));
     } catch (err) {
       console.error('Error deleting patient:', err);

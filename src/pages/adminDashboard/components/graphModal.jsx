@@ -4,8 +4,7 @@ import LineChartComponentSys from "../../../components/linecomponent-sys-dys/Lin
 import Table from "../../../components/table/table"
 import LineChartDialysis from "../../../components/Linechart/Linechart_Dialysis/LineChartDialysis"
 import LineChartDialyisisSys from "../../../components/Linechart/Linechart_Dialysis/LineChartDialyisisSys"
-import axiosInstance from "../../../helpers/axios/axiosInstance";
-import { server_url } from "../../../constants/constants"
+import { getSystolicIdByTitle, getDialysisSystolicIdByTitle } from "../../../ApiCalls/readingsApis";
 
 const GraphModal = ({ closeModal, patientId, questionId, dailyordia, isGraph, questionTitle, questionUnit }) => {
     // console.log(patientId, questionId, dailyordia, isGraph)
@@ -46,9 +45,7 @@ const GraphModal = ({ closeModal, patientId, questionId, dailyordia, isGraph, qu
                     const fetchSystolicId = async () => {
                         try {
                             // Make a GET request to your backend API endpoint
-                            const response = await axiosInstance.get(`${server_url}/readings/get/sysid/${questionTitle}`, {
-                    
-                            });
+                            const response = await getSystolicIdByTitle(questionTitle);
 
                             // Extract the systolic ID from the response
                             const fetchedSystolicId = response.data;
@@ -132,9 +129,7 @@ const GraphModal = ({ closeModal, patientId, questionId, dailyordia, isGraph, qu
                     const fetchSystolicId = async () => {
                         try {
                             
-                            const response = await axiosInstance.get(`${server_url}/readings/get/dia/sysid/${questionTitle}`, {
-                                
-                            });
+                            const response = await getDialysisSystolicIdByTitle(questionTitle);
                             console.log("res",response)
                             // Extract the systolic ID from the response
                             const fetchedSystolicId = response.data;

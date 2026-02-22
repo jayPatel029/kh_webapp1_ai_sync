@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
+import { updatePatient } from "../../ApiCalls/patientAPis";
 import {
   Modal,
   ModalOverlay,
@@ -43,10 +42,7 @@ const NameModal = ({
       pincode: pincode,
     };
     try {
-      await axiosInstance.put(
-        `${server_url}/patient/updatePatient`,
-        updatedUserData
-      );
+      await updatePatient(updatedUserData);
       onSuccess();
     } catch (error) {
       console.error(error);

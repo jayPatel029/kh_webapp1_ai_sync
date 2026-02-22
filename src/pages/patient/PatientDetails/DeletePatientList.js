@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axiosInstance from "../../../helpers/axios/axiosInstance";
-import { server_url } from "../../../constants/constants";
+import { getAssignedDoctorData } from "../../../ApiCalls/doctorPatientApis";
+import { getAssignedAdminData } from "../../../ApiCalls/adminPatientApis";
+import { canExportPatient, exportPatientDataById, exportPatientData, deletePatient } from "../../../ApiCalls/patientAPis";
 import profileImg from "../../../assets/pp.png";
 import { useSelector } from "react-redux";
 import { BsTrash, BsCloudDownload } from "react-icons/bs";
-import { canExportPatient } from "../../../ApiCalls/patientAPis";
 import getValidImageUrl from "../../../helpers/utils";
 import { SearchBar } from "../../../components";
 export default function DelPatientList({ data, patientId }) {
@@ -43,14 +43,14 @@ export default function DelPatientList({ data, patientId }) {
     const fetchMedicalTeamNames = async () => {
       const promises = filteredData.map(async (row) => {
         try {
-          const response = await axiosInstance.get(
-            `${server_url}/assignedDoctor/getDoctor/${row?.id}`
-          );
-          const doctorNames = response.data.data.map((doctor) => doctor.name);
-          setMedicalTeamNames((prevNames) => ({
-            ...prevNames,
-            [row?.id]: doctorNames.join(", "),
-          }));
+          const response = await getAssignedDoctorData(row?.id);
+          if (response.success && response.data?.data) {
+            const doctorNames = response.data.data.map((doctor) => doctor.name);
+            setMedicalTeamNames((prevNames) => ({
+              ...prevNames,
+              [row?.id]: doctorNames.join(", "),
+            }));
+          }
         } catch (error) {
           console.error("Error fetching medical team names:", error);
         }
@@ -61,14 +61,14 @@ export default function DelPatientList({ data, patientId }) {
     const fetchAdminNames = async () => {
       const promises = filteredData.map(async (row) => {
         try {
-          const response = await axiosInstance.get(
-            `${server_url}/assignedAdmin/getAdmin/${row?.id}`
-          );
-          const adminNames = response.data.data.map((admin) => admin.firstname);
-          setAdminNames((prevNames) => ({
-            ...prevNames,
-            [row?.id]: adminNames.join(", "),
-          }));
+          const response = await getAssignedAdminData(row?.id);
+          if (response.success && response.data?.data) {
+            const adminNames = response.data.data.map((admin) => admin.firstname);
+            setAdminNames((prevNames) => ({
+              ...prevNames,
+              [row?.id]: adminNames.join(", "),
+            }));
+          }
         } catch (error) {
           console.error("Error fetching admin names:", error);
         }
@@ -116,7 +116,7 @@ export default function DelPatientList({ data, patientId }) {
         return; // If the user cancels, exit the function
       }
       
-      await axiosInstance.delete(`${server_url}/patient/deletePatient/${id}`);
+      await deletePatient(id);
       
 
       // Remove the deleted patient from the UI
@@ -127,19 +127,16 @@ export default function DelPatientList({ data, patientId }) {
   };
   const handleDownload = async (row) => {
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/patientdata/export/${row?.id}`,
-        {
-          responseType: "blob", // Important for handling file downloads
-        }
-      );
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "patientdata.csv"); // Set the file name as needed
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const response = await exportPatientDataById(row?.id, { responseType: "blob" });
+      if (response.success) {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "patientdata.csv");
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
     } catch (error) {
       console.error("Error downloading the file", error);
     }
@@ -147,19 +144,16 @@ export default function DelPatientList({ data, patientId }) {
 
   const handleDownloadAll = async () => {
     try {
-      const response = await axiosInstance.get(
-        `${server_url}/patientdata/export`,
-        {
-          responseType: "blob", // Important for handling file downloads
-        }
-      );
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "patientdata.csv"); // Set the file name as needed
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const response = await exportPatientData({ responseType: "blob" });
+      if (response.success) {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "patientdata.csv");
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
     } catch (error) {
       console.error("Error downloading the file", error);
     }

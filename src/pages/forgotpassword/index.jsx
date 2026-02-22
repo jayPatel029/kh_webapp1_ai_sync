@@ -6,10 +6,9 @@ import { identifyRole, loginUser } from "../../ApiCalls/authapis";
 import { Navigate } from "react-router-dom";
 import { getUserByEmail } from "../../ApiCalls/authapis";
 import { useNavigate } from "react-router-dom";
-import axiosInstance from "../../helpers/axios/axiosInstance";
+import { postMailSentotp, postMailVerifyOtp } from "../../ApiCalls/remainingApis";
 import { useDispatch } from "react-redux";
 import { setPermissions } from "../../redux/permissionSlice";
-import { server_url } from "../../constants/constants";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -35,26 +34,24 @@ export default function ForgotPassword() {
     try {
       setErrMsg([]);
       setMsg("Sending OTP...");
-      const response = await axiosInstance.post(`${server_url}/mail/sentotp`, {
-        email,
-      });
-      setMsg("OTP sent successfully");
-      console.log("OTP sent successfully:", response.data);
-      // You can return the response data if needed
-      return response.data;
+      const response = await postMailSentotp({ email });
+      if (response.success) {
+        setMsg("OTP sent successfully");
+        console.log("OTP sent successfully:", response.data);
+        return response.data;
+      }
     } catch (error) {
       console.error("Error sending OTP:", error);
-      throw new Error("Failed to send OTP. Please try again later."); // Throw an error to handle it in the component
+      throw new Error("Failed to send OTP. Please try again later.");
     }
   };
 
   const verifyOTP = async (email, otp) => {
     try {
-      const response = await axiosInstance.post(`${server_url}/mail/verifyOtp`, {
-        email,
-        otp,
-      });
-      return response.data;
+      const response = await postMailVerifyOtp({ email, otp });
+      if (response.success) {
+        return response.data;
+      }
     } catch (error) {
       console.error("Error verifying OTP:", error);
       throw new Error("Failed to verify OTP. Please try again later.");
