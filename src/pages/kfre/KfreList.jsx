@@ -471,7 +471,7 @@ function KfreList() {
       {isMobile && (
         <Box className="fixed bottom-20 left-0 right-0 p-3 z-50 bg-white border-t border-gray-200">
           <Button
-            variant="secondary"
+            variant="solid"
             onClick={calculate}
             size="lg"
             isFullWidth
@@ -486,7 +486,7 @@ function KfreList() {
       {!isMobile && (
         <Box className="mt-6">
           <Button
-            variant="secondary"
+            variant="solid"
             onClick={calculate}
             size="lg"
             className="bg-primary hover:bg-primary/90 text-white"

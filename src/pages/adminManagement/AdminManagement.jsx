@@ -1,5 +1,4 @@
-import React, { useState, useReducer, useEffect } from "react";
-import { BsTrash, BsPencilSquare, BsKey } from "react-icons/bs";
+import React, { useState, useReducer, useEffect, useMemo } from "react";
 import { newUserReducer } from "./reducers";
 import {
   registerUser,
@@ -13,24 +12,42 @@ import PageHeader from "../../components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
+import { useIsMobile } from "../../components/mobile/useIsMobile";
+import { FormModal } from "../../component-library/modals/FormModal";
 import {
   Box,
-  Container,
   FormControl,
   FormLabel,
   Input,
   Select,
   Button
 } from "../../component-library";
+import UnifiedListTable from "../../components/table/UnifiedListTable";
 
 function AdminManagement() {
   const navigate = useNavigate();
+  const { isMobile } = useIsMobile();
   const myRole = useSelector((state) => state.permission);
+
+  // State management
   const [roles, setRoles] = useState([]);
-  const [successful, setSuccessful] = useState("");
   const [userlist, setUserList] = useState([]);
   const [users, setUsers] = useState([]);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [errMsg, setErrMsg] = useState([]);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [editMode, setEditMode] = useState(false);
+  const [passEditMode, setPassEditMode] = useState(false);
   const [editMail, setEditMail] = useState("");
+
+  const [newUser, newUserDispatch] = useReducer(newUserReducer, {
+    name: "",
+    email: "",
+    role: "Admin",
+    phone: "",
+    password: "",
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,9 +86,8 @@ function AdminManagement() {
     };
 
     fetchData();
-  }, [successful]);
+  }, [successMessage]);
 
-  const [errMsg, setErrMsg] = useState([]);
   function searchUser(keyword) {
     setUsers(
       userlist.filter((user) => {
@@ -85,16 +101,6 @@ function AdminManagement() {
       })
     );
   }
-
-  const [editMode, setEditMode] = useState(false);
-  const [passEditMode, setPassEditMode] = useState(false);
-  const [newUser, newUserDispatch] = useReducer(newUserReducer, {
-    name: "",
-    email: "",
-    role: "Admin",
-    phone: "",
-    password: "",
-  });
   function validateUserData(userData) {
     const errors = [];
     if (!userData.name.trim()) {
@@ -119,6 +125,15 @@ function AdminManagement() {
     }
     return errors;
   }
+
+  const clearFields = () => {
+    newUserDispatch({ type: "all", payload: {} });
+    setEditMode(false);
+    setPassEditMode(false);
+    setEditMail("");
+    setErrMsg([]);
+  };
+
   const handleSubmit = async () => {
     const errors = validateUserData({
       name: newUser.name,
@@ -127,6 +142,7 @@ function AdminManagement() {
       phone: newUser.phone,
       password: newUser.password,
     });
+
     if (errors.length === 0) {
       if (!editMode) {
         const names = newUser.name.split(" ");
@@ -141,10 +157,10 @@ function AdminManagement() {
         const response = await registerUser(payload);
         if (response.success) {
           setErrMsg([]);
-          setSuccessful("Registration Successful!");
-          newUserDispatch({ type: "all", payload: {} });
+          setSuccessMessage("Admin added successfully!");
+          clearFields();
+          setIsFormModalOpen(false);
         } else {
-          console.log("errorrr", response);
           setErrMsg(["Registration Error! " + response.data]);
         }
       } else {
@@ -171,296 +187,264 @@ function AdminManagement() {
         const response = await updateUserByEmail(editMail, payload);
         if (response.success) {
           setErrMsg([]);
-          setSuccessful("Update Successful!");
-
-          newUserDispatch({ type: "all", payload: {} });
+          setSuccessMessage("Admin updated successfully!");
+          clearFields();
+          setIsFormModalOpen(false);
         } else {
           setErrMsg(["Update Error! " + response.data.message]);
         }
-        setEditMode(false);
-        setPassEditMode(false);
-        setEditMail("");
       }
     } else {
       setErrMsg(errors);
     }
   };
+
   async function deleteUser(email) {
-    setSuccessful("");
+    if (email === "superadmin@kifaytihealth.com") {
+      alert("This user cannot be deleted.");
+      return;
+    }
     const response = await deleteUserByEmail(email);
     if (response.success) {
       setErrMsg([]);
-      setSuccessful("User deleted successfully!");
+      setSuccessMessage("User deleted successfully!");
     } else {
       setErrMsg(["Delete Error! " + response.data.message]);
     }
   }
 
+  const getFullName = (user) => `${user.firstname || ""} ${user.lastname || ""}`.trim();
+
+  const prepareEditForm = (user, forPassword) => {
+    newUserDispatch({
+      type: "all",
+      payload: {
+        name: getFullName(user),
+        email: user.email,
+        role: user.role,
+        phone: user.phoneno,
+      },
+    });
+    setPassEditMode(forPassword);
+    setEditMode(true);
+    setEditMail(user.email);
+    setSuccessMessage("");
+    setIsFormModalOpen(true);
+  };
+
+  const openAddModal = () => {
+    clearFields();
+    setEditMode(false);
+    setIsFormModalOpen(true);
+  };
+
+  const closeFormModal = () => {
+    setIsFormModalOpen(false);
+    clearFields();
+  };
+
+  const tableData = useMemo(
+    () =>
+      users.map((user) => ({
+        ...user,
+        name: getFullName(user),
+        actions: user,
+      })),
+    [users]
+  );
+
+  const columns = [
+    { key: "name", label: "Name", type: "text", width: "220px" },
+    { key: "email", label: "Email", type: "text", width: "240px" },
+    { key: "role", label: "Role", type: "text", width: "160px" },
+    { key: "actions", label: "Action", type: "actions", width: "200px" },
+  ];
+
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-           
-            <PageHeader
-              title="Create Admin"
-              breadcrumbs={[
-                { label: "Dashboard", path: "/" },
-                { label: "Create Admin", active: true }
-              ]}
-              onBack={() => navigate(ROUTES.USERS_ADMINS)}
-            />
-           
+          <PageHeader
+            title="Admin Management"
+            breadcrumbs={[
+              { label: "Dashboard", path: "/" },
+              { label: "Admin Management", active: true }
+            ]}
+            onBack={() => navigate(ROUTES.USERS_ADMINS)}
+          />
         </Box>
 
-
-        <div className="admin-page-content">
-          {/* Form Section */}
-          <div className="admin-card">
+        <div className={`admin-page-content ${isMobile ? "px-3 pb-20" : ""}`}>
+          {/* <div className="admin-card"> */}
             <div className="admin-card__header">
-              <h3 className="admin-card__title">Admin Details</h3>
-            </div>
-            <div className="admin-card__body">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left Column */}
-                <div className="space-y-4">
-                  <FormControl>
-                    <FormLabel>Name*</FormLabel>
+              <div className={`admin-toolbar ${isMobile ? "flex-col gap-2" : ""}`}>
+                <div
+                  className={`admin-toolbar__count ${isMobile ? "text-xs" : ""}`}
+                >
+                  Total admins: <span className="font-bold">{users.length}</span> 
+                </div>
+                <div
+                  className={`admin-toolbar__right ${isMobile ? "w-full justify-between" : ""
+                    }`}
+                >
+                  {/* <span
+                    className={`admin-toolbar__count ${isMobile ? "text-xs" : ""}`}
+                  >
+                    {users.length} Records Found
+                  </span> */}
+                  <div
+                    className="admin-toolbar__left"
+                    style={isMobile ? { width: "100%" } : {}}
+                  >
                     <Input
                       type="text"
-                      placeholder="Name"
-                      value={newUser.name}
-                      onChange={(event) => {
-                        newUserDispatch({
-                          type: "name",
-                          payload: event.target.value,
-                        });
+                      placeholder="Search by name..."
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        searchUser(e.target.value);
                       }}
+                      style={isMobile ? { width: "100%" } : { width: "250px" }}
                     />
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>Phone No</FormLabel>
-                    <Input
-                      type="number"
-                      placeholder="Phone No"
-                      value={newUser.phone}
-                      onChange={(event) => {
-                        newUserDispatch({
-                          type: "phone",
-                          payload: event.target.value,
-                        });
-                      }}
-                    />
-                  </FormControl>
-
-                  {(!editMode || passEditMode) && (
-                    <FormControl>
-                      <FormLabel>Password*</FormLabel>
-                      <Input
-                        type="password"
-                        placeholder="Password"
-                        value={newUser.password}
-                        onChange={(event) => {
-                          newUserDispatch({
-                            type: "password",
-                            payload: event.target.value,
-                          });
-                        }}
-                      />
-                    </FormControl>
-                  )}
-                </div>
-
-                {/* Right Column */}
-                <div className="space-y-4">
-                  <FormControl>
-                    <FormLabel>Email*</FormLabel>
-                    <Input
-                      type="text"
-                      placeholder="Email"
-                      value={newUser.email}
-                      onChange={(event) => {
-                        newUserDispatch({
-                          type: "email",
-                          payload: event.target.value,
-                        });
-                      }}
-                    />
-                  </FormControl>
-
-                  <FormControl>
-                    <FormLabel>Role*</FormLabel>
-                    <Select
-                      value={newUser.role}
-                      onChange={(event) => {
-                        newUserDispatch({
-                          type: "role",
-                          payload: event.target.value,
-                        });
-                      }}
-                    >
-                      {roles.map((role, index) => (
-                        <option key={index} value={role.role_name}>
-                          {role.role_name}
-                        </option>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </div>
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex justify-end gap-3 mt-6">
-                {editMode ? (
-                  <>
-                    <Button
-                      variant="primary"
-                      onClick={handleSubmit}
-                      className="w-32"
-                    >
-                      Update
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setEditMode(false);
-                        newUserDispatch({ type: "all", payload: {} });
-                      }}
-                      className="w-32"
-                    >
-                      Cancel
-                    </Button>
-                  </>
-                ) : (
+                  </div>
                   <Button
                     variant="primary"
-                    onClick={handleSubmit}
-                    className="w-32"
+                    className="admin-btn admin-btn--primary"
+                    onClick={openAddModal}
                   >
-                    Submit
+                    Add Admin
                   </Button>
-                )}
-              </div>
-
-              {/* Messages */}
-              {errMsg.length > 0 && (
-                <div className="mt-4">
-                  {errMsg.map((msg, idx) => (
-                    <div key={idx} className="admin-message admin-message--error">{msg}</div>
-                  ))}
                 </div>
-              )}
-              {successful.length > 0 && (
-                <div className="mt-4 admin-message admin-message--success">{successful}</div>
-              )}
-            </div>
-          </div>
-
-          {/* List Section */}
-          <div className="admin-card mt-6">
-            <div className="admin-card__header flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <h3 className="admin-card__title">Admin List</h3>
-                <span className="text-gray-500 text-sm">
-                  ({users.length} Records Found)
-                </span>
-              </div>
-              <div className="w-64">
-                <Input
-                  type="text"
-                  placeholder="Search Name"
-                  onChange={(event) => searchUser(event.target.value)}
-                />
-              </div>
+              {/* </div> */}
             </div>
 
-            <div className="admin-card__body">
-              <div className="admin-table-container">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Role</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u, index) => (
-                      <tr key={index}>
-                        <td>{u.firstname + " " + u.lastname}</td>
-                        <td>{u.email}</td>
-                        <td>{u.role}</td>
-                        <td>
-                          <div className="flex gap-2">
-                            {myRole.createAdmin >= 2 && (
-                              <>
-                                <button
-                                  className="admin-action-btn admin-action-btn--edit"
-                                  onClick={() => {
-                                    newUserDispatch({
-                                      type: "all",
-                                      payload: {
-                                        name: u.firstname + " " + u.lastname,
-                                        email: u.email,
-                                        role: u.role,
-                                        phone: u.phoneno,
-                                      },
-                                    });
-                                    setPassEditMode(true);
-                                    setEditMode(true);
-                                    setEditMail(u.email);
-                                    setSuccessful("");
-                                    window.scrollTo({ top: 0, behavior: "smooth" });
-                                  }}
-                                  title="Edit Password"
-                                >
-                                  <BsKey size={18} />
-                                </button>
-                                <button
-                                  className="admin-action-btn admin-action-btn--edit"
-                                  onClick={() => {
-                                    newUserDispatch({
-                                      type: "all",
-                                      payload: {
-                                        name: u.firstname + " " + u.lastname,
-                                        email: u.email,
-                                        role: u.role,
-                                        phone: u.phoneno,
-                                      },
-                                    });
-                                    setPassEditMode(false);
-                                    setEditMode(true);
-                                    setEditMail(u.email);
-                                    setSuccessful("");
-                                    window.scrollTo({ top: 0, behavior: "smooth" });
-                                  }}
-                                  title="Edit User"
-                                >
-                                  <BsPencilSquare size={18} />
-                                </button>
-                              </>
-                            )}
-                            {u.email !== "superadmin@kifaytihealth.com" &&
-                              myRole.createAdmin >= 4 && (
-                                <button
-                                  className="admin-action-btn admin-action-btn--delete"
-                                  onClick={() => deleteUser(u.email)}
-                                  title="Delete User"
-                                >
-                                  <BsTrash size={18} />
-                                </button>
-                              )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <UnifiedListTable
+              columns={columns}
+              data={tableData}
+              onEdit={myRole.createAdmin >= 2 ? (row) => prepareEditForm(row, false) : undefined}
+              onDelete={myRole.createAdmin >= 4 ? (row) => deleteUser(row.email) : undefined}
+              enablePagination
+              rowsPerPage={8}
+              emptyMessage="No admin records found"
+              displayMode="table"
+            />
+
+            {successMessage && (
+              <div className="mt-4 admin-message admin-message--success" style={{ marginLeft: "16px", marginRight: "16px" }}>
+                {successMessage}
               </div>
-            </div>
+            )}
           </div>
         </div>
+
+        {/* Form Modal */}
+        <FormModal
+          isOpen={isFormModalOpen}
+          onClose={closeFormModal}
+          onSubmit={handleSubmit}
+          title={editMode ? "Edit Admin" : "Add Admin"}
+          submitText={editMode ? "Update" : "Submit"}
+          size="lg"
+          errorMessage={errMsg.length > 0 ? errMsg[0] : ""}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left Column */}
+            <div className="space-y-4">
+              <FormControl>
+                <FormLabel>Name*</FormLabel>
+                <Input
+                  type="text"
+                  placeholder="Enter name"
+                  value={newUser.name}
+                  onChange={(event) => {
+                    newUserDispatch({
+                      type: "name",
+                      payload: event.target.value,
+                    });
+                  }}
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>Phone No*</FormLabel>
+                <Input
+                  type="tel"
+                  placeholder="10-digit phone number"
+                  value={newUser.phone}
+                  onChange={(event) => {
+                    newUserDispatch({
+                      type: "phone",
+                      payload: event.target.value,
+                    });
+                  }}
+                />
+              </FormControl>
+
+              {(!editMode || passEditMode) && (
+                <FormControl>
+                  <FormLabel>Password*</FormLabel>
+                  <Input
+                    type="password"
+                    placeholder="Enter password"
+                    value={newUser.password}
+                    onChange={(event) => {
+                      newUserDispatch({
+                        type: "password",
+                        payload: event.target.value,
+                      });
+                    }}
+                  />
+                </FormControl>
+              )}
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-4">
+              <FormControl>
+                <FormLabel>Email*</FormLabel>
+                <Input
+                  type="email"
+                  placeholder="Enter email"
+                  value={newUser.email}
+                  onChange={(event) => {
+                    newUserDispatch({
+                      type: "email",
+                      payload: event.target.value,
+                    });
+                  }}
+                  disabled={editMode}
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>Role*</FormLabel>
+                <Select
+                  value={newUser.role}
+                  onChange={(event) => {
+                    newUserDispatch({
+                      type: "role",
+                      payload: event.target.value,
+                    });
+                  }}
+                >
+                  {roles.map((role, index) => (
+                    <option key={index} value={role.role_name}>
+                      {role.role_name}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </div>
+          </div>
+
+          {errMsg.length > 1 && (
+            <div className="mt-4">
+              {errMsg.slice(1).map((msg, idx) => (
+                <div key={idx} className="text-red-600 text-sm">{msg}</div>
+              ))}
+            </div>
+          )}
+        </FormModal>
       </Box>
     </ThemeProvider>
   );

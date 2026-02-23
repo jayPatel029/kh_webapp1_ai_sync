@@ -301,7 +301,7 @@ const AdminDashboard = () => {
               My Dashboard
             </Heading>
             <Flex align="center" gap={3}>
-              {!isMobile && (
+              {/* {!isMobile && (
                 <button
                   onClick={handleSendAlertEmails}
                   disabled={sendingEmails}
@@ -309,7 +309,7 @@ const AdminDashboard = () => {
                 >
                   {sendingEmails ? 'Sending...' : 'Send Alert Emails'}
                 </button>
-              )}
+              )} */}
               {/* Mobile stat pills */}
               {isMobile && (
                 <Flex gap={2} align="center">

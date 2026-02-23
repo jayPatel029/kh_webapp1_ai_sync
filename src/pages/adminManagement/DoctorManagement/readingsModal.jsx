@@ -4,7 +4,7 @@ import {
   getDailyReadings,
   getDialysisReadings,
 } from "../../../ApiCalls/readingsApis";
-import Select from "react-select";
+import { BaseModal } from "../../../component-library/modals";
 
 // Define the AlarmModal component
 const ReadingsModal = ({
@@ -61,118 +61,79 @@ const ReadingsModal = ({
     fetchData();
   }, []);
 
-  // JSX structure of ReadingsModal component
-  return (
-    <>
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50 bg-black overflow-y-auto">
-        <div className="p-7 mt-4 bg-white shadow-md border-t-4 w-1/2 border-primary rounded z-50 overflow-y-auto h-3/4">
-          {modalType == "dialysis" ? (
-            <div>
-              <div className="border-b-gray border-b-2 p-2 pt-4 md:pb-4 font-semibold text-primary tracking-wide text-xl">
-                Set Required Dialysis Readings
-              </div>
-              <div className="grid grid-cols-2">
-                {dirOptions.map((dir, index) => {
-                  return (
-                    <div key={index} className="flex items-center p-2">
-                      <input
-                        type="checkbox"
-                        id={dir.value}
-                        name={dir.value}
-                        value={dir.value}
-                        // checked={newDoctor.dialysisReadings.includes({value: dir.value, label: dir.label})}
-                        className="h-5 w-5 accent-green-600  rounded cursor-pointer"
-                        checked={newDoctor.dialysisReadings.some(
-                          (dirreading) => dirreading.value === dir.value
-                        )}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            newDoctorDispatch({
-                              type: "dialysisReadings",
-                              payload: [
-                                ...newDoctor.dialysisReadings,
-                                { value: dir.value, label: dir.label },
-                              ],
-                            });
-                          } else {
-                            newDoctorDispatch({
-                              type: "dialysisReadings",
-                              payload: newDoctor.dialysisReadings.filter(
-                                (dirreading) => dirreading.value !== dir.value
-                              ),
-                            });
-                          }
-                        }}
-                      />
-                      <label className="ms-2 text-base font-medium text-gray-500">
-                        {dir.label}
-                      </label>
-                    </div>
-                  );
-                })}
-              </div>
-              <button
-                className=" flex-1 mt-6 border md:inline-block text-white bg-primary text-lg border-gray-300 w-1/3 rounded-lg p-1.5"
-                onClick={closeModal}
-              >
-                Save
-              </button>
+  // Use BaseModal for overlay/modal behaviour
+  const title = modalType === "dialysis" ? "Set Required Dialysis Readings" : "Set Required Daily Readings";
+
+  const body = (
+    <div className="w-full">
+      <div className="grid grid-cols-2">
+        {(modalType === "dialysis" ? dirOptions : drOptions).map((item, index) => {
+          const isChecked = modalType === "dialysis"
+            ? newDoctor.dialysisReadings.some((r) => r.value === item.value)
+            : newDoctor.dailyReadings.some((r) => r.value === item.value);
+
+          const onChange = (e) => {
+            if (modalType === "dialysis") {
+              if (e.target.checked) {
+                newDoctorDispatch({
+                  type: "dialysisReadings",
+                  payload: [...newDoctor.dialysisReadings, { value: item.value, label: item.label }],
+                });
+              } else {
+                newDoctorDispatch({
+                  type: "dialysisReadings",
+                  payload: newDoctor.dialysisReadings.filter((r) => r.value !== item.value),
+                });
+              }
+            } else {
+              if (e.target.checked) {
+                newDoctorDispatch({
+                  type: "dailyReadings",
+                  payload: [...newDoctor.dailyReadings, { value: item.value, label: item.label }],
+                });
+              } else {
+                newDoctorDispatch({
+                  type: "dailyReadings",
+                  payload: newDoctor.dailyReadings.filter((r) => r.value !== item.value),
+                });
+              }
+            }
+          };
+
+          return (
+            <div key={index} className="flex items-center p-2">
+              <input
+                type="checkbox"
+                id={item.value}
+                name={item.value}
+                value={item.value}
+                className="h-5 w-5 accent-green-600 rounded cursor-pointer"
+                checked={isChecked}
+                onChange={onChange}
+              />
+              <label className="ms-2 text-base font-medium text-gray-500">{item.label}</label>
             </div>
-          ) : (
-            <div>
-              <div className="border-b-gray border-b-2 p-2 pt-4 md:pb-4 font-semibold text-primary tracking-wide text-xl">
-                Set Required Daily Readings
-              </div>
-              <div className="grid grid-cols-2">
-                {drOptions.map((dr, index) => {
-                  return (
-                    <div key={index} className="flex items-center p-2">
-                      <input
-                        type="checkbox"
-                        id={dr.value}
-                        name={dr.value}
-                        value={dr.value}
-                        className="h-5 w-5 accent-green-600  rounded cursor-pointer"
-                        checked={newDoctor.dailyReadings.some(
-                          (drreading) => drreading.value === dr.value
-                        )}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            newDoctorDispatch({
-                              type: "dailyReadings",
-                              payload: [
-                                ...newDoctor.dailyReadings,
-                                { value: dr.value, label: dr.label },
-                              ],
-                            });
-                          } else {
-                            newDoctorDispatch({
-                              type: "dailyReadings",
-                              payload: newDoctor.dailyReadings.filter(
-                                (drreading) => drreading.value !== dr.value
-                              ),
-                            });
-                          }
-                        }}
-                      />
-                      <label className="ms-2 text-base font-medium text-gray-500">
-                        {dr.label}
-                      </label>
-                    </div>
-                  );
-                })}
-              </div>
-              <button
-                className=" flex-1 mt-6 border md:inline-block text-white bg-primary text-lg border-gray-300 w-1/3 rounded-lg p-1.5"
-                onClick={closeModal}
-              >
-                Save
-              </button>
-            </div>
-          )}
-        </div>
+          );
+        })}
       </div>
-    </>
+    </div>
+  );
+
+  const footer = (
+    <div className="w-full">
+      <button
+        className="flex-1 mt-6 border md:inline-block text-white bg-primary text-lg border-gray-300 w-1/3 rounded-lg p-1.5"
+        onClick={closeModal}
+      >
+        Save
+      </button>
+    </div>
+  );
+
+  return (
+    <BaseModal isOpen={true} onClose={closeModal} title={title} footer={footer} size="lg">
+      {body}
+    </BaseModal>
   );
 };
 

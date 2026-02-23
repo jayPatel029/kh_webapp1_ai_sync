@@ -79,7 +79,7 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
 
   return (
     <>
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50 bg-black overflow-y-auto">
+      <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-10 bg-black/10 overflow-y-auto">
         <div className="p-7 ml-4 mr-4 mt-4 bg-white shadow-md border-t-4 border-primary rounded z-50 mt-30 h-max lg:h-[100vh] w-max lg:w-[80%]">
           <div className="header flex justify-between items-center border-b pb-2 mb-4  lg:pt-0  ">
             <h2 className="text-2xl font-bold  ">Digitised Prescription Copy</h2>

@@ -36,7 +36,7 @@ function Patient() {
 
   return (
      
-      <PatientList data={patientData} patientId={id} />
+    <PatientList data={patientData} patientId={id} className="!p-0 !md:-p-0" />
      
   );
 }

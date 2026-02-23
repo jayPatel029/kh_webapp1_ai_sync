@@ -318,7 +318,7 @@ const EditAlarmModal = ({ closeModal, alarmData }) => {
   // JSX structure of EditAlarmModal component
   return (
     <>
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50 bg-black overflow-y-auto">
+      <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-10 bg-black/10 overflow-y-auto">
         <div className="p-7 mt-4 bg-white shadow-md border-t-4 w-1/2 border-primary rounded z-50 overflow-y-auto h-3/4">
           <div className="header flex justify-between items-center border-b pb-2 mb-4">
             <h2 className="text-2xl font-bold">Edit Alarm</h2>

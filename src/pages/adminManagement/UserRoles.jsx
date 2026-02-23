@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { BsTrash, BsPencilSquare } from "react-icons/bs";
+import UnifiedListTable from "../../components/table/UnifiedListTable";
 import { getRoles, deleteRoleByName } from "../../ApiCalls/authapis";
 import PageHeader from "../../components/PageHeader";
 import { useNavigate } from "react-router-dom";
@@ -8,9 +8,11 @@ import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 import {
   Box,
-  Container,
-  Button
+  Button,
+  Flex
 } from "../../component-library";
+import { SearchBar } from "../../components";
+import isMobile from "../../components/mobile/useIsMobile";
 
 const UserRoles = () => {
   const navigate = useNavigate();
@@ -30,12 +32,10 @@ const UserRoles = () => {
   }, []);
 
   const deleteRole = (role_name) => {
-    console.log("object", role_name);
     deleteRoleByName(role_name)
       .then((res) => {
         alert("Role deleted successfully");
-        window.location.reload();
-        console.log(res);
+        setRoles((prev) => prev.filter((r) => r.role_name !== role_name));
       })
       .catch((err) => {
         console.log(err);
@@ -46,68 +46,54 @@ const UserRoles = () => {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-           
-            <PageHeader
-              title="User Roles"
-              breadcrumbs={[
-                { label: "Dashboard", path: "/" },
-                { label: "User Roles", active: true }
-              ]}
-              onBack={() => navigate(ROUTES.HOME)}
-            />
-           
+
+          <PageHeader
+            title="User Roles"
+            breadcrumbs={[
+              { label: "Dashboard", path: "/" },
+              { label: "User Roles", active: true }
+            ]}
+            onBack={() => navigate(ROUTES.HOME)}
+          />
+
         </Box>
 
-         
-          <div className="admin-page-content">
-            <div className="admin-card">
-              <div className="admin-card__header flex justify-between items-center">
-                <h3 className="admin-card__title">User Roles</h3>
+
+        <div className="admin-page-content">
+          <div className="admin-card">
+            <div className="admin-card__header flex justify-between pb-6 items-center">
+              <h3 className="admin-card__title">Total Roles: <span className="font-bold">{roles.length}</span></h3>
+              <div className={`flex items-center gap-3 ${isMobile ? "w-full" : "w-auto"}`}>
+                <div className={isMobile ? "flex-1" : "w-64"}>
+                  <SearchBar placeholder="Search roles..." onSearch={(value) => console.log("Search for:", value)} />
+                </div>
                 <Link to="/users/roles/new">
                   <Button variant="primary">
                     Add Role
                   </Button>
                 </Link>
               </div>
+            </div>
 
-              <div className="admin-card__body">
-                <div className="admin-table-container">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Role Name</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {roles.map((role, index) => (
-                        <tr key={index}>
-                          <td>{role.role_name}</td>
-                          <td>
-                            <div className="flex gap-2">
-                              <Link to={`/edit-role/${role.role_name}`}>
-                                <button className="admin-action-btn admin-action-btn--edit" title="Edit Role">
-                                  <BsPencilSquare size={18} />
-                                </button>
-                              </Link>
-
-                              <button
-                                onClick={() => deleteRole(role.role_name)}
-                                className="admin-action-btn admin-action-btn--delete"
-                                title="Delete Role"
-                              >
-                                <BsTrash size={18} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            <div className="admin-card__body">
+              <div className="admin-table-container">
+                <UnifiedListTable
+                  columns={[
+                    { key: 'role_name', label: 'Role Name', type: 'text' },
+                    { key: 'actions', label: 'Action', type: 'actions', width: '120px' }
+                  ]}
+                  data={roles}
+                  onEdit={(row) => navigate(`/edit-role/${row.role_name}`)}
+                  onDelete={(row) => deleteRole(row.role_name)}
+                  // enableSearch={true}
+                  // renderSearchUI={true}
+                  // searchKeys={["role_name"]}
+                  emptyMessage="No roles found"
+                />
               </div>
             </div>
           </div>
+        </div>
       </Box>
     </ThemeProvider>
   );

@@ -31,7 +31,7 @@ export const PageHeader = ({
   // Mobile compact header
   if (isMobileView) {
     return (
-      <Box className="w-full px-0 py-2">
+      <Box className="w-full px-0 ">
         <Flex align="center" justify="between" className="min-h-[44px]">
           <Flex align="center" gap={2}>
             {onBack && (

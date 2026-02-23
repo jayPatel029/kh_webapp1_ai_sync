@@ -118,26 +118,12 @@ function DoctorDashboard() {
     <Box className="flex-1 flex flex-col bg-gray-50 h-full overflow-hidden">
       <Box className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
           
-          <Heading as="h1" size="2xl" className="mb-6 text-[#32617d]">
-            Doctor Dashboard
-          </Heading>
-
-        {/* Header */}
-        <Flex
-          align="center"
-          justify="between"
-          className="border-b-2 border-[#00cccc] pb-4 mb-6"
-        >
-          <Heading as="h1" size={isMobile ? 'lg' : '2xl'} className="text-[#32617d]">
-            Welcome, Dr. {doctorName}
-          </Heading>
-          <button
-            onClick={handleSendEmails}
-            className="px-4 py-2 bg-[#32617d] text-white rounded-lg text-sm hover:bg-[#274f65] transition-colors"
-          >
-            Send Alert Emails
-          </button>
-        </Flex>
+          {/* Header with Cyan Underline - Figma Design */}
+          <Box className="pb-6 mb-6 border-b-2 border-[#00cccc]">
+            <Heading as="h1" size="2xl" className="text-[#32617d] font-bold">
+              My Dashboard,
+            </Heading>
+          </Box>
 
         {loading ? (
           <Flex justify="center" align="center" className="py-12">
@@ -167,43 +153,104 @@ function DoctorDashboard() {
               </Box>
             </Flex>
 
-            {/* Alerts Section */}
+            {/* Important Alerts Section - Figma Design */}
             <Box className="mb-6">
-              <Heading as="h2" size="lg" className="mb-4 text-black font-bold">
-                Recent Alerts
+              <Heading as="h2" size="lg" className="mb-6 text-black font-bold">
+                Important Alerts
               </Heading>
               {alerts.length === 0 ? (
                 <Box className="bg-green-50 p-6 rounded-lg border border-green-200 text-center">
                   <Text className="text-green-700">No pending alerts. All clear!</Text>
                 </Box>
               ) : (
-                <Box className="space-y-3">
-                  {alerts.slice(0, 10).map((alert, idx) => (
-                    <Box
-                      key={alert.id || idx}
-                      className={`p-4 rounded-lg border bg-white cursor-pointer hover:shadow-md transition-shadow ${
-                        alert.isRead ? 'border-gray-200' : 'border-orange-300 bg-orange-50'
-                      }`}
-                      onClick={() => alert.patientId && navigate(`/userProfile/${alert.patientId}`)}
-                    >
-                      <Flex justify="between" align="center">
-                        <Box>
-                          <Text weight="semibold" className="text-gray-800">
-                            {alert.name || 'Unknown Patient'}
-                          </Text>
-                          <Text size="sm" className="text-gray-500">
-                            {alert.type || alert.category || 'Alert'} &mdash;{' '}
-                            {alert.createdAt ? new Date(alert.createdAt).toLocaleDateString() : ''}
-                          </Text>
-                        </Box>
-                        <Box className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          alert.isRead ? 'bg-gray-100 text-gray-600' : 'bg-orange-100 text-orange-700'
-                        }`}>
-                          {alert.isRead ? 'Read' : 'Unread'}
-                        </Box>
-                      </Flex>
-                    </Box>
-                  ))}
+                <Box className="space-y-6">
+                  {alerts.slice(0, 10).map((alert, idx) => {
+                    // Count alert types for this patient
+                    const patientAlerts = alerts.filter(
+                      a => a.patientId === alert.patientId || a.name === alert.name
+                    );
+                    const prescriptionCount = patientAlerts.filter(
+                      a => (a.type || '').toLowerCase().includes('prescription')
+                    ).length;
+                    const commentCount = patientAlerts.filter(
+                      a => (a.type || '').toLowerCase().includes('comment')
+                    ).length;
+                    const dialysisTechnicianCount = patientAlerts.filter(
+                      a => (a.type || '').toLowerCase().includes('dialysis') || 
+                           (a.type || '').toLowerCase().includes('technician')
+                    ).length;
+                    const otherAlertCount = patientAlerts.filter(
+                      a => !(a.type || '').toLowerCase().includes('prescription') &&
+                            !(a.type || '').toLowerCase().includes('comment') &&
+                            !(a.type || '').toLowerCase().includes('dialysis') &&
+                            !(a.type || '').toLowerCase().includes('technician')
+                    ).length;
+
+                    return (
+                      <Box key={alert.id || idx} className="pb-6 border-b border-gray-200 last:border-b-0">
+                        <Flex gap={6} align="start">
+                          {/* Patient Avatar */}
+                          <Box className="flex-shrink-0">
+                            <Box className="w-20 h-20 rounded-full bg-gray-300 overflow-hidden flex items-center justify-center border-2 border-gray-300">
+                              <Text className="text-center text-white font-bold text-2xl">
+                                {(alert.name || 'P').charAt(0).toUpperCase()}
+                              </Text>
+                            </Box>
+                          </Box>
+
+                          {/* Patient Info and Actions */}
+                          <Box className="flex-1">
+                            <Heading as="h3" size="md" className="mb-4 text-black font-semibold">
+                              {alert.name || 'Unknown Patient'}
+                            </Heading>
+
+                            {/* Action Buttons */}
+                            <Flex gap={4} wrap="wrap" align="center">
+                              {prescriptionCount > 0 && (
+                                <button
+                                  onClick={() => alert.patientId && navigate(`/userProfile/${alert.patientId}`)}
+                                  className="px-6 py-3 bg-[#00cccc] text-white font-bold text-sm rounded hover:bg-[#00b8b8] transition-colors"
+                                >
+                                  {prescriptionCount} Approve Prescription{prescriptionCount !== 1 ? 's' : ''}
+                                </button>
+                              )}
+                              {commentCount > 0 && (
+                                <button
+                                  onClick={() => alert.patientId && navigate(`/userProfile/${alert.patientId}`)}
+                                  className="px-6 py-3 bg-[#00c008] text-white font-bold text-sm rounded hover:bg-[#00a906] transition-colors"
+                                >
+                                  {commentCount} Comments
+                                </button>
+                              )}
+                              {dialysisTechnicianCount > 0 && (
+                                <button
+                                  onClick={() => alert.patientId && navigate(`/userProfile/${alert.patientId}`)}
+                                  className="px-6 py-3 bg-[#9c27b0] text-white font-bold text-sm rounded hover:bg-[#7b1fa2] transition-colors"
+                                >
+                                  {dialysisTechnicianCount} Dialysis technician alert{dialysisTechnicianCount !== 1 ? 's' : ''}
+                                </button>
+                              )}
+                              {otherAlertCount > 0 && (
+                                <button
+                                  onClick={() => alert.patientId && navigate(`/userProfile/${alert.patientId}`)}
+                                  className="px-6 py-3 bg-[#ff5252] text-white font-bold text-sm rounded hover:bg-[#ff1744] transition-colors"
+                                >
+                                  {otherAlertCount} Alerts
+                                </button>
+                              )}
+                              {prescriptionCount === 0 && commentCount === 0 && otherAlertCount === 0 && dialysisTechnicianCount === 0 && (
+                                <button
+                                  className="px-6 py-3 bg-[#989898] text-white font-bold text-sm rounded cursor-default"
+                                >
+                                  0 alerts
+                                </button>
+                              )}
+                            </Flex>
+                          </Box>
+                        </Flex>
+                      </Box>
+                    );
+                  })}
                 </Box>
               )}
             </Box>

@@ -290,7 +290,7 @@ const PatientList = ({ data }) => {
             <Flex gap={4} className={isMobile ? '' : ''}>
               <Button
                 variant="solid"
-                size="lg"
+                // size="lg"
                 onClick={() => navigate("/patients/new")}
                 style={{
                   backgroundColor: '#4164df',
@@ -308,7 +308,7 @@ const PatientList = ({ data }) => {
               </Button>
               <Button
                 variant="solid"
-                size="lg"
+                // size="lg"
                 onClick={handleExportAll}
                 style={{
                   backgroundColor: '#4164df',

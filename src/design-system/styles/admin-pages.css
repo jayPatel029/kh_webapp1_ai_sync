@@ -42,7 +42,7 @@
 /* ==================== ADMIN PAGE CONTENT WRAPPER ==================== */
 /* Used as the main content wrapper inside admin pages */
 .admin-page-content {
-  padding: 1.5rem;
+  /* padding: 1.5rem; */
   width: 100%;
   box-sizing: border-box;
 }

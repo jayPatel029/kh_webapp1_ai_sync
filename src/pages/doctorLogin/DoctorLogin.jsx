@@ -7,9 +7,10 @@ import {
 } from "../../ApiCalls/authapis";
 import { Navigate, useNavigate } from "react-router-dom";
 import { getUserByEmail } from "../../ApiCalls/authapis";
-import { postMailSentotp, postMailVerifyOtp } from "../../ApiCalls/remainingApis";
+import axiosInstance from "../../helpers/axios/axiosInstance";
 import { useDispatch } from "react-redux";
 import { setPermissions } from "../../redux/permissionSlice";
+import { server_url } from "../../constants/constants";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import SendIcon from "@mui/icons-material/Send";
@@ -20,7 +21,7 @@ import logo from "../../assets/kifayti_logo.png";
 import { Button } from "../../component-library/primitives/Button";
 import Input from "../../component-library/primitives/Input";
 import { Text, Heading, Label } from "../../component-library/primitives/Typography";
-import { Card, CardHeader, CardBody,Flex } from "../../component-library";
+import { Card, CardHeader, CardBody, Flex } from "../../component-library";
 
 function DoctorLogin() {
   const [email, setEmail] = useState("");
@@ -47,11 +48,11 @@ function DoctorLogin() {
   const sendOTP = async (email) => {
     setIsLoading(true);
     try {
-      const response = await postMailSentotp({ email });
+      const response = await axiosInstance.post(`${server_url}/mail/sentotp`, {
+        email,
+      });
       setIsLoading(false);
-      if (response.success) {
-        return response.data;
-      }
+      return response.data;
     } catch (error) {
       setIsLoading(false);
       console.error("Error sending OTP:", error?.response?.data || error.message);
@@ -61,10 +62,8 @@ function DoctorLogin() {
 
   const verifyOTP = async (email, otp) => {
     try {
-      const response = await postMailVerifyOtp({ email, otp });
-      if (response.success) {
-        return response.data;
-      }
+      const response = await axiosInstance.post(`${server_url}/mail/verifyOtp`, { email, otp });
+      return response.data;
     } catch (error) {
       console.error("Error verifying OTP:", error);
       throw new Error("Failed to verify OTP. Please try again later.");
@@ -154,10 +153,10 @@ function DoctorLogin() {
       {localStorage.getItem("token") ? (
         <Navigate to="/" replace />
       ) : (
-          <div className="min-h-screen flex items-center justify-center bg-info px-6 py-12">
+        <div className="min-h-screen flex items-center justify-center bg-info px-6 py-12">
           <ToastContainer />
 
-          <Card variant="elevated" className="max-w-lg w-full rounded-2xl">
+          <Card variant="elevated" className="max-w-lg  rounded-2xl">
             <Flex className="flex flex-col items-center gap-4 pt-6">
               <img src={logo} alt="Kifayti Health" className="w-14 mx-auto h-14" />
               <div className="text-center">
@@ -182,7 +181,7 @@ function DoctorLogin() {
                   {/* <Label htmlFor="email" isRequired>
                     Email Address
                   </Label> */}
-                    <Input
+                  <Input
                     id="email"
                     name="email"
                     type="email"
@@ -192,7 +191,7 @@ function DoctorLogin() {
                     variant="outline"
                     size="md"
                     aria-invalid={!!errMsg}
-                      // className="mt-2 border-1 border-primary-dark rounded-md p-2"
+                  // className="mt-2 border-1 border-primary-dark rounded-md p-2"
                   />
                 </div>
 
@@ -269,8 +268,8 @@ function DoctorLogin() {
                     type="button"
                     onClick={handleResend}
                     disabled={!isOtpSent}
-                      className="text-sm text-primaryDark hover:underline disabled:text-muted"
-                      variant="link"
+                    className="text-sm text-primaryDark hover:underline disabled:text-muted"
+                    variant="link"
 
                   >
                     Resend OTP

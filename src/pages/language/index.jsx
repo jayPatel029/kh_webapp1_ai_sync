@@ -21,7 +21,7 @@ import {
   Box,
   Container
 } from "../../component-library";
-import { Button } from "reactstrap";
+import { Button } from "../../component-library";
 
 function LanguageMaster() {
   const navigate = useNavigate();
@@ -159,8 +159,8 @@ function LanguageMaster() {
                         lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
                       ).length} Records Found
                     </span>
-                    <Button
-                      className="admin-btn admin-btn--primary"
+                  <Button
+                    variant="solid"
                       onClick={() => {
                         resetForm();
                         setIsFormModalOpen(true);

@@ -16,21 +16,19 @@ function DialysisReadings() {
 
         {/* Sticky Header Section */}
         <Box className="sticky top-[56px] z-20 bg-white">
-           
-            <PageHeader
-              title="Dialysis Readings"
-              breadcrumbs={[
-                { label: "Dashboard", path: "/" },
-                { label: "Dialysis Readings", active: true }
-              ]}
-              onBack={() => navigate(ROUTES.HOME)}
-            />
-           
+
+          <PageHeader
+            title="Dialysis Readings"
+            breadcrumbs={[
+              { label: "Dashboard", path: "/" },
+              { label: "Dialysis Readings", active: true }
+            ]}
+            onBack={() => navigate(ROUTES.HOME)}
+
+          />
+
         </Box>
-
-         
-          <DialysisReadingsList />
-
+        <DialysisReadingsList />
       </Box>
     </ThemeProvider>
   );

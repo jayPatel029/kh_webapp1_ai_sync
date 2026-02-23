@@ -257,7 +257,7 @@ const UserLabReports = () => {
       </Box> */}
 
       {/* Lab Data Columns Summary */}
-      {labColumns.length > 0 && !isMobile && (
+      {/* {labColumns.length > 0 && !isMobile && (
         <Box className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <Text size="sm" weight="semibold" className="text-blue-700 mb-2">Available Lab Parameters:</Text>
           <Flex gap={2} wrap="wrap">
@@ -268,7 +268,7 @@ const UserLabReports = () => {
             ))}
           </Flex>
         </Box>
-      )}
+      )} */}
 
       {/* Mobile Card View */}
       {isMobile ? (

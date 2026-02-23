@@ -149,7 +149,7 @@ const UnifiedListTable = ({
                                 {onEdit && (
                                     <button
                                         className="list-table__action-btn list-table__action-btn--edit"
-                                        onClick={() => onEdit(row)}
+                                        onClick={(e) => { e.stopPropagation(); onEdit(row); }}
                                         title="Edit"
                                         aria-label="Edit row"
                                     >
@@ -159,7 +159,7 @@ const UnifiedListTable = ({
                                 {onDownload && (
                                     <button
                                         className="list-table__action-btn list-table__action-btn--download"
-                                        onClick={() => onDownload(row)}
+                                        onClick={(e) => { e.stopPropagation(); onDownload(row); }}
                                         title="Download"
                                         aria-label="Download"
                                     >
@@ -169,7 +169,7 @@ const UnifiedListTable = ({
                                 {onDelete && (
                                     <button
                                         className="list-table__action-btn list-table__action-btn--delete"
-                                        onClick={() => onDelete(row)}
+                                        onClick={(e) => { e.stopPropagation(); onDelete(row); }}
                                         title="Delete"
                                         aria-label="Delete row"
                                     >
@@ -317,7 +317,7 @@ const UnifiedListTable = ({
                                                     onClick={(e) => { e.stopPropagation(); onDelete(row); }}
                                                     aria-label="Delete"
                                                 >
-                                                    <DeleteIcon /> Delete
+                                                    <img src={DeleteIcon} alt='Delete' /> Delete
                                                 </button>
                                             )}
                                         </div>

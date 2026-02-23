@@ -62,7 +62,7 @@ const CommentContainer = ({ comments, closeModal }) => {
 
   // var coms = comments.reverse();
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50 bg-black overflow-y-auto">
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-10 bg-black/10 overflow-y-auto">
       <div className={`bg-white shadow-md border-t-4 border-primary rounded z-50 overflow-y-auto ${isMobile ? 'mx-2 mt-2 p-4 w-full h-[95vh]' : 'p-7 ml-4 mr-4 mt-4 w-max lg:w-[80%] h-[100vh]'}`}>
         <div className={`header flex justify-between items-center border-b pb-2 mb-4 ${isMobile ? 'flex-col gap-2' : 'flex-col lg:flex-row'}`}>
           <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>Comments</h2>

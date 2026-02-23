@@ -1,35 +1,78 @@
-import React, { useState } from "react";
-import { createRole } from "../../ApiCalls/authapis";
+import React, { useState, useEffect } from "react";
+import {
+  createRole,
+  getRoles,
+  updateRoleByName,
+  deleteRoleByName,
+} from "../../ApiCalls/authapis";
 import PageHeader from "../../components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
+import { useIsMobile } from "../../components/mobile/useIsMobile";
+import UnifiedListTable from "../../components/table/UnifiedListTable";
+import { FormModal } from "../../component-library/modals/FormModal";
 import {
   Box,
-  Container,
   FormControl,
   FormLabel,
   Input,
-  Button
+  Button,
 } from "../../component-library";
+
+const PERMISSIONS_CONFIG = {
+  manageRoles: { view: false, edit: false, delete: false, name: "Manage Roles" },
+  ailmentMaster: { view: false, edit: false, delete: false, name: "Ailment Master" },
+  createAdmin: { view: false, edit: false, delete: false, name: "Create Admin" },
+  createDoctor: { view: false, edit: false, delete: false, name: "Create Doctor" },
+  profileQuestions: { view: false, edit: false, delete: false, name: "Profile Questions" },
+  patients: { view: false, edit: false, delete: false, name: "Patients" },
+  dailyReadings: { view: false, edit: false, delete: false, name: "Daily Readings" },
+  dialysisReadings: { view: false, edit: false, delete: false, name: "Dialysis Readings" },
+  changePassword: { view: false, edit: false, delete: false, name: "Change Password" },
+  userProgramSelection: { view: false, edit: false, delete: false, name: "User Program Selection" },
+  doctorReports: { view: false, edit: false, delete: false, name: "Doctor Reports" },
+  feedback: { view: false, edit: false, delete: false, name: "Feedback" },
+};
 
 const AddRole = () => {
   const navigate = useNavigate();
+  const { isMobile } = useIsMobile();
+
+  // State management
+  const [roles, setRoles] = useState([]);
   const [roleName, setRoleName] = useState("");
-  const [permissions, setPermissions] = useState({
-    manageRoles: { view: false, edit: false, delete: false, name: "Manage Roles" },
-    ailmentMaster: { view: false, edit: false, delete: false, name: "Ailment Master" },
-    createAdmin: { view: false, edit: false, delete: false, name: "Create Admin" },
-    createDoctor: { view: false, edit: false, delete: false, name: "Create Doctor" },
-    profileQuestions: { view: false, edit: false, delete: false, name: "Profile Questions" },
-    patients: { view: false, edit: false, delete: false, name: "Patients" },
-    dailyReadings: { view: false, edit: false, delete: false, name: "Daily Readings" },
-    dialysisReadings: { view: false, edit: false, delete: false, name: "Dialysis Readings" },
-    changePassword: { view: false, edit: false, delete: false, name: "Change Password" },
-    userProgramSelection: { view: false, edit: false, delete: false, name: "User Program Selection" },
-    doctorReports: { view: false, edit: false, delete: false, name: "Doctor Reports" },
-    feedback: { view: false, edit: false, delete: false, name: "Feedback" },
-  });
+  const [permissions, setPermissions] = useState(PERMISSIONS_CONFIG);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [editingRoleName, setEditingRoleName] = useState(null);
+
+  // Fetch roles on mount
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const result = await getRoles();
+        if (result.success) {
+          const list = result.data?.data ?? result.data ?? [];
+          setRoles(Array.isArray(list) ? list : []);
+        }
+      } catch (error) {
+        console.error("Error fetching roles:", error);
+      }
+    };
+    fetchRoles();
+  }, [successMessage]);
+
+  const clearFields = () => {
+    setRoleName("");
+    setPermissions(PERMISSIONS_CONFIG);
+    setEditMode(false);
+    setEditingRoleName(null);
+    setErrorMessage("");
+  };
 
   const handleCheckboxChange = (pageName, permissionType) => {
     setPermissions((prevPermissions) => ({
@@ -41,124 +84,266 @@ const AddRole = () => {
     }));
   };
 
-  const handleSubmit = async () => {
-    if (roleName === "") {
-      alert("Role Name is required");
-      return;
-    }
-    const auth_arr = Object.values(permissions).map((pagePermissions) => {
+  const convertPermissionsToAuthArr = () => {
+    return Object.values(permissions).map((pagePermissions) => {
       const binaryString = `${Number(pagePermissions.delete)}${Number(
         pagePermissions.edit
       )}${Number(pagePermissions.view)}`;
       const decimal = parseInt(binaryString, 2);
       return decimal;
     });
+  };
+
+  const handleSubmit = async () => {
+    setErrorMessage("");
+
+    if (!roleName.trim()) {
+      setErrorMessage("Role Name is required");
+      return;
+    }
+
+    const auth_arr = convertPermissionsToAuthArr();
     const role = {
       role_name: roleName,
       auth_arr: auth_arr,
     };
 
-    await createRole(role).then((res) => {
-      if (res.success) {
-        alert("Role Added Successfully");
+    try {
+      if (!editMode) {
+        const result = await createRole(role);
+        if (result.success) {
+          setSuccessMessage("Role added successfully");
+          clearFields();
+          setIsFormModalOpen(false);
+        } else {
+          setErrorMessage(result.message || "Failed to add role");
+        }
       } else {
-        alert("Role Already Exists");
+        const result = await updateRoleByName(editingRoleName, role);
+        if (result.success) {
+          setSuccessMessage("Role updated successfully");
+          clearFields();
+          setIsFormModalOpen(false);
+        } else {
+          setErrorMessage(result.message || "Failed to update role");
+        }
       }
-    });
+    } catch (error) {
+      setErrorMessage("Error submitting role: " + error.message);
+      console.error(error);
+    }
   };
+
+  const handleDelete = async (roleName) => {
+    if (window.confirm(`Delete role "${roleName}"?`)) {
+      try {
+        const result = await deleteRoleByName(roleName);
+        if (result.success) {
+          setRoles((prev) => prev.filter((r) => r.role_name !== roleName));
+          setSuccessMessage("Role deleted successfully");
+        } else {
+          setErrorMessage("Failed to delete role");
+        }
+      } catch (error) {
+        setErrorMessage("Error deleting role: " + error.message);
+        console.error(error);
+      }
+    }
+  };
+
+  const handleEdit = (role) => {
+    setRoleName(role.role_name);
+    setEditingRoleName(role.role_name);
+    setEditMode(true);
+    setSuccessMessage("");
+    setErrorMessage("");
+
+    // Convert auth_arr back to permissions object
+    if (role.auth_arr && Array.isArray(role.auth_arr)) {
+      const pageKeys = Object.keys(PERMISSIONS_CONFIG);
+      const newPermissions = { ...PERMISSIONS_CONFIG };
+
+      role.auth_arr.forEach((authValue, index) => {
+        if (pageKeys[index]) {
+          const binary = authValue.toString(2).padStart(3, "0");
+          newPermissions[pageKeys[index]] = {
+            ...newPermissions[pageKeys[index]],
+            delete: binary[0] === "1",
+            edit: binary[1] === "1",
+            view: binary[2] === "1",
+          };
+        }
+      });
+
+      setPermissions(newPermissions);
+    }
+
+    setIsFormModalOpen(true);
+  };
+
+  const openAddModal = () => {
+    clearFields();
+    setEditMode(false);
+    setIsFormModalOpen(true);
+  };
+
+  const closeFormModal = () => {
+    setIsFormModalOpen(false);
+    clearFields();
+  };
+
+  const filteredRoles = roles.filter((role) =>
+    role.role_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const columns = [
+    { key: "role_name", label: "Role Name", type: "text", width: "250px" },
+    { key: "actions", label: "Actions", type: "actions", width: "150px" },
+  ];
 
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-           
-            <PageHeader
-              title="Add Role"
-              breadcrumbs={[
-                { label: "Dashboard", path: "/" },
-                { label: "Manage Roles", path: "/users/roles" },
-                { label: "Add Role", active: true }
-              ]}
-              onBack={() => navigate(ROUTES.USERS_ROLES)}
-            />
-           
+          <PageHeader
+            title="Manage Roles"
+            breadcrumbs={[
+              { label: "Dashboard", path: "/" },
+              { label: "Manage Roles", active: true },
+            ]}
+            onBack={() => navigate(ROUTES.USERS_ROLES)}
+          />
         </Box>
 
-         
-          <div className="admin-page-content">
-            <div className="admin-card">
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">Role Details</h3>
-              </div>
-              <div className="admin-card__body">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <FormControl isRequired>
-                    <FormLabel>Role Name</FormLabel>
-                    <Input
-                      type="text"
-                      placeholder="Role Name"
-                      value={roleName}
-                      onChange={(e) => setRoleName(e.target.value)}
-                    />
-                  </FormControl>
+        <div className={`admin-page-content ${isMobile ? "px-3 pb-20" : ""}`}>
+          <div className="admin-card">
+            <div className="admin-card__header">
+              <div className={`admin-toolbar ${isMobile ? "flex-col gap-2" : ""}`}>
+                <div
+                  className="admin-toolbar__left"
+                  style={isMobile ? { width: "100%" } : {}}
+                >
+                  <input
+                    type="text"
+                    placeholder="Search by role name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="form-control"
+                    style={isMobile ? { width: "100%" } : { width: "250px" }}
+                  />
                 </div>
-
-                <div className="admin-table-container ">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Page Name</th>
-                        <th className="text-center">View</th>
-                        <th className="text-center">Edit</th>
-                        <th className="text-center">Delete</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.keys(permissions).map((pageName) => (
-                        <tr key={pageName}>
-                          <td>{permissions[pageName].name}</td>
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-teal-600 rounded cursor-pointer"
-                              checked={permissions[pageName].view}
-                              onChange={() => handleCheckboxChange(pageName, "view")}
-                            />
-                          </td>
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-teal-600 rounded cursor-pointer"
-                              checked={permissions[pageName].edit}
-                              onChange={() => handleCheckboxChange(pageName, "edit")}
-                            />
-                          </td>
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-teal-600 rounded cursor-pointer"
-                              checked={permissions[pageName].delete}
-                              onChange={() => handleCheckboxChange(pageName, "delete")}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex justify-end mt-6">
+                <div
+                  className={`admin-toolbar__right ${isMobile ? "w-full justify-between" : ""
+                    }`}
+                >
+                  <span
+                    className={`admin-toolbar__count ${isMobile ? "text-xs" : ""}`}
+                  >
+                    {filteredRoles.length} Records Found
+                  </span>
                   <Button
                     variant="primary"
-                    onClick={handleSubmit}
+                    className="admin-btn admin-btn--primary"
+                    onClick={openAddModal}
                   >
-                    Submit
+                    Add Role
                   </Button>
                 </div>
               </div>
             </div>
-          </div>
 
+            <UnifiedListTable
+              columns={columns}
+              data={filteredRoles.map((role) => ({
+                ...role,
+                actions: role,
+              }))}
+              enableSearch={false}
+              renderSearchUI={false}
+              onEdit={(role) => handleEdit(role)}
+              onDelete={(role) => handleDelete(role.role_name)}
+              emptyMessage="No roles found"
+              displayMode="table"
+            />
+          </div>
+        </div>
+
+        {/* Form Modal for Adding/Editing Roles */}
+        <FormModal
+          isOpen={isFormModalOpen}
+          onClose={closeFormModal}
+          onSubmit={handleSubmit}
+          title={editMode ? "Edit Role" : "Add Role"}
+          submitText={editMode ? "Update" : "Submit"}
+          size="lg"
+          errorMessage={errorMessage}
+        >
+          {/* Role Name Input */}
+          <FormControl>
+            <FormLabel>Role Name*</FormLabel>
+            <Input
+              type="text"
+              placeholder="Enter role name"
+              value={roleName}
+              onChange={(e) => setRoleName(e.target.value)}
+              disabled={editMode}
+            />
+          </FormControl>
+
+          {/* Permissions Table */}
+          <div >
+            {/* <h4 style={{ marginBottom: "0.25rem", fontWeight: "600" }}>Permissions </h4> */}
+            <div className="admin-table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Page Name</th>
+                    <th className="text-center">View</th>
+                    <th className="text-center">Edit</th>
+                    <th className="text-center">Delete</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.keys(permissions).map((pageName) => (
+                    <tr key={pageName}>
+                      <td>{permissions[pageName].name}</td>
+                      <td className="text-center">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-teal-600 rounded cursor-pointer"
+                          checked={permissions[pageName].view}
+                          onChange={() =>
+                            handleCheckboxChange(pageName, "view")
+                          }
+                        />
+                      </td>
+                      <td className="text-center">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-teal-600 rounded cursor-pointer"
+                          checked={permissions[pageName].edit}
+                          onChange={() =>
+                            handleCheckboxChange(pageName, "edit")
+                          }
+                        />
+                      </td>
+                      <td className="text-center">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-teal-600 rounded cursor-pointer"
+                          checked={permissions[pageName].delete}
+                          onChange={() =>
+                            handleCheckboxChange(pageName, "delete")
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </FormModal>
       </Box>
     </ThemeProvider>
   );

@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useReducer } from "react";
-import { BsTrash, BsPencilSquare, BsKey } from "react-icons/bs";
+import React, { useEffect, useState, useReducer, useMemo } from "react";
 import { practicingAtList, doctorSpeciality, staffSpeciality } from "../consts";
 import { newDoctorReducer } from "../reducers";
 import {
@@ -15,9 +14,10 @@ import PageHeader from "../../../components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../../routes/routeConstants";
 import ThemeProvider from "../../../components/ThemeProvider";
+import { useIsMobile } from "../../../components/mobile/useIsMobile";
+import { FormModal } from "../../../component-library/modals/FormModal";
 import {
   Box,
-  Container,
   FormControl,
   FormLabel,
   Input,
@@ -26,38 +26,37 @@ import {
   Textarea,
   Checkbox
 } from "../../../component-library";
-import { FileUpload } from "@mui/icons-material";
-import FileUploadWithCamera from "../../../components/FileUploadWithCamera";
+import UnifiedListTable from "../../../components/table/UnifiedListTable";
 
 function AdminManagement() {
   const navigate = useNavigate();
+  const { isMobile } = useIsMobile();
+  const myRole = useSelector((state) => state.permission);
+
   const roleoptions = ["Doctor", "Medical Staff", "Dialysis Technician"].map(
-    (role, index) => {
-      return (
-        <option key={index} value={role}>
-          {role}
-        </option>
-      );
-    }
+    (role, index) => (
+      <option key={index} value={role}>
+        {role}
+      </option>
+    )
   );
 
-  const practicingAtOptions = practicingAtList.map((pat, index) => {
-    return (
-      <option key={index} value={pat}>
-        {pat}
-      </option>
-    );
-  });
-
-  const myRole = useSelector((state) => state.permission);
+  const practicingAtOptions = practicingAtList.map((pat, index) => (
+    <option key={index} value={pat}>
+      {pat}
+    </option>
+  ));
 
   const [doctorsList, setDoctorsList] = useState([]);
   const [doctors, setDoctors] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState("daily");
-  const [successful, setSuccessful] = useState("");
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [showReadingsModal, setShowReadingsModal] = useState(false);
+  const [readingsModalType, setReadingsModalType] = useState("daily");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   function searchDoctor(keyword) {
+    setSearchTerm(keyword);
     setDoctors(
       doctorsList.filter((doc) => {
         if (doc["name"].toLowerCase().includes(keyword.toLowerCase())) {
@@ -72,7 +71,6 @@ function AdminManagement() {
       try {
         const result = await getDoctors();
         if (result.success) {
-          console.log(result.data.data);
           setDoctorsList(result.data.data);
           setDoctors(result.data.data);
         } else {
@@ -84,7 +82,7 @@ function AdminManagement() {
     };
 
     fetchData();
-  }, [successful]);
+  }, [successMessage]);
 
   const [editMode, setEditMode] = useState(false);
 
@@ -208,7 +206,7 @@ function AdminManagement() {
 
   const handleSubmit = async () => {
     setErrMsg("");
-    setSuccessful("Uploading Data");
+    setSuccessMessage("Uploading Data");
     if (newDoctor.role == "Doctor" && validateDoctorData(newDoctor)) {
       const photourl = await getFileRes(newDoctor.photo);
       const payload = {
@@ -239,22 +237,23 @@ function AdminManagement() {
         const response = await registerDoctor(payload);
         if (response.success) {
           setErrMsg("");
-          setSuccessful("Registration Successful!");
-          newDoctorDispatch({ type: "all", payload: { practicingAt: practicingAtList[0] } });
+          setSuccessMessage("Registration Successful!");
+          clearDoctorFields();
+          setIsFormModalOpen(false);
         } else {
           setErrMsg("Registration Error! " + response.data);
-          setSuccessful("");
+          setSuccessMessage("");
         }
       } else {
         const response = await updateDoctor(newDoctor.id, payload);
         if (response.success) {
           setErrMsg("");
-          setSuccessful("Update Successful!");
-          setEditMode(false);
-          newDoctorDispatch({ type: "all", payload: { practicingAt: practicingAtList[0] } });
+          setSuccessMessage("Update Successful!");
+          clearDoctorFields();
+          setIsFormModalOpen(false);
         } else {
           setErrMsg("Update Error! " + response.data);
-          setSuccessful("");
+          setSuccessMessage("");
         }
       }
     } else if (
@@ -287,22 +286,23 @@ function AdminManagement() {
         const response = await registerDoctor(payload);
         if (response.success) {
           setErrMsg("");
-          setSuccessful("Registration Successful!");
-          newDoctorDispatch({ type: "all", payload: { practicingAt: practicingAtList[0] } });
+          setSuccessMessage("Registration Successful!");
+          clearDoctorFields();
+          setIsFormModalOpen(false);
         } else {
           setErrMsg("Registration Error! " + response.data);
-          setSuccessful("");
+          setSuccessMessage("");
         }
       } else {
         const response = await updateDoctor(newDoctor.id, payload);
         if (response.success) {
           setErrMsg("");
-          setSuccessful("Update Successful!");
-          setEditMode(false);
-          newDoctorDispatch({ type: "all", payload: {} });
+          setSuccessMessage("Update Successful!");
+          clearDoctorFields();
+          setIsFormModalOpen(false);
         } else {
           setErrMsg("Update Error! " + response.data);
-          setSuccessful("");
+          setSuccessMessage("");
         }
       }
     }
@@ -322,11 +322,9 @@ function AdminManagement() {
         photo: photourl?.data?.objectUrl,
         description: newDoctor.description,
         email_notification: newDoctor.email_notification,
-        // can_export: newDoctor.can_export,
         specialities: newDoctor.specialities,
         can_export: newDoctor.can_export,
         dailyReadings: newDoctor.dailyReadings,
-        dialysisReadings: newDoctor.dialysisReadings,
         dialysisReadings: newDoctor.dialysisReadings,
         changeby: localStorage.getItem("email"),
         doctorid: newDoctor.id,
@@ -339,19 +337,15 @@ function AdminManagement() {
 
       if (response.success) {
         setErrMsg("");
-        setSuccessful(editMode ? "Update Successful!" : "Registration Successful!");
-        setEditMode(false);
-        newDoctorDispatch({ type: "all", payload: {} });
+        setSuccessMessage(editMode ? "Update Successful!" : "Registration Successful!");
+        clearDoctorFields();
+        setIsFormModalOpen(false);
       } else {
         setErrMsg((editMode ? "Update Error! " : "Registration Error! ") + response.data);
-        setSuccessful("");
+        setSuccessMessage("");
       }
-
-
-    }
-
-    else {
-      setSuccessful("");
+    } else {
+      setSuccessMessage("");
       setErrMsg("Please fill all the * fields correctly!");
     }
   };
@@ -368,222 +362,346 @@ function AdminManagement() {
       }
 
       setErrMsg("");
-      setSuccessful("Deleting Data");
+      setSuccessMessage("Deleting Data");
       const response = await deleteDoctor(id);
       if (response.success) {
-        setSuccessful("Delete Successful!");
-        newDoctorDispatch({ type: "all", payload: {} });
+        setSuccessMessage("Delete Successful!");
       } else {
         setErrMsg(
           "Delete Error! (Please delete this doctor from the patients list for all the assigned patients before deleting it permantly!)");
-        setSuccessful("");
+        setSuccessMessage("");
       }
     } catch (error) {
       console.error("Error deleting doctor:", error);
     }
   }
 
-  function closeModal() {
-    setShowModal(false);
+  const clearDoctorFields = () => {
+    newDoctorDispatch({
+      type: "all",
+      payload: {
+        practicingAt: practicingAtList[0],
+        role: "Doctor"
+      }
+    });
+    setEditMode(false);
+    setErrMsg("");
+  };
+
+  const prepareEditDoctor = (doctor) => {
+    setSuccessMessage("");
+    newDoctorDispatch({
+      type: "all",
+      payload: {
+        id: doctor.id,
+        name: doctor.name,
+        specialities: doctor.specialities,
+        email: doctor.email,
+        phoneNo: doctor.phoneno,
+        practicingAt: doctor["practicing at"] || doctor.practicingAt,
+        institute: doctor.institute,
+        licenseNo: doctor["license no"] || doctor.licenseNo,
+        doctorsCode: doctor["doctors code"] || doctor.doctorsCode,
+        yearsOfExperience: doctor.experience,
+        address: doctor.address,
+        photo: doctor.photo,
+        resume: doctor.resume,
+        reference: doctor.ref,
+        description: doctor.description,
+        role: doctor.role,
+        dailyReadings: doctor.dailyReadings,
+        dialysisReadings: doctor.dialysisReadings,
+        email_notification: doctor.email_notification,
+        dailyReadingsAlerts: doctor.daily_update,
+        Dialysis_updates: doctor.Dialysis_updates,
+        can_export: doctor.can_export,
+      },
+    });
+    setEditMode(true);
+    setIsFormModalOpen(true);
+  };
+
+  const openCreateForm = () => {
+    setSuccessMessage("");
+    clearDoctorFields();
+    setIsFormModalOpen(true);
+  };
+
+  const closeFormModal = () => {
+    setIsFormModalOpen(false);
+    clearDoctorFields();
+  };
+
+  function closeReadingsModal() {
+    setShowReadingsModal(false);
   }
+
+  const tableData = useMemo(
+    () =>
+      doctors.map((doctor) => ({
+        ...doctor,
+        doctorCode:
+          doctor["doctors code"] || doctor.doctorsCode || doctor.doctorCode || "",
+        actions: doctor,
+      })),
+    [doctors]
+  );
+
+  const columns = [
+    { key: "doctorCode", label: "Unique Code", type: "text", width: "180px" },
+    { key: "name", label: "Name", type: "text", width: "200px" },
+    { key: "email", label: "Email", type: "text", width: "240px" },
+    { key: "role", label: "Role", type: "text", width: "160px" },
+    { key: "actions", label: "Action", type: "actions", width: "220px" },
+  ];
 
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-           
-            <PageHeader
-              title="Doctor Management"
-              breadcrumbs={[
-                { label: "Dashboard", path: "/" },
-                { label: "Doctor Management", active: true }
-              ]}
-              onBack={() => navigate(ROUTES.USERS_DOCTORS)}
-            />
-           
+          <PageHeader
+            title="Doctor Management"
+            breadcrumbs={[
+              { label: "Dashboard", path: "/" },
+              { label: "Doctor Management", active: true }
+            ]}
+            onBack={() => navigate(ROUTES.USERS_DOCTORS)}
+          />
         </Box>
 
-         
-          <div className="admin-page-content">
-            <div className="admin-card">
-              <div className="admin-card__header">
-                <h3 className="admin-card__title">
-                  Create {newDoctor.role === "Doctor" ? "Doctor" : newDoctor.role === "Medical Staff" ? "Medical Staff" : "Dialysis Technician"}
+        <div className={`admin-page-content ${isMobile ? "px-3 pb-20" : "pb-20"}`}>
+          {/* List Section */}
+          <div className="admin-card">
+            <div className={`admin-card__header flex justify-between pb-6 items-center ${isMobile ? "flex-col gap-4" : ""}`}>
+              <div className="flex items-center gap-4">
+                <h3 className="admin-card__title">Total Doctors: <span className="font-bold">{doctors.length}</span>
                 </h3>
               </div>
-
-              <div className="admin-card__body">
-                <div className="w-full md:w-1/2 mb-6">
-                  <FormControl>
-                    <FormLabel>User Role*</FormLabel>
-                    <Select
-                      value={newDoctor.role}
-                      onChange={(event) => {
-                        newDoctorDispatch({
-                          type: "role",
-                          payload: event.target.value,
-                        });
-                      }}
-                    >
-                      {roleoptions}
-                    </Select>
-                  </FormControl>
-                </div>
-
-                {showModal && (
-                  <ReadingsModal
-                    closeModal={closeModal}
-                    newDoctor={newDoctor}
-                    newDoctorDispatch={newDoctorDispatch}
-                    modalType={modalType}
+              <div className={`flex items-center gap-3 ${isMobile ? "w-full" : "w-auto"}`}>
+                <div className={isMobile ? "flex-1" : "w-64"}>
+                  <Input
+                    type="text"
+                    placeholder="Search by name..."
+                    value={searchTerm}
+                    onChange={(event) => {
+                      searchDoctor(event.target.value);
+                    }}
+                    style={isMobile ? {} : {}}
                   />
-                )}
+                </div>
+                <Button variant="primary" onClick={openCreateForm} className="whitespace-nowrap">
+                  Add Doctor
+                </Button>
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Left Column */}
-                  <div className="space-y-4">
-                    <FormControl>
-                      <FormLabel>Name*</FormLabel>
-                      <Input
-                        type="text"
-                        placeholder="Name"
-                        value={newDoctor.name}
-                        onChange={(event) => {
-                          const nameArr = event.target.value.split(" ");
-                          newDoctorDispatch({
-                            type: "name",
-                            payload: event.target.value,
-                          });
-                          newDoctorDispatch({
-                            type: "doctorsCode",
-                            payload:
-                              nameArr[0][0] +
-                              (nameArr.length > 1
-                                ? nameArr[1][0]
-                                : nameArr[0][1]
-                                  ? nameArr[0][1]
-                                  : "") +
-                              Math.floor(Math.random() * 100000),
-                          });
-                        }}
-                      />
-                    </FormControl>
+            <div className="admin-card__body">
+              <div className="admin-table-container">
+                <UnifiedListTable
+                  columns={columns}
+                  data={tableData}
+                  rowsPerPage={8}
+                  enablePagination
+                  emptyMessage="No doctor records found"
+                  actionButtons={true}
+                  displayMode="table"
+                  onEdit={myRole.createDoctor >= 2 ? prepareEditDoctor : undefined}
+                  onDelete={myRole.createDoctor >= 4 ? (row) => handleDelete(row.id) : undefined}
+                />
+              </div>
+            </div>
 
-                    <FormControl>
-                      <FormLabel>Email*</FormLabel>
-                      <Input
-                        type="email"
-                        placeholder="Email"
-                        value={newDoctor.email}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "email",
-                            payload: event.target.value,
-                          });
-                        }}
-                      />
-                    </FormControl>
+            {successMessage && (
+              <div className="mt-4 admin-message admin-message--success" style={{ marginLeft: "16px", marginRight: "16px" }}>
+                {successMessage}
+              </div>
+            )}
+          </div>
+        </div>
 
-                    {newDoctor.role === "Doctor" && (
-                      <FormControl>
-                        <FormLabel>License No*</FormLabel>
-                        <Input
-                          type="text"
-                          placeholder="License No"
-                          value={newDoctor.licenseNo}
-                          onChange={(event) => {
-                            newDoctorDispatch({
-                              type: "licenseNo",
-                              payload: event.target.value,
-                            });
-                          }}
-                        />
-                      </FormControl>
-                    )}
+        {/* Form Modal */}
+        <FormModal
+          isOpen={isFormModalOpen}
+          onClose={closeFormModal}
+          onSubmit={handleSubmit}
+          title={editMode ? "Edit Doctor" : "Add Doctor"}
+          submitText={editMode ? "Update" : "Submit"}
+          size="3xl"
+          errorMessage={errMsg}
+        >
+          {/* User Role */}
+          <div className="w-full md:w-1/2 mb-6">
+            <FormControl>
+              <FormLabel>User Role*</FormLabel>
+              <Select
+                value={newDoctor.role}
+                onChange={(event) => {
+                  newDoctorDispatch({
+                    type: "role",
+                    payload: event.target.value,
+                  });
+                }}
+              >
+                {roleoptions}
+              </Select>
+            </FormControl>
+          </div>
 
-                    <FormControl>
-                      <FormLabel>Practicing At*</FormLabel>
-                      <Select
-                        value={newDoctor.practicingAt}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "practicingAt",
-                            payload: event.target.value,
-                          });
-                        }}
-                      >
-                        {practicingAtOptions}
-                      </Select>
-                    </FormControl>
+          {/* Readings Modal Trigger */}
+          {showReadingsModal && (
+            <ReadingsModal
+              closeModal={closeReadingsModal}
+              newDoctor={newDoctor}
+              newDoctorDispatch={newDoctorDispatch}
+              modalType={readingsModalType}
+            />
+          )}
 
-                    <FormControl>
-                      <FormLabel>Years Of Experience</FormLabel>
-                      <Input
-                        type="number"
-                        placeholder="Years Of Experience"
-                        value={newDoctor.yearsOfExperience}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "yearsOfExperience",
-                            payload: event.target.value,
-                          });
-                        }}
-                      />
-                    </FormControl>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left Column */}
+            <div className="space-y-4">
+              <FormControl>
+                <FormLabel>Name*</FormLabel>
+                <Input
+                  type="text"
+                  placeholder="Name"
+                  value={newDoctor.name}
+                  onChange={(event) => {
+                    const nameArr = event.target.value.split(" ");
+                    newDoctorDispatch({
+                      type: "name",
+                      payload: event.target.value,
+                    });
+                    newDoctorDispatch({
+                      type: "doctorsCode",
+                      payload:
+                        nameArr[0][0] +
+                        (nameArr.length > 1
+                          ? nameArr[1][0]
+                          : nameArr[0][1]
+                            ? nameArr[0][1]
+                            : "") +
+                        Math.floor(Math.random() * 100000),
+                    });
+                  }}
+                />
+              </FormControl>
 
-                    <FormControl>
-                      <FormLabel>Reference If Any</FormLabel>
-                      <Input
-                        type="text"
-                        placeholder="Reference"
-                        value={newDoctor.reference}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "reference",
-                            payload: event.target.value,
-                          });
-                        }}
-                      />
-                    </FormControl>
+              <FormControl>
+                <FormLabel>Email*</FormLabel>
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={newDoctor.email}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "email",
+                      payload: event.target.value,
+                    });
+                  }}
+                />
+              </FormControl>
 
-                    {newDoctor.role === "Medical Staff" ? (
-                      <FormControl>
-                        <FormLabel>Resume</FormLabel>
-                        <Input
-                          type="file"
-                          name="Resume"
-                          id="file-input"
-                          onChange={(event) => {
-                            newDoctorDispatch({
-                              type: "resume",
-                              payload: event.target.files[0],
-                            });
-                          }}
-                          className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                        />
-                      </FormControl>
-                    ) : (
-                      <FormControl>
-                        {/* <FormLabel>Required Daily Readings</FormLabel> */}
-                        <Button
-                          variant="primary"
-                          className="w-full"
-                          onClick={() => {
-                            setShowModal(true);
-                            setModalType("daily");
-                          }}
-                        >
-                          Select Daily Readings
-                        </Button>
-                      </FormControl>
-                    )}
-                  </div>
+              {newDoctor.role === "Doctor" && (
+                <FormControl>
+                  <FormLabel>License No*</FormLabel>
+                  <Input
+                    type="text"
+                    placeholder="License No"
+                    value={newDoctor.licenseNo}
+                    onChange={(event) => {
+                      newDoctorDispatch({
+                        type: "licenseNo",
+                        payload: event.target.value,
+                      });
+                    }}
+                  />
+                </FormControl>
+              )}
 
-                  {/* Right Column */}
-                  <div className="space-y-4">
-                    <FormControl>
-                      <FormLabel>Specialities*</FormLabel>
-                      {/* <Select
+              <FormControl>
+                <FormLabel>Practicing At*</FormLabel>
+                <Select
+                  value={newDoctor.practicingAt}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "practicingAt",
+                      payload: event.target.value,
+                    });
+                  }}
+                >
+                  {practicingAtOptions}
+                </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>Years Of Experience</FormLabel>
+                <Input
+                  type="number"
+                  placeholder="Years Of Experience"
+                  value={newDoctor.yearsOfExperience}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "yearsOfExperience",
+                      payload: event.target.value,
+                    });
+                  }}
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>Reference If Any</FormLabel>
+                <Input
+                  type="text"
+                  placeholder="Reference"
+                  value={newDoctor.reference}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "reference",
+                      payload: event.target.value,
+                    });
+                  }}
+                />
+              </FormControl>
+
+              {newDoctor.role === "Medical Staff" ? (
+                <FormControl>
+                  <FormLabel>Resume</FormLabel>
+                  <Input
+                    type="file"
+                    name="Resume"
+                    id="file-input"
+                    onChange={(event) => {
+                      newDoctorDispatch({
+                        type: "resume",
+                        payload: event.target.files[0],
+                      });
+                    }}
+                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                  />
+                </FormControl>
+              ) : (
+                <FormControl>
+                  {/* <FormLabel>Required Daily Readings</FormLabel> */}
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={() => {
+                      setShowReadingsModal(true);
+                      setReadingsModalType("daily");
+                    }}
+                  >
+                    Select Daily Readings
+                  </Button>
+                </FormControl>
+              )}
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-4">
+              <FormControl>
+                <FormLabel>Specialities*</FormLabel>
+                {/* <Select
                         value={newDoctor.specialities}
                         isMulti
                         styles={{
@@ -623,108 +741,108 @@ function AdminManagement() {
                       </Select> */}
 
 
-                      <Select
-                        onChange={(selectedOptions) => {
-                          newDoctorDispatch({
-                            type: "specialities",
-                            payload: selectedOptions,
-                          });
-                        }}
-                        value={newDoctor.specialities}
-                        isMulti
-                      >
-                        <option value="General">General</option>
-                        {newDoctor.role === "Doctor"
-                          ? doctorSpeciality.map((spec, index) => (
-                            <option key={index} value={spec}>
-                              {spec.label}
-                            </option>
-                          ))
-                          : staffSpeciality.map((spec, index) => (
-                            <option key={index} value={spec}>
-                              {spec.label}
-                            </option>
-                          ))}
-                      </Select>
-                    </FormControl>
+                <Select
+                  onChange={(selectedOptions) => {
+                    newDoctorDispatch({
+                      type: "specialities",
+                      payload: selectedOptions,
+                    });
+                  }}
+                  value={newDoctor.specialities}
+                  isMulti
+                >
+                  <option value="General">General</option>
+                  {newDoctor.role === "Doctor"
+                    ? doctorSpeciality.map((spec, index) => (
+                      <option key={index} value={spec}>
+                        {spec.label}
+                      </option>
+                    ))
+                    : staffSpeciality.map((spec, index) => (
+                      <option key={index} value={spec}>
+                        {spec.label}
+                      </option>
+                    ))}
+                </Select>
+              </FormControl>
 
-                    <FormControl>
-                      <FormLabel>Phone No*</FormLabel>
-                      <Input
-                        type="number"
-                        placeholder="Phone No"
-                        value={newDoctor.phoneNo}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "phoneNo",
-                            payload: event.target.value,
-                          });
-                        }}
-                      />
-                    </FormControl>
+              <FormControl>
+                <FormLabel>Phone No*</FormLabel>
+                <Input
+                  type="number"
+                  placeholder="Phone No"
+                  value={newDoctor.phoneNo}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "phoneNo",
+                      payload: event.target.value,
+                    });
+                  }}
+                />
+              </FormControl>
 
-                    {newDoctor.role === "Doctor" && (
-                      <FormControl>
-                        <FormLabel>Doctors Code*</FormLabel>
-                        <Input
-                          type="text"
-                          placeholder="Doctors Code"
-                          value={newDoctor.doctorsCode}
-                          onChange={(event) => {
-                            newDoctorDispatch({
-                              type: "doctorsCode",
-                              payload: event.target.value,
-                            });
-                          }}
-                        />
-                      </FormControl>
-                    )}
+              {newDoctor.role === "Doctor" && (
+                <FormControl>
+                  <FormLabel>Doctors Code*</FormLabel>
+                  <Input
+                    type="text"
+                    placeholder="Doctors Code"
+                    value={newDoctor.doctorsCode}
+                    onChange={(event) => {
+                      newDoctorDispatch({
+                        type: "doctorsCode",
+                        payload: event.target.value,
+                      });
+                    }}
+                  />
+                </FormControl>
+              )}
 
-                    <FormControl>
-                      <FormLabel isTruncated >Name of the Institute/Hospital/Clinic</FormLabel>
-                      <Input
-                        type="text"
-                        placeholder="Name of the Institute/Hospital/Clinic"
-                        value={newDoctor.institute}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "institute",
-                            payload: event.target.value,
-                          });
-                        }}
-                      />
-                    </FormControl>
+              <FormControl>
+                <FormLabel isTruncated >Name of the Institute/Hospital/Clinic</FormLabel>
+                <Input
+                  type="text"
+                  placeholder="Name of the Institute/Hospital/Clinic"
+                  value={newDoctor.institute}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "institute",
+                      payload: event.target.value,
+                    });
+                  }}
+                />
+              </FormControl>
 
-                    <FormControl>
-                      <FormLabel>Address</FormLabel>
-                      <Input
-                        type="text"
-                        placeholder="Address"
-                        value={newDoctor.address}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "address",
-                            payload: event.target.value,
-                          });
-                        }}
-                      />
-                    </FormControl>
+              <FormControl>
+                <FormLabel>Address</FormLabel>
+                <Input
+                  type="text"
+                  placeholder="Address"
+                  value={newDoctor.address}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "address",
+                      payload: event.target.value,
+                    });
+                  }}
+                />
+              </FormControl>
 
-                    <FormControl>
-                      <FormLabel>Photo</FormLabel>
-                      <Input
-                        type="file"
-                        name="Photo"
-                        id="file-input"
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "photo",
-                            payload: event.target.files[0],
-                          });
-                        }}
-                        className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                      />
-                      {/* <FileUploadWithCamera
+              <FormControl>
+                <FormLabel>Photo</FormLabel>
+                <Input
+                  type="file"
+                  name="Photo"
+                  id="file-input"
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "photo",
+                      payload: event.target.files[0],
+                    });
+                  }}
+                  className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                />
+                {/* <FileUploadWithCamera
                         images= {newDoctor.photo ? [newDoctor.photo] : []}
                         onChange={(file) => {
                         newDoctorDispatch({
@@ -743,248 +861,105 @@ function AdminManagement() {
                       showCamera
                         
                       /> */}
-                    </FormControl>
+              </FormControl>
 
-                    {newDoctor.role === "Doctor" && (
-                      <FormControl>
-                        {/* <FormLabel>Required Dialysis Readings*</FormLabel> */}
-                        <Button
-                          variant="primary"
-                          className="w-full"
-                          onClick={() => {
-                            setShowModal(true);
-                            setModalType("dialysis");
-                          }}
-                        >
-                          Select Dialysis Readings
-                        </Button>
-                      </FormControl>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-4">
-                  <FormControl>
-                    <FormLabel>Description</FormLabel>
-                    <Textarea
-                      rows={2}
-                      placeholder="Description"
-                      value={newDoctor.description}
-                      onChange={(event) => {
-                        newDoctorDispatch({
-                          type: "description",
-                          payload: event.target.value,
-                        });
-                      }}
-                    />
-                  </FormControl>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-teal-600 rounded"
-                        checked={newDoctor.email_notification === "yes"}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "email_notification",
-                            payload: event.target.checked ? "yes" : "no",
-                          });
-                        }}
-                      />
-                      <span className="text-sm font-medium text-gray-700">Subscribe to Email Notifications</span>
-                    </label>
-
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-teal-600 rounded"
-                        checked={newDoctor.dailyReadingsAlerts === "yes"}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "dailyReadingsAlerts",
-                            payload: event.target.checked ? "yes" : "no",
-                          });
-                        }}
-                      />
-                      <span className="text-sm font-medium text-gray-700">Daily Reading Alert</span>
-                    </label>
-
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-teal-600 rounded"
-                        checked={newDoctor.Dialysis_updates === "yes"}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "Dialysis_updates",
-                            payload: event.target.checked ? "yes" : "no",
-                          });
-                        }}
-                      />
-                      <span className="text-sm font-medium text-gray-700">Dialysis Technician Alerts</span>
-                    </label>
-
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-teal-600 rounded"
-                        checked={newDoctor.can_export === "yes"}
-                        onChange={(event) => {
-                          newDoctorDispatch({
-                            type: "can_export",
-                            payload: event.target.checked ? "yes" : "no",
-                          });
-                        }}
-                      />
-                      <span className="text-sm font-medium text-gray-700">Can Export patient data</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 mt-6">
-                  {editMode ? (
-                    <>
-                      <Button
-                        variant="primary"
-                        onClick={handleSubmit}
-                        className="w-32"
-                      >
-                        Update
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-32"
-                        onClick={() => {
-                          setEditMode(false);
-                          newDoctorDispatch({ type: "all", payload: {} });
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      variant="primary"
-                      onClick={handleSubmit}
-                      className="w-32"
-                    >
-                      Submit
-                    </Button>
-                  )}
-                </div>
-
-                {/* Messages */}
-                {errMsg && <div className="mt-4 admin-message admin-message--error">{errMsg}</div>}
-                {successful && <div className="mt-4 admin-message admin-message--success">{successful}</div>}
-              </div>
-            </div>
-
-            {/* List Section */}
-            <div className="admin-card mt-6">
-              <div className="admin-card__header flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4">
-                  <h3 className="admin-card__title">Doctor List</h3>
-                  <span className="text-gray-500 text-sm">
-                    ({doctors.length} Records Found)
-                  </span>
-                </div>
-                <div className="w-full md:w-64">
-                  <Input
-                    type="text"
-                    placeholder="Search Name"
-                    onChange={(event) => {
-                      searchDoctor(event.target.value);
+              {newDoctor.role === "Doctor" && (
+                <FormControl>
+                  {/* <FormLabel>Required Dialysis Readings*</FormLabel> */}
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={() => {
+                      setShowReadingsModal(true);
+                      setReadingsModalType("dialysis");
                     }}
-                  />
-                </div>
-              </div>
-
-              <div className="admin-card__body">
-                <div className="admin-table-container">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>Unique Code</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {doctors.map((u, index) => (
-                        <tr key={index}>
-                          <td>{u["doctors code"]}</td>
-                          <td>{u.name}</td>
-                          <td>{u.email}</td>
-                          <td>{u.role}</td>
-                          <td>
-                            <div className="flex gap-2">
-                              {myRole.createDoctor >= 2 && (
-                                <button
-                                  className="admin-action-btn admin-action-btn--edit"
-                                  onClick={() => {
-                                    setSuccessful("");
-                                    newDoctorDispatch({
-                                      type: "all",
-                                      payload: {
-                                        id: u.id,
-                                        name: u.name,
-                                        specialities: u.specialities,
-                                        email: u.email,
-                                        phoneNo: u.phoneno,
-                                        practicingAt: u["practicing at"],
-                                        institute: u.institute,
-                                        licenseNo: u["license no"],
-                                        doctorsCode: u["doctors code"],
-                                        yearsOfExperience: u.experience,
-                                        address: u.address,
-                                        photo: u.photo,
-                                        resume: u.resume,
-                                        reference: u.ref,
-                                        description: u.description,
-                                        role: u.role,
-                                        dailyReadings: u.dailyReadings,
-                                        dialysisReadings: u.dialysisReadings,
-                                        email_notification: u.email_notification,
-                                        dailyReadingsAlerts: u.daily_update,
-                                        Dialysis_updates: u.Dialysis_updates,
-                                        can_export: u.can_export,
-                                      },
-                                    });
-                                    setEditMode(true);
-                                    window.scrollTo({
-                                      top: 0,
-                                      left: 0,
-                                      behavior: "smooth",
-                                    });
-                                  }}
-                                  title="Edit Doctor"
-                                >
-                                  <BsPencilSquare size={18} />
-                                </button>
-                              )}
-                              {myRole.createDoctor >= 4 && (
-                                <button
-                                  className="admin-action-btn admin-action-btn--delete"
-                                  onClick={() => handleDelete(u.id)}
-                                  title="Delete Doctor"
-                                >
-                                  <BsTrash size={18} />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                  >
+                    Select Dialysis Readings
+                  </Button>
+                </FormControl>
+              )}
             </div>
           </div>
 
+          <div className="mt-6 space-y-4">
+            <FormControl>
+              <FormLabel>Description</FormLabel>
+              <Textarea
+                rows={2}
+                placeholder="Description"
+                value={newDoctor.description}
+                onChange={(event) => {
+                  newDoctorDispatch({
+                    type: "description",
+                    payload: event.target.value,
+                  });
+                }}
+              />
+            </FormControl>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-teal-600 rounded"
+                  checked={newDoctor.email_notification === "yes"}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "email_notification",
+                      payload: event.target.checked ? "yes" : "no",
+                    });
+                  }}
+                />
+                <span className="text-sm font-medium text-gray-700">Subscribe to Email Notifications</span>
+              </label>
+
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-teal-600 rounded"
+                  checked={newDoctor.dailyReadingsAlerts === "yes"}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "dailyReadingsAlerts",
+                      payload: event.target.checked ? "yes" : "no",
+                    });
+                  }}
+                />
+                <span className="text-sm font-medium text-gray-700">Daily Reading Alert</span>
+              </label>
+
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-teal-600 rounded"
+                  checked={newDoctor.Dialysis_updates === "yes"}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "Dialysis_updates",
+                      payload: event.target.checked ? "yes" : "no",
+                    });
+                  }}
+                />
+                <span className="text-sm font-medium text-gray-700">Dialysis Technician Alerts</span>
+              </label>
+
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-teal-600 rounded"
+                  checked={newDoctor.can_export === "yes"}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "can_export",
+                      payload: event.target.checked ? "yes" : "no",
+                    });
+                  }}
+                />
+                <span className="text-sm font-medium text-gray-700">Can Export patient data</span>
+              </label>
+            </div>
+          </div>
+        </FormModal>
       </Box>
     </ThemeProvider>
   );
