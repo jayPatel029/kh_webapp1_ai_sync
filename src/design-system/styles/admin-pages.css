@@ -104,7 +104,7 @@
   /* margin-top: 1.5rem; */
   overflow: hidden;
   /* margin-bottom: 1.5rem; */
-  border-top: 2px solid var(--color-info);
+  /* border-top: 2px solid var(--color-info); */
 }
 
 .admin-card--no-padding {

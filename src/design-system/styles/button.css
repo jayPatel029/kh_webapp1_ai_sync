@@ -160,7 +160,7 @@ button.btn--solid,
 .btn--solid,
 button.btn--brand,
 .btn--brand {
-  background-color: var(--color-primary, #3311DB) !important;
+  background-color: var(--color-primary) !important;
   color: var(--color-white) !important;
   border: 1px solid transparent !important;
 }
@@ -170,7 +170,7 @@ button.btn--solid:hover,
 button.btn--brand:hover,
 .btn--brand:hover {
 
-  background-color: var(--color-primary-600) !important;
+  background-color: var(--color-primary-900) !important;
   color: var(--color-white) !important;
   box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
   transform: translateY(-1px);
@@ -180,7 +180,7 @@ button.btn--solid:active,
 .btn--solid:active,
 button.btn--brand:active,
 .btn--brand:active {
-  background-color: var(--color-primary-600) !important;
+  background-color: var(--color-primary-900) !important;
   transform: translateY(0);
   box-shadow: none !important;
 }
@@ -210,19 +210,20 @@ button.btn--brand:active,
 }
 
 .btn--secondary:hover {
-  background-color: var(--color-primary) !important;
+  background-color: var(--color-primary-700) !important;
   border-color: var(--color-gray-300);
 }
 
 .btn--secondary:active {
-  background-color: var(--color-primary) !important;
+  background-color: var(--color-primary-900) !important;
 }
 
 /* Outline Variant */
 .btn--outline {
   background-color: var(--color-white);
-  border: 1px solid var(--color-primary-dark);
-  color: var(--color-primary-dark);
+  
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
 }
 
 .btn--outline:hover {

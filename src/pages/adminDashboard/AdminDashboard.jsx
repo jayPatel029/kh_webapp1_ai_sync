@@ -6,14 +6,17 @@
  * @file src/pages/adminDashboard/AdminDashboard.jsx
  */
 
+// cspell:disable
+
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
   Flex,
   Heading,
+  SortDropdown,
   Text,
-  Container
+  
 } from "../../component-library";
 import { getIdByEmail, isDoctorRole } from "../../ApiCalls/authapis";
 import { getDoctorIdByEmail } from "../../ApiCalls/doctorApis";
@@ -23,7 +26,6 @@ import {
   getUsersThisWeek,
   getAlerts,
   getUsersThisWeekSub,
-  sendAlertEmails,
   getSuperAdminAlerts,
 } from "../../ApiCalls/adminDashApis";
 import { getAlertByType } from "../../ApiCalls/alertsApis";
@@ -42,9 +44,7 @@ import DiaAlertModal from "./components/DialysisTechModal";
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
-  const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
-  const [isDoctor, setIsDoctor] = useState(false);
 
   // Data State
   const [patients, setPatients] = useState([]);
@@ -52,7 +52,7 @@ const AdminDashboard = () => {
     totalUsers: 0,
     newUsers: 0,
   });
-  const [sendingEmails, setSendingEmails] = useState(false);
+  
   const [alertTypeFilter, setAlertTypeFilter] = useState("");
   const [allPatients, setAllPatients] = useState([]);
 
@@ -81,7 +81,6 @@ const AdminDashboard = () => {
       }
 
       const email = localStorage.getItem("email");
-      setUserName(localStorage.getItem("name") || "User");
 
       // Get Admin ID
       try {
@@ -97,7 +96,7 @@ const AdminDashboard = () => {
       try {
         const docRes = await isDoctorRole();
         if (docRes.success) {
-          setIsDoctor(docRes.data?.data);
+          // store doctor role in localStorage for data fetching
           localStorage.setItem("isDoctor", docRes.data?.data);
         }
       } catch (err) {
@@ -236,18 +235,7 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleSendAlertEmails = async () => {
-    try {
-      setSendingEmails(true);
-      await sendAlertEmails();
-      alert('Alert emails sent successfully!');
-    } catch (e) {
-      console.error('Error sending alert emails:', e);
-      alert('Failed to send alert emails.');
-    } finally {
-      setSendingEmails(false);
-    }
-  };
+  
 
   const handleAlertTypeFilter = async (type) => {
     setAlertTypeFilter(type);
@@ -335,11 +323,11 @@ const AdminDashboard = () => {
           {/* Desktop stats summary */}
           {!isMobile && (
             <Flex gap={4} className="mb-6">
-              <Box className="flex-1 p-4 rounded-xl border border-gray-200">
+              <Box className="flex-1 p-4 rounded-xl  ">
                 <Text size="sm" className="text-muted">Total Patients</Text>
                 <Text size="2xl" weight="bold" className="text-accent">{stats.totalUsers}</Text>
               </Box>
-              <Box className="flex-1 p-4 rounded-xl border border-gray-200">
+              <Box className="flex-1 p-4 rounded-xl ">
                 <Text size="sm" className="text-muted">New This Week</Text>
                 <Text size="2xl" weight="bold" className="text-success">{stats.newUsers}</Text>
               </Box>
@@ -353,10 +341,10 @@ const AdminDashboard = () => {
                 Important Alerts
               </Heading>
               <Flex gap={2} align="center">
-                <select
+                {/* <select
                   value={alertTypeFilter}
                   onChange={(e) => handleAlertTypeFilter(e.target.value)}
-                  className={`${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-2'} border border-gray-300 rounded-lg bg-white text-gray-700`}
+                  className={`${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-2'}  rounded-lg bg-white text-gray-700`}
                 >
                   <option value="">All Types</option>
                   <option value="prescription">Prescription</option>
@@ -365,11 +353,25 @@ const AdminDashboard = () => {
                   <option value="lab">Lab Reports</option>
                   <option value="enrollment">Enrollment</option>
                   <option value="contact">Contact</option>
-                </select>
+                </select> */}
+              <SortDropdown
+                  value={alertTypeFilter}
+                  onChange={(e) => handleAlertTypeFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All Types' },
+                  { value: 'prescription', label: 'Prescription' },
+                  { value: 'daily', label: 'Daily Readings' },
+                  { value: 'dialysis', label: 'Dialysis' },
+                  { value: 'lab', label: 'Lab Reports' },
+                  { value: 'enrollment', label: 'Enrollment' },
+                  { value: 'contact', label: 'Contact' },
+                ]}
+                className={`${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-2'}  rounded-lg bg-white text-gray-700`}
+              />
                 {alertTypeFilter && (
                   <button
                     onClick={() => handleAlertTypeFilter('')}
-                    className="text-xs text-[#5886a5] underline hover:text-[#4164df]"
+                    className="text-lg text-[#5886a5] underline hover:text-[#4164df]"
                   >
                     Clear
                   </button>
@@ -381,23 +383,43 @@ const AdminDashboard = () => {
               <Flex justify="center" align="center" className="py-12 text-gray-500">
                 <Text size="md">Loading alerts...</Text>
               </Flex>
-            ) : patients.length === 0 ? (
-                <Flex justify="center" align="center" className="py-12 text-gray-500">
+            ) : (patients.length === 0) ? (
+              <Flex justify="center" align="center" className="py-12 text-gray-500">
                 <Text size="md">No alerts at this time</Text>
-                </Flex>
+              </Flex>
             ) : (
+              // Split into two columns: Admin (general alerts) and Doctor (prescription/comment alerts)
+              <Flex direction={isMobile ? 'column' : 'row'} gap={6}>
+                {/* Admin Column */}
+                <Box className="flex-1">
+                  <Heading as="h3" size={isMobile ? 'sm' : 'lg'} className="mb-3">Admin Alerts</Heading>
                   <Flex direction="column" gap={0}>
-                    {patients.map((patient) => (
-                      <React.Fragment key={patient.id}>
-                        <PatientAlertCard
-                          patient={patient}
-                          onAction={handleAction}
-                        />
-                    {/* Divider */}
-                    <Box className={`h-[2px] bg-gray-200 ${isMobile ? 'my-3' : 'my-6'}`} />
-                  </React.Fragment>
-                ))}
+                    {patients
+                      .filter(p => (p.prescriptionCount === 0 && p.commentCount === 0))
+                      .map((patient) => (
+                        <React.Fragment key={`admin-${patient.id}`}>
+                          <PatientAlertCard patient={patient} onAction={handleAction} />
+                          <Box className={`h-[2px] bg-gray-200 ${isMobile ? 'my-3' : 'my-6'}`} />
+                        </React.Fragment>
+                      ))}
                   </Flex>
+                </Box>
+
+                {/* Doctor Column */}
+                <Box className="flex-1">
+                  <Heading as="h3" size={isMobile ? 'sm' : 'lg'} className="mb-3">Doctor Alerts</Heading>
+                  <Flex direction="column" gap={0}>
+                    {patients
+                      .filter(p => (p.prescriptionCount > 0 || p.commentCount > 0))
+                      .map((patient) => (
+                        <React.Fragment key={`doctor-${patient.id}`}>
+                          <PatientAlertCard patient={patient} onAction={handleAction} />
+                          <Box className={`h-[2px] bg-gray-200 ${isMobile ? 'my-3' : 'my-6'}`} />
+                        </React.Fragment>
+                      ))}
+                  </Flex>
+                </Box>
+              </Flex>
             )}
           </Box>
          
@@ -409,7 +431,7 @@ const AdminDashboard = () => {
       )}
       {modals.comment && (
         <CommentContainer
-          comments={selectedPatient.commentAlerts}
+          comments={selectedPatient?.commentAlerts || []}
           closeModal={() => closeModal('comment')}
         />
       )}

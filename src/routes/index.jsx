@@ -82,7 +82,7 @@ const getLegacyRedirectRoutes = () => [
   { path: "ProfileQuestionCsv", element: <Navigate to={ROUTES.PROFILE_QUESTIONS_IMPORT} replace /> },
 
   { path: "patient", element: <Navigate to={ROUTES.PATIENTS} replace /> },
-  { path: "Addpatient", element: <Navigate to={ROUTES.PATIENTS_NEW} replace /> },
+  { path: "Addpatient", element: <Navigate to={ROUTES.PATIENTS} replace /> },
   { path: "DeletedPatient", element: <Navigate to={ROUTES.PATIENTS_DELETED} replace /> },
   {
     path: "Deletepatient/:id",

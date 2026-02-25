@@ -16,6 +16,7 @@ import { SortDropdown } from "../../component-library/primitives";
 
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
+import UnifiedListTable from "../../components/table/UnifiedListTable";
 
 // Page Components
 import PrescriptionModal from "./PrescriptionModal";
@@ -210,9 +211,47 @@ const Userprescription = () => {
     return <Box className="p-20 text-center">Loading...</Box>;
   }
 
+  // Prepare columns for UnifiedListTable
+  const prescriptionColumns = [
+    { key: "date", label: "Date", type: "date", width: "150px" },
+    { key: "doctor", label: "Prescribing doctor", type: "text", width: "200px" },
+    { key: "prescription", label: "Prescription", type: "custom", width: "150px", render: (row) => (
+      <div className="flex justify-start"> {row.Prescription && row.Prescription.endsWith(".pdf") ? (
+          <div
+            className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => openFileModal(row.id, row.Prescription)}
+          >
+            <FaFilePdf className="text-white text-2xl" />
+          </div>
+        ) : (
+          <div
+            className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => openFileModal(row.id, row.Prescription)}
+          >
+            <img
+              src={row.Prescription}
+              alt="Prescription"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+      </div>
+    ) },
+    { key: "actions", label: "Actions", type: "actions", width: "100px" },
+  ];
+
+  // Transform prescription data for table
+  const transformedPrescriptionData = filteredPrescriptionData.map((item) => ({
+    id: item.id,
+    date: item.Date,
+    doctor: item.prescriptionGivenByName,
+    prescription: item.Prescription,
+    Prescription: item.Prescription,
+  }));
+
   return (
     <PatientDetailLayout
-      title={userData?.name ? userData.name : "Patient's Alarms"}
+             title={"Prescriptions"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
@@ -253,189 +292,18 @@ const Userprescription = () => {
       </Flex>
 
       {/* Mobile Card View */}
-      {isMobile ? (
-        <Box className="flex flex-col gap-3 pb-20">
-          {filteredPrescriptionData.length > 0 ? (
-            filteredPrescriptionData.map((item, index) => (
-              <Box key={index} className="bg-white rounded-xl border border-gray-200 p-3">
-                <Flex justify="between" align="start" className="mb-2">
-                  <Box>
-                    <p className="text-[13px] font-semibold text-[#1e293b]">
-                      {item.prescriptionGivenByName || 'Unknown Doctor'}
-                    </p>
-                    <p className="text-[11px] text-[#6b7280] mt-0.5">
-                      {formatDate(item.Date)}
-                    </p>
-                  </Box>
-                  <button
-                    className="text-[#de425b] hover:text-[#c93850] p-1"
-                    onClick={() => handleDelete(item.id, email)}
-                  >
-                    <BsTrash size={16} />
-                  </button>
-                </Flex>
-                {/* Prescription thumbnail */}
-                <Box
-                  className="w-full h-[120px] rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
-                  onClick={() => openFileModal(item.id, item.Prescription)}
-                >
-                  {item.Prescription?.endsWith(".pdf") ? (
-                    <Flex align="center" justify="center" className="w-full h-full bg-gray-800">
-                      <FaFilePdf className="text-white text-3xl" />
-                    </Flex>
-                  ) : (
-                    <img src={item.Prescription} alt="Prescription" className="w-full h-full object-cover" />
-                  )}
-                </Box>
-                {/* Comment section */}
-                {commentingId === item.id ? (
-                  <Box className="mt-2">
-                    <input
-                      type="text"
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      placeholder="Add comment..."
-                      className="text-xs border border-gray-300 rounded px-2 py-1 w-full mb-1"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment(item.id)}
-                    />
-                    <Flex gap={2}>
-                      <button
-                        onClick={() => handleAddComment(item.id)}
-                        disabled={submittingComment}
-                        className="text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                      >
-                        {submittingComment ? '...' : 'Save'}
-                      </button>
-                      <button
-                        onClick={() => { setCommentingId(null); setCommentText(''); }}
-                        className="text-xs text-gray-500"
-                      >
-                        Cancel
-                      </button>
-                    </Flex>
-                  </Box>
-                ) : (
-                  <button
-                    onClick={() => setCommentingId(item.id)}
-                    className="text-xs text-[#5886a5] hover:text-[#4164df] underline mt-2"
-                  >
-                    + Add Comment
-                  </button>
-                )}
-              </Box>
-            ))
-          ) : (
-            <Box className="py-8 text-center">
-              <p className="text-[#989898] text-sm italic">No Prescription found</p>
-            </Box>
-          )}
-        </Box>
-      ) : (
-      /* Desktop Table */
-      <Box className="overflow-x-auto">
-        {/* Table Header */}
-        <Box className="bg-[#5886a5] rounded-[5px] px-[70px] py-4 mb-0">
-          <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
-            <Box style={{ flex: "0 0 150px" }}>Date</Box>
-            <Box style={{ flex: "0 0 200px" }}>Prescribing doctor</Box>
-            <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Prescription</Box>
-            <Box style={{ flex: "0 0 120px", textAlign: "center" }}>Comment</Box>
-            <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
-          </Flex>
-        </Box>
-
-        {/* Table Body */}
-        <Box>
-          {filteredPrescriptionData.length > 0 ? (
-            filteredPrescriptionData.map((prescriptionItem, index) => (
-              <Box
-                key={index}
-                className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
-              >
-                <Flex justify="between" align="center">
-                  <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-                    {formatDate(prescriptionItem.Date)}
-                  </Box>
-                  <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
-                    {prescriptionItem.prescriptionGivenByName}
-                  </Box>
-                  <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
-                    {prescriptionItem.Prescription &&
-                    prescriptionItem.Prescription.endsWith(".pdf") ? (
-                        <Box
-                          className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => openFileModal(prescriptionItem.id, prescriptionItem.Prescription)}
-                        >
-                          <FaFilePdf className="text-white text-2xl" />
-                        </Box>
-                    ) : (
-                        <Box
-                          className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => openFileModal(prescriptionItem.id, prescriptionItem.Prescription)}
-                        >
-                          <img
-                            src={prescriptionItem?.Prescription}
-                            alt="Prescription"
-                            className="w-full h-full object-cover"
-                          />
-                        </Box>
-                    )}
-                  </Box>
-                  <Box style={{ flex: "0 0 120px" }} className="flex justify-center">
-                    {commentingId === prescriptionItem.id ? (
-                      <Box className="flex flex-col gap-1">
-                        <input
-                          type="text"
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          placeholder="Add comment..."
-                          className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
-                          onKeyDown={(e) => e.key === 'Enter' && handleAddComment(prescriptionItem.id)}
-                        />
-                        <Flex gap={1}>
-                          <button
-                            onClick={() => handleAddComment(prescriptionItem.id)}
-                            disabled={submittingComment}
-                            className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded hover:bg-blue-600"
-                          >
-                            {submittingComment ? '...' : 'Save'}
-                          </button>
-                          <button
-                            onClick={() => { setCommentingId(null); setCommentText(''); }}
-                            className="text-xs text-gray-500 hover:text-gray-700"
-                          >
-                            Cancel
-                          </button>
-                        </Flex>
-                      </Box>
-                    ) : (
-                      <button
-                        onClick={() => setCommentingId(prescriptionItem.id)}
-                        className="text-xs text-[#5886a5] hover:text-[#4164df] underline"
-                      >
-                        Comment
-                      </button>
-                    )}
-                  </Box>
-                  <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
-                    <button
-                      className="text-[#de425b] hover:text-[#c93850] transition-colors"
-                      onClick={() => handleDelete(prescriptionItem.id, email)}
-                    >
-                      <BsTrash size={24} />
-                    </button>
-                  </Box>
-                </Flex>
-              </Box>
-            ))
-          ) : (
-            <Box className="bg-white px-[70px] py-8 text-center">
-              <p className="text-[#989898] text-[16px] italic">No Prescription found</p>
-            </Box>
-          )}
-        </Box>
-      </Box>
-      )}
+      <UnifiedListTable
+        columns={prescriptionColumns}
+        data={transformedPrescriptionData}
+        onDelete={(row) => handleDelete(row.id, email)}
+        isLoading={loading}
+        displayMode="auto"
+        cardTitleKey="doctor"
+        cardSubtitleKey="date"
+        cardFieldKeys={[]}
+        emptyMessage="No Prescription found"
+        actionButtons={true}
+      />
 
       {/* Modals */}
       {showModal && (
@@ -453,7 +321,7 @@ const Userprescription = () => {
           fileUrl={uploadedFile.fileUrl}
           fileId={uploadedFile.fileId}
           patientId={id}
-          fileType="Prescription"
+          // fileType="Prescription"
           title="Prescription View"
         />
       )}

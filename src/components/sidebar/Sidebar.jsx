@@ -174,20 +174,20 @@ const Sidebar = ({ mobile = false }) => {
       });
     }
 
-    if (role?.changePassword) {
-      items.push({
-        id: 'change-password',
-        label: 'Change Password',
-        href: ROUTES.SETTINGS_PASSWORD,
-        icon: LockResetIcon,
-      });
-      items.push({
-        id: 'logs',
-        label: 'Audit Logs',
-        href: ROUTES.SETTINGS_LOGS,
-        icon: HistoryIcon,
-      });
-    }
+    // if (role?.changePassword) {
+    //   items.push({
+    //     id: 'change-password',
+    //     label: 'Change Password',
+    //     href: ROUTES.SETTINGS_PASSWORD,
+    //     icon: LockResetIcon,
+    //   });
+    // }
+    items.push({
+      id: 'logs',
+      label: 'Audit Logs',
+      href: ROUTES.SETTINGS_LOGS,
+      icon: HistoryIcon,
+    });
 
     return items;
   }, [role]);
@@ -261,16 +261,15 @@ const Sidebar = ({ mobile = false }) => {
           className={clsx(
             'text-white transition-colors duration-200',
             isIconOnly
-              ? 'flex items-center justify-center rounded-xl px-2 py-2.5 hover:bg-white/10'
-              : 'w-full flex items-center gap-3 px-3 py-3 text-sm font-semibold justify-between rounded-2xl',
-            dropdown && !isCollapsed ? 'bg-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.35)]' : 'hover:bg-white/10'
+              ? 'flex items-center justify-center rounded-xl px-2 py-2.5 '
+              : 'w-full flex items-center gap-3 px-3 py-3 text-sm font-semibold justify-between rounded-2xl'
           )}
         >
           <AdminPanelSettings className="text-2xl  text-white" />
           {!isIconOnly && (
             <>
-              <span className="text-sm font-semibold break-words">Admin Management</span>
-              <span className={clsx('text-xs transition-transform duration-200', dropdown ? 'rotate-180' : 'rotate-0')}>
+              <span className="text-sm font-semibold break-words">User Management</span>
+              <span className={clsx('text-lg transition-transform duration-200', dropdown ? 'rotate-180' : 'rotate-0')}>
                 ▾
               </span>
             </>
@@ -379,7 +378,7 @@ const Sidebar = ({ mobile = false }) => {
         </div>
       </div>
 
-      <div className={clsx('pb-4 flex justify-center mx-0 w-full transition-all', isCollapsed && !mobile ? 'px-0.5' : '')}>
+      {/* <div className={clsx('pb-4 flex justify-center mx-0 w-full transition-all', isCollapsed && !mobile ? 'px-0.5' : '')}>
         <Link
           to="/logout"
           className={clsx(
@@ -390,7 +389,7 @@ const Sidebar = ({ mobile = false }) => {
           <LogoutIcon className={clsx('text-white', isCollapsed && !mobile ? 'text-2xl' : 'text-2xl')} />
           {!isCollapsed && !mobile && <span className="font-semibold">Logout</span>}
         </Link>
-      </div>
+      </div> */}
     </DSidebar>
   );
 

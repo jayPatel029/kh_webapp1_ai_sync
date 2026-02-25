@@ -342,47 +342,49 @@ function UserProfile() {
         {/* Sticky Header Section */}
         {/* <Box className={`sticky ${isMobile ? 'top-0' : 'top-[56px]'} z-20 bg-white`}> */}
 
-          {/* <Flex justify="start" align="center" className={isMobile ? "py-2 px-4" : "py-4 px-6"}> */}
+        {/* <Flex justify="start" align="center" className={isMobile ? "py-2 px-4" : "py-4 px-6"}> */}
 
-            {/* Header with Breadcrumbs */}
-            {!isInPatientProfileShell && (
-              <PageHeader
-                title={userData?.name || "Patient"}
-                breadcrumbs={[
-                // { label: "All Patients", path: "/patients" },
-                  { label: "Patient", path: ROUTES.patientDetail(id), active: false },
-                  { label: userData?.name || "Patient", active: true }
-                ]}
-                onBack={() => navigate(ROUTES.PATIENTS)}
-              />
-            )}
-          {/* </Flex> */}
+        {/* Header with Breadcrumbs */}
+        {!isInPatientProfileShell && (
+          <PageHeader
+            title={userData?.name || "Patient"}
+            // variant={isMobile ? "mobile" : "breadcrumblayout"}
+            variant="desktop"
+            breadcrumbs={[
+              // { label: "All Patients", path: "/patients" },
+              { label: "Patient", path: ROUTES.PATIENTS, active: false },
+              { label: userData?.name || "Patient", path: ROUTES.patientDetail(id), active: true }
+            ]}
+            onBack={() => navigate(ROUTES.PATIENTS)}
+          />
+        )}
+        {/* </Flex> */}
 
-          {/* Navigation Tabs */}
-          {!isInPatientProfileShell && (
-            <PatientNavTabs
-              patientId={id}
-              userData={userData}
-              unreadAdminCount={totalUnreadCount}
-              unreadDoctorCount={totalUnreadCountDoc}
-              role={role}
-            />
-          )}
+        {/* Navigation Tabs */}
+        {!isInPatientProfileShell && (
+          <PatientNavTabs
+            patientId={id}
+            userData={userData}
+            unreadAdminCount={totalUnreadCount}
+            unreadDoctorCount={totalUnreadCountDoc}
+            role={role}
+          />
+        )}
 
         {/* <Flex className={`py-4 flex-col gap-6 ${isSmall ? "px-4 pb-20" : "px-6"}`}> */}
-          {/* Profile Card */}
-          <PatientProfileCard
-            userData={userData}
-            role={role}
-            onEditName={openEditModal}
-            onEditAilments={openEditalimentsModal}
-          />
+        {/* Profile Card */}
+        <PatientProfileCard
+          userData={userData}
+          role={role}
+          onEditName={openEditModal}
+          onEditAilments={openEditalimentsModal}
+        />
 
-          {/* Medical & Admin Team */}
-          {/* Team Management Section */}
-          <Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Medical Team */}
-            <Box className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+        {/* Medical & Admin Team */}
+        {/* Team Management Section */}
+        <Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Medical Team */}
+          {/* <Box className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
               <Flex justify="space-between" align="center" className="mb-3">
                 <Box as="h3" className="text-lg font-bold text-[#32617d]">Medical Team</Box>
                 <button
@@ -432,10 +434,10 @@ function UserProfile() {
                   </Flex>
                 ))}
               </Box>
-            </Box>
+            </Box> */}
 
-            {/* Admin Team */}
-            <Box className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          {/* Admin Team */}
+          {/* <Box className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
               <Flex justify="space-between" align="center" className="mb-3">
                 <Box as="h3" className="text-lg font-bold text-[#32617d]">Admin Team</Box>
                 <button
@@ -485,184 +487,184 @@ function UserProfile() {
                   </Flex>
                 ))}
               </Box>
+            </Box> */}
+        </Box>
+
+        {/* Modals */}
+        {editModalOpen && (
+          <NameModal
+            closeEditModal={closeEditModal}
+            onSuccess={handleUpdateSuccess}
+            initialData={userData}
+            updateData={updateUserData}
+            user_id={userData.id}
+          />
+        )}
+        {editalimentsModalOpen && (
+          // <AilmentModal
+          //   closeEditalimentsModal={closeEditalimentsModal}
+          //   initialAilments={userData.ailments}
+          //   updateData={updateUserData}
+          //   user_id={userData.id}
+          //   onSuccess={handleUpdateSuccess}
+          // />
+          <>hi</>
+        )}
+
+
+
+        {/* Ailment details are now shown inside the PatientProfileCard component */}
+
+        {/* General Parameters */}
+        {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
+          <Box className="space-y-6">
+            <Box className="flex items-center gap-4">
+              {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
+              <Box as="h2" className={`${isSmall ? "text-md" : "text-xl"} font-bold mt-8`}>General Parameters</Box>
             </Box>
-          </Box>
 
-          {/* Modals */}
-          {editModalOpen && (
-            <NameModal
-              closeEditModal={closeEditModal}
-              onSuccess={handleUpdateSuccess}
-              initialData={userData}
-              updateData={updateUserData}
-              user_id={userData.id}
-            />
-          )}
-          {editalimentsModalOpen && (
-            // <AilmentModal
-            //   closeEditalimentsModal={closeEditalimentsModal}
-            //   initialAilments={userData.ailments}
-            //   updateData={updateUserData}
-            //   user_id={userData.id}
-            //   onSuccess={handleUpdateSuccess}
-            // />
-            <>hi</>
-          )}
+            {/* Generic Profile Section */}
+            <ParameterSection title="Generic Profile">
+              <QuestionsContainer aliment="Generic Profile" user_id={id} />
+            </ParameterSection>
 
+            {generalParameters
+              .filter(q => !q.title.toLowerCase().includes("diastolic"))
+              .map((question, index) => {
+                let questionTitle = question.title;
+                if (question.title.toLowerCase().includes("systolic")) {
+                  questionTitle = questionTitle.replace(/systolic/i, "Systolic and Diastolic");
+                }
 
-
-          {/* Ailment details are now shown inside the PatientProfileCard component */}
-
-          {/* General Parameters */}
-          {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
-            <Box className="space-y-6">
-              <Box className="flex items-center gap-4">
-                {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-              <Box as="h2" className={`${isSmall ? "text-xl" : "text-2xl"} font-bold m-4`}>General Parameters</Box>
-              </Box>
-
-              {/* Generic Profile Section */}
-              <ParameterSection title="Generic Profile">
-                <QuestionsContainer aliment="Generic Profile" user_id={id} />
-              </ParameterSection>
-
-              {generalParameters
-                .filter(q => !q.title.toLowerCase().includes("diastolic"))
-                .map((question, index) => {
-                  let questionTitle = question.title;
-                  if (question.title.toLowerCase().includes("systolic")) {
-                    questionTitle = questionTitle.replace(/systolic/i, "Systolic and Diastolic");
-                  }
-
-                  return (
-                    <ParameterSection
-                      key={index}
-                      title={questionTitle}
-                      noResponse={question.responseCount === 0}
-                    >
-                      {question.isGraph === 1 ? (
-                        question.title.toLowerCase().includes("systolic") ? (
-                          <LineChartComponentSys
-                            aspect={isSmall ? 2 / 1 : 3 / 1}
-                            questionId={question.id}
-                            user_id={userData.id}
-                            title={questionTitle}
-                            unit={question.unit}
-                          />
-                        ) : (
-                          <LineChartComponent
-                            aspect={isSmall ? 2 / 1 : 3 / 1}
-                            questionId={question.id}
-                            user_id={userData.id}
-                            title={questionTitle}
-                            unit={question.unit}
-                          />
-                        )
-                      ) : (
-                        <Table
-                          questionId={question.id}
-                          user_id={userData.id}
-                          title={questionTitle}
-                          question={question}
-                        />
-                      )}
-                    </ParameterSection>
-                  );
-                })}
-            </Box>
-          )}
-
-          {/* Dialysis Parameters */}
-          {userData.program !== "Basic" && dialysisParameters.length > 0 && (
-            <Box className="space-y-6">
-              <Box className="flex items-center gap-4">
-                {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-              <Box as="h2" className={`${isSmall ? "text-xl" : "text-2xl"} font-bold m-4`}>Dialysis Parameters</Box>
-              </Box>
-
-              {dialysisParameters
-                .filter(q => !q.title.toLowerCase().includes("diastolic"))
-                .map((question, index) => (
+                return (
                   <ParameterSection
                     key={index}
-                    title={question.title}
+                    title={questionTitle}
                     noResponse={question.responseCount === 0}
                   >
                     {question.isGraph === 1 ? (
-                      <LineChartDialysis
-                        aspect={isSmall ? 2 / 1 : 3 / 1}
-                        questionId={question.id}
-                        user_id={userData.id}
-                        title={question.title}
-                        unit={question.unit}
-                      />
+                      question.title.toLowerCase().includes("systolic") ? (
+                        <LineChartComponentSys
+                          aspect={isSmall ? 2 / 1 : 3 / 1}
+                          questionId={question.id}
+                          user_id={userData.id}
+                          title={questionTitle}
+                          unit={question.unit}
+                        />
+                      ) : (
+                        <LineChartComponent
+                          aspect={isSmall ? 2 / 1 : 3 / 1}
+                          questionId={question.id}
+                          user_id={userData.id}
+                          title={questionTitle}
+                          unit={question.unit}
+                        />
+                      )
                     ) : (
-                      <DialysisTable
+                      <Table
                         questionId={question.id}
                         user_id={userData.id}
-                        title={question.title}
+                        title={questionTitle}
                         question={question}
                       />
                     )}
                   </ParameterSection>
-                ))}
+                );
+              })}
+          </Box>
+        )}
+
+        {/* Dialysis Parameters */}
+        {userData.program !== "Basic" && dialysisParameters.length > 0 && (
+          <Box className="space-y-6">
+            <Box className="flex items-center gap-4">
+              {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
+              <Box as="h2" className={`${isSmall ? "text-md" : "text-xl"} font-bold mt-8`}>Dialysis Parameters</Box>
             </Box>
-          )}
 
-          {/* Lab Reports */}
-          {userData.program !== "Basic" && (
-            <Box className="space-y-6">
-              <Box className="flex items-center gap-4">
-                {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-              <Box as="h2" className={`${isSmall ? "text-xl" : "text-2xl"} font-bold m-4`}>Lab Reports</Box>
-              </Box>
-
-              {labReadings.map((reading) => (
+            {dialysisParameters
+              .filter(q => !q.title.toLowerCase().includes("diastolic"))
+              .map((question, index) => (
                 <ParameterSection
-                  key={reading.id}
-                  title={reading.title}
-                  noResponse={reading.responseCount === 0}
+                  key={index}
+                  title={question.title}
+                  noResponse={question.responseCount === 0}
                 >
-                  <Box className="relative">
-                    {role?.role_name === "Admin" && (
-                      <Flex gap={2} className={`absolute ${isMobile ? 'top-1 right-1' : 'top-2 left-1/2 transform -translate-x-1/2'} z-10 bg-white/70 backdrop-blur-sm rounded-md p-1`}>
-                        <button
-                          className="text-[#4164df] text-xl"
-                          onClick={() => openLabReadingModal(reading.title, reading.id)}
-                        >
-                          ✎
-                        </button>
-                        <button
-                          className="text-[#de425b] text-xl"
-                          onClick={() => deleteLabReading(reading.id)}
-                        >
-                          🗑
-                        </button>
-                      </Flex>
-                    )}
-                    <LineChartComponentLab
+                  {question.isGraph === 1 ? (
+                    <LineChartDialysis
                       aspect={isSmall ? 2 / 1 : 3 / 1}
-                      questionId={reading.id}
+                      questionId={question.id}
                       user_id={userData.id}
-                      title={reading.title}
-                      unit={reading.unit}
+                      title={question.title}
+                      unit={question.unit}
                     />
-                  </Box>
+                  ) : (
+                    <DialysisTable
+                      questionId={question.id}
+                      user_id={userData.id}
+                      title={question.title}
+                      question={question}
+                    />
+                  )}
                 </ParameterSection>
               ))}
+          </Box>
+        )}
 
-              {selectedReading && (
-                <LabRedingUpdateModal
-                  closeEditModal={closeLabReadingModal}
-                  initialData={selectedReading.title}
-                  id={selectedReading.id}
-                  onSuccess={handleUpdateSuccess}
-                />
-              )}
+        {/* Lab Reports */}
+        {userData.program !== "Basic" && (
+          <Box className="space-y-6">
+            <Box className="flex items-center gap-4">
+              {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
+              <Box as="h2" className={`${isSmall ? "text-md" : "text-xl"} font-bold mt-8`}>Lab Reports</Box>
             </Box>
-          )}
+
+            {labReadings.map((reading) => (
+              <ParameterSection
+                key={reading.id}
+                title={reading.title}
+                noResponse={reading.responseCount === 0}
+              >
+                <Box className="relative">
+                  {role?.role_name === "Admin" && (
+                    <Flex gap={2} className={`absolute ${isMobile ? 'top-1 right-1' : 'top-2 left-1/2 transform -translate-x-1/2'} z-10 bg-white/70 backdrop-blur-sm rounded-md p-1`}>
+                      <button
+                        className="text-[#4164df] text-xl"
+                        onClick={() => openLabReadingModal(reading.title, reading.id)}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        className="text-[#de425b] text-xl"
+                        onClick={() => deleteLabReading(reading.id)}
+                      >
+                        🗑
+                      </button>
+                    </Flex>
+                  )}
+                  <LineChartComponentLab
+                    aspect={isSmall ? 2 / 1 : 3 / 1}
+                    questionId={reading.id}
+                    user_id={userData.id}
+                    title={reading.title}
+                    unit={reading.unit}
+                  />
+                </Box>
+              </ParameterSection>
+            ))}
+
+            {selectedReading && (
+              <LabRedingUpdateModal
+                closeEditModal={closeLabReadingModal}
+                initialData={selectedReading.title}
+                id={selectedReading.id}
+                onSuccess={handleUpdateSuccess}
+              />
+            )}
+          </Box>
+        )}
         {/* </Flex> */}
-      {/* </Box> */}
+        {/* </Box> */}
       </Box>
     </WrapperComponent>
   );

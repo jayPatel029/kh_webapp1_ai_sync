@@ -201,6 +201,7 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
       <FormControl isRequired>
         <FormLabel>Upload File</FormLabel>
         <FileUploadWithCamera
+          size="xs"
           images={images}
           onChange={handleImageChange}
           accept="image/*"

@@ -16,7 +16,7 @@ import { Button as ButtonPrimitive } from "../../component-library/primitives/Bu
 
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
-import PatientDetailTable from "../common/PatientDetailTable";
+import UnifiedListTable from "../../components/table/UnifiedListTable";
 
 // Page Components
 import AlarmModal from "./AlarmModal";
@@ -172,48 +172,25 @@ const ShowAlarms = () => {
     getUnreadMessagesFromAdmin();
   }, [patientId]);
 
-  const AlarmRow = ({ alarm }) => {
-    const alarmId = localStorage.getItem("alarmId");
-    const isHighlighted = alarmId && parseInt(alarmId) === alarm.id;
+  // Prepare columns for UnifiedListTable
+  const alarmColumns = [
+    { key: "date", label: "Date", type: "date", width: "150px" },
+    { key: "type", label: "Type", type: "text", width: "150px" },
+    { key: "duration", label: "Duration", type: "text", width: "150px" },
+    { key: "monthly", label: "Monthly", type: "text", width: "100px" },
+    { key: "status", label: "Status", type: "text", width: "100px" },
+    ...(isDoctor ? [] : [{ key: "actions", label: "Actions", type: "actions", width: "100px" }]),
+  ];
 
-    return (
-      <Box className={`bg-white border-b border-gray-100 px-[50px] py-5 hover:bg-gray-50 transition-colors ${isHighlighted ? "bg-green-50" : ""}`}>
-        <Flex justify="between" align="center">
-          <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-            {formatDate(alarm.dateadded)}
-          </Box>
-          <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-            {alarm.type || "No type available"}
-          </Box>
-          <Box style={{ flex: "0 0 150px", textAlign: "center" }} className="text-[16px] font-semibold text-[#989898]">
-            {alarm.time}
-          </Box>
-          <Box style={{ flex: "0 0 100px" }} className="text-[16px] font-semibold text-[#989898]">
-            {alarm.timesamonth || "Not specified"}
-          </Box>
-          <Box style={{ flex: "0 0 100px" }} className="text-[16px] font-semibold text-[#989898]">
-            {alarm.status}
-          </Box>
-          {!isDoctor && (
-            <Box style={{ flex: "0 0 100px" }} className="flex justify-center gap-2">
-              <button
-                className="text-[#87ca9c] hover:text-[#6bb382] transition-colors"
-                onClick={() => openEditModal(alarm)}
-              >
-                <BsPencilSquare size={20} />
-              </button>
-              <button
-                className="text-[#de425b] hover:text-[#c93850] transition-colors"
-                onClick={() => handleDeleteAlarm(alarm.id)}
-              >
-                <BsTrash size={20} />
-              </button>
-            </Box>
-          )}
-        </Flex>
-      </Box>
-    );
-  };
+  // Transform alarm data for table
+  const transformedAlarmData = userAlarmData.map((alarm) => ({
+    id: alarm.id,
+    date: alarm.dateadded,
+    type: alarm.type || "No type available",
+    duration: alarm.time,
+    monthly: alarm.timesamonth || "Not specified",
+    status: alarm.status,
+  }));
 
   if (loading) {
     return <Box className="p-20 text-center">Loading...</Box>;
@@ -221,7 +198,7 @@ const ShowAlarms = () => {
 
   return (
     <PatientDetailLayout
-      title={userData?.name ? userData.name : "Patient's Alarms"}
+             title={"Alarms"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
@@ -241,63 +218,22 @@ const ShowAlarms = () => {
         </ButtonPrimitive>
       </Flex>
 
-      {isMobile ? (
-        /* Mobile: Card-based alarm list */
-        <Box className="space-y-3 pb-20">
-          {userAlarmData && userAlarmData.length > 0 ? userAlarmData.map((alarm) => {
-            const alarmId = localStorage.getItem("alarmId");
-            const isHighlighted = alarmId && parseInt(alarmId) === alarm.id;
-            return (
-              <Box key={alarm.id} className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${isHighlighted ? 'border-green-400 bg-green-50' : ''}`}>
-                <Flex justify="between" align="start" className="mb-2">
-                  <Box>
-                    <h3 className="text-[14px] font-bold text-[#393939]">{alarm.type || "No type"}</h3>
-                    <span className="text-[12px] text-[#989898]">{formatDate(alarm.dateadded)}</span>
-                  </Box>
-                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                    alarm.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                    alarm.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                    'bg-yellow-100 text-yellow-700'
-                  }`}>{alarm.status}</span>
-                </Flex>
-                <Box className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[#989898] mb-2">
-                  <span><strong>Duration:</strong> {alarm.time}</span>
-                  <span><strong>Monthly:</strong> {alarm.timesamonth || "N/A"}</span>
-                </Box>
-                {!isDoctor && (
-                  <Flex gap={2} className="border-t border-gray-100 pt-2 mt-1">
-                    <button className="flex items-center gap-1 text-[#87ca9c] text-[12px] font-medium" onClick={() => openEditModal(alarm)}>
-                      <BsPencilSquare size={14} /> Edit
-                    </button>
-                    <button className="flex items-center gap-1 text-[#de425b] text-[12px] font-medium" onClick={() => handleDeleteAlarm(alarm.id)}>
-                      <BsTrash size={14} /> Delete
-                    </button>
-                  </Flex>
-                )}
-              </Box>
-            );
-          }) : (
-            <Box className="py-8 text-center">
-              <p className="text-[#989898] text-[14px] italic">No Alarms found</p>
-            </Box>
-          )}
-        </Box>
-      ) : (
-      /* Desktop: Original Table */
-      <PatientDetailTable
-        columns={[
-          { key: "date", label: "Date", flex: "0 0 150px" },
-          { key: "type", label: "Type", flex: "0 0 150px" },
-          { key: "duration", label: "Duration", flex: "0 0 150px", textAlign: "center" },
-          { key: "monthly", label: "Monthly", flex: "0 0 100px" },
-          { key: "status", label: "Status", flex: "0 0 100px" },
-          { key: "actions", label: "Actions", flex: "0 0 100px", textAlign: "center", hidden: isDoctor },
-        ]}
-        data={userAlarmData}
-        renderRow={(alarm) => <AlarmRow key={alarm.id} alarm={alarm} />}
+      {/* Unified Table - handles both mobile and desktop */}
+      <UnifiedListTable
+        columns={alarmColumns}
+        data={transformedAlarmData}
+        onEdit={(row) => {
+          const originalAlarm = userAlarmData.find((a) => a.id === row.id);
+          openEditModal(originalAlarm);
+        }}
+        onDelete={(row) => handleDeleteAlarm(row.id)}
+        displayMode="auto"
+        cardTitleKey="type"
+        cardSubtitleKey="date"
+        cardFieldKeys={["duration", "monthly", "status"]}
         emptyMessage="No Alarms found"
+        actionButtons={!isDoctor}
       />
-      )}
 
       {/* Modals */}
       {showModal && <AlarmModal closeModal={closeModal} pid={patientId} patient={userData} />}

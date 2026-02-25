@@ -15,14 +15,15 @@
   --color-primary-dark: #004c6d;
   --color-primary-50: #F5F3FF;
   --color-primary-100: #E9E3FF;
-  --color-primary-200: #422AFB;
+  /* --color-primary-200: #422AFB;
   --color-primary-300: #422AFB;
   --color-primary-400: #7551FF;
   --color-primary-500: #422AFB;
   --color-primary-600: #3311DB;
   --color-primary-700: #02044A;
-  --color-primary-800: #190793;
-  --color-primary-900: #11047A;
+  --color-primary-800: #190793; */
+  --color-primary-900: #3551b4;
+  --color-primary-700: #006d9c;
 
   /* Secondary/Accent Colors */
   --color-accent: #5886a5;
@@ -57,6 +58,8 @@
   --color-text-secondary: #707EAE;
   --color-text-inverse: #ffffff;
   --color-placeholder: #999999;
+
+  --color-heading: #3F6B85;
 
   /* Background Colors */
   --color-background: #ffffff;

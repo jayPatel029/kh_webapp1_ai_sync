@@ -46,7 +46,6 @@ export const FileViewModal = ({
   fileUrl,
   patientId,
   fileId,
-  fileType = "Prescription",
   title = "File View"
 }) => {
   const [newComment, setNewComment] = useState("");
@@ -87,7 +86,6 @@ export const FileViewModal = ({
       // Fetch comments
       const commentData = {
         fileId: fileId,
-        fileType: fileType,
       };
       const commentsRes = await getComments(commentData);
       setPrevComments(commentsRes?.data || []);
@@ -96,7 +94,7 @@ export const FileViewModal = ({
     } finally {
       setLoading(false);
     }
-  }, [isOpen, patientId, fileId, fileType, role, isPdf]);
+  }, [isOpen, patientId, fileId, role, isPdf]);
 
   useEffect(() => {
     fetchContext();
@@ -113,7 +111,6 @@ export const FileViewModal = ({
       const response = await addComment(
         trimmedComment,
         fileId,
-        fileType,
         patientId,
         isDoctor
       );
@@ -207,7 +204,7 @@ export const FileViewModal = ({
   //       y += 5;
   //     });
 
-  //     pdf.save(`${fileType.replace(" ", "_")}_Summary.pdf`);
+  //     pdf.save(`${ .replace(" ", "_")}_Summary.pdf`);
   //   } catch (error) {
   //     console.error("Error generating PDF:", error);
   //     alert("Failed to download PDF. Please try again.");
@@ -221,13 +218,14 @@ export const FileViewModal = ({
       <ModalOverlay className="modal-overlay-blur" />
       <ModalContent
         className="rounded-2xl overflow-hidden flex flex-col bg-white file-view-modal"
-        style={{ height: '85vh', maxWidth: '1200px' }}
+        style={{ height: '95vh', width: '85vw' }}
+        
       >
         <ModalHeader className="border-b bg-surface/50 flex-none py-4 px-6">
           <HStack justify="between" align="center" className="w-full">
             <VStack spacing={0} align="start">
               <Heading size="sm" weight="bold" className="text-dark">{title}</Heading>
-              <Text size="xs" className="text-muted">{fileType}</Text>
+              <Text size="xs" className="text-muted">{ }</Text>
             </VStack>
 
             <HStack spacing={4}>
@@ -240,7 +238,7 @@ export const FileViewModal = ({
               >
                 <HStack spacing={2}>
                   <img src={downloadIcon} alt="" style={{ width: 16 }} />
-                  <span>Download Summary</span>
+                  <span>Print Summary</span>
                 </HStack>
               </Button>
               <ModalCloseButton className="static p-0 hover:bg-surface rounded-full" />

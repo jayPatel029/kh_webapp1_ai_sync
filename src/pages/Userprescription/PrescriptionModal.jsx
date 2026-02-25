@@ -183,6 +183,7 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
       <FormControl isRequired>
         <FormLabel>Prescription Document</FormLabel>
         <FileUploadWithCamera
+          size="xs"
           images={images}
           onChange={handleImageChange}
           accept="image/*"

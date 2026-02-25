@@ -16,6 +16,7 @@ import { SortDropdown } from "../../component-library/primitives";
 
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
+import UnifiedListTable from "../../components/table/UnifiedListTable";
 
 // Page Components
 import RequisitionModal from "./RequisitionModal";
@@ -168,9 +169,45 @@ const UserRequisition = () => {
     return <Box className="p-20 text-center">Loading...</Box>;
   }
 
+  // Prepare columns for UnifiedListTable
+  const requisitionColumns = [
+    { key: "date", label: "Date", type: "date", width: "150px" },
+    { key: "requisition", label: "Requisition", type: "custom", width: "150px", render: (row) => (
+      <div className="flex justify-start"> {row.Requisition && row.Requisition.endsWith(".pdf") ? (
+          <div
+            className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => openFileModal(row.id, row.Requisition)}
+          >
+            <FaFilePdf className="text-white text-2xl" />
+          </div>
+        ) : (
+          <div
+            className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => openFileModal(row.id, row.Requisition)}
+          >
+            <img
+              src={row.Requisition}
+              alt="Requisition"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+      </div>
+    ) },
+    { key: "actions", label: "Actions", type: "actions", width: "100px" },
+  ];
+
+  // Transform requisition data for table
+  const transformedRequisitionData = sortedRequisitionData.map((item) => ({
+    id: item.id,
+    date: item.Date,
+    requisition: item.Requisition,
+    Requisition: item.Requisition,
+  }));
+
   return (
     <PatientDetailLayout
-      title={userData?.name ? userData.name : "Patient's Alarms"}
+             title={"Requisitions"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
@@ -215,68 +252,17 @@ const UserRequisition = () => {
       </Flex>
 
       {/* Table */}
-      <Box className="overflow-x-auto">
-        {/* Table Header */}
-        <Box className="bg-[#5886a5] rounded-[5px] px-[70px] py-4 mb-0">
-          <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
-            <Box style={{ flex: "0 0 150px" }}>Date</Box>
-            <Box style={{ flex: "0 0 150px", textAlign: "center" }}>Requisition</Box>
-            <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
-          </Flex>
-        </Box>
-
-        {/* Table Body */}
-        <Box>
-          {sortedRequisitionData.length > 0 ? (
-            sortedRequisitionData.map((requisitionItem, index) => (
-              <Box
-                key={index}
-                className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
-              >
-                <Flex justify="between" align="center">
-                  <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-                    {formatDate(requisitionItem.Date)}
-                  </Box>
-                  <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
-                    {requisitionItem.Requisition &&
-                      requisitionItem.Requisition.endsWith(".pdf") ? (
-                      <Box
-                        className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => openFileModal(requisitionItem.id, requisitionItem.Requisition)}
-                      >
-                        <FaFilePdf className="text-white text-2xl" />
-                      </Box>
-                    ) : (
-                        <Box
-                          className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() => openFileModal(requisitionItem.id, requisitionItem.Requisition)}
-                        >
-                          <img
-                            src={requisitionItem?.Requisition}
-                            alt="Requisition"
-                            className="w-full h-full object-cover"
-                          />
-                        </Box>
-                    )}
-                  </Box>
-                  <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
-                    <button
-                      className="text-[#de425b] hover:text-[#c93850] transition-colors"
-                      onClick={() => handleDelete(requisitionItem.id, email)}
-                    >
-                      <BsTrash size={24} />
-                    </button>
-                  </Box>
-                </Flex>
-              </Box>
-            ))
-          ) : (
-            <Box className="bg-white px-[70px] py-8 text-center">
-              <p className="text-[#989898] text-[16px] italic">No Requisition found</p>
-            </Box>
-          )}
-        </Box>
-      </Box>
+      <UnifiedListTable
+        columns={requisitionColumns}
+        data={transformedRequisitionData}
+        onDelete={(row) => handleDelete(row.id, email)}
+        displayMode="auto"
+        cardTitleKey="date"
+        cardSubtitleKey="requisition"
+        cardFieldKeys={[]}
+        emptyMessage="No Requisition found"
+        actionButtons={role?.role_name !== "Dialysis Technician"}
+      />
 
       {/* Modals */}
       {showModal && (
@@ -294,7 +280,7 @@ const UserRequisition = () => {
           fileUrl={uploadedFile.fileUrl}
           fileId={uploadedFile.fileId}
           patientId={id}
-          fileType="Requisition"
+          // fileType="Requisition"
           title="Requisition View"
         />
       )}

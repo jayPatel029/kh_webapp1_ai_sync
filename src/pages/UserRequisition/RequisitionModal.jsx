@@ -132,6 +132,7 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess }) => {
       <FormControl isRequired>
         <FormLabel>Upload Document:</FormLabel>
         <FileUploadWithCamera
+          size="xs"
           images={images}
           onChange={handleImageChange}
           accept="image/*,.pdf"

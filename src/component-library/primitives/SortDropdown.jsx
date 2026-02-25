@@ -8,13 +8,14 @@
 import React, { forwardRef } from 'react';
 import PropTypes from 'prop-types';
 import clsx from 'clsx';
+import sortIcon from '../../assets/Sort_Amount_Up.svg';
 
 export const SortDropdown = forwardRef(({
   value = '',
   onChange,
   options = [],
   placeholder = 'Sort by',
-  icon,
+  icon = <img src={sortIcon} alt="Sort" />,
   iconAlt,
   label,
   className,

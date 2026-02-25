@@ -187,7 +187,7 @@ function DoctorDashboard() {
                     ).length;
 
                     return (
-                      <Box key={alert.id || idx} className="pb-6 border-b border-gray-200 last:border-b-0">
+                      <Box key={alert.id || idx} className="pb-6  last:border-b-0">
                         <Flex gap={6} align="start">
                           {/* Patient Avatar */}
                           <Box className="flex-shrink-0">

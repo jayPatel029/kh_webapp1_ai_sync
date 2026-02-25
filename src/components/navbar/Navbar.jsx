@@ -5,10 +5,10 @@
  * @file src/components/navbar/Navbar.jsx
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import dummyadmin from "../../assets/dummyadmin.png";
-import { Flex, Button, IconButton, Box } from "../../component-library";
+import { Flex, Button, IconButton, Box, Card,  Text } from "../../component-library";
 import '../../design-system/styles/index.css';
 import { ArrowBack } from "@mui/icons-material";
 import { useIsMobile } from "../mobile/useIsMobile";
@@ -18,6 +18,7 @@ const Navbar = () => {
     const [uname, setUname] = useState("");
     const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
     const [dropdownVisible, setDDVisible] = useState(false);
+    const ddRef = useRef(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -44,6 +45,17 @@ const Navbar = () => {
         setUname(u);
     }, []);
 
+    // close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (ddRef.current && !ddRef.current.contains(e.target)) {
+                setDDVisible(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     // toggle sidebar collapsed state and notify other components
     const toggleCollapse = () => {
         const next = !isCollapsed;
@@ -64,7 +76,7 @@ const Navbar = () => {
 
     return (
         <>
-            <Box className="sticky top-0 left-0 right-0  px-2 z-[50]">
+            <Box className="sticky top-0 left-0 right-0  pr-8 pt-4  z-[50]">
                 <Flex align="center" justify="between" className="bg-white h-14 navbar-container">
                     <Flex align="center" gap={4}>
 
@@ -74,10 +86,24 @@ const Navbar = () => {
 
                     <Flex align="center" gap={4}>
                         {isCollapsed && (<IconButton variant="outline" icon={<ArrowBack className="rotate-180" />} onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} />)}
-                        <span className="text-base text-dark hidden md:inline">{uname || 'User'}</span>
-                        <Button variant="ghost" onClick={logout} className="p-0">
-                            <img src={dummyadmin} alt="profile" className="h-9 w-9 rounded-full border border-border" />
-                        </Button>
+                        <Text className="text-base text-dark hidden md:inline">{uname || 'User'}</Text>
+                        <Box className="relative" ref={ddRef}>
+                            <Button variant="ghost" onClick={() => setDDVisible(v => !v)} className="p-0" aria-expanded={dropdownVisible} aria-haspopup="menu">
+                                <img src={dummyadmin} alt="profile" className="h-9 w-9 rounded-full border border-border" />
+                            </Button>
+                            {dropdownVisible && (
+                                <Card className="absolute right-0 mt-2 w-44 bg-white border border-border rounded shadow-md z-50 p-0 overflow-hidden">
+                                    <Flex direction="column" className="py-1">
+                                        <Button variant="ghost" className="justify-start px-3 py-2 w-full" onClick={() => { setDDVisible(false); navigate('/reset-password'); }}>
+                                            Reset Password
+                                        </Button>
+                                        <Button variant="ghost" className="justify-start px-3 py-2 w-full" onClick={() => { setDDVisible(false); logout(); }}>
+                                            Logout
+                                        </Button>
+                                    </Flex>
+                                </Card>
+                            )}
+                        </Box>
                     </Flex>
                 </Flex>
             </Box>

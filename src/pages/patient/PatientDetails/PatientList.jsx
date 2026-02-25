@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAssignedDoctorData } from '../../../ApiCalls/doctorPatientApis';
 import { getAssignedAdminData } from '../../../ApiCalls/adminPatientApis';
@@ -18,7 +18,7 @@ import {
   Heading
 } from '../../../component-library/primitives/Typography';
 import { Spinner } from '../../../component-library/feedback/Spinner';
-import { Alert } from '../../../component-library/feedback/Alert';
+import { PageHeader } from '../../../components/PageHeader';
 import { SearchBar } from '../../../components';
 import { useIsMobile } from '../../../components/mobile/useIsMobile';
 import UnifiedListTable from '../../../components/table/UnifiedListTable';
@@ -26,7 +26,8 @@ import UnifiedListTable from '../../../components/table/UnifiedListTable';
 // Import icons
 import PlusIcon from '../../../assets/icons/plus.svg';
 
-const PatientList = ({ data }) => {
+
+const PatientList = ({ data, onAddClick }) => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
 
@@ -95,7 +96,7 @@ const PatientList = ({ data }) => {
 
   // prepare columns for unified table (desktop + mobile card support)
   const columns = useMemo(() => [
-    { key: 'profile', label: 'Profile', type: 'image', width: '111px' },
+    { key: 'profile', label: 'Profile', type: 'image', width: '111px' , justifyContent: 'start'},
     { key: 'name', label: 'Name', type: 'text', width: '107px' },
     { key: 'condition', label: 'Condition', type: 'custom', width: '120px', render: (row) => (
         <span className={getConditionStyles(row.condition)}>{row.condition || '-'}</span>
@@ -209,8 +210,10 @@ const PatientList = ({ data }) => {
   // Handle patient click
   const handlePatientClick = (patient) => {
     // Navigate to user profile page using route constants
-    // we import ROUTES at top
-    navigate(ROUTES.userProfile(patient.id), { state: patient });
+    // Wrap navigation in startTransition to avoid suspending during synchronous input
+    startTransition(() => {
+      navigate(ROUTES.userProfile(patient.id), { state: patient });
+    });
   };
 
   // Date Formatter (DD-MM-YYYY as per original)
@@ -226,10 +229,10 @@ const PatientList = ({ data }) => {
   // Condition color mapping
   const getConditionStyles = (condition) => {
     switch (condition?.toLowerCase()) {
-      case 'stable': return "bg-green-200 text-green-800"; // green
-      case 'unstable': return "bg-yellow-200 text-yellow-800"; // yellow/orange
-      case 'critical': return "bg-red-200 text-red-800"; // red
-      default: return "bg-gray-200 text-gray-800"; // gray
+      case 'stable': return "bg-green-200 text-green-800 p-2"; // green
+      case 'unstable': return "bg-yellow-200 text-yellow-800 p-2"; // yellow/orange
+      case 'critical': return "bg-red-200 text-red-800 p-2"; // red
+      default: return "bg-gray-200 text-gray-800 p-2"; // gray
     }
   };
 
@@ -246,7 +249,7 @@ const PatientList = ({ data }) => {
       <div className="">
 
       {/* Header & toolbar section */}
-      {!isMobile && (
+      {/* {!isMobile && (
         <Box
           className={`border-b-2 border-solid ${isMobile ? 'pb-2' : ''}`}
           style={{
@@ -273,7 +276,13 @@ const PatientList = ({ data }) => {
             My Patients
           </Heading>
         </Box>
-      )}
+      )} */}
+        
+        <PageHeader
+          title="My Patients"
+          breadcrumbs={["Dashboard", "My Patients"]}
+          onBack={() => navigate(ROUTES.HOME)}
+        />
 
       <div className={`admin-card__header`}> 
         <div className={`admin-toolbar ${isMobile ? 'flex-col gap-2' : ''}`}> 
@@ -291,7 +300,10 @@ const PatientList = ({ data }) => {
               <Button
                 variant="solid"
                 // size="lg"
-                onClick={() => navigate("/patients/new")}
+                onClick={() => {
+                  if (onAddClick) onAddClick();
+                  else navigate("/patients/new");
+                }}
                 style={{
                   backgroundColor: '#4164df',
                   borderRadius: '10px',
@@ -301,7 +313,7 @@ const PatientList = ({ data }) => {
                   padding: isMobile ? '6px 12px' : '9px 15px',
                 }}
               >
-                <Flex gap={isMobile ? 1 : 2} align="center">
+                <Flex gap={isMobile ? 1 : 2}  justify="start" align="start">
                   <img src={PlusIcon} alt="Add" style={{ width: isMobile ? '14px' : '18px' }} />
                   <span style={{ color: 'white', fontWeight: 600 }}>{isMobile ? 'Add' : 'Add Patient'}</span>
                 </Flex>

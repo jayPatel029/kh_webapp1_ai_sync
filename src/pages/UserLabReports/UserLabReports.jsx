@@ -18,6 +18,7 @@ import { SortDropdown } from "../../component-library/primitives";
 
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
+import UnifiedListTable from "../../components/table/UnifiedListTable";
 
 // Mobile
 import { useIsMobile } from "../../components/mobile/useIsMobile";
@@ -201,9 +202,44 @@ const UserLabReports = () => {
     setFilteredReportData(labReportData);
   };
 
+  // Prepare columns for UnifiedListTable
+  const labReportColumns = [
+    { key: "date", label: "Date", type: "date", width: "150px" },
+    { key: "type", label: "Report Type", type: "text", width: "150px" },
+    { key: "image", label: "Lab Reports", type: "custom", width: "150px", render: (row) => (
+      <div className="flex justify-start">
+        <div
+          className="relative w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={() => openFileModal(row.id, row.Lab_Report)}
+        >
+          <div className="rotate-90" style={{ width: "80px", height: "56.534px" }}>
+            <img
+              src={row.Lab_Report}
+              alt="Lab Report"
+              className="w-full h-full object-cover opacity-70"
+            />
+          </div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+            <img src={expandIcon} alt="Expand" className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+    ) },
+    { key: "actions", label: "Actions", type: "actions", width: "100px" },
+  ];
+
+  // Transform lab report data for table
+  const transformedLabReportData = filteredReportData.map((report) => ({
+    id: report.id,
+    date: report.date || report.Date,
+    type: report.Report_Type,
+    image: report.Lab_Report,
+    Lab_Report: report.Lab_Report,
+  }));
+
   return (
     <PatientDetailLayout
-      title={userData?.name ? userData.name : "Patient's Alarms"}
+             title={"Lab reports"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
@@ -270,142 +306,19 @@ const UserLabReports = () => {
         </Box>
       )} */}
 
-      {/* Mobile Card View */}
-      {isMobile ? (
-        <Box className="flex flex-col gap-3 pb-20">
-          {loading ? (
-            <Box className="py-8 text-center"><Text className="text-gray-500">Loading...</Text></Box>
-          ) : filteredReportData.length > 0 ? (
-            filteredReportData.map((report, index) => (
-              <Box key={index} className="bg-white rounded-xl border border-gray-200 p-3">
-                <Flex justify="between" align="start" className="mb-2">
-                  <Box>
-                    <p className="text-[13px] font-semibold text-[#1e293b]">{report.Report_Type || 'Lab Report'}</p>
-                    <p className="text-[11px] text-[#6b7280] mt-0.5">{formatDate(report.date || report.Date)}</p>
-                  </Box>
-                  <button
-                    onClick={() => deleteLabReport(report.id, email)}
-                    className="p-1 cursor-pointer"
-                  >
-                    <img src={deleteIcon} alt="Delete" className="w-5 h-5" />
-                  </button>
-                </Flex>
-                <Box
-                  className="w-full h-[120px] rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
-                  onClick={() => openFileModal(report.id, report.Lab_Report)}
-                >
-                  <img src={report.Lab_Report} alt="Lab Report" className="w-full h-full object-cover" />
-                </Box>
-              </Box>
-            ))
-          ) : (
-            <Box className="py-8 text-center">
-              <Text size="sm" className="italic text-gray-400">No lab reports found</Text>
-            </Box>
-          )}
-        </Box>
-      ) : (
-      /* Desktop Table Layout */
-      <Box className="rounded-[5px] overflow-hidden">
-        {/* Table Header */}
-        <Flex
-          className="bg-[#5886a5] text-white py-4 px-6 md:px-12"
-          justify="between"
-        >
-          <Box style={{ flex: '1', minWidth: '120px' }}>
-            <Text size="md" weight="semibold">Date</Text>
-          </Box>
-          <Box style={{ flex: '1', minWidth: '150px' }}>
-            <Text size="md" weight="semibold">Report Type</Text>
-          </Box>
-          <Box style={{ flex: '1', minWidth: '150px' }} className="text-center">
-            <Text size="md" weight="semibold">Lab Reports</Text>
-          </Box>
-          <Box style={{ flex: '0 0 100px' }} className="text-center">
-            <Text size="md" weight="semibold">Actions</Text>
-          </Box>
-        </Flex>
-
-        {/* Table Body */}
-        <Box className="bg-white">
-          {loading ? (
-            <Box className="py-20 text-center">
-              <Text className="text-gray-500">Loading lab reports...</Text>
-            </Box>
-          ) : filteredReportData.length > 0 ? (
-            filteredReportData.map((report, index) => (
-              <Flex
-                key={index}
-                className="border-b border-gray-100 py-6 px-6 md:px-12 hover:bg-gray-50 transition-colors"
-                justify="between"
-                align="center"
-              >
-                <Box style={{ flex: '1', minWidth: '120px' }}>
-                  <Text
-                    size="md"
-                    weight="semibold"
-                    style={{ color: '#989898' }}
-                  >
-                    {formatDate(report.date || report.Date)}
-                  </Text>
-                </Box>
-                <Box style={{ flex: '1', minWidth: '150px' }}>
-                  <Text
-                    size="md"
-                    weight="semibold"
-                    style={{ color: '#989898' }}
-                  >
-                    {report.Report_Type}
-                  </Text>
-                </Box>
-                <Box
-                  style={{ flex: '1', minWidth: '150px' }}
-                  className="flex justify-center"
-                >
-                  <Box
-                    className="relative cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => openFileModal(report.id, report.Lab_Report)}
-                  >
-                    <Box className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden">
-                      <Box
-                        className="rotate-90"
-                        style={{ width: '80px', height: '56.534px' }}
-                      >
-                        <img
-                          src={report.Lab_Report}
-                          alt="Lab Report"
-                          className="w-full h-full object-cover opacity-70"
-                        />
-                      </Box>
-                    </Box>
-                    <Box className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                      <img src={expandIcon} alt="Expand" className="w-5 h-5" />
-                    </Box>
-                  </Box>
-                </Box>
-                <Box
-                  style={{ flex: '0 0 100px' }}
-                  className="flex justify-center"
-                >
-                  <button
-                    onClick={() => deleteLabReport(report.id, email)}
-                    className="w-8 h-8 flex items-center justify-center cursor-pointer hover:opacity-70 transition-opacity"
-                  >
-                    <img src={deleteIcon} alt="Delete" className="w-full h-full" />
-                  </button>
-                </Box>
-              </Flex>
-            ))
-          ) : (
-            <Box className="py-20 text-center">
-              <Text size="md" weight="normal" className="italic text-gray-400">
-                No lab reports found
-              </Text>
-            </Box>
-          )}
-        </Box>
-      </Box>
-      )}
+      {/* Unified Table - handles both mobile and desktop */}
+      <UnifiedListTable
+        columns={labReportColumns}
+        data={transformedLabReportData}
+        onDelete={(row) => deleteLabReport(row.id, email)}
+        isLoading={loading}
+        displayMode="auto"
+        cardTitleKey="type"
+        cardSubtitleKey="date"
+        cardFieldKeys={[]}
+        emptyMessage="No lab reports found"
+        actionButtons={true}
+      />
 
       {/* Modals */}
       {showModal && (
@@ -423,7 +336,7 @@ const UserLabReports = () => {
           fileUrl={uploadedFile.imageUrl}
           fileId={uploadedFile.id}
           patientId={id}
-          fileType="Lab Report"
+          // fileType="Lab Report"
           title="Lab Report View"
         />
       )}

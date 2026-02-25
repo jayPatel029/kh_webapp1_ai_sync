@@ -36,7 +36,7 @@ export const ParameterSection = ({
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <Box className="w-full">
+    <Box className="w-full !shadow-[2px_2px_8px_0px_rgba(0,0,0,0.35)] !shadow-[-2px_-2px_8px_0px_rgba(0,0,0,0.10)] rounded-2xl bg-white">
       <Card
         variant="elevated"
         className="w-full card-elevated cursor-pointer select-none"
@@ -118,7 +118,8 @@ export const ParameterSection = ({
                     )}
                     {onEnterReading && (
                       <Button
-                        variant="primary"
+                        variant="outline"
+                        className="!rounded-xs"
                         onClick={onEnterReading}
                       >
                         Enter reading

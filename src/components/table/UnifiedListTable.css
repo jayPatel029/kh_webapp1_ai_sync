@@ -75,6 +75,7 @@
   text-align: left;
   /* border: var(--color-accent) solid 1px; */
   overflow: hidden;
+  padding: 30px 10px 20px 20px;
 }
 
 /* Apply rounded corners only to the header cells so body stays square */
@@ -90,6 +91,7 @@
 
 .list-table__header-cell {
   padding: 15px 20px;
+  margin: 10px 10px;
   font-size: 16px;
   font-weight: 600;
   font-family: 'Sora', sans-serif;
@@ -99,7 +101,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-
 }
 
 /* border-bottom: 2px solid rgba(0, 0, 0, 0.1); */
@@ -132,15 +133,18 @@
   position: relative;
 }
 
+.list-table__cell:first{
+padding: 30px 10px 20px 20px;
+}
 /* ===================== CELL TYPES ===================== */
 
 /* Image Cell */
 .list-table__image-cell {
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
+  align-items: start;
+  justify-content: start;
   height: 60px;
-  padding: 8px 15px;
+  /* padding: 8px 15px; */
 }
 
 .list-table__image-wrapper {
@@ -151,8 +155,8 @@
   background-color: var(--color-surface, #fafafa);
   flex-shrink: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: start;
+  justify-content: start;
   border: 2px solid var(--color-border-light, #d9d9d9);
 }
 
@@ -196,7 +200,7 @@
 /* ===================== ACTIONS CELL ===================== */
 .list-table__actions-cell {
   display: flex;
-  align-items: center;
+  align-items: start;
   justify-content: flex-start;
   gap: 8px;
 }
@@ -204,13 +208,13 @@
 .list-table__actions-group {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: start;
 }
 
 .list-table__action-btn {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  align-items: start;
+  justify-content: start  ;
   width: 36px;
   height: 36px;
   padding: 0;

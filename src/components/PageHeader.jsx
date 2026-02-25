@@ -12,16 +12,54 @@ import * as assets from '../assets';
 import '../design-system/styles/index.css';
 import onBackButton from '../assets/onBackButton.svg';
 import { useIsMobile } from './mobile/useIsMobile';
+import { Padding } from '@mui/icons-material';
 
 export const PageHeader = ({
   breadcrumbs = [],
   title = 'Patient Name',
   onBack,
-  variant, // 'mobile' | undefined (auto-detects)
+  variant = "onlyheader", // 'mobile' | undefined (auto-detects)
   rightAction, // optional right-side element for mobile header
 }) => {
+  
   const { isMobile: autoMobile } = useIsMobile();
-  const isMobileView = variant === 'mobile' || (variant !== 'desktop' && autoMobile);
+  const isMobile = autoMobile;
+
+  // Render the "only header" variant by default when no variant is provided
+  const renderOnlyHeaderDefault =  variant === 'onlyheader';
+
+  if (renderOnlyHeaderDefault) {
+    return (
+      <Box
+        className={`border-b-2 -mt-8  border-info ${isMobile ? 'pb-2' : 'pb-4'}`}
+        style={{
+          // borderColor: 'var(--color-info)',
+          height: isMobile ? 'auto' : '100px',
+          paddingBottom: isMobile ? '0.5rem' : '2rem',
+          position: 'relative'
+        }}
+      >
+        <Heading
+          as="h1"
+          size={isMobile ? 'none' : '2xl'}
+          style={{
+            ...(isMobile ? {} : {
+              position: 'absolute',
+              left: 0,
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }),
+            color: 'var(--color-heading)',
+            fontFamily: 'Sora, sans-serif',
+            fontWeight: 'bold',
+            marginBottom: '35px',
+          }}
+        >
+         {title}
+        </Heading>
+      </Box>
+    );
+  }
 
   // Normalize breadcrumbs: accept array of strings or objects { label, path, active, icon }
   const crumbs = Array.isArray(breadcrumbs)
@@ -29,7 +67,7 @@ export const PageHeader = ({
     : [{ label: String(breadcrumbs) }];
 
   // Mobile compact header
-  if (isMobileView) {
+  if (isMobile) {
     return (
       <Box className="w-full px-0 ">
         <Flex align="center" justify="between" className="min-h-[44px]">

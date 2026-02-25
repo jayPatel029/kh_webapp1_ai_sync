@@ -46,7 +46,7 @@ import { PatientProfileShellContext } from "./PatientProfileShellContext";
  * @param {Function} config.onBackClick - Callback for back navigation
  * @param {Object} config.additionalProps - Any additional props to pass through
  */
-const PatientDetailLayout = ({
+const  PatientDetailLayout = ({
   title,
   patientIdParam = "id",
   children,

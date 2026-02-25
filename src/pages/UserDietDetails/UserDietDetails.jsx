@@ -15,7 +15,7 @@ import { Box, Flex, Button as ButtonPrimitive } from "../../component-library";
 
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
-import PatientDetailTable from "../common/PatientDetailTable";
+import UnifiedListTable from "../../components/table/UnifiedListTable";
 
 // Mobile
 import { useIsMobile } from "../../components/mobile/useIsMobile";
@@ -132,57 +132,49 @@ const UserDietDetails = () => {
     return <Box className="p-20 text-center">Loading...</Box>;
   }
 
-  const renderDietRow = (data, index) => (
-    <Box
-      key={data.id || index}
-      className="bg-white border-b border-gray-100 px-[70px] py-5 hover:bg-gray-50 transition-colors"
-    >
-      <Flex justify="between" align="center">
-        <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-          {formatDate(data.Date)}
-        </Box>
-        <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
-          {data.Meal_Type}
-        </Box>
-        <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
-          {data.meal_desc}
-        </Box>
-        <Box style={{ flex: "0 0 150px" }} className="flex justify-center">
-          {data.meal_img && data.meal_img.endsWith(".pdf") ? (
-            <Box
-              className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => openFileModal(data.id, data.meal_img)}
-            >
-              <FaFilePdf className="text-white text-2xl" />
-            </Box>
-          ) : (
-            <Box
-              className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => openFileModal(data.id, data.meal_img)}
-            >
-              <img
-                src={data?.meal_img}
-                alt="Diet"
-                className="w-full h-full object-cover"
-              />
-            </Box>
-          )}
-        </Box>
-        <Box style={{ flex: "0 0 100px" }} className="flex justify-center">
-          <button
-            className="text-[#de425b] hover:text-[#c93850] transition-colors"
-            onClick={() => deleteDietDetails(data.id)}
+  // Prepare columns for UnifiedListTable
+  const dietColumns = [
+    { key: "date", label: "Date", type: "date", width: "150px" },
+    { key: "type", label: "Report type", type: "text", width: "200px" },
+    { key: "desc", label: "Description", type: "text", width: "200px" },
+    { key: "image", label: "Image", type: "custom", width: "150px", render: (row) => (
+      <div className="flex justify-start"> {row.meal_img && row.meal_img.endsWith(".pdf") ? (
+          <div
+            className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => openFileModal(row.id, row.meal_img)}
           >
-            <BsTrash size={24} />
-          </button>
-        </Box>
-      </Flex>
-    </Box>
-  );
+            <FaFilePdf className="text-white text-2xl" />
+          </div>
+        ) : (
+          <div
+            className="w-[56px] h-[80px] bg-gray-200 rounded overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => openFileModal(row.id, row.meal_img)}
+          >
+            <img
+              src={row.meal_img}
+              alt="Diet"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+      </div>
+    ) },
+    { key: "actions", label: "Actions", type: "actions", width: "100px" },
+  ];
+
+  // Transform diet data for table
+  const transformedDietData = dietData.map((item) => ({
+    id: item.id,
+    date: item.Date,
+    type: item.Meal_Type,
+    desc: item.meal_desc,
+    image: item.meal_img,
+    meal_img: item.meal_img,
+  }));
 
   return (
     <PatientDetailLayout
-      title={userData?.name ? userData.name : "Patient's Alarms"}
+             title={"Diet reports"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
@@ -204,17 +196,16 @@ const UserDietDetails = () => {
       </Flex>
 
       {/* Table */}
-      <PatientDetailTable
-        columns={[
-          { key: "date", label: "Date", flex: "0 0 150px" },
-          { key: "type", label: "Report type", flex: "0 0 200px" },
-          { key: "desc", label: "Description", flex: "0 0 200px" },
-          { key: "image", label: "Image", flex: "0 0 150px", textAlign: "center" },
-          { key: "actions", label: "Actions", flex: "0 0 100px", textAlign: "center" },
-        ]}
-        data={dietData}
-        renderRow={renderDietRow}
+      <UnifiedListTable
+        columns={dietColumns}
+        data={transformedDietData}
+        onDelete={(row) => deleteDietDetails(row.id)}
+        displayMode="auto"
+        cardTitleKey="type"
+        cardSubtitleKey="date"
+        cardFieldKeys={["desc"]}
         emptyMessage="No diet details found"
+        actionButtons={true}
       />
 
       {/* Modals */}
@@ -234,7 +225,7 @@ const UserDietDetails = () => {
           fileUrl={uploadedFile.fileUrl}
           fileId={uploadedFile.fileId}
           patientId={id}
-          fileType="Diet Details"
+          // fileType="Diet Details"
           title="Diet Details View"
         />
       )}

@@ -376,15 +376,13 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
       )}
 
       {/* Dialysis Parameter */}
-      {selectedAlarmType === "Dialysis" && (
+      {/* {selectedAlarmType === "Dialysis" && (
         <FormControl isRequired>
           <FormLabel>Set Dialysis Parameter</FormLabel>
           <Select
             value={selectedHealthParameter}
             onChange={(e) => setSelectedHealthParameter(e.target.value)}
-            // placeholder="Select parameter"
-          >
-            {/* <option value="">Select Parameter</option> */}
+           >
             {dirOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -392,15 +390,15 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
             ))}
           </Select>
         </FormControl>
-      )}
+      )} */}
 
       {/* Prescription Selection */}
       {selectedAlarmType === "Prescription" && (
         <FormControl isRequired isInvalid={!selectedPrescription && errorMessage}>
           <FormLabel>Select Prescription</FormLabel>
-          <Box className="border border-gray-200 rounded-md overflow-hidden">
+          <Box className="border-[1px] border-accent rounded-md overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-50 border-b border-accent">
                 <tr>
                   <th className="px-4 py-3 text-left">Image</th>
                   <th className="px-4 py-3 text-left">Date</th>

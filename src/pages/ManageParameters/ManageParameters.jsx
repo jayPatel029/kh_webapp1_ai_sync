@@ -17,12 +17,14 @@ import {
   Flex,
   Container,
   Stack,
+  SortDropdown,
 } from "../../component-library";
 import { Button } from "../../component-library/primitives/Button";
 import { Input } from "../../component-library/primitives/Input";
 import FormControl, { FormLabel, FormHelperText, FormErrorMessage, RequiredIndicator } from "../../component-library/primitives/FormControl";
 import FormModal from "../../component-library/modals/FormModal";
 import { Select } from "../../component-library/primitives/Select";
+import UnifiedListTable from "../../components/table/UnifiedListTable";
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
 
@@ -49,6 +51,7 @@ import { useIsMobile } from "../../components/mobile/useIsMobile";
 
 // Import design system styles
 import "../../design-system/styles/index.css";
+import { Sort } from "@mui/icons-material";
 
 function ManageParameters() {
   const [parameterData, setParameterData] = useState(null);
@@ -75,6 +78,31 @@ function ManageParameters() {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const { isMobile } = useIsMobile();
+
+  // Sort / Filter state and helper functions
+  const [selectedFilter, setSelectedFilter] = useState("");
+
+  const SORT_OPTIONS = [
+    { value: "", label: "None" },
+    { value: "name_asc", label: "Name (A - Z)" },
+    { value: "name_desc", label: "Name (Z - A)" },
+    { value: "type_asc", label: "Parameter Type (A - Z)" },
+    { value: "type_desc", label: "Parameter Type (Z - A)" },
+    { value: "reading_asc", label: "Reading Type (A - Z)" },
+    { value: "reading_desc", label: "Reading Type (Z - A)" },
+  ];
+
+  function handleSelectChange(e) {
+    const value = e && e.target ? e.target.value : e;
+    setSelectedFilter(value);
+    // client-side sorting can be implemented here if needed
+  }
+
+  function handleClearFilters() {
+    setSelectedFilter("");
+    // refresh data to clear filters
+    getParameterData();
+  }
 
   const parameterTypes = [
     { value: "General", label: "General" },
@@ -180,7 +208,14 @@ function ManageParameters() {
 
   const handleSubmit = async () => {
     try {
-      var ailments = await selectedAilments.map((ailment) => ailment.value);
+      // var ailments = selectedAilments.map((ailment) => ailment.value);
+      var ailments = [];
+      ailments = ailments.map((ailment) => {
+        if (selectedAilments.some((selected) => selected.value === ailment.id)) {
+          return ailment.id;
+        }
+        return null;
+      });
       const newData = {
         id: patientId,
         title: selectTitle,
@@ -196,12 +231,11 @@ function ManageParameters() {
       };
 
       if (editMode) {
-        var ailments = await selectedAilments.map((ailment) => ailment.value);
         const updateData = {
           id: editId,
           title: selectTitle,
           parameterType: selectParameterType,
-          ailments: ailments,
+          // ailments: ailments,
           type: selectReadingType,
           readingType: selectReadingType,
           isGraph: graphOption ? 1 : 0,
@@ -260,13 +294,153 @@ function ManageParameters() {
 
   return (
     <PatientDetailLayout
-      title={userData?.name ? userData.name : "Patient's Alarms"}
+      title={`Manage Parameters`}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
       totalUnreadCountDoc={totalUnreadCountDoc}
       onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
+
+      {/* Add Parameter Button */}
+      <Flex justify="between" align="center" className="mb-4">
+        <Flex align="center" gap={isMobile ? 2 : 4} wrap={isMobile ? 'wrap' : 'nowrap'}>
+          <SortDropdown
+            value={selectedFilter}
+            onChange={handleSelectChange}
+            options={SORT_OPTIONS}
+            // icon={<img src={sortIcon} alt="Sort" />}
+            placeholder="Sort by"
+          />
+          <button
+            onClick={handleClearFilters}
+            className={`${isMobile ? 'text-[13px]' : 'text-[16px]'} font-semibold text-[#5886a5] underline hover:text-primary transition-colors cursor-pointer`}
+          >
+            Clear filters
+          </button>
+        </Flex>
+
+
+        <Button
+          variant="solid"
+          onClick={() => { clearAllFields(); setIsModalOpen(true); }}
+          className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
+        >
+          + Add Parameter
+        </Button>
+      </Flex>
+      {/* Prepare columns for UnifiedListTable */}
+      {(() => {
+        const parameterColumns = [
+          { key: "name", label: "Parameter Name", type: "text", width: "200px" },
+          { key: "type", label: "Parameter Type", type: "text", width: "150px" },
+          { key: "readingType", label: "Reading Type", type: "text", width: "150px" },
+          { key: "graph", label: "Graph", type: "text", width: "100px" },
+          { key: "actions", label: "Actions", type: "actions", width: "100px" },
+        ];
+
+        // Transform parameter data for table
+        const transformedParameterData = [];
+        if (parameterData?.daily && parameterData.daily.length > 0) {
+          parameterData.daily.forEach((data) => {
+            transformedParameterData.push({
+              id: data.id,
+              name: data.title,
+              type: "General",
+              readingType: data.type,
+              graph: data.isGraph ? "Yes" : "No",
+              paramType: "daily",
+              originalData: data,
+              isGraph: data.isGraph,
+              low_range: data.low_range,
+              high_range: data.high_range,
+              daily_reading_ailments: data.daily_reading_ailments,
+            });
+          });
+        }
+
+        if (parameterData?.dialysis && parameterData.dialysis.length > 0) {
+          parameterData.dialysis.forEach((data) => {
+            transformedParameterData.push({
+              id: data.id,
+              name: data.title,
+              type: "Dialysis",
+              readingType: data.type,
+              graph: data.isGraph ? "Yes" : "No",
+              paramType: "dialysis",
+              originalData: data,
+              isGraph: data.isGraph,
+              low_range: data.low_range,
+              high_range: data.high_range,
+              dialysis_reading_ailments: data.dialysis_reading_ailments,
+            });
+          });
+        }
+
+        return (
+          <UnifiedListTable
+            columns={parameterColumns}
+            data={transformedParameterData}
+            onEdit={(row) => {
+              setEditMode(true);
+              setEditId(row.id);
+              setSelectedParameterType(row.type);
+              if (row.paramType === "daily") {
+                setSelectedAilments(
+                  row.daily_reading_ailments?.map((ailment) => ({
+                    value: ailment.ailmentID,
+                    label: ailmentOptions.find(
+                      (ailmentOption) => ailmentOption.id === ailment.ailmentID,
+                    )?.name,
+                  })) || []
+                );
+              } else {
+                setSelectedAilments(
+                  row.dialysis_reading_ailments?.map((ailment) => ({
+                    value: ailment.ailmentID,
+                    label: ailmentOptions.find(
+                      (ailmentOption) => ailmentOption.id === ailment.ailmentID,
+                    )?.name,
+                  })) || []
+                );
+              }
+              setSelectTitle(row.name);
+              setSelectedReadingType(row.readingType);
+              setHighRange(row.high_range);
+              setLowRange(row.low_range);
+              setGraphOption(row.isGraph === 1 || row.isGraph === true);
+              setIsParamDisabled(true);
+              setErrMsg({ type: "success", msg: "" });
+              setIsModalOpen(true);
+            }}
+            onDelete={(row) => {
+              if (window.confirm("Are you sure you want to delete this parameter?")) {
+                try {
+                  if (row.paramType === "daily") {
+                    deleteDailyReading(row.id).then(() => {
+                      setErrMsg({ type: "success", msg: "Deleted Successfully" });
+                      getParameterData();
+                    });
+                  } else {
+                    deleteDialysisReading(row.id).then(() => {
+                      setErrMsg({ type: "success", msg: "Deleted Successfully" });
+                      getParameterData();
+                    });
+                  }
+                } catch (err) {
+                  console.error(err);
+                }
+              }
+            }}
+            displayMode="auto"
+            cardTitleKey="name"
+            cardSubtitleKey="type"
+            cardFieldKeys={["readingType", "graph"]}
+            emptyMessage="No parameters found"
+            actionButtons={true}
+          />
+        );
+      })()}
       {false && ( /* Add/Edit Parameter Form (moved to modal) */
         <Box className="bg-white rounded-[15px]  p-8 mb-6">
           <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
@@ -430,9 +604,9 @@ function ManageParameters() {
           </Select>
         </FormControl>
 
-        <FormControl>
+        {/* <FormControl>
           {showRangeInputs && (
-            <Flex gap={6}>
+            <Flex gap={2}>
               <Box className="flex-1">
                 <FormControl id="low-range">
                   <FormLabel>Low Range</FormLabel>
@@ -447,7 +621,7 @@ function ManageParameters() {
               </Box>
             </Flex>
           )}
-        </FormControl>
+        </FormControl> */}
 
         <FormControl id="graph-option">
           <FormLabel>Graph (Yes/No)</FormLabel>
@@ -467,263 +641,8 @@ function ManageParameters() {
           </Select>
         </FormControl>
       </FormModal>
-      <Box className={`bg-white rounded-[15px] ${isMobile ? 'p-4' : ''}`}>
-        <Flex justify="end" align="center" className="mb-4">
 
-          <Button
-            variant="solid"
-            onClick={() => { clearAllFields(); setIsModalOpen(true); }}
-            className="h-[50px] px-6 rounded-[10px] bg-[#4164df] text-white text-[16px] font-semibold hover:bg-[#3451c9]"
-          >
-            + Add Parameter
-          </Button>
-        </Flex>
 
-        {isMobile ? (
-          /* Mobile: Card-based parameter list */
-          <Box className="space-y-3">
-            {/* Daily Parameters */}
-            {parameterData?.daily && parameterData.daily.length > 0 && parameterData.daily.map((data, index) => (
-              <Box key={`daily-${index}`} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                <Flex justify="between" align="start" className="mb-2">
-                  <Box>
-                    <h3 className="text-[14px] font-bold text-[#393939]">{data.title}</h3>
-                    <span className="text-[11px] font-medium text-white bg-[#5886a5] rounded-full px-2 py-0.5 inline-block mt-1">General</span>
-                  </Box>
-                  <Flex align="center" gap={2}>
-                    <button className="text-[#5886a5] hover:text-[#4164df] p-1.5" onClick={() => {
-                      setEditMode(true); setEditId(data.id); setSelectedParameterType("General");
-                      setSelectedAilments(data.daily_reading_ailments?.map((a) => ({ value: a.ailmentID, label: ailmentOptions.find((o) => o.id === a.ailmentID)?.name })) || []);
-                      setSelectTitle(data.title); setSelectedReadingType(data.type);
-                      setHighRange(data.high_range); setLowRange(data.low_range);
-                      setGraphOption(data.isGraph === 1); setIsParamDisabled(true);
-                      setErrMsg({ type: "success", msg: "" }); setIsModalOpen(true);
-                    }}><BsPencilSquare size={16} /></button>
-                    <button className="text-[#de425b] hover:text-[#c93850] p-1.5" onClick={async () => {
-                      if (window.confirm("Are you sure you want to delete this parameter?")) {
-                        try { await deleteDailyReading(data.id); setErrMsg({ type: "success", msg: "Deleted Successfully" }); getParameterData(); } catch (err) { console.error(err); }
-                      }
-                    }}><BsTrash size={16} /></button>
-                  </Flex>
-                </Flex>
-                <Box className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[#989898]">
-                  <span><strong>Type:</strong> {data.type}</span>
-                  <span><strong>Graph:</strong> {data.isGraph ? "Yes" : "No"}</span>
-                  {data.low_range && <span><strong>Range:</strong> {data.low_range}-{data.high_range}</span>}
-                </Box>
-              </Box>
-            ))}
-
-            {/* Dialysis Parameters */}
-            {parameterData?.dialysis && parameterData.dialysis.length > 0 && parameterData.dialysis.map((data, index) => (
-              <Box key={`dialysis-${index}`} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                <Flex justify="between" align="start" className="mb-2">
-                  <Box>
-                    <h3 className="text-[14px] font-bold text-[#393939]">{data.title}</h3>
-                    <span className="text-[11px] font-medium text-white bg-[#de425b] rounded-full px-2 py-0.5 inline-block mt-1">Dialysis</span>
-                  </Box>
-                  <Flex align="center" gap={2}>
-                    <button className="text-[#5886a5] hover:text-[#4164df] p-1.5" onClick={() => {
-                      setEditMode(true); setEditId(data.id); setSelectedParameterType("Dialysis");
-                      setSelectedAilments(data.dialysis_reading_ailments?.map((a) => ({ value: a.ailmentID, label: ailmentOptions.find((o) => o.id === a.ailmentID)?.name })) || []);
-                      setSelectTitle(data.title); setSelectedReadingType(data.type);
-                      setHighRange(data.high_range); setLowRange(data.low_range);
-                      setGraphOption(data.isGraph === 1); setIsParamDisabled(true);
-                      setErrMsg({ type: "success", msg: "" }); setIsModalOpen(true);
-                    }}><BsPencilSquare size={16} /></button>
-                    <button className="text-[#de425b] hover:text-[#c93850] p-1.5" onClick={async () => {
-                      if (window.confirm("Are you sure you want to delete this parameter?")) {
-                        try { await deleteDialysisReading(data.id); setErrMsg({ type: "success", msg: "Deleted Successfully" }); getParameterData(); } catch (err) { console.error(err); }
-                      }
-                    }}><BsTrash size={16} /></button>
-                  </Flex>
-                </Flex>
-                <Box className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[#989898]">
-                  <span><strong>Type:</strong> {data.type}</span>
-                  <span><strong>Graph:</strong> {data.isGraph ? "Yes" : "No"}</span>
-                  {data.low_range && <span><strong>Range:</strong> {data.low_range}-{data.high_range}</span>}
-                </Box>
-              </Box>
-            ))}
-
-            {(!parameterData?.daily || parameterData.daily.length === 0) &&
-              (!parameterData?.dialysis || parameterData.dialysis.length === 0) && (
-                <Box className="py-8 text-center">
-                  <p className="text-[#989898] text-[14px] italic">No parameters found</p>
-                </Box>
-              )}
-          </Box>
-        ) : (
-        /* Desktop: Original Table */
-        <Box className="overflow-x-auto">
-          {/* Table Header */}
-          <Box className="bg-[#5886a5] rounded-[5px] px-6 py-3 mb-0">
-            <Flex justify="between" align="center" className="text-white text-[16px] font-semibold">
-              <Box style={{ flex: "0 0 200px" }}>Parameter Name</Box>
-              <Box style={{ flex: "0 0 150px" }}>Parameter Type</Box>
-              <Box style={{ flex: "0 0 150px" }}>Reading Type</Box>
-              <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Graph</Box>
-              <Box style={{ flex: "0 0 100px", textAlign: "center" }}>Actions</Box>
-            </Flex>
-          </Box>
-
-          {/* Table Body */}
-          <Box>
-            {/* Daily Parameters */}
-            {parameterData?.daily && parameterData.daily.length > 0 ? (
-              parameterData.daily.map((data, index) => (
-                <Box
-                  key={`daily-${index}`}
-                  className="bg-white border-b border-gray-100 px-6 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  <Flex justify="between" align="center">
-                    <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
-                      {data.title}
-                    </Box>
-                    <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-                      General
-                    </Box>
-                    <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-                      {data.type}
-                    </Box>
-                    <Box style={{ flex: "0 0 100px", textAlign: "center" }} className="text-[16px] font-semibold text-[#989898]">
-                      {data.isGraph ? "Yes" : "No"}
-                    </Box>
-                    <Box style={{ flex: "0 0 100px" }} className="flex justify-center gap-3">
-                      <button
-                        className="text-[#5886a5] hover:text-[#4164df] transition-colors"
-                        onClick={() => {
-                          setEditMode(true);
-                          setEditId(data.id);
-                          setSelectedParameterType("General");
-                          setSelectedAilments(
-                            data.daily_reading_ailments?.map((ailment) => ({
-                              value: ailment.ailmentID,
-                              label: ailmentOptions.find(
-                                (ailmentOption) => ailmentOption.id === ailment.ailmentID,
-                              )?.name,
-                            })) || []
-                          );
-                          setSelectTitle(data.title);
-                          setSelectedReadingType(data.type);
-                          setHighRange(data.high_range);
-                          setLowRange(data.low_range);
-                          setGraphOption(data.isGraph === 1);
-                          setIsParamDisabled(true);
-                          setErrMsg({ type: "success", msg: "" });
-                          setIsModalOpen(true);
-                        }}
-                      >
-                        <BsPencilSquare size={20} />
-                      </button>
-                      <button
-                        className="text-[#de425b] hover:text-[#c93850] transition-colors"
-                        onClick={async () => {
-                          const isConfirmed = window.confirm(
-                            "Are you sure you want to delete this parameter?"
-                          );
-                          if (isConfirmed) {
-                            try {
-                              await deleteDailyReading(data.id);
-                              setErrMsg({ type: "success", msg: "Deleted Successfully" });
-                              getParameterData();
-                            } catch (err) {
-                              console.error(err);
-                            }
-                          }
-                        }}
-                      >
-                        <BsTrash size={20} />
-                      </button>
-                    </Box>
-                  </Flex>
-                </Box>
-              ))
-            ) : null}
-
-            {/* Dialysis Parameters */}
-            {parameterData?.dialysis && parameterData.dialysis.length > 0 ? (
-              parameterData.dialysis.map((data, index) => (
-                <Box
-                  key={`dialysis-${index}`}
-                  className="bg-white border-b border-gray-100 px-6 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  <Flex justify="between" align="center">
-                    <Box style={{ flex: "0 0 200px" }} className="text-[16px] font-semibold text-[#989898]">
-                      {data.title}
-                    </Box>
-                    <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-                      Dialysis
-                    </Box>
-                    <Box style={{ flex: "0 0 150px" }} className="text-[16px] font-semibold text-[#989898]">
-                      {data.type}
-                    </Box>
-                    <Box style={{ flex: "0 0 100px", textAlign: "center" }} className="text-[16px] font-semibold text-[#989898]">
-                      {data.isGraph ? "Yes" : "No"}
-                    </Box>
-                    <Box style={{ flex: "0 0 100px" }} className="flex justify-center gap-3">
-                      <button
-                        className="text-[#5886a5] hover:text-[#4164df] transition-colors"
-                        onClick={() => {
-                          setEditMode(true);
-                          setEditId(data.id);
-                          setSelectedParameterType("Dialysis");
-                          setSelectedAilments(
-                            data.dialysis_reading_ailments?.map((ailment) => ({
-                              value: ailment.ailmentID,
-                              label: ailmentOptions.find(
-                                (ailmentOption) => ailmentOption.id === ailment.ailmentID,
-                              )?.name,
-                            })) || []
-                          );
-                          setSelectTitle(data.title);
-                          setSelectedReadingType(data.type);
-                          setHighRange(data.high_range);
-                          setLowRange(data.low_range);
-                          setGraphOption(data.isGraph === 1);
-                          setIsParamDisabled(true);
-                          setErrMsg({ type: "success", msg: "" });
-                          setIsModalOpen(true);
-                        }}
-                      >
-                        <BsPencilSquare size={20} />
-                      </button>
-                      <button
-                        className="text-[#de425b] hover:text-[#c93850] transition-colors"
-                        onClick={async () => {
-                          const isConfirmed = window.confirm(
-                            "Are you sure you want to delete this parameter?"
-                          );
-                          if (isConfirmed) {
-                            try {
-                              await deleteDialysisReading(data.id);
-                              setErrMsg({ type: "success", msg: "Deleted Successfully" });
-                              getParameterData();
-                            } catch (err) {
-                              console.error(err);
-                            }
-                          }
-                        }}
-                      >
-                        <BsTrash size={20} />
-                      </button>
-                    </Box>
-                  </Flex>
-                </Box>
-              ))
-            ) : null}
-
-            {/* No Data Message */}
-            {(!parameterData?.daily || parameterData.daily.length === 0) &&
-              (!parameterData?.dialysis || parameterData.dialysis.length === 0) && (
-                <Box className="bg-white px-6 py-8 text-center">
-                  <p className="text-[#989898] text-[16px] italic">No parameters found</p>
-                </Box>
-              )}
-          </Box>
-        </Box>
-        )}
-      </Box>
     </PatientDetailLayout>
   );
 }

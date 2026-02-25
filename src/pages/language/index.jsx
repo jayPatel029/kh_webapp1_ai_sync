@@ -53,7 +53,7 @@ function LanguageMaster() {
   }, [successful]);
 
   async function removeLang(id) {
-    
+
     const response = await deleteLanguage(id);
     if (response.success) {
       setErrMsg("");
@@ -128,147 +128,151 @@ function LanguageMaster() {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-           
-            <PageHeader
-              title="Language Master"
-              breadcrumbs={[
-                { label: "Dashboard", path: "/" },
-                { label: "Language Master", active: true }
-              ]}
-              onBack={() => navigate(ROUTES.HOME)}
-            />
-           
+
+          <PageHeader
+            title="Language Master"
+            breadcrumbs={[
+              { label: "Dashboard", path: "/" },
+              { label: "Language Master", active: true }
+            ]}
+            onBack={() => navigate(ROUTES.HOME)}
+          />
+
         </Box>
 
-         
-          <div className="admin-page-content">
-            <div className="admin-card">
-              <div className="admin-card__header">
-                <div className="admin-toolbar">
-                  <div className="admin-toolbar__left">
-                    <SearchBar
-                      placeholder="Search by language..."
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      style={{ width: "250px" }}
-                    />
-                  </div>
 
-                  <div className="admin-toolbar__right">
-                    <span className="admin-toolbar__count">
-                      {languages.filter(lang => 
-                        lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
-                      ).length} Records Found
-                    </span>
+        <div className="admin-page-content">
+          <div className="admin-card">
+            <div className="admin-card__header">
+              <div className="admin-toolbar">
+                <div className="admin-toolbar__left">
+                  <SearchBar
+                    placeholder="Search by language..."
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ width: "250px" }}
+                  />
+                </div>
+
+                <div className="admin-toolbar__right">
+                  <span className="admin-toolbar__count">
+                    {languages.filter(lang =>
+                      lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
+                    ).length} Records Found
+                  </span>
                   <Button
                     variant="solid"
-                      onClick={() => {
-                        resetForm();
-                        setIsFormModalOpen(true);
-                      }}
-                    >
-                      Add Language
-                    </Button>
-                  </div>
+                    onClick={() => {
+                      resetForm();
+                      setIsFormModalOpen(true);
+                    }}
+                  >
+                    Add Language
+                  </Button>
                 </div>
-              </div>
-
-              <div className="admin-card__body">
-                <div style={{ marginBottom: '1rem' }}>
-                  {errMsg && <div className="admin-message admin-message--error">{errMsg}</div>}
-                  {successful && <div className="admin-message admin-message--success">{successful}</div>}
-                </div>
-
-                <UnifiedListTable
-                  columns={[
-                    { key: 'id', label: 'ID', type: 'text', width: '80px' },
-                    { key: 'language_name', label: 'Language', type: 'text', width: '300px' },
-                    { key: 'actions', label: 'Actions', type: 'actions', width: '100px' }
-                  ]}
-                  data={languages.filter(lang => 
-                    lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
-                  ).map((lang) => ({
-                    ...lang,
-                    actions: lang
-                  }))}
-                  enableSearch={true}
-                  renderSearchUI={false}
-                  searchKeys={['language_name']}
-                  onEdit={(lang) => {
-                    setEditID(lang.id);
-                    setNewLanguage(lang.language_name);
-                    setEditMode(true);
-                    setIsFormModalOpen(true);
-                  }}
-                  onDelete={(lang) => {
-                    if (window.confirm(`Delete language "${lang.language_name}"?`)) {
-                      removeLang(lang.id);
-                    }
-                  }}
-                  emptyMessage="No languages found"
-                />
               </div>
             </div>
-            <FormModal
-              isOpen={isFormModalOpen}
-              onClose={() => {
-                setIsFormModalOpen(false);
-                resetForm();
-              }}
-              onSubmit={handleSubmit}
-              title={editMode ? "Edit Language" : "Add Language"}
-              submitText={editMode ? "Update" : "Submit"}
-              size="lg"
-              errorMessage={errMsg}
-            >
-              <Box className="space-y-4">
-                <FormControl>
-                  <FormLabel>Language</FormLabel>
-                  <Input
-                    type="text"
-                    placeholder="Language Name"
-                    value={newLanguage}
-                    onChange={(event) => {
-                      setNewLanguage(event.target.value);
-                    }}
-                  />
-                </FormControl>
 
-                {!editMode && (
-                  <>
-                    <FormControl>
-                      <FormLabel>JSON File</FormLabel>
-                      <FileUploadWithCamera
-                        images={jsonPreview}
-                        onChange={setJsonPreview}
-                        onFileChange={(file) => setLangJson(file)}
-                        accept=".json,application/json"
-                        multiple={false}
-                        append={false}
-                        attachLabel="Upload JSON"
-                        captureLabel="Capture"
-                        showCountInfo={false}
-                      />
-                    </FormControl>
+            <div className="admin-card__body">
+              <div style={{ marginBottom: '1rem' }}>
+                {errMsg && <div className="admin-message admin-message--error">{errMsg}</div>}
+                {successful && <div className="admin-message admin-message--success">{successful}</div>}
+              </div>
 
-                    <FormControl>
-                      <FormLabel>Audio Zip File</FormLabel>
-                      <FileUploadWithCamera
-                        images={audioPreview}
-                        onChange={setAudioPreview}
-                        onFileChange={(file) => setLangAudio(file)}
-                        accept=".zip,application/zip,application/x-zip-compressed"
-                        multiple={false}
-                        append={false}
-                        attachLabel="Upload Audio Zip"
-                        captureLabel="Capture"
-                        showCountInfo={false}
-                      />
-                    </FormControl>
-                  </>
-                )}
-              </Box>
-            </FormModal>
+              <UnifiedListTable
+                columns={[
+                  { key: 'id', label: 'ID', type: 'text', width: '80px' },
+                  { key: 'language_name', label: 'Language', type: 'text', width: '300px' },
+                  { key: 'actions', label: 'Actions', type: 'actions', width: '100px' }
+                ]}
+                data={languages.filter(lang =>
+                  lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
+                ).map((lang) => ({
+                  ...lang,
+                  actions: lang
+                }))}
+                enableSearch={true}
+                renderSearchUI={false}
+                searchKeys={['language_name']}
+                onEdit={(lang) => {
+                  setEditID(lang.id);
+                  setNewLanguage(lang.language_name);
+                  setEditMode(true);
+                  setIsFormModalOpen(true);
+                }}
+                onDelete={(lang) => {
+                  if (window.confirm(`Delete language "${lang.language_name}"?`)) {
+                    removeLang(lang.id);
+                  }
+                }}
+                emptyMessage="No languages found"
+              />
+            </div>
           </div>
+          <FormModal
+            isOpen={isFormModalOpen}
+            onClose={() => {
+              setIsFormModalOpen(false);
+              resetForm();
+            }}
+            onSubmit={handleSubmit}
+            title={editMode ? "Edit Language" : "Add Language"}
+            submitText={editMode ? "Update" : "Submit"}
+            size="lg"
+            errorMessage={errMsg}
+          >
+            <Box className="space-y-6">
+              <FormControl>
+                <FormLabel>Language</FormLabel>
+                <Input
+                  type="text"
+                  placeholder="Language Name"
+                  value={newLanguage}
+                  onChange={(event) => {
+                    setNewLanguage(event.target.value);
+                  }}
+                />
+              </FormControl>
+
+              {!editMode && (
+                <Box className="flex flex-col md:flex-row gap-6">
+                  <FormControl>
+                    <FormLabel>JSON File</FormLabel>
+                    <FileUploadWithCamera
+                      images={jsonPreview}
+                      size="xs"
+                      onChange={setJsonPreview}
+                      onFileChange={(file) => setLangJson(file)}
+                      accept=".json,application/json"
+                      multiple={false}
+                      append={false}
+                      attachLabel="Upload JSON"
+                      captureLabel="Capture"
+                      showCountInfo={false}
+                      showCamera={false}
+                    />
+                  </FormControl>
+
+                  <FormControl>
+                    <FormLabel>Audio Zip File</FormLabel>
+                    <FileUploadWithCamera
+                      size="xs"
+                      images={audioPreview}
+                      onChange={setAudioPreview}
+                      onFileChange={(file) => setLangAudio(file)}
+                      accept=".zip,application/zip,application/x-zip-compressed"
+                      multiple={false}
+                      append={false}
+                      attachLabel="Upload Audio Zip"
+                      captureLabel="Capture"
+                      showCountInfo={false}
+                      showCamera={false}
+                    />
+                  </FormControl>
+                </Box>
+              )}
+            </Box>
+          </FormModal>
+        </div>
 
       </Box>
     </ThemeProvider>

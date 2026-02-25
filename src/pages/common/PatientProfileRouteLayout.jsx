@@ -72,6 +72,7 @@ const PatientProfileRouteLayout = () => {
                     <Box className={`sticky ${isMobile ? "top-0" : "top-[56px]"} z-20 bg-white`}>
                         <PageHeader
                             title={userData?.name || "Patient"}
+                            variant={isMobile ? "mobile" : "desktop"}
                             breadcrumbs={[
                                 { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
                                 { label: userData?.name || "Patient", active: true },

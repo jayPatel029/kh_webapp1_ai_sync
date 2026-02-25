@@ -4,7 +4,7 @@ export const ROUTES = {
   DOCTOR_DASHBOARD: "/dashboard/doctor",
 
   PATIENTS: "/patients",
-  PATIENTS_NEW: "/patients/new",
+  // PATIENTS_NEW no longer used, add patient form is shown as modal in /patients page
   PATIENTS_DELETED: "/patients/deleted",
   PATIENTS_LOGS: "/patients/logs",
   USER_PROFILE: "/userProfile",

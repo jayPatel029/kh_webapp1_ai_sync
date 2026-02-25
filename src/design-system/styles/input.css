@@ -623,8 +623,17 @@
   height: 32px;
   color: transparent;
   background-color: var(--color-white);
-  background-image: url("data: image/svg+xml, %3Csvg%20width%3D%2213%22%20height%3D%2212%22%20viewBox%3D%220%200%2013%2012%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M6.49512%2011.25L-7.24494e-05%20-1.2235e-06L12.9903%20-8.78432e-08L6.49512%2011.25Z%22%20fill%3D%22%2300CCCC%22%2F%3E%3C%2Fsvg%3E");
+  background-image: url("data: image/svg+xml, %3Csvg%20className%3D'sort-dropdown__chevron' %20width%3D%2213%22%20height%3D%2212%22%20viewBox%3D%220%200%2013%2012%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M6.49609%2011.25L0.000904113%20-1.2235e-06L12.9913%20-8.78432e-08L6.49609%2011.25Z%22%20fill%3D%22%235886A5%22%20%2F%3E%3C%2Fsvg%3E");
   background-position: right 0.45rem center;
   background-repeat: no-repeat;
   background-size: 0.90em 0.90em;
+  transition: transform 0.18s ease, filter 0.18s ease;
+  transform-origin: center;
+}
+
+/* Rotate chevron when dropdown is opened. Support both JS toggled class and focus-within fallback */
+.sort-dropdown--open .sort-dropdown__chevron,
+.sort-dropdown:focus-within .sort-dropdown__chevron {
+  background-position: right 0.75rem center;
+  transform: rotate(180deg);
 }

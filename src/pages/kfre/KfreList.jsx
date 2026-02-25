@@ -19,6 +19,7 @@ import {
 } from "../../component-library";
 import { Flex, VStack, HStack, SimpleGrid, Box, Divider } from "../../component-library/layout/Layout";
 import { Heading, Text } from "../../component-library/primitives/Typography";
+import { PageHeader } from "../../components";
 
 function KfreList() {
   const [patients, setPatients] = useState([]);
@@ -281,17 +282,15 @@ function KfreList() {
 
       {/* Desktop Header */}
       {!isMobile && (
-        <CardHeader className="border-b-4 pb-4">
-          <Heading size="lg" weight="bold" className="text-accent">
-            KFRE Calculation
-          </Heading>
-        </CardHeader>
+        <PageHeader
+          title="KFRE Calculator"
+          variant="onlyheader" />
       )}
 
       <CardBody className={`${isMobile ? "p-3 pb-20" : "p-6"}`}>
         <VStack gap={isMobile ? 4 : 6} align="stretch">
           {/* CSV Upload Section */}
-          <Box className="flex gap-6">
+          <Box className="flex w-full gap-6">
             <CSVReader
               setData={setCsvData}
               setSuccess={setSuccess}
@@ -313,7 +312,7 @@ function KfreList() {
               </Text>
             </Flex>
           ) : (
-              <Heading as="h4" align="start"  className="mt-5 mb-5  font-bold">Select Manually</Heading>
+            <Heading as="h4" align="start" className="mt-5 mb-5  font-bold">Select Manually</Heading>
           )}
 
           {/* Image Preview Section - Mobile */}
@@ -342,7 +341,7 @@ function KfreList() {
                   );
                   if (selected) handleSelectChange(0, selected);
                 }}
-                // className="border-accent"
+              // className="border-accent"
               >
                 {patientOptions.map((option) => (
                   <option key={option.value} value={option.value}>

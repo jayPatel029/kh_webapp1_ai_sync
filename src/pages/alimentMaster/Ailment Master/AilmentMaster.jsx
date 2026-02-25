@@ -162,7 +162,7 @@ export default function AilmentMasterComponent() {
             </div>
             <div className={`admin-toolbar__right ${isMobile ? 'w-full justify-between' : ''}`}>
               <span className={`admin-toolbar__count ${isMobile ? 'text-xs' : ''}`}>
-                {ailments.filter(ailment => 
+                {ailments.filter(ailment =>
                   ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
                 ).length} Records Found
               </span>
@@ -178,121 +178,124 @@ export default function AilmentMasterComponent() {
         </div>
 
         {/* <div className="admin-card__body"> */}
-          {/* <div style={{ marginBottom: '1rem' }}>
+        {/* <div style={{ marginBottom: '1rem' }}>
             {errmsg && <div className="admin-message admin-message--error">{errmsg}</div>}
             {successmsg && <div className="admin-message admin-message--success">{successmsg}</div>}
           </div> */}
 
-          <UnifiedListTable
-            columns={[
-              { key: 'name', label: 'Name', type: 'text', width: '200px' },
-              { key: 'Ailment_Img', label: 'Icon', type: 'image', width: '100px' },
-              { key: 'actions', label: 'Actions', type: 'actions', width: '100px' }
-            ]}
-            cardTitleKey="name"
-            cardImageKey="Ailment_Img"
-            data={ailments.filter(ailment => 
-              ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
-            ).map((ailment) => ({
-              ...ailment,
-              actions: ailment
-            }))}
-            enableSearch={true}
-            renderSearchUI={false}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            searchKeys={['name']}
-            onEdit={(ailment) => {
-              setSuccessmsg("");
-              setName(ailment.name);
-              setId(ailment.id);
-              if (ailment.ailmentTranslations) {
-                let translationDict = {};
-                ailment.ailmentTranslations.forEach((element) => {
-                  translationDict[element.languageId] = element.name;
-                });
-                setTranslations(translationDict);
-              }
-              setEditMode(true);
-              setIsFormModalOpen(true);
-            }}
-            onDelete={(ailment) => {
-              if (window.confirm(`Delete ailment "${ailment.name}"?`)) {
-                deleteAilment(ailment.id)
-                  .then(() => {
-                    setSuccessmsg("Ailment deleted successfully!");
-                    getAilments().then((resultAilment) => {
-                      if (resultAilment.success && resultAilment.data.listOfAilments) {
-                        setAilments(resultAilment.data.listOfAilments);
-                      }
-                    });
-                  })
-                  .catch((error) => {
-                    console.error("Error deleting Ailment:", error);
-                    setErrmsg("Error deleting ailment");
+        <UnifiedListTable
+          columns={[
+            { key: 'name', label: 'Name', type: 'text', width: '200px' },
+            { key: 'Ailment_Img', label: 'Icon', type: 'image', width: '100px' },
+            { key: 'actions', label: 'Actions', type: 'actions', width: '100px' }
+          ]}
+          cardTitleKey="name"
+          cardImageKey="Ailment_Img"
+          data={ailments.filter(ailment =>
+            ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
+          ).map((ailment) => ({
+            ...ailment,
+            actions: ailment
+          }))}
+          enableSearch={true}
+          renderSearchUI={false}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          searchKeys={['name']}
+          onEdit={(ailment) => {
+            setSuccessmsg("");
+            setName(ailment.name);
+            setId(ailment.id);
+            if (ailment.ailmentTranslations) {
+              let translationDict = {};
+              ailment.ailmentTranslations.forEach((element) => {
+                translationDict[element.languageId] = element.name;
+              });
+              setTranslations(translationDict);
+            }
+            setEditMode(true);
+            setIsFormModalOpen(true);
+          }}
+          onDelete={(ailment) => {
+            if (window.confirm(`Delete ailment "${ailment.name}"?`)) {
+              deleteAilment(ailment.id)
+                .then(() => {
+                  setSuccessmsg("Ailment deleted successfully!");
+                  getAilments().then((resultAilment) => {
+                    if (resultAilment.success && resultAilment.data.listOfAilments) {
+                      setAilments(resultAilment.data.listOfAilments);
+                    }
                   });
-              }
-            }}
-          />
-        </div>
+                })
+                .catch((error) => {
+                  console.error("Error deleting Ailment:", error);
+                  setErrmsg("Error deleting ailment");
+                });
+            }
+          }}
+        />
+      </div>
       {/* </div> */}
 
-        <FormModal
-          isOpen={isFormModalOpen}
-          onClose={closeFormModal}
-          onSubmit={submitAilment}
-          title={editMode ? "Edit Ailment" : "Add Ailment"}
-          submitText={editMode ? "Update" : "Submit"}
-          size="lg"
-          errorMessage={errmsg}
-        >
-          <FormControl>
-            <FormLabel>English Name</FormLabel>
-            <Input
-              type="text"
-              placeholder="Enter ailment name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </FormControl>
+      <FormModal
+        isOpen={isFormModalOpen}
+        onClose={closeFormModal}
+        onSubmit={submitAilment}
+        title={editMode ? "Edit Ailment" : "Add Ailment"}
+        submitText={editMode ? "Update" : "Submit"}
+        size="lg"
+        errorMessage={errmsg}
+      >
+        <FormControl>
+          <FormLabel>English</FormLabel>
+          <Input
+            type="text"
+            placeholder="Enter ailment in English"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </FormControl>
 
-          {languages.map((language) => {
-            if (language.id === 1) return null;
-            return (
-              <FormControl key={language.id}>
-                <FormLabel>{language.language_name}</FormLabel>
-                <Input
-                  type="text"
-                  placeholder={`Enter name in ${language.language_name}`}
-                  value={translations[language.id] || ""}
-                  onChange={(e) => {
-                    setTranslations({
-                      ...translations,
-                      [language.id]: e.target.value,
-                    });
-                  }}
-                />
-              </FormControl>
-            );
-          })}
+        {languages.map((language) => {
+          if (language.id === 1) return null;
+          return (
+            <FormControl key={language.id}>
+              <FormLabel>{language.language_name}</FormLabel>
+              <Input
+                type="text"
+                placeholder={`Enter ailment in ${language.language_name}`}
+                value={translations[language.id] || ""}
+                onChange={(e) => {
+                  setTranslations({
+                    ...translations,
+                    [language.id]: e.target.value,
+                  });
+                }}
+              />
+            </FormControl>
+          );
+        })}
 
-          <FormControl>
-            <FormLabel>Icon</FormLabel>
-            <FileUploadWithCamera
-              onFileChange={(file) => setAilment_Img(file)}
-              accept="image/*"
-              attachLabel="Upload Icon"
-              captureLabel="Capture Icon"
-              previewWidth={100}
-              previewHeight={100}
-              showCountInfo={false}
-              showCamera={false}
-              multiple={false}
-            />
-          </FormControl>
+        <FormControl>
+          <FormLabel>Icon</FormLabel>
+          <FileUploadWithCamera
 
-        </FormModal>
-      </div>
+            size="xs"
+            images={Ailment_Img ? [Ailment_Img] : []}
+            onFileChange={(file) => setAilment_Img(file)}
+            accept="image/*"
+            attachLabel="Upload Icon"
+            captureLabel="Capture Icon"
+            previewWidth={100}
+            previewHeight={100}
+            showCountInfo={false}
+            showCamera={false}
+            multiple={false}
+          />
+        </FormControl>
+
+      </FormModal>
+    </div>
 
 
   );

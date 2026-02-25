@@ -10,6 +10,8 @@ import { postLabreportExtract, postLabreportConfirm } from "../../ApiCalls/remai
 import { getFileRes } from "../../helpers/fileuploadHelper";
 import getCurrentDate from "../../helpers/formatDate";
 
+import FileUploadWithCamera from "../../components/FileUploadWithCamera";
+
 // Component Library
 import { 
   Modal, 
@@ -183,7 +185,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
             <FormControl isRequired isInvalid={!!errorMsg && !selectedImage}>
               <FormLabel>Upload File</FormLabel>
               <Box className="relative">
-                <Input
+                {/* <Input
                   type="file"
                   onChange={handleImageChange}
                   className="w-full text-sm text-gray-500
@@ -193,6 +195,15 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
                     file:bg-primary-50 file:text-primary
                     hover:file:bg-primary-100
                     cursor-pointer"
+                /> */}
+                <FileUploadWithCamera
+                  images={selectedImage ? [selectedImage] : []}
+                  // size="md"
+                  // images={selectedImage ? [selectedImage] : []}
+                  onChange={handleImageChange}
+                  accept="image/*,.pdf"
+                  multiple={false}
+                  showCamera={true}
                 />
               </Box>
               {errorMsg && <FormErrorMessage>{errorMsg}</FormErrorMessage>}
