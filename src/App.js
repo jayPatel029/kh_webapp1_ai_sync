@@ -5,14 +5,21 @@ import "react-date-range/dist/styles.css"; // main style file
 import "react-date-range/dist/theme/default.css"; // theme css file
 import AppLogout from "./components/logout/Logout";
 import AppRoutes from "./routes";
+import AppErrorBoundary from "./components/AppErrorBoundary";
+import StyledToaster from "./components/StyledToaster";
 
 function App() {
   return (
-    <AppLogout>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AppLogout>
+    <AppErrorBoundary>
+      <AppLogout>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AppLogout>
+
+      {/* Single app-wide Sonner Toaster – no page should render its own */}
+      <StyledToaster />
+    </AppErrorBoundary>
   );
 }
 

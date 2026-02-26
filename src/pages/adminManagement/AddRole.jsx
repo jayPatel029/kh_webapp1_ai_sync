@@ -19,6 +19,7 @@ import {
   Input,
   Button,
 } from "../../component-library";
+import { useAdminToast } from "../../components/AdminToast";
 
 const PERMISSIONS_CONFIG = {
   manageRoles: { view: false, edit: false, delete: false, name: "Manage Roles" },
@@ -38,6 +39,7 @@ const PERMISSIONS_CONFIG = {
 const AddRole = () => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
+  const { showToast, ToastContainer } = useAdminToast();
 
   // State management
   const [roles, setRoles] = useState([]);
@@ -113,19 +115,23 @@ const AddRole = () => {
         const result = await createRole(role);
         if (result.success) {
           setSuccessMessage("Role added successfully");
+          showToast("Role added successfully!", "success");
           clearFields();
           setIsFormModalOpen(false);
         } else {
           setErrorMessage(result.message || "Failed to add role");
+          showToast(result.message || "Failed to add role", "error");
         }
       } else {
         const result = await updateRoleByName(editingRoleName, role);
         if (result.success) {
           setSuccessMessage("Role updated successfully");
+          showToast("Role updated successfully!", "success");
           clearFields();
           setIsFormModalOpen(false);
         } else {
           setErrorMessage(result.message || "Failed to update role");
+          showToast(result.message || "Failed to update role", "error");
         }
       }
     } catch (error) {
@@ -141,8 +147,10 @@ const AddRole = () => {
         if (result.success) {
           setRoles((prev) => prev.filter((r) => r.role_name !== roleName));
           setSuccessMessage("Role deleted successfully");
+          showToast("Role deleted successfully!", "success");
         } else {
           setErrorMessage("Failed to delete role");
+          showToast("Failed to delete role", "error");
         }
       } catch (error) {
         setErrorMessage("Error deleting role: " + error.message);
@@ -344,6 +352,7 @@ const AddRole = () => {
             </div>
           </div>
         </FormModal>
+        <ToastContainer />
       </Box>
     </ThemeProvider>
   );

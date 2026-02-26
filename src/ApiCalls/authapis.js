@@ -9,7 +9,7 @@ export async function registerUser(userData) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message || 'Registration failed' };
   }
 }
 
@@ -21,7 +21,7 @@ export async function loginUser(userData) {
     );
     return { success: true, data: response?.data };
   } catch (error) {
-    return { success: false, data: error.response.data };
+    return { success: false, data: error.message || 'Login failed' };
   }
 }
 
@@ -30,10 +30,9 @@ export async function getUserByEmail(email) {
     const response = await axiosInstance.get(
       server_url + "/users/email/" + email
     );
-    // console.log(response)
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data };
+    return { success: false, data: error.message || 'Failed to get user' };
   }
 }
 
@@ -44,7 +43,7 @@ export async function getUserByEmailDoctor(email) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data };
+    return { success: false, data: error.message || 'Failed to get doctor' };
   }
 }
 
@@ -53,7 +52,7 @@ export async function getUsers() {
     const response = await axiosInstance.get(server_url + "/users");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message || 'Failed to get users' };
   }
 }
 
@@ -64,7 +63,7 @@ export async function getDoctorsByPatientId() {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message || 'Failed to get doctors' };
   }
 }
 
@@ -76,7 +75,7 @@ export async function updateUserByEmail(email, userData) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data };
+    return { success: false, data: error.message || 'Failed to update user' };
   }
 }
 
@@ -85,7 +84,7 @@ export async function deleteUserByEmail(email) {
     const response = await axiosInstance.delete(server_url + "/users/" + email);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data };
+    return { success: false, data: error.message || 'Failed to delete user' };
   }
 }
 
@@ -94,25 +93,18 @@ export async function getRoles() {
     const response = await axiosInstance.get(server_url + "/roles");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data };
+    return { success: false, data: error.message || 'Failed to get roles' };
   }
 }
 
 export async function identifyRole() {
   try {
-    const token = localStorage.getItem("token"); // Fetch token from local storage
-    const config = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
     const response = await axiosInstance.get(
-      server_url + "/roles/identifyrole/",
-      config
+      server_url + "/roles/identifyrole/"
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data };
+    return { success: false, data: error.message || 'Failed to identify role' };
   }
 }
 

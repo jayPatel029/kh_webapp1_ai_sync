@@ -11,8 +11,7 @@ import axiosInstance from "../../helpers/axios/axiosInstance";
 import { useDispatch } from "react-redux";
 import { setPermissions } from "../../redux/permissionSlice";
 import { server_url } from "../../constants/constants";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { notifySuccess, notifyInfo, notifyError } from "../../helpers/notify";
 import SendIcon from "@mui/icons-material/Send";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import logo from "../../assets/kifayti_logo.png";
@@ -80,7 +79,7 @@ function DoctorLogin() {
           setIsOtpSent(true);
           setOtpSentTime(new Date().getTime());
           setErrMsg("");
-          toast.success("OTP sent to your email");
+          notifySuccess("OTP sent to your email");
         } else {
           const res = await verifyOTP(email, otp);
           if (res.status === "true") {
@@ -99,6 +98,7 @@ function DoctorLogin() {
               console.error(err.message);
             }
 
+            notifySuccess(`Welcome back, ${userResponse.data.data[0].firstname}!`);
             theNavigate("/");
           } else {
             setErrMsg("Invalid OTP. Please try again.");
@@ -138,7 +138,7 @@ function DoctorLogin() {
       await sendOTP(email);
       setOtpSentTime(new Date().getTime());
       setErrMsg("");
-      toast.info("OTP resent");
+      notifyInfo("OTP resent");
     } catch (error) {
       setErrMsg("Failed to resend OTP.");
     }
@@ -154,7 +154,6 @@ function DoctorLogin() {
         <Navigate to="/" replace />
       ) : (
         <div className="min-h-screen flex items-center justify-center bg-info px-6 py-12">
-          <ToastContainer />
 
           <Card variant="elevated" className="max-w-lg  rounded-2xl">
             <Flex className="flex flex-col items-center gap-4 pt-6">

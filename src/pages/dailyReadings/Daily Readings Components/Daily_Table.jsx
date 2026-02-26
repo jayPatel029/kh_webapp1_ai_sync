@@ -7,6 +7,7 @@ import {
 import { UnifiedListTable, SearchBar } from "../../../components";
 import { useSelector } from "react-redux";
 import { Button } from "../../../component-library";
+import { useAdminToast } from "../../../components/AdminToast";
 
 export default function DailyTable({
   setEditMode,
@@ -22,6 +23,7 @@ export default function DailyTable({
   const [tableData, setTableData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const role = useSelector((state) => state.permission);
+  const { showToast, ToastContainer } = useAdminToast();
 
   useEffect(() => {
     getDailyReadings()
@@ -85,6 +87,7 @@ export default function DailyTable({
       setSuccessful("");
       deleteDailyReading(item.id).then(() => {
         setSuccessful("Reading Deleted Successful!");
+        showToast("Daily reading deleted successfully!", "success");
       });
     }
   };
@@ -146,6 +149,7 @@ export default function DailyTable({
           actionButtons={role.canEditDailyReadings || role.canDeleteDailyReadings}
         />
       </div>
+      <ToastContainer />
     </div>
   );
 }

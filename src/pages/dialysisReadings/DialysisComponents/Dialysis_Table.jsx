@@ -7,6 +7,7 @@ import {
 import { UnifiedListTable, SearchBar } from "../../../components";
 import { useSelector } from "react-redux";
 import { Button } from "../../../component-library";
+import { useAdminToast } from "../../../components/AdminToast";
 
 export default function DialysisTableComponent({
   setEditMode,
@@ -21,6 +22,7 @@ export default function DialysisTableComponent({
   const [tableData, setTableData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const role = useSelector((state) => state.permission);
+  const { showToast, ToastContainer } = useAdminToast();
 
   useEffect(() => {
     getDialysisReadings()
@@ -85,6 +87,7 @@ export default function DialysisTableComponent({
       setSuccessful("");
       deleteDialysisReading(item.id).then(() => {
         setSuccessful("Reading Deleted Successful!");
+        showToast("Dialysis reading deleted successfully!", "success");
       });
     }
   };
@@ -146,6 +149,7 @@ export default function DialysisTableComponent({
           actionButtons={role.canEditDialysisReadings || role.canDeleteDialysisReadings}
         />
       </div>
+      <ToastContainer />
     </div>
   );
 }

@@ -13,10 +13,12 @@ import {
 } from "../../component-library";
 import { SearchBar } from "../../components";
 import isMobile from "../../components/mobile/useIsMobile";
+import { useAdminToast } from "../../components/AdminToast";
 
 const UserRoles = () => {
   const navigate = useNavigate();
   const [roles, setRoles] = useState([]);
+  const { showToast, ToastContainer } = useAdminToast();
 
   useEffect(() => {
     getRoles()
@@ -34,11 +36,12 @@ const UserRoles = () => {
   const deleteRole = (role_name) => {
     deleteRoleByName(role_name)
       .then((res) => {
-        alert("Role deleted successfully");
+        showToast("Role deleted successfully!", "success");
         setRoles((prev) => prev.filter((r) => r.role_name !== role_name));
       })
       .catch((err) => {
         console.log(err);
+        showToast("Failed to delete role", "error");
       });
   };
 
@@ -94,6 +97,7 @@ const UserRoles = () => {
             </div>
           </div>
         </div>
+        <ToastContainer />
       </Box>
     </ThemeProvider>
   );

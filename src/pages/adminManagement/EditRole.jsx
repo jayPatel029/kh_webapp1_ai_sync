@@ -12,10 +12,12 @@ import {
   Input,
   Button
 } from "../../component-library";
+import { useAdminToast } from "../../components/AdminToast";
 
 const EditRole = () => {
   const navigate = useNavigate();
   const [roleName, setRoleName] = useState("");
+  const { showToast, ToastContainer } = useAdminToast();
   
   const [permissions, setPermissions] = useState({
     manageRoles: {
@@ -112,11 +114,12 @@ const EditRole = () => {
     };
     updateRoleByName(rolename, role)
       .then((res) => {
-        alert("Role updated successfully");
+        showToast("Role updated successfully!", "success");
         window.location.reload();
       })
       .catch((err) => {
         console.log(err);
+        showToast("Failed to update role", "error");
       });
   };
 
@@ -263,6 +266,7 @@ const EditRole = () => {
             </div>
           </div>
 
+        <ToastContainer />
       </Box>
     </ThemeProvider>
   );

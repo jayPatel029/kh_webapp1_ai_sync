@@ -31,6 +31,7 @@ import {
   MultiSelect
 } from "../../../component-library";
 import UnifiedListTable from "../../../components/table/UnifiedListTable";
+import { useAdminToast } from "../../../components/AdminToast";
 
 function AdminManagement() {
   const navigate = useNavigate();
@@ -52,6 +53,7 @@ function AdminManagement() {
     }
   };
   const myRole = useSelector((state) => state.permission);
+  const { showToast, ToastContainer } = useAdminToast();
 
   const roleoptions = ["Doctor", "Medical Staff", "Dialysis Technician"].map(
     (role, index) => (
@@ -263,183 +265,151 @@ function AdminManagement() {
   const handleSubmit = async () => {
     setErrMsg("");
     setSuccessMessage("Uploading Data");
-    devLog("handleSubmit start", { newDoctor, editMode });
-    const errorsFound = getFieldErrors(newDoctor);
-    if (Object.keys(errorsFound).length > 0) {
-      setFieldErrors(errorsFound);
-      setErrMsg("Please fill all the * fields correctly!");
-      setSuccessMessage("");
-      devLog("handleSubmit: validation failed", errorsFound);
-      return;
-    }
-    try {
-      if (newDoctor.role == "Doctor" && validateDoctorData(newDoctor)) {
-        const photourl = await getFileRes(newDoctor.photo);
-        const payload = {
-          name: newDoctor.name,
-          role: newDoctor.role,
-          email: newDoctor.email,
-          practicingAt: newDoctor.practicingAt,
-          experience: newDoctor.yearsOfExperience,
-          doctorsCode: newDoctor.doctorsCode,
-          licenseNo: newDoctor.licenseNo,
-          phoneno: newDoctor.phoneNo,
-          institute: newDoctor.institute,
-          address: newDoctor.address,
-          photo: photourl?.data?.objectUrl,
-          description: newDoctor.description,
-          email_notification: newDoctor.email_notification,
-          Dialysis_updates: newDoctor.Dialysis_updates,
-          dailyReadingsAlerts: newDoctor.dailyReadingsAlerts,
-          can_export: newDoctor.can_export,
-          specialities: (newDoctor.specialities || []).map((s) => {
-            if (!s) return "";
-            if (typeof s === "string") return s;
-            if (s.value) return s.value;
-            if (s.label) return s.label;
-            if (s.target && s.target.value) return s.target.value;
-            try { return String(s); } catch (e) { return ""; }
-          }),
-          dailyReadings: newDoctor.dailyReadings,
-          dialysisReadings: newDoctor.dialysisReadings,
-          changeby: localStorage.getItem("email"),
-          doctorid: newDoctor.id,
-        };
-        console.log("ipdating with,", payload.dailyReadings);
-        if (!editMode) {
-          const response = await registerDoctor(payload);
-          devLog("handleSubmit registerDoctor response", response);
-          if (response.success) {
-            setErrMsg("");
-            setSuccessMessage("Registration Successful!");
-            clearDoctorFields();
-            setIsFormModalOpen(false);
-          } else {
-            setErrMsg("Registration Error! " + response.data);
-            setSuccessMessage("");
-          }
-        } else {
-          const response = await updateDoctor(newDoctor.id, payload);
-          devLog("handleSubmit updateDoctor response", response);
-          if (response.success) {
-            setErrMsg("");
-            setSuccessMessage("Update Successful!");
-            clearDoctorFields();
-            setIsFormModalOpen(false);
-          } else {
-            setErrMsg("Update Error! " + response.data);
-            setSuccessMessage("");
-          }
-        }
-      } else if (
-        newDoctor.role == "Medical Staff" &&
-        validateMedicalData(newDoctor)
-      ) {
-        devLog("handleSubmit: Medical Staff branch", { newDoctor });
-        const photourl = await getFileRes(newDoctor.photo);
-        const resumeurl = await getFileRes(newDoctor.resume);
-        const payload = {
-          name: newDoctor.name,
-          role: newDoctor.role,
-          email: newDoctor.email,
-          experience: newDoctor.yearsOfExperience,
-          ref: newDoctor.reference || null,
-          phoneno: newDoctor.phoneNo,
-          institute: newDoctor.institute,
-          address: newDoctor.address,
-          practicingAt: newDoctor.practicingAt,
-          resume: resumeurl.data.objectUrl || null,
-          photo: photourl?.data.objectUrl,
-          description: newDoctor.description,
-          email_notification: newDoctor.email_notification,
-          can_export: newDoctor.can_export,
-          specialities: (newDoctor.specialities || []).map((s) => {
-            if (!s) return "";
-            if (typeof s === "string") return s;
-            if (s.value) return s.value;
-            if (s.label) return s.label;
-            if (s.target && s.target.value) return s.target.value;
-            try { return String(s); } catch (e) { return ""; }
-          }),
-          changeby: localStorage.getItem("email"),
-          doctorid: newDoctor.id,
-        };
-        console.log("docs payload", payload);
-        if (!editMode) {
-          const response = await registerDoctor(payload);
-          devLog("handleSubmit registerDoctor response (staff)", response);
-          if (response.success) {
-            setErrMsg("");
-            setSuccessMessage("Registration Successful!");
-            clearDoctorFields();
-            setIsFormModalOpen(false);
-          } else {
-            setErrMsg("Registration Error! " + response.data);
-            setSuccessMessage("");
-          }
-        } else {
-          const response = await updateDoctor(newDoctor.id, payload);
-          devLog("handleSubmit updateDoctor response (staff)", response);
-          if (response.success) {
-            setErrMsg("");
-            setSuccessMessage("Update Successful!");
-            clearDoctorFields();
-            setIsFormModalOpen(false);
-          } else {
-            setErrMsg("Update Error! " + response.data);
-            setSuccessMessage("");
-          }
-        }
-      }
-
-
-      // add Dialysis Technician here
-      else if (newDoctor.role == "Dialysis Technician" && validateTechnicianData(newDoctor)) {
-        devLog("handleSubmit: Dialysis Technician branch", { newDoctor });
-        const photourl = await getFileRes(newDoctor.photo);
-        const payload = {
-          name: newDoctor.name,
-          role: newDoctor.role,
-          email: newDoctor.email,
-          experience: newDoctor.yearsOfExperience,
-          phoneno: newDoctor.phoneNo,
-          institute: newDoctor.institute,
-          address: newDoctor.address,
-          practicingAt: newDoctor.practicingAt,
-          photo: photourl?.data?.objectUrl,
-          description: newDoctor.description,
-          email_notification: newDoctor.email_notification,
-          specialities: (newDoctor.specialities || []).map((s) => {
-            if (!s) return "";
-            if (typeof s === "string") return s;
-            if (s.value) return s.value;
-            if (s.label) return s.label;
-            if (s.target && s.target.value) return s.target.value;
-            try { return String(s); } catch (e) { return ""; }
-          }),
-          can_export: newDoctor.can_export,
-          dailyReadings: newDoctor.dailyReadings,
-          dialysisReadings: newDoctor.dialysisReadings,
-          changeby: localStorage.getItem("email"),
-          doctorid: newDoctor.id,
-        };
-
-        console.log("Dialysis Technician payload", payload);
-        const response = editMode
-          ? await updateDoctor(newDoctor.id, payload)
-          : await registerDoctor(payload);
-        devLog("handleSubmit Dialysis register/update response", response);
-
+    if (newDoctor.role == "Doctor" && validateDoctorData(newDoctor)) {
+      const photourl = await getFileRes(newDoctor.photo);
+      const payload = {
+        name: newDoctor.name,
+        role: newDoctor.role,
+        email: newDoctor.email,
+        practicingAt: newDoctor.practicingAt,
+        experience: newDoctor.yearsOfExperience,
+        doctorsCode: newDoctor.doctorsCode,
+        licenseNo: newDoctor.licenseNo,
+        phoneno: newDoctor.phoneNo,
+        institute: newDoctor.institute,
+        address: newDoctor.address,
+        photo: photourl?.data?.objectUrl,
+        description: newDoctor.description,
+        email_notification: newDoctor.email_notification,
+        Dialysis_updates: newDoctor.Dialysis_updates,
+        dailyReadingsAlerts: newDoctor.dailyReadingsAlerts,
+        can_export: newDoctor.can_export,
+        specialities: newDoctor.specialities,
+        dailyReadings: newDoctor.dailyReadings,
+        dialysisReadings: newDoctor.dialysisReadings,
+        changeby: localStorage.getItem("email"),
+        doctorid: newDoctor.id,
+      };
+      console.log("ipdating with,", payload.dailyReadings);
+      if (!editMode) {
+        const response = await registerDoctor(payload);
         if (response.success) {
           setErrMsg("");
-          setSuccessMessage(editMode ? "Update Successful!" : "Registration Successful!");
+          setSuccessMessage("Registration Successful!");
+          showToast("Doctor registered successfully!", "success");
           clearDoctorFields();
           setIsFormModalOpen(false);
         } else {
-          setErrMsg((editMode ? "Update Error! " : "Registration Error! ") + response.data);
+          setErrMsg("Registration Error! " + response.data);
+          showToast("Registration Error! " + response.data, "error");
           setSuccessMessage("");
         }
       } else {
+        const response = await updateDoctor(newDoctor.id, payload);
+        if (response.success) {
+          setErrMsg("");
+          setSuccessMessage("Update Successful!");
+          showToast("Doctor updated successfully!", "success");
+          clearDoctorFields();
+          setIsFormModalOpen(false);
+        } else {
+          setErrMsg("Update Error! " + response.data);
+          showToast("Update Error! " + response.data, "error");
+          setSuccessMessage("");
+        }
+      }
+    } else if (
+      newDoctor.role == "Medical Staff" &&
+      validateMedicalData(newDoctor)
+    ) {
+      const photourl = await getFileRes(newDoctor.photo);
+      const resumeurl = await getFileRes(newDoctor.resume);
+      const payload = {
+        name: newDoctor.name,
+        role: newDoctor.role,
+        email: newDoctor.email,
+        experience: newDoctor.yearsOfExperience,
+        ref: newDoctor.reference || null,
+        phoneno: newDoctor.phoneNo,
+        institute: newDoctor.institute,
+        address: newDoctor.address,
+        practicingAt: newDoctor.practicingAt,
+        resume: resumeurl.data.objectUrl || null,
+        photo: photourl?.data.objectUrl,
+        description: newDoctor.description,
+        email_notification: newDoctor.email_notification,
+        can_export: newDoctor.can_export,
+        specialities: newDoctor.specialities,
+        changeby: localStorage.getItem("email"),
+        doctorid: newDoctor.id,
+      };
+      console.log("docs payload", payload);
+      if (!editMode) {
+        const response = await registerDoctor(payload);
+        if (response.success) {
+          setErrMsg("");
+          setSuccessMessage("Registration Successful!");
+          showToast("Medical Staff registered successfully!", "success");
+          clearDoctorFields();
+          setIsFormModalOpen(false);
+        } else {
+          setErrMsg("Registration Error! " + response.data);
+          showToast("Registration Error! " + response.data, "error");
+          setSuccessMessage("");
+        }
+      } else {
+        const response = await updateDoctor(newDoctor.id, payload);
+        if (response.success) {
+          setErrMsg("");
+          setSuccessMessage("Update Successful!");
+          showToast("Medical Staff updated successfully!", "success");
+          clearDoctorFields();
+          setIsFormModalOpen(false);
+        } else {
+          setErrMsg("Update Error! " + response.data);
+          showToast("Update Error! " + response.data, "error");
+          setSuccessMessage("");
+        }
+      }
+    }
+
+    // add Dialysis Technician here
+    else if (newDoctor.role == "Dialysis Technician" && validateTechnicianData(newDoctor)) {
+      const photourl = await getFileRes(newDoctor.photo);
+      const payload = {
+        name: newDoctor.name,
+        role: newDoctor.role,
+        email: newDoctor.email,
+        experience: newDoctor.yearsOfExperience,
+        phoneno: newDoctor.phoneNo,
+        institute: newDoctor.institute,
+        address: newDoctor.address,
+        practicingAt: newDoctor.practicingAt,
+        photo: photourl?.data?.objectUrl,
+        description: newDoctor.description,
+        email_notification: newDoctor.email_notification,
+        specialities: newDoctor.specialities,
+        can_export: newDoctor.can_export,
+        dailyReadings: newDoctor.dailyReadings,
+        dialysisReadings: newDoctor.dialysisReadings,
+        changeby: localStorage.getItem("email"),
+        doctorid: newDoctor.id,
+      };
+
+      console.log("Dialysis Technician payload", payload);
+      const response = editMode
+        ? await updateDoctor(newDoctor.id, payload)
+        : await registerDoctor(payload);
+
+      if (response.success) {
+        setErrMsg("");
+        setSuccessMessage(editMode ? "Update Successful!" : "Registration Successful!");
+        showToast(editMode ? "Technician updated successfully!" : "Technician registered successfully!", "success");
+        clearDoctorFields();
+        setIsFormModalOpen(false);
+      } else {
+        setErrMsg((editMode ? "Update Error! " : "Registration Error! ") + response.data);
+        showToast((editMode ? "Update Error! " : "Registration Error! ") + response.data, "error");
         setSuccessMessage("");
         setErrMsg("Please fill all the * fields correctly!");
       }
@@ -447,7 +417,8 @@ function AdminManagement() {
       console.error("Error in submission:", error);
       setErrMsg("An unexpected error occurred. Please try again.");
       setSuccessMessage("");
-      devLog("handleSubmit caught error", error);
+      setErrMsg("Please fill all the * fields correctly!");
+      showToast("Please fill all the * fields correctly!", "error");
     }
 
 
@@ -471,9 +442,11 @@ function AdminManagement() {
       devLog("handleDelete response", response);
       if (response.success) {
         setSuccessMessage("Delete Successful!");
+        showToast("Doctor deleted successfully!", "success");
       } else {
         setErrMsg(
           "Delete Error! (Please delete this doctor from the patients list for all the assigned patients before deleting it permantly!)");
+        showToast("Delete Error! Please remove doctor from assigned patients first.", "error");
         setSuccessMessage("");
       }
     } catch (error) {
@@ -1157,6 +1130,7 @@ function AdminManagement() {
             </Grid>
           </Box>
         </FormModal>
+        <ToastContainer />
       </Box>
     </ThemeProvider>
   );
