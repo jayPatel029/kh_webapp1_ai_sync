@@ -1,5 +1,5 @@
-import { Alert } from "@mui/material";
 import { useEffect } from "react";
+import { notifyWarning } from "../../helpers/notify";
 
 const events = [
   "load",
@@ -47,8 +47,9 @@ const AppLogout = ({ children }) => {
   // logs out user by clearing out auth token in localStorage and redirecting url to /signin page.
   const logoutAction = () => {
     localStorage.clear();
-    alert("Logged out due to inactivity")
-    window.location.reload();
+    // Use toast instead of blocking alert() — it renders before the redirect
+    notifyWarning("You have been logged out due to inactivity.");
+    window.location.href = "/doctorLogin";
   };
 
   return children;

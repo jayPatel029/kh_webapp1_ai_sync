@@ -42,6 +42,7 @@
     "reactstrap": "^9.2.2",
     "recharts": "^2.10.4",
     "socket.io-client": "^4.7.4",
+    "sonner": "^2.0.7",
     "web-vitals": "^2.1.4",
     "webapp": "file:"
   },

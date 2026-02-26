@@ -8,7 +8,7 @@ export async function getPatients() {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message };
   }
 }
 
@@ -22,7 +22,7 @@ export async function AddPatient(patientData) {
     console.log("response from AddPatient : ", response.data);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message };
   }
 }
 
@@ -34,7 +34,7 @@ export async function updatePatientProgram(patientId, programData) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message };
   }
 }
 
@@ -45,7 +45,7 @@ export async function getPatientByIdad(patientId) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message };
   }
 }
 
@@ -56,7 +56,7 @@ export async function getPatientById(patientId) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message };
   }
 }
 
@@ -68,7 +68,7 @@ export async function getPatientMedicalTeam(id) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message };
   }
 }
 
@@ -80,7 +80,7 @@ export async function getPatientAdminTeam(id) {
     console.log("response from getPatientAdminTeam : ", response.data);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message };
   }
 }
 export async function getDialysisUpdates() {
@@ -103,7 +103,7 @@ export async function getDialysisUpdates() {
       return { success: false };
     }
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message };
   }
 }
 
@@ -127,7 +127,7 @@ export async function canExportPatient() {
       return { success: false };
     }
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    return { success: false, data: error.message };
   }
 }
 

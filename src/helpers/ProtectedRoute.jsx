@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { setPermissions } from "../redux/permissionSlice";
 import { identifyRole } from "../ApiCalls/authapis";
-import { useEffect } from "react";
+import { notifyError } from "../helpers/notify";
+import { reportError } from "../helpers/errors/reportError";
 
 const ProtectedRoute = ({ routeName, children }) => {
   const dispatch = useDispatch();
@@ -42,7 +43,8 @@ const ProtectedRoute = ({ routeName, children }) => {
           dispatch(setPermissions(response.data.data));
         }
       } catch (error) {
-        console.error(error.message);
+        reportError(error, { source: 'ProtectedRoute' });
+        notifyError(error);
       }
     }
     fetchData();
