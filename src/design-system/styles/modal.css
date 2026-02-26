@@ -208,7 +208,7 @@
 .modal__body {
   flex: 1;
   padding: var(--space-6);
-  overflow-y: auto;
+  /* overflow-y: auto; */
 }
 
 .modal__footer {

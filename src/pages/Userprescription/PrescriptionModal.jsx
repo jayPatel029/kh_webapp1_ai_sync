@@ -7,7 +7,6 @@
  */
 
 import React, { useEffect, useState } from "react";
-import jsPDF from "jspdf";
 
 // Component Library
 import { FormModal } from "../../component-library/modals/FormModal";
@@ -19,7 +18,7 @@ import { VStack } from "../../component-library/layout/Layout";
 import { Text, Heading } from "../../component-library/primitives/Typography";
 
 // Shared components
-import FileUploadWithCamera from "../../components/FileUploadWithCamera";
+import FileUploadWithCamera, { buildMergedPdfFile } from "../../components/FileUploadWithCamera";
 
 // APIs and Helpers
 import { addPrescriptionById } from "../../ApiCalls/prescriptionApis";
@@ -83,21 +82,9 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
     try {
       let finalFileUrl = "";
 
-      if (images.length === 1 && images[0].file) {
-        // single file upload
-        const res = await getFileRes(images[0].file);
-        finalFileUrl = res.data.objectUrl;
-      } else if (images.length > 0) {
-        // combine into pdf
-        const doc = new jsPDF();
-        images.forEach((img, i) => {
-          const imgData = img.data;
-          if (i > 0) doc.addPage();
-          doc.addImage(imgData, "JPEG", 10, 10, 190, 250);
-        });
-        doc.setProperties({ title: "Prescription.pdf" });
-        const pdfBlob = doc.output("blob");
-        const res = await getFileRes(pdfBlob, "Prescription.pdf");
+      if (images.length > 0) {
+        const mergedPdfFile = await buildMergedPdfFile(images, "Prescription.pdf");
+        const res = await getFileRes(mergedPdfFile, mergedPdfFile.name);
         finalFileUrl = res.data.objectUrl;
       }
 
@@ -186,7 +173,7 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
           size="xs"
           images={images}
           onChange={handleImageChange}
-          accept="image/*"
+          accept="image/*,.pdf"
           multiple={true}
           showCamera={true}
         />

@@ -355,9 +355,9 @@ function AdminManagement() {
           size="lg"
           errorMessage={errMsg.length > 0 ? errMsg[0] : ""}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> */}
             {/* Left Column */}
-            <div className="space-y-4">
+            {/* <div className="space-y-4"> */}
               <FormControl>
                 <FormLabel>Name*</FormLabel>
                 <Input
@@ -404,10 +404,10 @@ function AdminManagement() {
                   />
                 </FormControl>
               )}
-            </div>
+            {/* </div> */}
 
             {/* Right Column */}
-            <div className="space-y-4">
+            {/* <div className="space-y-4"> */}
               <FormControl>
                 <FormLabel>Email*</FormLabel>
                 <Input
@@ -442,8 +442,8 @@ function AdminManagement() {
                   ))}
                 </Select>
               </FormControl>
-            </div>
-          </div>
+            {/* </div>
+          </div> */}
 
           {errMsg.length > 1 && (
             <div className="mt-4">

@@ -10,7 +10,7 @@ import { postLabreportExtract, postLabreportConfirm } from "../../ApiCalls/remai
 import { getFileRes } from "../../helpers/fileuploadHelper";
 import getCurrentDate from "../../helpers/formatDate";
 
-import FileUploadWithCamera from "../../components/FileUploadWithCamera";
+import FileUploadWithCamera, { buildMergedPdfFile } from "../../components/FileUploadWithCamera";
 
 // Component Library
 import { 
@@ -32,21 +32,21 @@ import { Text, Heading } from "../../component-library/primitives/Typography";
 const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedReportType, setSelectedReportType] = useState("");
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedImages, setSelectedImages] = useState([]);
   const [extractedValues, setExtractedValues] = useState(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [email] = useState(localStorage.getItem("email"));
   const [errorMsg, setErrorMsg] = useState("");
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    setSelectedImage(file);
+  const handleImageChange = (imagesArray) => {
+    // FileUploadWithCamera passes an array of { data, name, file }
+    setSelectedImages(imagesArray);
     setErrorMsg("");
   };
 
   const handleExtract = async () => {
-    if (!selectedImage) {
+    if (!selectedImages || selectedImages.length === 0) {
       setErrorMsg("Please upload a file first.");
       return;
     }
@@ -60,7 +60,8 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
     setErrorMsg("");
 
     try {
-      const uploadRes = await getFileRes(selectedImage);
+      const mergedPdfFile = await buildMergedPdfFile(selectedImages, "LabReport.pdf");
+      const uploadRes = await getFileRes(mergedPdfFile, mergedPdfFile.name);
       const pdfUrl = uploadRes.data.objectUrl;
 
       if (!pdfUrl) {
@@ -101,7 +102,8 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
 
     setIsSaving(true);
     try {
-      const uploadRes = await getFileRes(selectedImage);
+      const mergedPdfFile = await buildMergedPdfFile(selectedImages, "LabReport.pdf");
+      const uploadRes = await getFileRes(mergedPdfFile, mergedPdfFile.name);
       const pdfUrl = uploadRes.data.objectUrl;
 
       const finalData = {
@@ -182,27 +184,14 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
               </Select>
             </FormControl>
 
-            <FormControl isRequired isInvalid={!!errorMsg && !selectedImage}>
+            <FormControl isRequired isInvalid={!!errorMsg && selectedImages.length === 0}>
               <FormLabel>Upload File</FormLabel>
               <Box className="relative">
-                {/* <Input
-                  type="file"
-                  onChange={handleImageChange}
-                  className="w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-md file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-primary-50 file:text-primary
-                    hover:file:bg-primary-100
-                    cursor-pointer"
-                /> */}
                 <FileUploadWithCamera
-                  images={selectedImage ? [selectedImage] : []}
-                  // size="md"
-                  // images={selectedImage ? [selectedImage] : []}
+                  images={selectedImages}
                   onChange={handleImageChange}
                   accept="image/*,.pdf"
-                  multiple={false}
+                  multiple={true}
                   showCamera={true}
                 />
               </Box>
@@ -216,7 +205,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
                 isLoading={isExtracting}
                 loadingText="Extracting Data..."
                 onClick={handleExtract}
-                className="mt-2 h-12"
+
               >
                 Extract Data
               </Button>

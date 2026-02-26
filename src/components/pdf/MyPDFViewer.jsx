@@ -52,7 +52,7 @@ function MyPDFViewer({ file, onLoadSuccess, onLoadError }) {
           setError(err?.message || String(err));
           if (onLoadError) onLoadError(err);
         }}
-        className="border rounded shadow-md"
+        className="noscrollbar"
       >
         {error ? (
           <div className="text-red-500 p-4">Failed to load PDF: {error}</div>

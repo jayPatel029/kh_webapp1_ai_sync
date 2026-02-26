@@ -1,0 +1,282 @@
+/**
+ * Custom Select Component Styles
+ * Single-select dropdown with styled option list
+ * Matches the MultiSelect / design-system look & feel
+ *
+ * File: src/design-system/styles/custom-select.css
+ */
+
+/* ==================== CONTAINER ==================== */
+
+.custom-select {
+  position: relative;
+  width: 100%;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+/* ==================== TRIGGER ==================== */
+
+.custom-select__trigger {
+  width: 100%;
+  min-width: 0;
+  outline: none;
+  position: relative;
+  appearance: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+
+  font-family: var(--font-primary);
+  color: var(--color-accent);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+
+  background-color: var(--color-white);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+
+  padding: 0 var(--space-4, 16px);
+  text-align: left;
+
+  transition: var(--transition-fast, 0.2s ease);
+}
+
+.custom-select__trigger:hover:not(:disabled) {
+  border-color: var(--color-info, #e4e4e7);
+}
+
+.custom-select__trigger:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.5px var(--color-primary);
+  outline: none;
+}
+
+.custom-select__trigger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background-color: var(--color-gray-100, #f4f4f5);
+}
+
+/* ==================== LABEL ==================== */
+
+.custom-select__label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-accent, #64748b);
+  font-size: inherit;
+}
+
+.custom-select__label--placeholder {
+  color: var(--color-accent, #94a3b8);
+}
+
+/* ==================== CHEVRON ==================== */
+
+.custom-select__chevron {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg width='13' height='12' viewBox='0 0 13 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6.49609 11.25L0.000904 0L12.9913 0L6.49609 11.25Z' fill='%2300CCCC'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 13px 12px;
+  transition: transform 0.2s ease;
+}
+
+.custom-select--open .custom-select__chevron {
+  transform: rotate(180deg);
+}
+
+/* ==================== SIZE VARIANTS ==================== */
+
+.custom-select--sm .custom-select__trigger {
+  height: 32px;
+  padding-left: var(--space-3, 12px);
+  padding-right: var(--space-3, 12px);
+  font-size: var(--font-size-sm);
+}
+
+.custom-select--md .custom-select__trigger {
+  height: 40px;
+  padding-left: var(--space-4, 16px);
+  padding-right: var(--space-4, 16px);
+  font-size: var(--font-size-md);
+}
+
+.custom-select--lg .custom-select__trigger {
+  height: 48px;
+  padding-left: var(--space-4, 16px);
+  padding-right: var(--space-4, 16px);
+  font-size: var(--font-size-lg);
+}
+
+/* ==================== DROPDOWN ==================== */
+
+.custom-select__dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  min-width: 100%;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 10000;
+
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  background-color: var(--color-white, #ffffff);
+  border: 1px solid var(--color-info, #d4d4d8);
+  border-radius: var(--radius-2xl, 12px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  animation: customSelectSlideDown 0.2s ease-out;
+}
+
+@keyframes customSelectSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==================== OPTION ==================== */
+
+.custom-select__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.custom-select__option:first-child {
+  border-radius: var(--radius-2xl, 12px) var(--radius-2xl, 12px) 0 0;
+}
+
+.custom-select__option:last-child {
+  border-radius: 0 0 var(--radius-2xl, 12px) var(--radius-2xl, 12px);
+}
+
+.custom-select__option:only-child {
+  border-radius: var(--radius-2xl, 12px);
+}
+
+.custom-select__option:hover {
+  background-color: var(--color-gray-50, #fafafa);
+}
+
+.custom-select__option:active {
+  background-color: var(--color-gray-100, #f4f4f5);
+}
+
+.custom-select__option--selected {
+  background-color: var(--color-gray-50, #f8fafc);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.custom-select__option--selected .custom-select__option-text {
+  color: var(--color-primary, #00cccc);
+}
+
+/* ==================== OPTION TEXT ==================== */
+
+.custom-select__option-text {
+  flex: 1;
+  color: var(--color-accent, #64748b);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-primary);
+  font-weight: var(--font-weight-regular);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==================== EMPTY STATE ==================== */
+
+.custom-select__empty {
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  color: var(--color-gray-500, #9ca3af);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+/* ==================== STATE VARIANTS ==================== */
+
+.custom-select--disabled .custom-select__trigger {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background-color: var(--color-gray-100, #f4f4f5);
+}
+
+.custom-select--invalid .custom-select__trigger {
+  border-color: var(--color-error, #ef4444);
+}
+
+.custom-select--invalid .custom-select__trigger:focus-visible {
+  border-color: var(--color-error, #ef4444);
+  box-shadow: 0 0 0 0.5px var(--color-error, #ef4444);
+}
+
+.custom-select--invalid .custom-select__dropdown {
+  border-color: var(--color-error, #ef4444);
+}
+
+/* ==================== HIDDEN NATIVE SELECT ==================== */
+
+.custom-select__native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ==================== SCROLLBAR ==================== */
+
+.custom-select__dropdown::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-select__dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-select__dropdown::-webkit-scrollbar-thumb {
+  background-color: var(--color-secondary-gray-300, #e4e4e7);
+  border-radius: 4px;
+}
+
+.custom-select__dropdown::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-secondary-gray-400, #d4d4d8);
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 640px) {
+  .custom-select__dropdown {
+    max-height: 280px;
+  }
+
+  .custom-select__option {
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+  }
+}
