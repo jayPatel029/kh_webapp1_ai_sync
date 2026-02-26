@@ -16,7 +16,7 @@ Standardized Profile Questions, Language Master, and Ailment Master pages to mat
           <button className="admin-btn admin-btn--primary">
             Add Action
           </button>
-          <Link className="admin-btn admin-btn--secondary">
+          <Link className="admin-btn">
             Bulk Upload
           </Link>
         </div>

@@ -120,9 +120,9 @@ export default function DialysisTableComponent({
               Add Dialysis Reading
             </Button>
             <Button
-              variant="secondary"
+              variant="primary"
               onClick={() => setIsBulkUploadModalOpen(true)}
-              className="admin-btn admin-btn--secondary"
+              className="admin-btn"
             >
               Bulk Upload Question
             </Button>

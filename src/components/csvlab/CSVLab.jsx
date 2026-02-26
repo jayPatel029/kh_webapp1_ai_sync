@@ -28,6 +28,7 @@ const GREY_DIM = "#686868";
 
 const styles = {
   zone: {
+    width: "100%",
     alignItems: "center",
     border: `2px dashed var(--color-accent)`,
     // outline: `2px dashed var(--color-accent)`,
@@ -278,7 +279,7 @@ export default function CSVReader({ setData, setSuccess, success, patientId, tit
                           [key]: e.target.value,
                         })
                       }
-                      
+
                     >
                       <option value="">Select Column</option>
                       {columnOptions.map((column, index) => (

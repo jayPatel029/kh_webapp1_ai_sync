@@ -10,6 +10,7 @@ import {
   BaseModal,
   Button,
   FormControl,
+  FormLabel,
   Input,
   VStack,
   Flex,
@@ -57,20 +58,21 @@ const TranslationModal = ({
     if (typeof onClose === "function") onClose();
     if (typeof closeModal === "function") closeModal();
   };
-
   return (
     <BaseModal
       isOpen={isOpen}
       onClose={onClose || closeModal}
-      title="Set Translations"
+      title="Questions translations"
       size="md"
       showCloseButton
     >
       <VStack gap={4} align="stretch">
         {languages.map((lang) => (
           <FormControl key={lang.id}>
+            <FormLabel>{lang.language_name}</FormLabel>
             <Input
-              placeholder={`Translation for ${lang.name}`}
+              
+              placeholder={`Enter question in ${lang.language_name}`}
               value={localTranslations[lang.id] || ""}
               onChange={(e) => handleTranslationChange(lang.id, e.target.value)}
             />

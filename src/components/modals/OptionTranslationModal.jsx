@@ -10,6 +10,7 @@ import {
   BaseModal,
   Button,
   FormControl,
+  FormLabel,
   Input,
   VStack,
   Flex,
@@ -56,31 +57,32 @@ const OptionTranslationModal = ({
     <BaseModal
       isOpen={isOpen}
       onClose={onClose || closeModal}
-      title={`Translate: ${optionName}`}
+      title={`Options translations`}
       size="md"
       showCloseButton
     >
       <VStack gap={4} align="stretch">
         {languages.map((lang) => (
           <FormControl key={lang.id}>
+            <FormLabel>{lang.language_name}</FormLabel>
             <Input
-              placeholder={`Translation for ${lang.name}`}
+              placeholder={`Enter translation for ${lang.language_name}`}
               value={localTranslations[lang.id] || ""}
               onChange={(e) => handleTranslationChange(lang.id, e.target.value)}
             />
           </FormControl>
         ))}
 
-        <Flex justify="end" gap={3} className="mt-4">
-          <Button variant="ghost" onClick={onClose || closeModal}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSubmit}>
-            Save
-          </Button>
-        </Flex>
-      </VStack>
-    </BaseModal>
+      <Flex justify="end" gap={3} className="mt-4">
+        <Button variant="ghost" onClick={onClose || closeModal}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSubmit}>
+          Save
+        </Button>
+      </Flex>
+    </VStack>
+    </BaseModal >
   );
 };
 

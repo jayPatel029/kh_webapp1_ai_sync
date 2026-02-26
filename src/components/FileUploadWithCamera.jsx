@@ -6,6 +6,7 @@ import { Input } from "../component-library/primitives/Input";
 import CameraIcon from "../assets/Camera.svg";
 import attachIcon from "../assets/attachIcon.svg";
 import { Margin } from "@mui/icons-material";
+import jsPDF from "jspdf";
 
 /**
  * FileUploadWithCamera
@@ -16,10 +17,74 @@ import { Margin } from "@mui/icons-material";
  * - onChange: function(newImagesArray)
  * - accept: file accept string (default: 'image/*')
  * - multiple: boolean (default: true)
- * - append: boolean (default: false) whether to append selected files or replace
  * - attachLabel, captureLabel: button labels
  * - previewWidth/previewHeight: numbers for preview box
+ * - onPdfGenerated: callback when PDF is generated
+ * - pdfFileName: custom PDF filename (default: 'captures_${Date.now()}.pdf')
  */
+
+/**
+ * Utility function to generate PDF from images
+ */
+const generatePdfFromImages = (images, fileName = null) => {
+    return new Promise((resolve, reject) => {
+        try {
+            if (!images || images.length === 0) {
+                reject(new Error("No images to generate PDF"));
+                return;
+            }
+
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a4",
+            });
+
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const margin = 10;
+            const contentWidth = pageWidth - 2 * margin;
+
+            let yPosition = margin;
+
+            images.forEach((img, index) => {
+                const src = typeof img === "string" ? img : (img?.data || (img?.file ? URL.createObjectURL(img.file) : null));
+
+                if (!src) return;
+
+                const img_obj = new Image();
+                img_obj.onload = function () {
+                    const imgWidth = contentWidth;
+                    const imgHeight = (img_obj.height / img_obj.width) * imgWidth;
+
+                    if (yPosition + imgHeight > pageHeight - margin) {
+                        pdf.addPage();
+                        yPosition = margin;
+                    }
+
+                    pdf.addImage(src, "JPEG", margin, yPosition, imgWidth, imgHeight);
+                    yPosition += imgHeight + 10;
+
+                    if (index === images.length - 1) {
+                        const timestamp = new Date().toISOString().split("T")[0];
+                        const finalFileName = fileName || `captures_${timestamp}.pdf`;
+                        pdf.save(finalFileName);
+                        resolve(pdf);
+                    }
+                };
+                img_obj.src = src;
+            });
+
+            setTimeout(() => {
+                if (images.length === 0) {
+                    reject(new Error("Failed to load images"));
+                }
+            }, 5000);
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
 const FileUploadWithCamera = ({
     images = [],
     onChange = () => { },
@@ -28,7 +93,6 @@ const FileUploadWithCamera = ({
     onFileSelect,
     accept = "image/*",
     multiple = true,
-    append = false,
     attachLabel = "Attach file",
     captureLabel,
     // size can be 'sm' | 'md' | 'lg'
@@ -38,6 +102,9 @@ const FileUploadWithCamera = ({
     previewHeight,
     showCountInfo = true,
     showCamera = true,
+    onPdfGenerated = null,
+    pdfFileName = null,
+    showPdfButton = true,
 }) => {
     const SIZE_PRESETS = {
         xs: { previewWidth: 120, previewHeight: 80, videoHeight: 180, buttonPadding: '2px 4px', fontSize: 12, inputHeight: 12 },
@@ -55,6 +122,7 @@ const FileUploadWithCamera = ({
     const fileInputRef = useRef(null);
     const videoRef = useRef(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
     const openCamera = async () => {
         setIsCameraOpen(true);
@@ -88,7 +156,8 @@ const FileUploadWithCamera = ({
         const dataUrl = canvas.toDataURL("image/jpeg");
         const name = `capture_${Date.now()}.jpg`;
         const file = dataURLToFile(dataUrl, name);
-        const next = append ? [...images, { data: dataUrl, name, file }] : [{ data: dataUrl, name, file }];
+        // Always append - never replace
+        const next = [...images, { data: dataUrl, name, file }];
         onChange(next);
         if (onFileChange) {
             onFileChange(multiple ? next.map((item) => item.file).filter(Boolean) : file);
@@ -123,7 +192,8 @@ const FileUploadWithCamera = ({
                 newImages.push({ data: reader.result, name: file.name, file });
                 loaded += 1;
                 if (loaded === files.length) {
-                    const next = append ? [...images, ...newImages] : [...newImages];
+                    // Always append - never replace
+                    const next = [...images, ...newImages];
                     onChange(next);
                     if (onFileChange) {
                         onFileChange(multiple ? files : files[0]);
@@ -141,6 +211,21 @@ const FileUploadWithCamera = ({
         const next = images.filter((_, i) => i !== index);
         onChange(next);
         if (next.length === 0 && fileInputRef.current) fileInputRef.current.value = null;
+    };
+
+    const handleGeneratePdf = async () => {
+        setIsGeneratingPdf(true);
+        try {
+            await generatePdfFromImages(images, pdfFileName);
+            if (onPdfGenerated) {
+                onPdfGenerated();
+            }
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert("Failed to generate PDF. Please try again.");
+        } finally {
+            setIsGeneratingPdf(false);
+        }
     };
 
     return (
@@ -239,9 +324,21 @@ const FileUploadWithCamera = ({
                         })}
                     </Flex>
                     {showCountInfo && (
-                        <Text size="xs" className="mt-2 text-gray-500">
-                            Selected: {images.length} {images.length === 1 ? 'image' : 'images'} {images.length > 1 ? '(will be combined into PDF)' : ''}
-                        </Text>
+                        <Box className="mt-4 flex items-center justify-between">
+                            <Text size="xs" className="text-gray-500">
+                                Selected: {images.length} {images.length === 1 ? 'image' : 'images'} {images.length > 1 ? '(will be combined into PDF)' : ''}
+                            </Text>
+                            {/* {showPdfButton && images.length > 0 && (
+                                <Button
+                                    onClick={handleGeneratePdf}
+                                    disabled={isGeneratingPdf}
+                                    className="!bg-accent !text-white hover:!bg-accent/90"
+                                    style={{ fontSize: '12px', padding: '4px 12px' }}
+                                >
+                                    {isGeneratingPdf ? 'Generating...' : '📥 Download PDF'}
+                                </Button>
+                            )} */}
+                        </Box>
                     )}
                 </Box>
             )}

@@ -6,7 +6,7 @@
  * @file src/components/modals/FileViewModal.jsx
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSelector } from "react-redux";
 // import jsPDF from "jspdf";
 
@@ -57,6 +57,9 @@ export const FileViewModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refreshComments, setRefreshComments] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [viewerWidth, setViewerWidth] = useState(null);
+  const modalContentRef = useRef(null);
+  const viewerRef = useRef(null);
 
   const role = useSelector((state) => state.permission);
   const isPdf = fileUrl && /.*\.pdf$/i.test(fileUrl);
@@ -138,6 +141,23 @@ export const FileViewModal = ({
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12 || 12;
     return `${day} ${month} ${year}, ${hours}:${minutes} ${ampm}`;
+  };
+
+  const adjustViewerWidth = () => {
+    try {
+      const modalWidth = modalContentRef.current?.getBoundingClientRect().width || window.innerWidth * 0.85;
+      let measured = viewerRef.current?.getBoundingClientRect().width || viewerRef.current?.scrollWidth || 0;
+      // If nothing measurable yet, fallback to 60% of modal
+      if (!measured || measured === 0) measured = modalWidth * 0.6;
+
+      // clamp between 40% and 85% of modal width
+      const minW = modalWidth * 0.4;
+      const maxW = modalWidth * 0.85;
+      const desired = Math.max(minW, Math.min(measured, maxW));
+      setViewerWidth(desired);
+    } catch (err) {
+      // ignore
+    }
   };
 
   // const handleDownloadPDF = async () => {

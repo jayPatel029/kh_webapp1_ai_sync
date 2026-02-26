@@ -24,7 +24,9 @@ import {
   Select,
   Button,
   Textarea,
-  Checkbox
+  Checkbox,
+  Grid,
+  GridItem
 } from "../../../component-library";
 import UnifiedListTable from "../../../components/table/UnifiedListTable";
 
@@ -530,22 +532,41 @@ function AdminManagement() {
           errorMessage={errMsg}
         >
           {/* User Role */}
-          <div className="w-full md:w-1/2 mb-6">
-            <FormControl>
-              <FormLabel>User Role*</FormLabel>
-              <Select
-                value={newDoctor.role}
-                onChange={(event) => {
-                  newDoctorDispatch({
-                    type: "role",
-                    payload: event.target.value,
-                  });
-                }}
-              >
-                {roleoptions}
-              </Select>
-            </FormControl>
-          </div>
+          <Box className="w-full md:w-1/2 mb-6 flex flex-row gap-8">
+            <Box className="flex-1">
+              <FormControl>
+                <FormLabel>User Role*</FormLabel>
+                <Select
+                  value={newDoctor.role}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "role",
+                      payload: event.target.value,
+                    });
+                  }}
+                >
+                  {roleoptions}
+                </Select>
+              </FormControl>
+            </Box>
+            <Box className="flex-1">
+              <FormControl>
+                <FormLabel>Qualifiction</FormLabel>
+                <Textarea
+                  rows={2}
+                  placeholder="Qualifiction"
+                  value={newDoctor.description}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "description",
+                      payload: event.target.value,
+                    });
+                  }}
+                />
+              </FormControl>
+
+            </Box>
+          </Box>
 
           {/* Readings Modal Trigger */}
           {showReadingsModal && (
@@ -557,9 +578,10 @@ function AdminManagement() {
             />
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Box className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Left Column */}
-            <div className="space-y-4">
+            {/* <Box className=""> */}
+            <Box>
               <FormControl>
                 <FormLabel>Name*</FormLabel>
                 <Input
@@ -586,7 +608,9 @@ function AdminManagement() {
                   }}
                 />
               </FormControl>
+            </Box>
 
+            <Box>
               <FormControl>
                 <FormLabel>Email*</FormLabel>
                 <Input
@@ -601,8 +625,10 @@ function AdminManagement() {
                   }}
                 />
               </FormControl>
+            </Box>
 
-              {newDoctor.role === "Doctor" && (
+            {newDoctor.role === "Doctor" && (
+              <Box>
                 <FormControl>
                   <FormLabel>License No*</FormLabel>
                   <Input
@@ -617,8 +643,10 @@ function AdminManagement() {
                     }}
                   />
                 </FormControl>
-              )}
+              </Box>
+            )}
 
+            <Box>
               <FormControl>
                 <FormLabel>Practicing At*</FormLabel>
                 <Select
@@ -633,7 +661,9 @@ function AdminManagement() {
                   {practicingAtOptions}
                 </Select>
               </FormControl>
+            </Box>
 
+            <Box>
               <FormControl>
                 <FormLabel>Years Of Experience</FormLabel>
                 <Input
@@ -648,7 +678,9 @@ function AdminManagement() {
                   }}
                 />
               </FormControl>
+            </Box>
 
+            <Box>
               <FormControl>
                 <FormLabel>Reference If Any</FormLabel>
                 <Input
@@ -663,82 +695,53 @@ function AdminManagement() {
                   }}
                 />
               </FormControl>
+            </Box>
 
-              {newDoctor.role === "Medical Staff" ? (
-                <FormControl>
-                  <FormLabel>Resume</FormLabel>
-                  <Input
-                    type="file"
-                    name="Resume"
-                    id="file-input"
-                    onChange={(event) => {
-                      newDoctorDispatch({
-                        type: "resume",
-                        payload: event.target.files[0],
-                      });
-                    }}
-                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
-                  />
-                </FormControl>
-              ) : (
-                <FormControl>
-                  {/* <FormLabel>Required Daily Readings</FormLabel> */}
-                  <Button
-                    variant="primary"
-                    className="w-full"
-                    onClick={() => {
-                      setShowReadingsModal(true);
-                      setReadingsModalType("daily");
-                    }}
-                  >
-                    Select Daily Readings
-                  </Button>
-                </FormControl>
-              )}
-            </div>
+            {/* </Box> */}
 
             {/* Right Column */}
-            <div className="space-y-4">
+            {/* <Box className="space-y-4"> */}
+            <Box>
               <FormControl>
                 <FormLabel>Specialities*</FormLabel>
                 {/* <Select
-                        value={newDoctor.specialities}
-                        isMulti
-                        styles={{
-                          control: (baseStyles, state) => ({
-                            ...baseStyles,
-                            borderColor: state.isFocused
-                              ? "#00c6be"
-                              : "rgb(209 213 219)",
-                            outlineColor: state.isFocused
-                              ? "#00c6be"
-                              : "rgb(209 213 219)",
-                            borderRadius: "0.5rem",
-                            padding: "0.14rem",
-                            fontSize: "0.875rem",
-                          }),
-                        }}
-                        onChange={(selectedOptions) => {
-                          newDoctorDispatch({
-                            type: "specialities",
-                            payload: selectedOptions,
-                          });
-                        }}
-                      >
-                        <option value="General">General</option>
-                        {newDoctor.role === "Doctor"
-                          ? doctorSpeciality.map((spec, index) => (
-                            <option key={index} value={spec}>
-                              {spec}
-                            </option>
-                          ))
-                          : staffSpeciality.map((spec, index) => (
-                            <option key={index} value={spec}>
-                              {spec}
-                            </option>
-                          ))}
-                        
-                      </Select> */}
+                          value={newDoctor.specialities}
+                          isMulti
+                          styles={{
+                            control: (baseStyles, state) => ({
+                              ...baseStyles,
+                              borderColor: state.isFocused
+                                ? "#00c6be"
+                                : "rgb(209 213 219)",
+                              outlineColor: state.isFocused
+                                ? "#00c6be"
+                                : "rgb(209 213 219)",
+                              borderRadius: "0.5rem",
+                              padding: "0.14rem",
+                              fontSize: "0.875rem",
+                            }),
+                          }}
+                          onChange={(selectedOptions) => {
+                            newDoctorDispatch({
+                              type: "specialities",
+                              payload: selectedOptions,
+                            });
+                          }}
+                        >
+                          <option value="General">General</option>
+                          {newDoctor.role === "Doctor"
+                            ? doctorSpeciality.map((spec, index) => (
+                              <option key={index} value={spec}>
+                                {spec}
+                              </option>
+                            ))
+                            : staffSpeciality.map((spec, index) => (
+                              <option key={index} value={spec}>
+                                {spec}
+                              </option>
+                            ))}
+                          
+                        </Select> */}
 
 
                 <Select
@@ -765,7 +768,9 @@ function AdminManagement() {
                     ))}
                 </Select>
               </FormControl>
+            </Box>
 
+            <Box>
               <FormControl>
                 <FormLabel>Phone No*</FormLabel>
                 <Input
@@ -780,8 +785,10 @@ function AdminManagement() {
                   }}
                 />
               </FormControl>
+            </Box>
 
-              {newDoctor.role === "Doctor" && (
+            {newDoctor.role === "Doctor" && (
+              <Box>
                 <FormControl>
                   <FormLabel>Doctors Code*</FormLabel>
                   <Input
@@ -796,13 +803,15 @@ function AdminManagement() {
                     }}
                   />
                 </FormControl>
-              )}
+              </Box>
+            )}
 
+            <Box>
               <FormControl>
-                <FormLabel isTruncated >Name of the Institute/Hospital/Clinic</FormLabel>
+                <FormLabel isTruncated >Institute/Hospital/Clinic</FormLabel>
                 <Input
                   type="text"
-                  placeholder="Name of the Institute/Hospital/Clinic"
+                  placeholder="Institute/Hospital/Clinic"
                   value={newDoctor.institute}
                   onChange={(event) => {
                     newDoctorDispatch({
@@ -812,7 +821,9 @@ function AdminManagement() {
                   }}
                 />
               </FormControl>
+            </Box>
 
+            <Box>
               <FormControl>
                 <FormLabel>Address</FormLabel>
                 <Input
@@ -827,7 +838,9 @@ function AdminManagement() {
                   }}
                 />
               </FormControl>
+            </Box>
 
+            <Box>
               <FormControl>
                 <FormLabel>Photo</FormLabel>
                 <Input
@@ -843,27 +856,65 @@ function AdminManagement() {
                   className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
                 />
                 {/* <FileUploadWithCamera
-                        images= {newDoctor.photo ? [newDoctor.photo] : []}
-                        onChange={(file) => {
-                        newDoctorDispatch({
-                          type: "photo",
-                          payload: file,
-                        });
-                      }}
-                      accept = "image/*"
-                      multiple
-                      append 
-                      attachLabel = "Attach file"
-                      captureLabel = "Capture image"
-                      previewWidth="120"
-                      previewHeight="90"
-                      showCountInfo 
-                      showCamera
-                        
-                      /> */}
+                          images= {newDoctor.photo ? [newDoctor.photo] : []}
+                          onChange={(file) => {
+                          newDoctorDispatch({
+                            type: "photo",
+                            payload: file,
+                          });
+                        }}
+                        accept = "image/*"
+                        multiple
+                        append 
+                        attachLabel = "Attach file"
+                        captureLabel = "Capture image"
+                        previewWidth="120"
+                        previewHeight="90"
+                        showCountInfo 
+                        showCamera
+                          
+                        /> */}
               </FormControl>
+            </Box>
 
-              {newDoctor.role === "Doctor" && (
+            {newDoctor.role === "Medical Staff" ? (
+              <Box>
+                <FormControl>
+                  <FormLabel>Resume</FormLabel>
+                  <Input
+                    type="file"
+                    name="Resume"
+                    id="file-input"
+                    onChange={(event) => {
+                      newDoctorDispatch({
+                        type: "resume",
+                        payload: event.target.files[0],
+                      });
+                    }}
+                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                  />
+                </FormControl>
+              </Box>
+            ) : (
+              <Box>
+                <FormControl>
+                  {/* <FormLabel>Required Daily Readings</FormLabel> */}
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={() => {
+                      setShowReadingsModal(true);
+                      setReadingsModalType("daily");
+                    }}
+                  >
+                    Select Daily Readings
+                  </Button>
+                </FormControl>
+              </Box>
+            )}
+
+            {newDoctor.role === "Doctor" && (
+              <Box>
                 <FormControl>
                   {/* <FormLabel>Required Dialysis Readings*</FormLabel> */}
                   <Button
@@ -877,88 +928,90 @@ function AdminManagement() {
                     Select Dialysis Readings
                   </Button>
                 </FormControl>
-              )}
-            </div>
-          </div>
+              </Box>
+            )}
+            {/* </Box> */}
+          </Box>
 
-          <div className="mt-6 space-y-4">
-            <FormControl>
-              <FormLabel>Description</FormLabel>
-              <Textarea
-                rows={2}
-                placeholder="Description"
-                value={newDoctor.description}
-                onChange={(event) => {
-                  newDoctorDispatch({
-                    type: "description",
-                    payload: event.target.value,
-                  });
-                }}
-              />
-            </FormControl>
+          <Box className="mt-6">
+            <Grid templateColumns="repeat(auto-fit, minmax(250px, 1fr))" gap={8}>
+              <GridItem>
+                <FormControl>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-teal-600 rounded"
+                      checked={newDoctor.email_notification === "yes"}
+                      onChange={(event) => {
+                        newDoctorDispatch({
+                          type: "email_notification",
+                          payload: event.target.checked ? "yes" : "no",
+                        });
+                      }}
+                    />
+                    <span className="text-sm font-medium text-gray-700">Subscribe to Email Notifications</span>
+                  </label>
+                </FormControl>
+              </GridItem>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-teal-600 rounded"
-                  checked={newDoctor.email_notification === "yes"}
-                  onChange={(event) => {
-                    newDoctorDispatch({
-                      type: "email_notification",
-                      payload: event.target.checked ? "yes" : "no",
-                    });
-                  }}
-                />
-                <span className="text-sm font-medium text-gray-700">Subscribe to Email Notifications</span>
-              </label>
+              <GridItem>
+                <FormControl>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-teal-600 rounded"
+                      checked={newDoctor.dailyReadingsAlerts === "yes"}
+                      onChange={(event) => {
+                        newDoctorDispatch({
+                          type: "dailyReadingsAlerts",
+                          payload: event.target.checked ? "yes" : "no",
+                        });
+                      }}
+                    />
+                    <span className="text-sm font-medium text-gray-700">Daily Reading Alert</span>
+                  </label>
+                </FormControl>
+              </GridItem>
 
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-teal-600 rounded"
-                  checked={newDoctor.dailyReadingsAlerts === "yes"}
-                  onChange={(event) => {
-                    newDoctorDispatch({
-                      type: "dailyReadingsAlerts",
-                      payload: event.target.checked ? "yes" : "no",
-                    });
-                  }}
-                />
-                <span className="text-sm font-medium text-gray-700">Daily Reading Alert</span>
-              </label>
+              <GridItem>
+                <FormControl>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-teal-600 rounded"
+                      checked={newDoctor.Dialysis_updates === "yes"}
+                      onChange={(event) => {
+                        newDoctorDispatch({
+                          type: "Dialysis_updates",
+                          payload: event.target.checked ? "yes" : "no",
+                        });
+                      }}
+                    />
+                    <span className="text-sm font-medium text-gray-700">Dialysis Technician Alerts</span>
+                  </label>
+                </FormControl>
+              </GridItem>
 
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-teal-600 rounded"
-                  checked={newDoctor.Dialysis_updates === "yes"}
-                  onChange={(event) => {
-                    newDoctorDispatch({
-                      type: "Dialysis_updates",
-                      payload: event.target.checked ? "yes" : "no",
-                    });
-                  }}
-                />
-                <span className="text-sm font-medium text-gray-700">Dialysis Technician Alerts</span>
-              </label>
-
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-teal-600 rounded"
-                  checked={newDoctor.can_export === "yes"}
-                  onChange={(event) => {
-                    newDoctorDispatch({
-                      type: "can_export",
-                      payload: event.target.checked ? "yes" : "no",
-                    });
-                  }}
-                />
-                <span className="text-sm font-medium text-gray-700">Can Export patient data</span>
-              </label>
-            </div>
-          </div>
+              <GridItem>
+                <FormControl>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-teal-600 rounded"
+                      checked={newDoctor.can_export === "yes"}
+                      onChange={(event) => {
+                        newDoctorDispatch({
+                          type: "can_export",
+                          payload: event.target.checked ? "yes" : "no",
+                        });
+                      }}
+                    />
+                    <span className="text-sm font-medium text-gray-700">Can Export patient data</span>
+                  </label>
+                </FormControl>
+              </GridItem>
+            </Grid>
+          </Box>
         </FormModal>
       </Box>
     </ThemeProvider>

@@ -17,6 +17,7 @@ import SubdirectoryArrowRightIcon from "@mui/icons-material/SubdirectoryArrowRig
 import { AdminPanelSettings, ArrowBack, Assessment } from "@mui/icons-material";
 import TranslateIcon from "@mui/icons-material/Translate";
 import { useSelector } from "react-redux";
+import { useLocation } from 'react-router-dom';
 import { Sidebar as DSidebar, SidebarHeader } from "../../component-library/navigation/Sidebar";
 import Account from "../../assets/Account.svg";
 import { ROUTES } from "../../routes/routeConstants";
@@ -200,6 +201,24 @@ const Sidebar = ({ mobile = false }) => {
     return navItems.slice(0, 3);
   }, [navItems]);
 
+  const location = useLocation();
+  const pathname = location?.pathname || '';
+
+  const getActiveIdFromPath = (path) => {
+    if (!path) return null;
+    // special mapping: userprofile should activate patients
+    if (path.toLowerCase().includes('/userprofile/')) return 'patients';
+    // exact match
+    const exact = navItems.find((it) => it.href === path);
+    if (exact) return exact.id;
+    // startsWith match for nested routes (avoid matching root '/').
+    const starts = navItems.find((it) => it.href && it.href !== '/' && path.startsWith(it.href));
+    if (starts) return starts.id;
+    return null;
+  };
+
+  const activeId = getActiveIdFromPath(pathname);
+
   const adminGroupVisible = !!(role?.createAdmin || role?.createDoctor || role?.manageRoles);
 
   const renderDesktopNavItem = (item) => {
@@ -209,14 +228,15 @@ const Sidebar = ({ mobile = false }) => {
         <NavLink
           to={item.href}
           end={item.href === '/'}
-          className={({ isActive }) => {
+          className={() => {
             const isIconOnly = isCollapsed && !mobile;
+            const isActive = activeId === item.id;
             return clsx(
               'transition-colors duration-150',
               isIconOnly
-                ? 'flex flex-col items-center justify-center rounded-xl px-2 py-2 hover:bg-white/8 space-y-1'
+                ? 'flex flex-col items-center justify-center rounded-xl  w-fit px-2 py-2 hover:bg-white/8 space-y-1'
                 : 'flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold',
-              isActive ? (isIconOnly ? 'bg-white/20' : 'bg-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.35)]') : 'text-white/90 hover:bg-white/10',
+              isActive ? (isIconOnly ? 'bg-white/20 w-full ' : 'bg-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.35)]') : 'text-white/90 hover:bg-white/10',
               'text-white'
             );
           }}
@@ -237,9 +257,9 @@ const Sidebar = ({ mobile = false }) => {
     <NavLink
       key={href}
       to={href}
-      className={({ isActive }) => clsx(
+      className={() => clsx(
         'flex items-center gap-3 rounded-xl px-4 py-2 text-sm transition-colors duration-200',
-        isActive ? 'bg-white/20 text-white' : 'text-white/80 hover:text-white hover:bg-white/10'
+        (pathname === href || (href && pathname.startsWith(href))) ? 'bg-white/20 text-white' : 'text-white/80 hover:text-white hover:bg-white/10'
       )}
     >
       <IconComp className="text-base text-white" />
@@ -405,23 +425,22 @@ const Sidebar = ({ mobile = false }) => {
         <nav aria-label="Mobile navigation" className="flex w-full items-center justify-around gap-0">
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
+            const isActive = activeId === item.id;
             return (
               <NavLink
                 key={item.id}
                 to={item.href}
                 end={item.href === '/'}
-                className={({ isActive }) => clsx(
+                className={() => clsx(
                   'flex flex-col items-center gap-1 rounded-2xl px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] transition-colors duration-200',
                   'w-[calc(100%/3)] justify-center',
                   isActive ? 'text-[#004c6d]' : 'text-slate-500'
                 )}
               >
-                {({ isActive }) => (
-                  <>
-                    <Icon className={clsx('text-2xl', isActive ? 'text-[#004c6d]' : 'text-slate-500')} />
-                    <span>{item.mobileLabel ?? item.label}</span>
-                  </>
-                )}
+                <>
+                  <Icon className={clsx('text-2xl', isActive ? 'text-[#004c6d]' : 'text-slate-500')} />
+                  <span>{item.mobileLabel ?? item.label}</span>
+                </>
               </NavLink>
             );
           })}

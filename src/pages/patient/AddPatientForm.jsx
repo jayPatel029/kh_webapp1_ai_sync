@@ -109,7 +109,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
           </Heading>
 
           {/* Photo and ID Section */}
-          <Grid templateColumns="repeat(2, 1fr)" gap={6}>
+          <Grid templateColumns="repeat(2, 1fr)" gap={8}>
             {/* <FormControl style={{ flex: 1 }} className="pt-6" >
               <FormLabel>Profile Photo</FormLabel>
               <FileUploadWithCamera
@@ -202,20 +202,22 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
             Medical Details
           </Heading>
 
-          <FormControl isRequired>
-            <FormLabel>Aliments</FormLabel>
-            <Textarea
-              name="aliments"
-              value={formData.aliments}
-              onChange={handleChange}
-              placeholder="List aliments and conditions"
-              rows={3}
-              variant="outline"
-              className="!min-h-[40px] h-[40px]"
-            />
-          </FormControl>
 
-          <Grid templateColumns="repeat(2, 1fr)" gap={6}>
+          <Grid templateColumns="repeat(2, 1fr)" gap={8}>
+            <GridItem>
+              <FormControl isRequired>
+                <FormLabel>Aliments</FormLabel>
+                <Textarea
+                  name="aliments"
+                  value={formData.aliments}
+                  onChange={handleChange}
+                  placeholder="List aliments and conditions"
+                  rows={3}
+                  variant="outline"
+                  className="!min-h-[40px] h-[40px]"
+                />
+              </FormControl>
+            </GridItem>
             <GridItem >
               <FormControl isRequired style={{ flex: 1 }}>
                 <FormLabel>Registration Date</FormLabel>
@@ -245,7 +247,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
 
             </GridItem> */}
 
-{/* 
+            {/* 
             <GridItem>
 
               <FormControl style={{ flex: 1 }}>
@@ -282,7 +284,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
             Contact & Notifications
           </Heading>
 
-          <Grid templateColumns="repeat(2, 1fr)" gap={6}>
+          <Grid templateColumns="repeat(2, 1fr)" gap={8}>
 
             <GridItem>
 

@@ -18,7 +18,7 @@ const PatientSectionCard = ({ title, userName, compact = false, children, classN
         <Box>
           <h2 className="text-[18px] font-bold text-[#393939]">{title}</h2>
         </Box>
-        {userName && (
+        {/* {userName && (
           <Flex align="center" gap={3}>
             <Box className="flex items-center gap-2">
               <Box className="w-[30px] h-[30px] rounded-full bg-gray-300 flex items-center justify-center">
@@ -27,7 +27,7 @@ const PatientSectionCard = ({ title, userName, compact = false, children, classN
               <span className="text-[18px] text-[#393939] truncate max-w-[200px]">{userName}</span>
             </Box>
           </Flex>
-        )}
+        )} */}
       </Flex>
       {children}
     </Box>

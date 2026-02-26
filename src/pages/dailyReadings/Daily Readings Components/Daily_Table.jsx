@@ -120,7 +120,7 @@ export default function DailyTable({
               Add Daily Reading
             </Button>
             <Button
-              variant="secondary"
+              variant="primary"
               onClick={() => setIsBulkUploadModalOpen(true)}
               // className="admin-btn admin-btn--secondary"
             >

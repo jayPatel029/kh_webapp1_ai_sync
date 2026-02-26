@@ -248,271 +248,273 @@ function ProfileQuestions() {
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
-           
-            <PageHeader
-              title="Question Master"
-              breadcrumbs={[
-                { label: "Dashboard", path: "/" },
-                { label: "Profile Questions", active: true }
-              ]}
-              onBack={() => navigate(ROUTES.HOME)}
-            />
-           
+
+          <PageHeader
+            title="Question Master"
+            breadcrumbs={[
+              { label: "Dashboard", path: "/" },
+              { label: "Profile Questions", active: true }
+            ]}
+            onBack={() => navigate(ROUTES.HOME)}
+          />
+
         </Box>
 
-         
-          <div className="admin-page-content">
+
+        <div className="admin-page-content">
           <div className="admin-card">
             <div className="admin-card__header">
-                <div className="admin-toolbar">
-                  <div className="admin-toolbar__left">
-                    <SearchBar
-                      placeholder="Search by name..."
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      style={{ width: "250px" }}
-                    />
-                  </div>
+              <div className="admin-toolbar">
+                <div className="admin-toolbar__left">
+                  <SearchBar
+                    placeholder="Search by name..."
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ width: "250px" }}
+                  />
+                </div>
 
-                  <div className="admin-toolbar__right">
-                    <span className="admin-toolbar__count">
-                      {questions.filter(q => 
-                        q.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        q.type.toLowerCase().includes(searchTerm.toLowerCase())
-                      ).length} Records Found
-                    </span>
+                <div className="admin-toolbar__right">
+                  <span className="admin-toolbar__count">
+                    {questions.filter(q =>
+                      q.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      q.type.toLowerCase().includes(searchTerm.toLowerCase())
+                    ).length} Records Found
+                  </span>
                   <Button
                     variant="primary"
-                      // className="admin-btn admin-btn--primary"
-                      onClick={() => {
-                        setEditMode(false);
-                        setErrMsg("");
-                        newQuestionDispatch({ type: "all", payload: {} });
-                        setIsFormModalOpen(true);
-                      }}
-                    >
-                      Add Question
-                    </Button>
+                    // className="admin-btn admin-btn--primary"
+                    onClick={() => {
+                      setEditMode(false);
+                      setErrMsg("");
+                      newQuestionDispatch({ type: "all", payload: {} });
+                      setIsFormModalOpen(true);
+                    }}
+                  >
+                    Add Question
+                  </Button>
                   <Button
-                    variant="secondary"
-                      onClick={() => setIsBulkUploadModalOpen(true)}
-                      className="admin-btn admin-btn--secondary"
-                    >
-                      Bulk Upload Questions
-                    </Button>
-                  </div>
+                    variant="primary"
+                    onClick={() => setIsBulkUploadModalOpen(true)}
+                    className="admin-btn admin-btn--secondary"
+                  >
+                    Bulk Upload Questions
+                  </Button>
                 </div>
-              </div>
-
-              <div className="admin-card__body">
-                <div style={{ marginBottom: '1rem' }}>
-                  {errMsg && <div className="admin-message admin-message--error">{errMsg}</div>}
-                  {successful && <div className="admin-message admin-message--success">{successful}</div>}
-                </div>
-
-                <UnifiedListTable
-                  columns={[
-                    { key: 'name', label: 'Title', type: 'text', width: '250px' },
-                    { key: 'type', label: 'Type', type: 'text', width: '150px' },
-                    { key: 'ailmentsDisplay', label: 'Ailment', type: 'text', width: '250px' },
-                    { key: 'actions', label: 'Actions', type: 'actions', width: '100px' }
-                  ]}
-                  data={questions.filter(q => 
-                    q.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    q.type.toLowerCase().includes(searchTerm.toLowerCase())
-                  ).map((q) => ({
-                    ...q,
-                    ailmentsDisplay: q.ailments?.map((x) => x.name).join(", ") || "Generic Profile",
-                    actions: q
-                  }))}
-                  enableSearch={true}
-                  renderSearchUI={false}
-                  searchKeys={['name', 'type']}
-                  onEdit={(q) => {
-                    setSuccessful("");
-                    newQuestionDispatch({
-                      type: "all",
-                      payload: {
-                        id: q.id,
-                        ailment: q.ailments?.map((x) => ({
-                          value: x.id,
-                          label: x.name,
-                        })) || [],
-                        type: q.type,
-                        name: q.name,
-                        options: q.options,
-                      },
-                    });
-                    if (q.question_translations) {
-                      let translationDict = {};
-                      let optionDict = {};
-                      q.question_translations.forEach((element) => {
-                        translationDict[element.language_id] = {
-                          text: element.name,
-                          options: element.options,
-                        };
-                        optionDict[element.language_id] = element.options || "";
-                      });
-                      setTranslations(translationDict);
-                      setOptTranslations(optionDict);
-                    }
-                    setEditMode(true);
-                    setIsFormModalOpen(true);
-                  }}
-                  onDelete={(q) => {
-                    if (window.confirm(`Delete question "${q.name}"?`)) {
-                      removeQuestion(q.id);
-                    }
-                  }}
-                  emptyMessage="No questions found"
-                  actionButtons={role.canEditProfileQuestions || role.canDeleteProfileQuestions}
-                />
               </div>
             </div>
-          </div>
 
-            <FormModal
-              isOpen={isFormModalOpen}
-              onClose={() => {
-                setIsFormModalOpen(false);
-                setModelOpen(false);
-                setModelOpenOpt(false);
-                setEditMode(false);
-                setErrMsg("");
-                newQuestionDispatch({ type: "all", payload: {} });
-              }}
-              onSubmit={handleSubmit}
-              title={editMode ? "Edit Question" : "Add Question"}
-              submitText={editMode ? "Update" : "Submit"}
-              size="xl"
-              errorMessage={errMsg}
-            >
-              <div className="space-y-4">
-                {/* ... existing modal fields ... */}
-                <FormControl>
-                  <FormLabel>Ailment</FormLabel>
-                  <Select
-                    value={newQuestion.ailment}
-                    onChange={(ailment) => {
-                      newQuestionDispatch({
-                        type: "ailment",
-                        payload: ailment,
-                      });
-                    }}
-                    isMulti
-                    styles={{
-                      control: (base) => ({
-                        ...base,
-                        borderRadius: '10px',
-                        borderColor: '#E5E7EB',
-                        '&:hover': { borderColor: '#1A9A9A' }
-                      })
-                    }}
-                  >
-                    {ailments.map((ailment) => (
-                      <option key={ailment.id} value={ailment}>
-                        {ailment.name}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                {modelOpen && (
-                  <TranslationModal
-                    isOpen={modelOpen}
-                    onClose={closeModal}
-                    translations={translations}
-                    setTranslations={setTranslations}
-                    languages={languages}
-                  />
-                )}
-
-                {modelOpenOpt && (
-                  <OptTranslationModal
-                    isOpen={modelOpenOpt}
-                    onClose={closeModalOpt}
-                    translations={optTranslations}
-                    setTranslations={setOptTranslations}
-                    languages={languages}
-                  />
-                )}
-
-                <FormControl>
-                  <FormLabel>Question Type</FormLabel>
-                  <Select
-                    value={newQuestion.type}
-                    onChange={(event) => {
-                      newQuestionDispatch({
-                        type: "type",
-                        payload: event.target.value,
-                      });
-                    }}
-                  >
-                    {questionTypeOptions}
-                  </Select>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>Name</FormLabel>
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <Input
-                      type="text"
-                      placeholder="Question Name"
-                      value={newQuestion.name}
-                      onChange={(event) => {
-                        newQuestionDispatch({
-                          type: "name",
-                          payload: event.target.value,
-                        });
-                      }}
-                      style={{ flex: 1, minWidth: '200px' }}
-                    />
-                    <Button
-                      variant="secondary"
-                      onClick={(e) => { e.preventDefault(); setModelOpen(true); }}
-                      className="admin-btn admin-btn"
-                    >
-                      Set Translations
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        const optTrans = {};
-                        Object.entries(translations).forEach(([langId, val]) => {
-                          if (val && typeof val === "object" && val.options !== undefined) {
-                            optTrans[langId] = val.options;
-                          } else {
-                            optTrans[langId] = "";
-                          }
-                        });
-                        setOptTranslations(optTrans);
-                        setModelOpenOpt(true);
-                      }}
-                    >
-                      Set Options Translations
-                    </Button>
-                  </div>
-                </FormControl>
-
-                {(newQuestion.type === "MultipleChoice" || newQuestion.type === "SelectAnyOne") && (
-                  <FormControl>
-                    <FormLabel>Options (Comma Separated)</FormLabel>
-                    <Input
-                      type="text"
-                      placeholder="eg: Option1, Option2, Option3"
-                      value={newQuestion.options}
-                      onChange={(event) => {
-                        newQuestionDispatch({
-                          type: "options",
-                          payload: event.target.value,
-                        });
-                      }}
-                    />
-                  </FormControl>
-                )}
+            <div className="admin-card__body">
+              <div style={{ marginBottom: '1rem' }}>
+                {errMsg && <div className="admin-message admin-message--error">{errMsg}</div>}
+                {successful && <div className="admin-message admin-message--success">{successful}</div>}
               </div>
+
+              <UnifiedListTable
+                columns={[
+                  { key: 'name', label: 'Title', type: 'text', width: '250px' },
+                  { key: 'type', label: 'Type', type: 'text', width: '150px' },
+                  { key: 'ailmentsDisplay', label: 'Ailment', type: 'text', width: '250px' },
+                  { key: 'actions', label: 'Actions', type: 'actions', width: '100px' }
+                ]}
+                data={questions.filter(q =>
+                  q.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  q.type.toLowerCase().includes(searchTerm.toLowerCase())
+                ).map((q) => ({
+                  ...q,
+                  ailmentsDisplay: q.ailments?.map((x) => x.name).join(", ") || "Generic Profile",
+                  actions: q
+                }))}
+                enableSearch={true}
+                renderSearchUI={false}
+                searchKeys={['name', 'type']}
+                onEdit={(q) => {
+                  setSuccessful("");
+                  newQuestionDispatch({
+                    type: "all",
+                    payload: {
+                      id: q.id,
+                      ailment: q.ailments?.map((x) => ({
+                        value: x.id,
+                        label: x.name,
+                      })) || [],
+                      type: q.type,
+                      name: q.name,
+                      options: q.options,
+                    },
+                  });
+                  if (q.question_translations) {
+                    let translationDict = {};
+                    let optionDict = {};
+                    q.question_translations.forEach((element) => {
+                      translationDict[element.language_id] = {
+                        text: element.name,
+                        options: element.options,
+                      };
+                      optionDict[element.language_id] = element.options || "";
+                    });
+                    setTranslations(translationDict);
+                    setOptTranslations(optionDict);
+                  }
+                  setEditMode(true);
+                  setIsFormModalOpen(true);
+                }}
+                onDelete={(q) => {
+                  if (window.confirm(`Delete question "${q.name}"?`)) {
+                    removeQuestion(q.id);
+                  }
+                }}
+                emptyMessage="No questions found"
+                actionButtons={role.canEditProfileQuestions || role.canDeleteProfileQuestions}
+              />
+            </div>
+          </div>
+        </div>
+
+        <FormModal
+          isOpen={isFormModalOpen}
+          onClose={() => {
+            setIsFormModalOpen(false);
+            setModelOpen(false);
+            setModelOpenOpt(false);
+            setEditMode(false);
+            setErrMsg("");
+            newQuestionDispatch({ type: "all", payload: {} });
+          }}
+          onSubmit={handleSubmit}
+          title={editMode ? "Edit Question" : "Add Question"}
+          submitText={editMode ? "Update" : "Submit"}
+          size="xl"
+          errorMessage={errMsg}
+        >{/* ... existing modal fields ... */}
+          <FormControl>
+            <FormLabel>Ailment</FormLabel>
+            <Select
+              value={newQuestion.ailment}
+              onChange={(ailment) => {
+                newQuestionDispatch({
+                  type: "ailment",
+                  payload: ailment,
+                });
+              }}
+              isMulti
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  borderRadius: '10px',
+                  borderColor: '#E5E7EB',
+                  '&:hover': { borderColor: '#1A9A9A' }
+                })
+              }}
+            >
+              {ailments.map((ailment) => (
+                <option key={ailment.id} value={ailment}>
+                  {ailment.name}
+                </option>
+              ))}
+            </Select>
+          </FormControl>
+
+          {modelOpen && (
+            <TranslationModal
+              isOpen={modelOpen}
+              onClose={closeModal}
+              translations={translations}
+              setTranslations={setTranslations}
+              languages={languages}
+            />
+          )}
+
+          {modelOpenOpt && (
+            <OptTranslationModal
+              isOpen={modelOpenOpt}
+              onClose={closeModalOpt}
+              translations={optTranslations}
+              setTranslations={setOptTranslations}
+              languages={languages}
+            />
+          )}
+
+          <FormControl>
+            <FormLabel>Question Type</FormLabel>
+            <Select
+              value={newQuestion.type}
+              onChange={(event) => {
+                newQuestionDispatch({
+                  type: "type",
+                  payload: event.target.value,
+                });
+              }}
+            >
+              {questionTypeOptions}
+            </Select>
+          </FormControl>
+
+          <FormControl>
+            <FormLabel>Name</FormLabel>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <Input
+                type="text"
+                placeholder="Question Name"
+                value={newQuestion.name}
+                onChange={(event) => {
+                  newQuestionDispatch({
+                    type: "name",
+                    payload: event.target.value,
+                  });
+                }}
+                style={{ flex: 1, minWidth: '200px' }}
+              />
+              <Button
+                variant="secondary"
+                onClick={(e) => { e.preventDefault(); setModelOpen(true); }}
+                className="admin-btn admin-btn"
+              >
+                Translations
+              </Button>
+            </div>
+          </FormControl>
+
+          {(newQuestion.type === "MultipleChoice" || newQuestion.type === "SelectAnyOne") && (
+            <FormControl>
+              <FormLabel>Options (Comma Separated)</FormLabel>
+
+
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <Input
+                  type="text"
+                  placeholder="eg: Option1, Option2, Option3"
+                  value={newQuestion.options}
+                  onChange={(event) => {
+                    newQuestionDispatch({
+                      type: "options",
+                      payload: event.target.value,
+                    });
+                  }}
+                  style={{ flex: 1, minWidth: '200px' }}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const optTrans = {};
+                    Object.entries(translations).forEach(([langId, val]) => {
+                      if (val && typeof val === "object" && val.options !== undefined) {
+                        optTrans[langId] = val.options;
+                      } else {
+                        optTrans[langId] = "";
+                      }
+                    });
+                    setOptTranslations(optTrans);
+                    setModelOpenOpt(true);
+                  }}
+                >
+                  Options Translations
+                </Button>
+              </div>
+            </FormControl>
+          )}
         </FormModal>
-          {/* </div> */}
+        {/* </div> */}
 
         <ProfileQuestionsBulkUploadModal
           isOpen={isBulkUploadModalOpen}

@@ -329,7 +329,7 @@ const UnifiedListTable = ({
                 </div>
             ) : (
             /* Desktop Table Mode */
-            <div className="list-table__wrapper">
+                    <div className="">
                 <table className="list-table">
                     {/* Header */}
                     <thead className="list-table__header">
