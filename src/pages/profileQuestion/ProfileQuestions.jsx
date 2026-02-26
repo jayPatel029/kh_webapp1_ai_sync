@@ -33,6 +33,7 @@ import {
   Box,
   Container
 } from "../../component-library";
+import { useAdminToast } from "../../components/AdminToast";
 
 function ProfileQuestions() {
   const navigate = useNavigate();
@@ -40,6 +41,7 @@ function ProfileQuestions() {
   const [successful, setSuccessful] = useState("");
   const [errMsg, setErrMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const { showToast, ToastContainer } = useAdminToast();
 
   const [questionsList, setQuestionsList] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -131,8 +133,10 @@ function ProfileQuestions() {
     if (response.success) {
       setErrMsg("");
       setSuccessful("Question Deleted Successful!");
+      showToast("Question deleted successfully!", "success");
     } else {
       setErrMsg("Error Deleting Question:" + response.data);
+      showToast("Error deleting question", "error");
       setSuccessful("");
     }
   }
@@ -192,6 +196,7 @@ function ProfileQuestions() {
         if (response.success) {
           setErrMsg("");
           setSuccessful("Question Created Successful!");
+          showToast("Question created successfully!", "success");
           setIsFormModalOpen(false);
           newQuestionDispatch({
             type: "all",
@@ -199,6 +204,7 @@ function ProfileQuestions() {
           });
         } else {
           setErrMsg("Error Creating Question:" + response.data);
+          showToast("Error creating question", "error");
           setSuccessful("");
         }
       } else {
@@ -220,6 +226,7 @@ function ProfileQuestions() {
           setErrMsg("");
           setEditMode(false);
           setSuccessful("Question Updated Successful!");
+          showToast("Question updated successfully!", "success");
           setIsFormModalOpen(false);
           newQuestionDispatch({
             type: "all",
@@ -227,6 +234,7 @@ function ProfileQuestions() {
           });
         } else {
           setErrMsg("Error Updating Question:" + response.data);
+          showToast("Error updating question", "error");
           setSuccessful("");
         }
       }
@@ -523,6 +531,7 @@ function ProfileQuestions() {
             setSuccessful("Bulk upload completed successfully!");
           }}
         />
+        <ToastContainer />
       </Box>
     </ThemeProvider>
   );

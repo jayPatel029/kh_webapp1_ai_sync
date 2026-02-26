@@ -20,6 +20,7 @@ import {
   Select,
   Button
 } from "../../../component-library";
+import { useAdminToast } from "../../../components/AdminToast";
 
 function DialysisReadingsList() {
   const [editMode, setEditMode] = useState(false);
@@ -30,6 +31,7 @@ function DialysisReadingsList() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [translations, setTranslations] = useState({});
+  const { showToast, ToastContainer } = useAdminToast();
 
   const closeModal = () => {
     setModelOpen(false);
@@ -134,6 +136,7 @@ function DialysisReadingsList() {
           setTranslations(transaltiondict);
           setErrMsg("");
           setSuccessful("Reading Created Successful!");
+          showToast("Dialysis reading created successfully!", "success");
           setIsFormModalOpen(false);
           newReadingDsipatch({
             type: "all",
@@ -141,6 +144,7 @@ function DialysisReadingsList() {
           });
         } else {
           setErrMsg("Error Creating Reading:" + response.data);
+          showToast("Error creating dialysis reading", "error");
           setSuccessful("");
         }
       } else {
@@ -156,6 +160,7 @@ function DialysisReadingsList() {
           setErrMsg("");
           setEditMode(false);
           setSuccessful("Reading Updated Successful!");
+          showToast("Dialysis reading updated successfully!", "success");
           setIsFormModalOpen(false);
           newReadingDsipatch({
             type: "all",
@@ -163,6 +168,7 @@ function DialysisReadingsList() {
           });
         } else {
           setErrMsg("Error Updating Reading:" + response.data);
+          showToast("Error updating dialysis reading", "error");
           setSuccessful("");
         }
       }
@@ -439,6 +445,7 @@ function DialysisReadingsList() {
           setSuccessful("Bulk upload completed successfully!");
         }}
       />
+      <ToastContainer />
     </div>
   );
 }

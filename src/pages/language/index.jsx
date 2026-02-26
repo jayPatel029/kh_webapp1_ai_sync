@@ -22,6 +22,7 @@ import {
   Container
 } from "../../component-library";
 import { Button } from "../../component-library";
+import { useAdminToast } from "../../components/AdminToast";
 
 function LanguageMaster() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ function LanguageMaster() {
   const [successful, setSuccessful] = useState("");
   const [errMsg, setErrMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const { showToast, ToastContainer } = useAdminToast();
 
   const [languages, setLanguages] = useState([]);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -58,8 +60,10 @@ function LanguageMaster() {
     if (response.success) {
       setErrMsg("");
       setSuccessful("Language Deleted Successful!");
+      showToast("Language deleted successfully!", "success");
     } else {
       setErrMsg("Error Deleting Language:" + response.data);
+      showToast("Error deleting language", "error");
       setSuccessful("");
     }
   }
@@ -96,11 +100,13 @@ function LanguageMaster() {
         const response = await createLanguage(payload);
         if (response.success) {
           setErrMsg("");
-          setSuccessful("Language Created Successful!");
+          // setSuccessful("Language Created Successful!");
+          showToast("Language created successfully!", "success");
           resetForm();
           setIsFormModalOpen(false);
         } else {
           setErrMsg("Error Creating Language:" + response.data);
+          showToast("Error creating language", "error");
           setSuccessful("");
         }
       } else {
@@ -111,10 +117,12 @@ function LanguageMaster() {
         if (response.success) {
           setErrMsg("");
           setSuccessful("Language Updated Successful!");
+          showToast("Language updated successfully!", "success");
           resetForm();
           setIsFormModalOpen(false);
         } else {
           setErrMsg("Error Updating Language:" + response.data);
+          showToast("Error updating language", "error");
           setSuccessful("");
         }
       }
@@ -273,7 +281,7 @@ function LanguageMaster() {
             </Box>
           </FormModal>
         </div>
-
+        <ToastContainer />
       </Box>
     </ThemeProvider>
   );

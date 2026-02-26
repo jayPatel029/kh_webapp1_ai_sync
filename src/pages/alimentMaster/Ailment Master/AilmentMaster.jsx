@@ -12,6 +12,7 @@ import { FormModal } from "../../../component-library/modals/FormModal";
 import { UnifiedListTable, SearchBar } from "../../../components";
 import { Input, FormControl, FormLabel, Button } from "../../../component-library";
 import { useIsMobile } from "../../../components/mobile/useIsMobile";
+import { useAdminToast } from "../../../components/AdminToast";
 
 export default function AilmentMasterComponent() {
   // State to hold the selected ailment data
@@ -28,6 +29,7 @@ export default function AilmentMasterComponent() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { isMobile } = useIsMobile();
+  const { showToast, ToastContainer } = useAdminToast();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -107,9 +109,11 @@ export default function AilmentMasterComponent() {
           if (result.success) {
             clearFields();
             setSuccessmsg("Ailment added successfully");
+            showToast("Ailment added successfully!", "success");
             setIsFormModalOpen(false);
           } else {
             setErrmsg("Failed to add Ailment");
+            showToast("Failed to add Ailment", "error");
           }
         });
       } else {
@@ -117,9 +121,11 @@ export default function AilmentMasterComponent() {
           if (result.success) {
             clearFields();
             setSuccessmsg("Ailment updated successfully");
+            showToast("Ailment updated successfully!", "success");
             setIsFormModalOpen(false);
           } else {
             setErrmsg("Failed to update Ailment");
+            showToast("Failed to update Ailment", "error");
           }
         });
       }
@@ -221,6 +227,7 @@ export default function AilmentMasterComponent() {
               deleteAilment(ailment.id)
                 .then(() => {
                   setSuccessmsg("Ailment deleted successfully!");
+                  showToast("Ailment deleted successfully!", "success");
                   getAilments().then((resultAilment) => {
                     if (resultAilment.success && resultAilment.data.listOfAilments) {
                       setAilments(resultAilment.data.listOfAilments);
@@ -230,6 +237,7 @@ export default function AilmentMasterComponent() {
                 .catch((error) => {
                   console.error("Error deleting Ailment:", error);
                   setErrmsg("Error deleting ailment");
+                  showToast("Error deleting ailment", "error");
                 });
             }
           }}
@@ -295,6 +303,7 @@ export default function AilmentMasterComponent() {
         </FormControl>
 
       </FormModal>
+      <ToastContainer />
     </div>
 
 

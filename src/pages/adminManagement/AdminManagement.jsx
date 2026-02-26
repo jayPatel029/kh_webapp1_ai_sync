@@ -8,6 +8,7 @@ import {
   getRoles,
 } from "../../ApiCalls/authapis";
 import { useSelector } from "react-redux";
+import { useAdminToast } from "../../components/AdminToast";
 import PageHeader from "../../components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes/routeConstants";
@@ -28,6 +29,7 @@ function AdminManagement() {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
   const myRole = useSelector((state) => state.permission);
+  const { showToast, ToastContainer } = useAdminToast();
 
   // State management
   const [roles, setRoles] = useState([]);
@@ -158,10 +160,12 @@ function AdminManagement() {
         if (response.success) {
           setErrMsg([]);
           setSuccessMessage("Admin added successfully!");
+          showToast("Admin added successfully!", "success");
           clearFields();
           setIsFormModalOpen(false);
         } else {
           setErrMsg(["Registration Error! " + response.data]);
+          showToast("Registration Error! " + response.data, "error");
         }
       } else {
         const names = newUser.name.split(" ");
@@ -188,10 +192,12 @@ function AdminManagement() {
         if (response.success) {
           setErrMsg([]);
           setSuccessMessage("Admin updated successfully!");
+          showToast("Admin updated successfully!", "success");
           clearFields();
           setIsFormModalOpen(false);
         } else {
           setErrMsg(["Update Error! " + response.data.message]);
+          showToast("Update Error! " + response.data.message, "error");
         }
       }
     } else {
@@ -208,8 +214,10 @@ function AdminManagement() {
     if (response.success) {
       setErrMsg([]);
       setSuccessMessage("User deleted successfully!");
+      showToast("User deleted successfully!", "success");
     } else {
       setErrMsg(["Delete Error! " + response.data.message]);
+      showToast("Delete Error! " + response.data.message, "error");
     }
   }
 
@@ -445,6 +453,7 @@ function AdminManagement() {
             </div>
           )}
         </FormModal>
+        <ToastContainer />
       </Box>
     </ThemeProvider>
   );

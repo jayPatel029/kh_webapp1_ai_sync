@@ -29,11 +29,13 @@ import {
   GridItem
 } from "../../../component-library";
 import UnifiedListTable from "../../../components/table/UnifiedListTable";
+import { useAdminToast } from "../../../components/AdminToast";
 
 function AdminManagement() {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
   const myRole = useSelector((state) => state.permission);
+  const { showToast, ToastContainer } = useAdminToast();
 
   const roleoptions = ["Doctor", "Medical Staff", "Dialysis Technician"].map(
     (role, index) => (
@@ -240,10 +242,12 @@ function AdminManagement() {
         if (response.success) {
           setErrMsg("");
           setSuccessMessage("Registration Successful!");
+          showToast("Doctor registered successfully!", "success");
           clearDoctorFields();
           setIsFormModalOpen(false);
         } else {
           setErrMsg("Registration Error! " + response.data);
+          showToast("Registration Error! " + response.data, "error");
           setSuccessMessage("");
         }
       } else {
@@ -251,10 +255,12 @@ function AdminManagement() {
         if (response.success) {
           setErrMsg("");
           setSuccessMessage("Update Successful!");
+          showToast("Doctor updated successfully!", "success");
           clearDoctorFields();
           setIsFormModalOpen(false);
         } else {
           setErrMsg("Update Error! " + response.data);
+          showToast("Update Error! " + response.data, "error");
           setSuccessMessage("");
         }
       }
@@ -289,10 +295,12 @@ function AdminManagement() {
         if (response.success) {
           setErrMsg("");
           setSuccessMessage("Registration Successful!");
+          showToast("Medical Staff registered successfully!", "success");
           clearDoctorFields();
           setIsFormModalOpen(false);
         } else {
           setErrMsg("Registration Error! " + response.data);
+          showToast("Registration Error! " + response.data, "error");
           setSuccessMessage("");
         }
       } else {
@@ -300,10 +308,12 @@ function AdminManagement() {
         if (response.success) {
           setErrMsg("");
           setSuccessMessage("Update Successful!");
+          showToast("Medical Staff updated successfully!", "success");
           clearDoctorFields();
           setIsFormModalOpen(false);
         } else {
           setErrMsg("Update Error! " + response.data);
+          showToast("Update Error! " + response.data, "error");
           setSuccessMessage("");
         }
       }
@@ -340,15 +350,18 @@ function AdminManagement() {
       if (response.success) {
         setErrMsg("");
         setSuccessMessage(editMode ? "Update Successful!" : "Registration Successful!");
+        showToast(editMode ? "Technician updated successfully!" : "Technician registered successfully!", "success");
         clearDoctorFields();
         setIsFormModalOpen(false);
       } else {
         setErrMsg((editMode ? "Update Error! " : "Registration Error! ") + response.data);
+        showToast((editMode ? "Update Error! " : "Registration Error! ") + response.data, "error");
         setSuccessMessage("");
       }
     } else {
       setSuccessMessage("");
       setErrMsg("Please fill all the * fields correctly!");
+      showToast("Please fill all the * fields correctly!", "error");
     }
   };
 
@@ -368,9 +381,11 @@ function AdminManagement() {
       const response = await deleteDoctor(id);
       if (response.success) {
         setSuccessMessage("Delete Successful!");
+        showToast("Doctor deleted successfully!", "success");
       } else {
         setErrMsg(
           "Delete Error! (Please delete this doctor from the patients list for all the assigned patients before deleting it permantly!)");
+        showToast("Delete Error! Please remove doctor from assigned patients first.", "error");
         setSuccessMessage("");
       }
     } catch (error) {
@@ -1013,6 +1028,7 @@ function AdminManagement() {
             </Grid>
           </Box>
         </FormModal>
+        <ToastContainer />
       </Box>
     </ThemeProvider>
   );

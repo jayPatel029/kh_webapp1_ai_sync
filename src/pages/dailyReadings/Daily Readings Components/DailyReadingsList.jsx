@@ -22,6 +22,7 @@ import {
 import { BulkUploadProof } from '../../../components';
 import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton } from "../../../component-library/primitives/Modal";
 import { set } from "date-fns";
+import { useAdminToast } from "../../../components/AdminToast";
 function DailyForm() {
   const [editMode, setEditMode] = useState(false);
   const [successful, setSuccessful] = useState("");
@@ -32,6 +33,7 @@ function DailyForm() {
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [translations, setTranslations] = useState({});
   const [data, setData] = useState([]);
+  const { showToast, ToastContainer } = useAdminToast();
 
 
   const closeModal = () => {
@@ -134,6 +136,7 @@ function DailyForm() {
           setTranslations(transaltiondict);
           setErrMsg("");
           setSuccessful("Reading Created Successful!");
+          showToast("Daily reading created successfully!", "success");
           setIsFormModalOpen(false);
           newReadingDsipatch({
             type: "all",
@@ -141,6 +144,7 @@ function DailyForm() {
           });
         } else {
           setErrMsg("Error Creating Reading:" + response.data);
+          showToast("Error creating daily reading", "error");
           setSuccessful("");
         }
       } else {
@@ -157,6 +161,7 @@ function DailyForm() {
           setErrMsg("");
           setEditMode(false);
           setSuccessful("Reading Updated Successful!");
+          showToast("Daily reading updated successfully!", "success");
           setIsFormModalOpen(false);
           newReadingDsipatch({
             type: "all",
@@ -164,6 +169,7 @@ function DailyForm() {
           });
         } else {
           setErrMsg("Error Updating Reading:" + response.data);
+          showToast("Error updating daily reading", "error");
           setSuccessful("");
         }
       }
@@ -474,6 +480,7 @@ function DailyForm() {
         languages={languages}
       />
 
+      <ToastContainer />
     </div>
   );
 }
