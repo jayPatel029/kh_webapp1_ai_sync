@@ -24,6 +24,7 @@ import { Input } from "../../component-library/primitives/Input";
 import FormControl, { FormLabel, FormHelperText, FormErrorMessage, RequiredIndicator } from "../../component-library/primitives/FormControl";
 import FormModal from "../../component-library/modals/FormModal";
 import { Select } from "../../component-library/primitives/Select";
+import { MultiSelect } from "../../component-library/primitives/MultiSelect";
 import UnifiedListTable from "../../components/table/UnifiedListTable";
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
@@ -208,14 +209,6 @@ function ManageParameters() {
 
   const handleSubmit = async () => {
     try {
-      // var ailments = selectedAilments.map((ailment) => ailment.value);
-      var ailments = [];
-      ailments = ailments.map((ailment) => {
-        if (selectedAilments.some((selected) => selected.value === ailment.id)) {
-          return ailment.id;
-        }
-        return null;
-      });
       const newData = {
         id: patientId,
         title: selectTitle,
@@ -223,8 +216,7 @@ function ManageParameters() {
         type: selectReadingType,
         readingType: selectReadingType,
         isGraph: graphOption ? 1 : 0,
-        ailments: ailments,
-        ailmentID: selectedAilments.value,
+        ailments: selectedAilments,
         assign_range: selectReadingType === "Numeric" ? "Yes" : "No",
         low_range: lowRange,
         high_range: highRange,
@@ -235,11 +227,10 @@ function ManageParameters() {
           id: editId,
           title: selectTitle,
           parameterType: selectParameterType,
-          // ailments: ailments,
           type: selectReadingType,
           readingType: selectReadingType,
           isGraph: graphOption ? 1 : 0,
-          ailmentID: selectedAilments.value,
+          ailments: selectedAilments,
           assign_range: selectReadingType === "Numeric" ? "Yes" : "No",
           low_range: lowRange,
           high_range: highRange,
@@ -387,21 +378,11 @@ function ManageParameters() {
               setSelectedParameterType(row.type);
               if (row.paramType === "daily") {
                 setSelectedAilments(
-                  row.daily_reading_ailments?.map((ailment) => ({
-                    value: ailment.ailmentID,
-                    label: ailmentOptions.find(
-                      (ailmentOption) => ailmentOption.id === ailment.ailmentID,
-                    )?.name,
-                  })) || []
+                  row.daily_reading_ailments?.map((ailment) => ailment.ailmentID) || []
                 );
               } else {
                 setSelectedAilments(
-                  row.dialysis_reading_ailments?.map((ailment) => ({
-                    value: ailment.ailmentID,
-                    label: ailmentOptions.find(
-                      (ailmentOption) => ailmentOption.id === ailment.ailmentID,
-                    )?.name,
-                  })) || []
+                  row.dialysis_reading_ailments?.map((ailment) => ailment.ailmentID) || []
                 );
               }
               setSelectTitle(row.name);
@@ -536,14 +517,17 @@ function ManageParameters() {
             {/* Ailments */}
             <FormControl id="ailments">
               <FormLabel>Ailments</FormLabel>
-              <Select
+              <MultiSelect
                 id="ailments"
                 value={selectedAilments}
-                isMulti
-                options={ailments.map((ailment) => ({ value: ailment.id, label: ailment.name }))}
-                styles={{ control: (baseStyles, state) => ({ ...baseStyles, borderColor: state.isFocused ? "#4164df" : "rgb(209 213 219)", outlineColor: state.isFocused ? "#4164df" : "rgb(209 213 219)", borderRadius: "10px", minHeight: "50px", fontSize: "16px", }), }}
-                onChange={(selectedOptions) => setSelectedAilments(selectedOptions)}
-              />
+                onChange={(selectedIds) => setSelectedAilments(selectedIds)}
+              >
+                {ailments.map((ailment) => (
+                  <option key={ailment.id} value={ailment.id}>
+                    {ailment.name}
+                  </option>
+                ))}
+              </MultiSelect>
             </FormControl>
 
             {/* Action Buttons */}
@@ -633,12 +617,15 @@ function ManageParameters() {
 
         <FormControl id="ailments">
           <FormLabel>Ailments</FormLabel>
-          <Select id="ailments" value={selectedAilments} isMulti styles={{ control: (baseStyles, state) => ({ ...baseStyles, borderColor: state.isFocused ? "#4164df" : "rgb(209 213 219)", outlineColor: state.isFocused ? "#4164df" : "rgb(209 213 219)", borderRadius: "10px", minHeight: "44px", fontSize: "15px", }), }}
-            onChange={(e) => setSelectedAilments(e.target.value)} >
+          <MultiSelect
+            id="ailments"
+            value={selectedAilments}
+            onChange={(selectedIds) => setSelectedAilments(selectedIds)}
+          >
             {ailments.map((ailment) => (
               <option key={ailment.id} value={ailment.id}>{ailment.name}</option>
             ))}
-          </Select>
+          </MultiSelect>
         </FormControl>
       </FormModal>
 

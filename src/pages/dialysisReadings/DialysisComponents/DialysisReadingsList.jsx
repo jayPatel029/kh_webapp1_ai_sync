@@ -18,6 +18,7 @@ import {
   FormLabel,
   Input,
   Select,
+  MultiSelect,
   Button
 } from "../../../component-library";
 
@@ -108,7 +109,7 @@ function DialysisReadingsList() {
     const payload = {
       id: newReading.id,
       title: newReading.title,
-      ailments: newReading.ailment.map((ailment) => ailment.value),
+      ailments: newReading.ailment,
       type: newReading.type,
       assign_range: newReading.assign_range,
       low_range: newReading.lower_assign_range,
@@ -219,17 +220,14 @@ function DialysisReadingsList() {
 
         <FormControl>
           <FormLabel>Ailment</FormLabel>
-          <Select
+          <MultiSelect
             value={newReading.ailment}
-            onChange={(ailment) => {
+            onChange={(ailments) => {
               newReadingDsipatch({
                 type: "ailment",
-                payload: ailment,
+                payload: ailments,
               });
             }}
-            isMulti
-            className="basic-multi-select"
-            classNamePrefix="select"
           >
             {ailments.map((ailment, index) => {
               return (
@@ -238,7 +236,7 @@ function DialysisReadingsList() {
                 </option>
               );
             })}
-          </Select>
+          </MultiSelect>
         </FormControl>
 
         <FormControl>

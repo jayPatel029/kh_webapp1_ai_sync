@@ -7,7 +7,6 @@
  */
 
 import React, { useState } from "react";
-import jsPDF from "jspdf";
 
 // Component Library
 import { FormModal } from "../../component-library/modals/FormModal";
@@ -19,7 +18,7 @@ import { Box } from "../../component-library/layout/Layout";
 import { Text } from "../../component-library/primitives/Typography";
 
 // shared upload component
-import FileUploadWithCamera from "../../components/FileUploadWithCamera";
+import FileUploadWithCamera, { buildMergedPdfFile } from "../../components/FileUploadWithCamera";
 
 // APIs and Helpers
 import { postDietdetailsInsertDietDetailsAdmin } from "../../ApiCalls/remainingApis";
@@ -53,59 +52,8 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
       let finalFileUrl = "";
 
       if (images.length >= 1) {
-        const loadedImages = await Promise.all(
-          images.map(async (image) => {
-            let imgData = image.data;
-            if (!imgData && image.file) {
-              imgData = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsDataURL(image.file);
-              });
-            }
-            if (!imgData) return null;
-            const imgEl = await new Promise((resolve) => {
-              const img = new Image();
-              img.onload = () => resolve(img);
-              img.onerror = () => resolve(null);
-              img.src = imgData;
-            });
-            if (!imgEl) return null;
-            return { data: imgData, width: imgEl.naturalWidth, height: imgEl.naturalHeight, name: image.name };
-          })
-        );
-
-        const imgs = loadedImages.filter(Boolean);
-        if (imgs.length === 0) throw new Error("No valid images to create PDF");
-
-        const firstOrient = imgs[0].width > imgs[0].height ? "landscape" : "portrait";
-        const doc = new jsPDF({ orientation: firstOrient, unit: "pt", format: "a4" });
-
-        for (let i = 0; i < imgs.length; i++) {
-          const img = imgs[i];
-          if (i > 0) {
-            const orient = img.width > img.height ? "landscape" : "portrait";
-            doc.addPage(undefined, orient);
-          }
-
-          const pageW = doc.internal.pageSize.getWidth();
-          const pageH = doc.internal.pageSize.getHeight();
-          const margin = 20;
-          const maxW = pageW - margin * 2;
-          const maxH = pageH - margin * 2;
-
-          const scale = Math.min(maxW / img.width, maxH / img.height);
-          const displayW = img.width * scale;
-          const displayH = img.height * scale;
-          const x = (pageW - displayW) / 2;
-          const y = (pageH - displayH) / 2;
-
-          doc.addImage(img.data, "JPEG", x, y, displayW, displayH);
-        }
-
-        doc.setProperties({ title: "DietDetail.pdf" });
-        const pdfBlob = doc.output("blob");
-        const res = await getFileRes(pdfBlob, "DietDetail.pdf");
+        const mergedPdfFile = await buildMergedPdfFile(images, "DietDetail.pdf");
+        const res = await getFileRes(mergedPdfFile, mergedPdfFile.name);
         if (!res.data.objectUrl) throw new Error("Failed to upload document");
         finalFileUrl = res.data.objectUrl;
       }
@@ -193,7 +141,9 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
         <Textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          rows="5"
+          // rows="5"
+
+
           placeholder="Add any notes about this meal..."
         />
       </FormControl>
@@ -204,7 +154,7 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
           size="xs"
           images={images}
           onChange={handleImageChange}
-          accept="image/*"
+          accept="*"
           multiple={true}
           showCamera={true}
         />

@@ -74,8 +74,8 @@ const PatientProfileRouteLayout = () => {
                             title={userData?.name || "Patient"}
                             variant={isMobile ? "mobile" : "desktop"}
                             breadcrumbs={[
-                                { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
-                                { label: userData?.name || "Patient", active: true },
+                                { label: "Patient  /", path: ROUTES.patientDetail(patientId), active: false },
+                                // { label: userData?.name || "Patient", active: true },
                             ]}
                             onBack={() => navigate(ROUTES.PATIENTS)}
                         />

@@ -17,6 +17,7 @@ import {
   FormLabel,
   Input,
   Select,
+  MultiSelect,
   Button
 } from "../../../component-library";
 import { BulkUploadProof } from '../../../components';
@@ -106,7 +107,7 @@ function DailyForm() {
     const payload = {
       id: newReading.id,
       title: newReading.title,
-      ailments: newReading.ailment.map((ailment) => ailment.value),
+      ailments: newReading.ailment,
       type: newReading.type,
       assign_range: newReading.assign_range,
       low_range: newReading.lower_assign_range,
@@ -222,41 +223,21 @@ function DailyForm() {
 
         <FormControl>
           <FormLabel>Ailment</FormLabel>
-          {/* <Select
+          <MultiSelect
             value={newReading.ailment}
-            onChange={(ailment) => {
+            onChange={(ailmentIds) => {
               newReadingDsipatch({
                 type: "ailment",
-                payload: ailment,
+                payload: ailmentIds,
               });
             }}
-            options={ailments.map((ailment) => {
-              return {
-                value: ailment.id,
-                label: ailment.name,
-              };
-            })}
-            isMulti
-            className="basic-multi-select"
-            classNamePrefix="select"
-          /> */}
-          <Select
-            value={newReading.ailment}
-            onChange={(ailment) => {
-              newReadingDsipatch({
-                type: "ailment",
-                payload: ailment.id,
-              });
-            }}
-
-            isMulti
           >
             {ailments.map((ailment) => (
-              <option key={ailment.id} value={ailment}>
+              <option key={ailment.id} value={ailment.id}>
                 {ailment.name}
               </option>
             ))}
-          </Select>
+          </MultiSelect>
         </FormControl>
 
         <FormControl>

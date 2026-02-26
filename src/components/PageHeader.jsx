@@ -118,12 +118,12 @@ export const PageHeader = ({
 
   // Desktop header (original)
   return (
-    <Box className="w-full mt-3 px-0 py-2 noscrollbar">
+    <Box className="w-full -mt-3 px-0 py-4 noscrollbar">
       <Flex direction="rows" align="center" gap={6}>
         {onBack && (
           <img src={onBackButton} alt="back" onClick={onBack} className="w-6 h-6" />
         )}
-        <Flex gap={3} direction="column" align="flex-start">
+        <Flex gap={4} direction="column" align="flex-start">
           <Text size="sm" weight="normal" className="text-muted">
             {crumbs.map((c, i) => (
               <span key={i}>

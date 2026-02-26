@@ -11,7 +11,7 @@ import { useSelector } from "react-redux";
 import { ROUTES } from "../../routes/routeConstants";
 
 // Component Library
-import { Box, Flex, Button } from "../../component-library";
+import { Box, Flex, Button, SortDropdown } from "../../component-library";
 import { Button as ButtonPrimitive } from "../../component-library/primitives/Button";
 
 // Layout Components
@@ -38,6 +38,7 @@ import { useIsMobile } from "../../components/mobile/useIsMobile";
 
 // Import design system styles
 import "../../design-system/styles/index.css";
+import { Sort } from "@mui/icons-material";
 
 const ShowAlarms = () => {
   const [showModal, setShowModal] = useState(false);
@@ -207,7 +208,38 @@ const ShowAlarms = () => {
       onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
       {/* Add Alarm Button */}
-      <Flex justify="end" align="center" className={isMobile ? "mb-3" : "mb-6"}>
+      <Flex justify="between" align="center" className={isMobile ? "mb-3" : "mb-6"}>
+
+        <SortDropdown
+          options={[
+            { label: "Date Added (Newest)", value: "date_desc" },
+            { label: "Date Added (Oldest)", value: "date_asc" },
+            { label: "Type (A-Z)", value: "type_asc" },
+            { label: "Type (Z-A)", value: "type_desc" },
+          ]}
+          onChange={(value) => {
+            let sortedData = [...transformedAlarmData];
+            switch (value) {
+              case "date_desc":
+                sortedData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                break;
+              case "date_asc":
+                sortedData.sort((a, b) => new Date(a.date) - new Date(b.date));
+                break;
+              case "type_asc":
+                sortedData.sort((a, b) => a.type.localeCompare(b.type));
+                break;
+              case "type_desc":
+                sortedData.sort((a, b) => b.type.localeCompare(a.type));
+                break;
+              default:
+                break;
+            }
+            setUserAlarmData(sortedData);
+          }}
+          className="mr-4"
+        />
+
         <ButtonPrimitive
           variant="solid"
           rightIcon={<div className="text-md">+</div>}

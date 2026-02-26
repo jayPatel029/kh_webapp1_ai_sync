@@ -6,7 +6,8 @@ export async function registerDoctor(doctorData) {
     const response = await axiosInstance.post(server_url + "/doctor", doctorData);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    const msg = error?.response?.data?.message ?? error?.response?.data ?? error?.message ?? String(error);
+    return { success: false, data: msg };
   }
 }
 
@@ -15,7 +16,8 @@ export async function getDoctors() {
     const response = await axiosInstance.get(server_url + "/doctor/getDoctors");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    const msg = error?.response?.data?.message ?? error?.response?.data ?? error?.message ?? String(error);
+    return { success: false, data: msg };
   }
 }
 
@@ -24,7 +26,8 @@ export async function getDoctorsChat(patientId) {
     const response = await axiosInstance.get(server_url + "/doctor/getDoctorsChat/"+patientId);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    const msg = error?.response?.data?.message ?? error?.response?.data ?? error?.message ?? String(error);
+    return { success: false, data: msg };
   }
 }
 export async function updateDoctor(doctorId, doctorData) {
@@ -33,7 +36,8 @@ export async function updateDoctor(doctorId, doctorData) {
     const response = await axiosInstance.put(server_url + "/doctor/" + doctorId, doctorData);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    const msg = error?.response?.data?.message ?? error?.response?.data ?? error?.message ?? String(error);
+    return { success: false, data: msg };
   }
 }
 
@@ -42,7 +46,8 @@ export async function deleteDoctor(doctorId) {
     const response = await axiosInstance.delete(server_url + "/doctor/" + doctorId);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response.data.message };
+    const msg = error?.response?.data?.message ?? error?.response?.data ?? error?.message ?? String(error);
+    return { success: false, data: msg };
   }
 }
 

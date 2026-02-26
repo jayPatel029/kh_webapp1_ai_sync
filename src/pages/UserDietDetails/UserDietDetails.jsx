@@ -137,7 +137,7 @@ const UserDietDetails = () => {
     { key: "date", label: "Date", type: "date", width: "150px" },
     { key: "type", label: "Report type", type: "text", width: "200px" },
     { key: "desc", label: "Description", type: "text", width: "200px" },
-    { key: "image", label: "Image", type: "custom", width: "150px", render: (row) => (
+    { key: "image", label: "Report", type: "custom", width: "150px", render: (row) => (
       <div className="flex justify-start"> {row.meal_img && row.meal_img.endsWith(".pdf") ? (
           <div
             className="w-[56px] h-[80px] bg-black rounded flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"

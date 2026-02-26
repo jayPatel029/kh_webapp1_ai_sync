@@ -353,7 +353,7 @@ function UserProfile() {
             breadcrumbs={[
               // { label: "All Patients", path: "/patients" },
               { label: "Patient", path: ROUTES.PATIENTS, active: false },
-              { label: userData?.name || "Patient", path: ROUTES.patientDetail(id), active: true }
+              // { label: userData?.name || "Patient", path: ROUTES.patientDetail(id), active: true }
             ]}
             onBack={() => navigate(ROUTES.PATIENTS)}
           />

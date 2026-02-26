@@ -30,6 +30,7 @@ import {
   FormLabel,
   Input,
   Select,
+  MultiSelect,
   Box,
   Container
 } from "../../component-library";
@@ -182,7 +183,7 @@ function ProfileQuestions() {
 
         console.log("after format: ", formattedTranslations);
         const payload = {
-          ailment: newQuestion.ailment?.map((x) => x.value),
+          ailment: newQuestion.ailment,
           type: newQuestion.type,
           name: newQuestion.name,
           options: newQuestion.options,
@@ -388,22 +389,13 @@ function ProfileQuestions() {
         >{/* ... existing modal fields ... */}
           <FormControl>
             <FormLabel>Ailment</FormLabel>
-            <Select
+            <MultiSelect
               value={newQuestion.ailment}
-              onChange={(ailment) => {
+              onChange={(ailments) => {
                 newQuestionDispatch({
                   type: "ailment",
-                  payload: ailment,
+                  payload: ailments,
                 });
-              }}
-              isMulti
-              styles={{
-                control: (base) => ({
-                  ...base,
-                  borderRadius: '10px',
-                  borderColor: '#E5E7EB',
-                  '&:hover': { borderColor: '#1A9A9A' }
-                })
               }}
             >
               {ailments.map((ailment) => (
@@ -411,7 +403,7 @@ function ProfileQuestions() {
                   {ailment.name}
                 </option>
               ))}
-            </Select>
+            </MultiSelect>
           </FormControl>
 
           {modelOpen && (

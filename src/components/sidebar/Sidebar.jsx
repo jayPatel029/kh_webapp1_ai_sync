@@ -277,7 +277,14 @@ const Sidebar = ({ mobile = false }) => {
         <button
           type="button"
           aria-expanded={dropdown}
-          onClick={() => setDropdown((prev) => !prev)}
+          onClick={() => {
+            if (isIconOnly) {
+              toggleCollapse();
+              setDropdown((prev) => !prev)
+              return;
+            }
+            setDropdown((prev) => !prev)
+          }}
           className={clsx(
             'text-white transition-colors duration-200',
             isIconOnly
@@ -319,9 +326,9 @@ const Sidebar = ({ mobile = false }) => {
     >
       <div className="flex flex-col  gap-4">
         {!isCollapsed && !mobile && (
-          <IconButton variant="outline" size="sm" icon={<ArrowBack className="fill-white hover:fill-primaryDark" style={{ fill: "white" }} />}  onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="hover:bg-primaryDark !hover:float-none  border-white  absolute right-0 mt-2  mr-2 " />
+          <IconButton variant="outline" size="sm" icon={<ArrowBack className="fill-white hover:fill-primaryDark" style={{ fill: "white" }} />} onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="hover:bg-primaryDark !hover:float-none  border-white  absolute right-0 mt-2  mr-2 " />
         )}
-        <SidebarHeader className={clsx('pt-6' , isCollapsed && !mobile ? 'flex justify-center' : 'flex items-center gap-3')}>
+        <SidebarHeader className={clsx('pt-6', isCollapsed && !mobile ? 'flex justify-center' : 'flex items-center gap-3')}>
           <Link to={ROUTES.DASHBOARD} className={clsx('flex items-center transition-all', isCollapsed && !mobile ? 'justify-center' : 'gap-3')}>
 
             <img

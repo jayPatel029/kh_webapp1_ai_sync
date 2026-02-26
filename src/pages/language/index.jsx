@@ -244,7 +244,6 @@ function LanguageMaster() {
                       onFileChange={(file) => setLangJson(file)}
                       accept=".json,application/json"
                       multiple={false}
-                      append={false}
                       attachLabel="Upload JSON"
                       captureLabel="Capture"
                       showCountInfo={false}
@@ -261,7 +260,6 @@ function LanguageMaster() {
                       onFileChange={(file) => setLangAudio(file)}
                       accept=".zip,application/zip,application/x-zip-compressed"
                       multiple={false}
-                      append={false}
                       attachLabel="Upload Audio Zip"
                       captureLabel="Capture"
                       showCountInfo={false}

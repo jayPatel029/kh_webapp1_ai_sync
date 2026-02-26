@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useReducer, useMemo } from "react";
+// import Select from 'react-select';
 import { practicingAtList, doctorSpeciality, staffSpeciality } from "../consts";
 import { newDoctorReducer } from "../reducers";
 import {
@@ -26,13 +27,30 @@ import {
   Textarea,
   Checkbox,
   Grid,
-  GridItem
+  GridItem,
+  MultiSelect
 } from "../../../component-library";
 import UnifiedListTable from "../../../components/table/UnifiedListTable";
 
 function AdminManagement() {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
+  const devLog = (...args) => {
+    try {
+      if (process && process.env && process.env.NODE_ENV === "development") {
+        // eslint-disable-next-line no-console
+        console.log(...args);
+      }
+    } catch (e) {
+      // fallback for environments without process
+      // eslint-disable-next-line no-console
+      if (typeof window !== "undefined" && window.location && window.location.hostname) {
+        // check common dev hosts
+        const host = window.location.hostname;
+        if (host === "localhost" || host === "127.0.0.1") console.log(...args);
+      }
+    }
+  };
   const myRole = useSelector((state) => state.permission);
 
   const roleoptions = ["Doctor", "Medical Staff", "Dialysis Technician"].map(
@@ -59,6 +77,7 @@ function AdminManagement() {
 
   function searchDoctor(keyword) {
     setSearchTerm(keyword);
+    devLog("searchDoctor called", { keyword });
     setDoctors(
       doctorsList.filter((doc) => {
         if (doc["name"].toLowerCase().includes(keyword.toLowerCase())) {
@@ -71,10 +90,13 @@ function AdminManagement() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        devLog("fetchData: starting");
         const result = await getDoctors();
+        devLog("fetchData: result", result);
         if (result.success) {
           setDoctorsList(result.data.data);
           setDoctors(result.data.data);
+          devLog("fetchData: set doctors", result.data.data.length, "records");
         } else {
           console.error("Failed to fetch doctors:", result.data);
         }
@@ -113,7 +135,14 @@ function AdminManagement() {
     can_export: "no",
   });
 
+  const specialitiesOptions = useMemo(() => {
+    const base = newDoctor.role === "Doctor" ? doctorSpeciality : staffSpeciality;
+    return [{ value: "General", label: "General" }, ...base];
+  }, [newDoctor.role]);
+
+
   const [errMsg, setErrMsg] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const validateDoctorData = (doctorData) => {
     const {
@@ -189,13 +218,38 @@ function AdminManagement() {
     return true;
   };
 
+  const getFieldErrors = (doctorData) => {
+    const errors = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[0-9]{10}$/;
+
+    if (!doctorData.role || typeof doctorData.role !== "string") errors.role = true;
+    if (!doctorData.name || typeof doctorData.name !== "string") errors.name = true;
+    if (!doctorData.email || !emailRegex.test(doctorData.email)) errors.email = true;
+    if (!doctorData.specialities || doctorData.specialities.length <= 0) errors.specialities = true;
+    if (!phoneRegex.test(doctorData.phoneNo)) errors.phoneNo = true;
+
+    if (doctorData.role === "Doctor") {
+      if (!doctorData.licenseNo || typeof doctorData.licenseNo !== "string") errors.licenseNo = true;
+      if (!doctorData.doctorsCode || typeof doctorData.doctorsCode !== "string") errors.doctorsCode = true;
+      if (!doctorData.practicingAt || typeof doctorData.practicingAt !== "string") errors.practicingAt = true;
+    } else {
+      // for other roles ensure practicingAt exists
+      if (!doctorData.practicingAt || typeof doctorData.practicingAt !== "string") errors.practicingAt = true;
+    }
+
+    return errors;
+  };
+
 
   const getFileRes = async (file) => {
     try {
+      devLog("getFileRes called", { file });
       if (file) {
         let formData = new FormData();
         formData.append("file", file, file?.name);
         const fileRes = await uploadFile(formData);
+        devLog("getFileRes response", fileRes);
         return fileRes;
       } else {
         return { data: { objectUrl: "" } };
@@ -209,151 +263,199 @@ function AdminManagement() {
   const handleSubmit = async () => {
     setErrMsg("");
     setSuccessMessage("Uploading Data");
-    if (newDoctor.role == "Doctor" && validateDoctorData(newDoctor)) {
-      const photourl = await getFileRes(newDoctor.photo);
-      const payload = {
-        name: newDoctor.name,
-        role: newDoctor.role,
-        email: newDoctor.email,
-        practicingAt: newDoctor.practicingAt,
-        experience: newDoctor.yearsOfExperience,
-        doctorsCode: newDoctor.doctorsCode,
-        licenseNo: newDoctor.licenseNo,
-        phoneno: newDoctor.phoneNo,
-        institute: newDoctor.institute,
-        address: newDoctor.address,
-        photo: photourl?.data?.objectUrl,
-        description: newDoctor.description,
-        email_notification: newDoctor.email_notification,
-        Dialysis_updates: newDoctor.Dialysis_updates,
-        dailyReadingsAlerts: newDoctor.dailyReadingsAlerts,
-        can_export: newDoctor.can_export,
-        specialities: newDoctor.specialities,
-        dailyReadings: newDoctor.dailyReadings,
-        dialysisReadings: newDoctor.dialysisReadings,
-        changeby: localStorage.getItem("email"),
-        doctorid: newDoctor.id,
-      };
-      console.log("ipdating with,", payload.dailyReadings);
-      if (!editMode) {
-        const response = await registerDoctor(payload);
-        if (response.success) {
-          setErrMsg("");
-          setSuccessMessage("Registration Successful!");
-          clearDoctorFields();
-          setIsFormModalOpen(false);
-        } else {
-          setErrMsg("Registration Error! " + response.data);
-          setSuccessMessage("");
-        }
-      } else {
-        const response = await updateDoctor(newDoctor.id, payload);
-        if (response.success) {
-          setErrMsg("");
-          setSuccessMessage("Update Successful!");
-          clearDoctorFields();
-          setIsFormModalOpen(false);
-        } else {
-          setErrMsg("Update Error! " + response.data);
-          setSuccessMessage("");
-        }
-      }
-    } else if (
-      newDoctor.role == "Medical Staff" &&
-      validateMedicalData(newDoctor)
-    ) {
-      const photourl = await getFileRes(newDoctor.photo);
-      const resumeurl = await getFileRes(newDoctor.resume);
-      const payload = {
-        name: newDoctor.name,
-        role: newDoctor.role,
-        email: newDoctor.email,
-        experience: newDoctor.yearsOfExperience,
-        ref: newDoctor.reference || null,
-        phoneno: newDoctor.phoneNo,
-        institute: newDoctor.institute,
-        address: newDoctor.address,
-        practicingAt: newDoctor.practicingAt,
-        resume: resumeurl.data.objectUrl || null,
-        photo: photourl?.data.objectUrl,
-        description: newDoctor.description,
-        email_notification: newDoctor.email_notification,
-        can_export: newDoctor.can_export,
-        specialities: newDoctor.specialities,
-        changeby: localStorage.getItem("email"),
-        doctorid: newDoctor.id,
-      };
-      console.log("docs payload", payload);
-      if (!editMode) {
-        const response = await registerDoctor(payload);
-        if (response.success) {
-          setErrMsg("");
-          setSuccessMessage("Registration Successful!");
-          clearDoctorFields();
-          setIsFormModalOpen(false);
-        } else {
-          setErrMsg("Registration Error! " + response.data);
-          setSuccessMessage("");
-        }
-      } else {
-        const response = await updateDoctor(newDoctor.id, payload);
-        if (response.success) {
-          setErrMsg("");
-          setSuccessMessage("Update Successful!");
-          clearDoctorFields();
-          setIsFormModalOpen(false);
-        } else {
-          setErrMsg("Update Error! " + response.data);
-          setSuccessMessage("");
-        }
-      }
-    }
-
-    // add Dialysis Technician here
-    else if (newDoctor.role == "Dialysis Technician" && validateTechnicianData(newDoctor)) {
-      const photourl = await getFileRes(newDoctor.photo);
-      const payload = {
-        name: newDoctor.name,
-        role: newDoctor.role,
-        email: newDoctor.email,
-        experience: newDoctor.yearsOfExperience,
-        phoneno: newDoctor.phoneNo,
-        institute: newDoctor.institute,
-        address: newDoctor.address,
-        practicingAt: newDoctor.practicingAt,
-        photo: photourl?.data?.objectUrl,
-        description: newDoctor.description,
-        email_notification: newDoctor.email_notification,
-        specialities: newDoctor.specialities,
-        can_export: newDoctor.can_export,
-        dailyReadings: newDoctor.dailyReadings,
-        dialysisReadings: newDoctor.dialysisReadings,
-        changeby: localStorage.getItem("email"),
-        doctorid: newDoctor.id,
-      };
-
-      console.log("Dialysis Technician payload", payload);
-      const response = editMode
-        ? await updateDoctor(newDoctor.id, payload)
-        : await registerDoctor(payload);
-
-      if (response.success) {
-        setErrMsg("");
-        setSuccessMessage(editMode ? "Update Successful!" : "Registration Successful!");
-        clearDoctorFields();
-        setIsFormModalOpen(false);
-      } else {
-        setErrMsg((editMode ? "Update Error! " : "Registration Error! ") + response.data);
-        setSuccessMessage("");
-      }
-    } else {
-      setSuccessMessage("");
+    devLog("handleSubmit start", { newDoctor, editMode });
+    const errorsFound = getFieldErrors(newDoctor);
+    if (Object.keys(errorsFound).length > 0) {
+      setFieldErrors(errorsFound);
       setErrMsg("Please fill all the * fields correctly!");
+      setSuccessMessage("");
+      devLog("handleSubmit: validation failed", errorsFound);
+      return;
     }
+    try {
+      if (newDoctor.role == "Doctor" && validateDoctorData(newDoctor)) {
+        const photourl = await getFileRes(newDoctor.photo);
+        const payload = {
+          name: newDoctor.name,
+          role: newDoctor.role,
+          email: newDoctor.email,
+          practicingAt: newDoctor.practicingAt,
+          experience: newDoctor.yearsOfExperience,
+          doctorsCode: newDoctor.doctorsCode,
+          licenseNo: newDoctor.licenseNo,
+          phoneno: newDoctor.phoneNo,
+          institute: newDoctor.institute,
+          address: newDoctor.address,
+          photo: photourl?.data?.objectUrl,
+          description: newDoctor.description,
+          email_notification: newDoctor.email_notification,
+          Dialysis_updates: newDoctor.Dialysis_updates,
+          dailyReadingsAlerts: newDoctor.dailyReadingsAlerts,
+          can_export: newDoctor.can_export,
+          specialities: (newDoctor.specialities || []).map((s) => {
+            if (!s) return "";
+            if (typeof s === "string") return s;
+            if (s.value) return s.value;
+            if (s.label) return s.label;
+            if (s.target && s.target.value) return s.target.value;
+            try { return String(s); } catch (e) { return ""; }
+          }),
+          dailyReadings: newDoctor.dailyReadings,
+          dialysisReadings: newDoctor.dialysisReadings,
+          changeby: localStorage.getItem("email"),
+          doctorid: newDoctor.id,
+        };
+        console.log("ipdating with,", payload.dailyReadings);
+        if (!editMode) {
+          const response = await registerDoctor(payload);
+          devLog("handleSubmit registerDoctor response", response);
+          if (response.success) {
+            setErrMsg("");
+            setSuccessMessage("Registration Successful!");
+            clearDoctorFields();
+            setIsFormModalOpen(false);
+          } else {
+            setErrMsg("Registration Error! " + response.data);
+            setSuccessMessage("");
+          }
+        } else {
+          const response = await updateDoctor(newDoctor.id, payload);
+          devLog("handleSubmit updateDoctor response", response);
+          if (response.success) {
+            setErrMsg("");
+            setSuccessMessage("Update Successful!");
+            clearDoctorFields();
+            setIsFormModalOpen(false);
+          } else {
+            setErrMsg("Update Error! " + response.data);
+            setSuccessMessage("");
+          }
+        }
+      } else if (
+        newDoctor.role == "Medical Staff" &&
+        validateMedicalData(newDoctor)
+      ) {
+        devLog("handleSubmit: Medical Staff branch", { newDoctor });
+        const photourl = await getFileRes(newDoctor.photo);
+        const resumeurl = await getFileRes(newDoctor.resume);
+        const payload = {
+          name: newDoctor.name,
+          role: newDoctor.role,
+          email: newDoctor.email,
+          experience: newDoctor.yearsOfExperience,
+          ref: newDoctor.reference || null,
+          phoneno: newDoctor.phoneNo,
+          institute: newDoctor.institute,
+          address: newDoctor.address,
+          practicingAt: newDoctor.practicingAt,
+          resume: resumeurl.data.objectUrl || null,
+          photo: photourl?.data.objectUrl,
+          description: newDoctor.description,
+          email_notification: newDoctor.email_notification,
+          can_export: newDoctor.can_export,
+          specialities: (newDoctor.specialities || []).map((s) => {
+            if (!s) return "";
+            if (typeof s === "string") return s;
+            if (s.value) return s.value;
+            if (s.label) return s.label;
+            if (s.target && s.target.value) return s.target.value;
+            try { return String(s); } catch (e) { return ""; }
+          }),
+          changeby: localStorage.getItem("email"),
+          doctorid: newDoctor.id,
+        };
+        console.log("docs payload", payload);
+        if (!editMode) {
+          const response = await registerDoctor(payload);
+          devLog("handleSubmit registerDoctor response (staff)", response);
+          if (response.success) {
+            setErrMsg("");
+            setSuccessMessage("Registration Successful!");
+            clearDoctorFields();
+            setIsFormModalOpen(false);
+          } else {
+            setErrMsg("Registration Error! " + response.data);
+            setSuccessMessage("");
+          }
+        } else {
+          const response = await updateDoctor(newDoctor.id, payload);
+          devLog("handleSubmit updateDoctor response (staff)", response);
+          if (response.success) {
+            setErrMsg("");
+            setSuccessMessage("Update Successful!");
+            clearDoctorFields();
+            setIsFormModalOpen(false);
+          } else {
+            setErrMsg("Update Error! " + response.data);
+            setSuccessMessage("");
+          }
+        }
+      }
+
+
+      // add Dialysis Technician here
+      else if (newDoctor.role == "Dialysis Technician" && validateTechnicianData(newDoctor)) {
+        devLog("handleSubmit: Dialysis Technician branch", { newDoctor });
+        const photourl = await getFileRes(newDoctor.photo);
+        const payload = {
+          name: newDoctor.name,
+          role: newDoctor.role,
+          email: newDoctor.email,
+          experience: newDoctor.yearsOfExperience,
+          phoneno: newDoctor.phoneNo,
+          institute: newDoctor.institute,
+          address: newDoctor.address,
+          practicingAt: newDoctor.practicingAt,
+          photo: photourl?.data?.objectUrl,
+          description: newDoctor.description,
+          email_notification: newDoctor.email_notification,
+          specialities: (newDoctor.specialities || []).map((s) => {
+            if (!s) return "";
+            if (typeof s === "string") return s;
+            if (s.value) return s.value;
+            if (s.label) return s.label;
+            if (s.target && s.target.value) return s.target.value;
+            try { return String(s); } catch (e) { return ""; }
+          }),
+          can_export: newDoctor.can_export,
+          dailyReadings: newDoctor.dailyReadings,
+          dialysisReadings: newDoctor.dialysisReadings,
+          changeby: localStorage.getItem("email"),
+          doctorid: newDoctor.id,
+        };
+
+        console.log("Dialysis Technician payload", payload);
+        const response = editMode
+          ? await updateDoctor(newDoctor.id, payload)
+          : await registerDoctor(payload);
+        devLog("handleSubmit Dialysis register/update response", response);
+
+        if (response.success) {
+          setErrMsg("");
+          setSuccessMessage(editMode ? "Update Successful!" : "Registration Successful!");
+          clearDoctorFields();
+          setIsFormModalOpen(false);
+        } else {
+          setErrMsg((editMode ? "Update Error! " : "Registration Error! ") + response.data);
+          setSuccessMessage("");
+        }
+      } else {
+        setSuccessMessage("");
+        setErrMsg("Please fill all the * fields correctly!");
+      }
+    } catch (error) {
+      console.error("Error in submission:", error);
+      setErrMsg("An unexpected error occurred. Please try again.");
+      setSuccessMessage("");
+      devLog("handleSubmit caught error", error);
+    }
+
+
   };
 
   async function handleDelete(id) {
     try {
+      devLog("handleDelete called", { id });
       // Display a confirmation dialog
       const confirmed = window.confirm(
         "Are you sure you want to delete this doctor?"
@@ -366,6 +468,7 @@ function AdminManagement() {
       setErrMsg("");
       setSuccessMessage("Deleting Data");
       const response = await deleteDoctor(id);
+      devLog("handleDelete response", response);
       if (response.success) {
         setSuccessMessage("Delete Successful!");
       } else {
@@ -375,6 +478,7 @@ function AdminManagement() {
       }
     } catch (error) {
       console.error("Error deleting doctor:", error);
+      devLog("handleDelete caught error", error);
     }
   }
 
@@ -388,16 +492,20 @@ function AdminManagement() {
     });
     setEditMode(false);
     setErrMsg("");
+    setFieldErrors({});
+    devLog("clearDoctorFields executed");
   };
 
   const prepareEditDoctor = (doctor) => {
     setSuccessMessage("");
+    setFieldErrors({});
+    devLog("prepareEditDoctor called", doctor);
     newDoctorDispatch({
       type: "all",
       payload: {
         id: doctor.id,
         name: doctor.name,
-        specialities: doctor.specialities,
+        specialities: Array.isArray(doctor.specialities) ? doctor.specialities : [],
         email: doctor.email,
         phoneNo: doctor.phoneno,
         practicingAt: doctor["practicing at"] || doctor.practicingAt,
@@ -427,6 +535,7 @@ function AdminManagement() {
     setSuccessMessage("");
     clearDoctorFields();
     setIsFormModalOpen(true);
+    devLog("openCreateForm called");
   };
 
   const closeFormModal = () => {
@@ -535,9 +644,10 @@ function AdminManagement() {
           <Box className="w-full md:w-1/2 mb-6 flex flex-row gap-8">
             <Box className="flex-1">
               <FormControl>
-                <FormLabel>User Role*</FormLabel>
+                <FormLabel>User Role<span className="text-red-500">*</span></FormLabel>
                 <Select
                   value={newDoctor.role}
+                  className={fieldErrors.role ? "border border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "role",
@@ -551,11 +661,12 @@ function AdminManagement() {
             </Box>
             <Box className="flex-1">
               <FormControl>
-                <FormLabel>Qualifiction</FormLabel>
+                <FormLabel>Qualification</FormLabel>
                 <Textarea
-                  rows={2}
-                  placeholder="Qualifiction"
+                  rows={1}
+                  placeholder="Qualification"
                   value={newDoctor.description}
+                  className={fieldErrors.description ? "border border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "description",
@@ -583,17 +694,19 @@ function AdminManagement() {
             {/* <Box className=""> */}
             <Box>
               <FormControl>
-                <FormLabel>Name*</FormLabel>
+                <FormLabel>Name<span className="text-red-500">*</span></FormLabel>
                 <Input
                   type="text"
                   placeholder="Name"
                   value={newDoctor.name}
+                  className={fieldErrors.name ? "border-2 border-red-500" : ""}
                   onChange={(event) => {
                     const nameArr = event.target.value.split(" ");
                     newDoctorDispatch({
                       type: "name",
                       payload: event.target.value,
                     });
+                      setFieldErrors((prev) => ({ ...prev, name: false }));
                     newDoctorDispatch({
                       type: "doctorsCode",
                       payload:
@@ -612,16 +725,18 @@ function AdminManagement() {
 
             <Box>
               <FormControl>
-                <FormLabel>Email*</FormLabel>
+                <FormLabel>Email<span className="text-red-500">*</span></FormLabel>
                 <Input
                   type="email"
                   placeholder="Email"
                   value={newDoctor.email}
+                  className={fieldErrors.email ? "border-2 border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "email",
                       payload: event.target.value,
                     });
+                    setFieldErrors((prev) => ({ ...prev, email: false }));
                   }}
                 />
               </FormControl>
@@ -630,16 +745,18 @@ function AdminManagement() {
             {newDoctor.role === "Doctor" && (
               <Box>
                 <FormControl>
-                  <FormLabel>License No*</FormLabel>
+                  <FormLabel>License No<span className="text-red-500">*</span></FormLabel>
                   <Input
                     type="text"
                     placeholder="License No"
                     value={newDoctor.licenseNo}
+                    className={fieldErrors.licenseNo ? "border-2 border-red-500" : ""}
                     onChange={(event) => {
                       newDoctorDispatch({
                         type: "licenseNo",
                         payload: event.target.value,
                       });
+                      setFieldErrors((prev) => ({ ...prev, licenseNo: false }));
                     }}
                   />
                 </FormControl>
@@ -648,14 +765,16 @@ function AdminManagement() {
 
             <Box>
               <FormControl>
-                <FormLabel>Practicing At*</FormLabel>
+                <FormLabel>Practicing At<span className="text-red-500">*</span></FormLabel>
                 <Select
                   value={newDoctor.practicingAt}
+                  className={fieldErrors.practicingAt ? "border-2 border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "practicingAt",
                       payload: event.target.value,
                     });
+                    setFieldErrors((prev) => ({ ...prev, practicingAt: false }));
                   }}
                 >
                   {practicingAtOptions}
@@ -670,11 +789,13 @@ function AdminManagement() {
                   type="number"
                   placeholder="Years Of Experience"
                   value={newDoctor.yearsOfExperience}
+                  className={fieldErrors.yearsOfExperience ? "border border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "yearsOfExperience",
                       payload: event.target.value,
                     });
+                    setFieldErrors((prev) => ({ ...prev, yearsOfExperience: false }));
                   }}
                 />
               </FormControl>
@@ -687,11 +808,13 @@ function AdminManagement() {
                   type="text"
                   placeholder="Reference"
                   value={newDoctor.reference}
+                  className={fieldErrors.reference ? "border border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "reference",
                       payload: event.target.value,
                     });
+                    setFieldErrors((prev) => ({ ...prev, reference: false }));
                   }}
                 />
               </FormControl>
@@ -703,7 +826,7 @@ function AdminManagement() {
             {/* <Box className="space-y-4"> */}
             <Box>
               <FormControl>
-                <FormLabel>Specialities*</FormLabel>
+                <FormLabel>Specialities<span className="text-red-500">*</span></FormLabel>
                 {/* <Select
                           value={newDoctor.specialities}
                           isMulti
@@ -744,44 +867,57 @@ function AdminManagement() {
                         </Select> */}
 
 
-                <Select
-                  onChange={(selectedOptions) => {
-                    newDoctorDispatch({
-                      type: "specialities",
-                      payload: selectedOptions,
-                    });
-                  }}
+                {/* <Select
                   value={newDoctor.specialities}
                   isMulti
+                  className={fieldErrors.specialities ? "border border-red-500" : ""}
+                  onChange={(event) => {
+                    // native <select multiple> gives selectedOptions collection
+                    const vals = Array.from(event.target.selectedOptions).map(
+                      (opt) => opt.value
+                    );
+                    newDoctorDispatch({ type: "specialities", payload: vals });
+                    setFieldErrors((prev) => ({ ...prev, specialities: false }));
+                  }}
                 >
-                  <option value="General">General</option>
-                  {newDoctor.role === "Doctor"
-                    ? doctorSpeciality.map((spec, index) => (
-                      <option key={index} value={spec}>
-                        {spec.label}
-                      </option>
-                    ))
-                    : staffSpeciality.map((spec, index) => (
-                      <option key={index} value={spec}>
-                        {spec.label}
-                      </option>
-                    ))}
-                </Select>
+                  {specialitiesOptions.map((option, index) => (
+                    <option key={index} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select> */}
+
+                <MultiSelect
+                  value={newDoctor.specialities}
+                  onChange={(vals) => {
+                    newDoctorDispatch({ type: "specialities", payload: vals });
+                    setFieldErrors((prev) => ({ ...prev, specialities: false }));
+                  }}
+                  className={fieldErrors.specialities ? "border-2 border-red-500" : ""}
+                >
+                  {specialitiesOptions.map((option, index) => (
+                    <option key={index} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </MultiSelect>
               </FormControl>
             </Box>
 
             <Box>
               <FormControl>
-                <FormLabel>Phone No*</FormLabel>
+                <FormLabel>Phone No<span className="text-red-500">*</span></FormLabel>
                 <Input
                   type="number"
                   placeholder="Phone No"
                   value={newDoctor.phoneNo}
+                  className={fieldErrors.phoneNo ? "border-2 border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "phoneNo",
                       payload: event.target.value,
                     });
+                    setFieldErrors((prev) => ({ ...prev, phoneNo: false }));
                   }}
                 />
               </FormControl>
@@ -790,16 +926,18 @@ function AdminManagement() {
             {newDoctor.role === "Doctor" && (
               <Box>
                 <FormControl>
-                  <FormLabel>Doctors Code*</FormLabel>
+                  <FormLabel>Doctors Code<span className="text-red-500">*</span></FormLabel>
                   <Input
                     type="text"
                     placeholder="Doctors Code"
                     value={newDoctor.doctorsCode}
+                    className={fieldErrors.doctorsCode ? "border-2 border-red-500" : ""}
                     onChange={(event) => {
                       newDoctorDispatch({
                         type: "doctorsCode",
                         payload: event.target.value,
                       });
+                      setFieldErrors((prev) => ({ ...prev, doctorsCode: false }));
                     }}
                   />
                 </FormControl>
@@ -813,11 +951,13 @@ function AdminManagement() {
                   type="text"
                   placeholder="Institute/Hospital/Clinic"
                   value={newDoctor.institute}
+                  className={fieldErrors.institute ? "border-2 border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "institute",
                       payload: event.target.value,
                     });
+                    setFieldErrors((prev) => ({ ...prev, institute: false }));
                   }}
                 />
               </FormControl>
@@ -830,11 +970,13 @@ function AdminManagement() {
                   type="text"
                   placeholder="Address"
                   value={newDoctor.address}
+                  className={fieldErrors.address ? "border-2 border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "address",
                       payload: event.target.value,
                     });
+                    setFieldErrors((prev) => ({ ...prev, address: false }));
                   }}
                 />
               </FormControl>
@@ -847,13 +989,14 @@ function AdminManagement() {
                   type="file"
                   name="Photo"
                   id="file-input"
+                  className={`${fieldErrors.photo ? "border-2 border-red-500" : ""} file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100`}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "photo",
                       payload: event.target.files[0],
                     });
+                    setFieldErrors((prev) => ({ ...prev, photo: false }));
                   }}
-                  className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
                 />
                 {/* <FileUploadWithCamera
                           images= {newDoctor.photo ? [newDoctor.photo] : []}
@@ -885,13 +1028,14 @@ function AdminManagement() {
                     type="file"
                     name="Resume"
                     id="file-input"
+                    className={`${fieldErrors.resume ? "border-2 border-red-500" : ""} file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100`}
                     onChange={(event) => {
                       newDoctorDispatch({
                         type: "resume",
                         payload: event.target.files[0],
                       });
+                      setFieldErrors((prev) => ({ ...prev, resume: false }));
                     }}
-                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
                   />
                 </FormControl>
               </Box>
