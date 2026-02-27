@@ -50,6 +50,9 @@ import { BsTrash, BsPencilSquare } from "react-icons/bs";
 // Mobile
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 
+// Cache
+import { usePageCache, PAGE_CACHE } from "../../cache";
+
 // Import design system styles
 import "../../design-system/styles/index.css";
 import { Sort } from "@mui/icons-material";
@@ -80,6 +83,7 @@ function ManageParameters() {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const { isMobile } = useIsMobile();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.MANAGE_PARAMETERS);
 
   // Sort / Filter state and helper functions
   const [selectedFilter, setSelectedFilter] = useState("");
@@ -127,30 +131,38 @@ function ManageParameters() {
   }, [selectReadingType]);
 
   useLayoutEffect(() => {
-    getAilments().then((resultAilment) => {
-      if (resultAilment.success && resultAilment.data.listOfAilments) {
-        setAilmentOptions(resultAilment.data.listOfAilments);
+    fetchWithCache('getAilments', () => getAilments(), {
+      transform: (apiData) => apiData?.listOfAilments || [],
+    }).then((result) => {
+      if (result.success) {
+        setAilmentOptions(result.data);
       } else {
-        console.error("Failed to fetch Ailments:", resultAilment.data);
+        console.error("Failed to fetch Ailments:", result.data);
       }
     });
   }, []);
 
   async function getParameterData() {
-    getAllUserReadingsByPid(patientId).then((response) => {
-      if (response.success) {
-        setParameterData(response.data);
+    const cacheKey = `getParameters_${patientId}`;
+    fetchWithCache(cacheKey, () => getAllUserReadingsByPid(patientId), {
+      transform: (apiData) => apiData,
+    }).then((result) => {
+      if (result.success) {
+        setParameterData(result.data);
       } else {
-        console.error("Failed to fetch parameter data:", response.data);
+        console.error("Failed to fetch parameter data:", result.data);
       }
     });
   }
 
   const fetchPatientData = async () => {
     try {
-      const response = await getPatientGetPatientByid(patientId);
-      if (response.success) {
-        setUserData(response.data?.data);
+      const cacheKey = `getPatient_${patientId}`;
+      const result = await fetchWithCache(cacheKey, () => getPatientGetPatientByid(patientId), {
+        transform: (apiData) => apiData?.data,
+      });
+      if (result.success) {
+        setUserData(result.data);
       }
     } catch (error) {
       console.error("Error fetching patient data:", error);
@@ -180,13 +192,14 @@ function ManageParameters() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        getAilments().then((resultAilment) => {
-          if (resultAilment.success && resultAilment.data.listOfAilments) {
-            setAilments(resultAilment.data.listOfAilments);
-          } else {
-            console.error("Failed to fetch Ailments:", resultAilment);
-          }
+        const result = await fetchWithCache('getAilments', () => getAilments(), {
+          transform: (apiData) => apiData?.listOfAilments || [],
         });
+        if (result.success) {
+          setAilments(result.data);
+        } else {
+          console.error("Failed to fetch Ailments:", result);
+        }
       } catch (error) {
         console.error("Error fetching questions:", error);
       }
@@ -249,7 +262,7 @@ function ManageParameters() {
           high_range: highRange,
         };
         if (selectParameterType === "General") {
-          updateDailyReading(updateData).then((response) => {
+          mutate(() => updateDailyReading(updateData)).then((response) => {
             if (response.success) {
               console.log("Reading updated successfully:", response.data);
               getParameterData();
@@ -264,7 +277,7 @@ function ManageParameters() {
             }
           });
         } else {
-          updateDialysisReading(updateData).then((response) => {
+          mutate(() => updateDialysisReading(updateData)).then((response) => {
             if (response.success) {
               console.log("Reading updated successfully:", response.data);
               getParameterData();
@@ -280,7 +293,7 @@ function ManageParameters() {
           });
         }
       } else {
-        addReading(newData).then((response) => {
+        mutate(() => addReading(newData)).then((response) => {
           if (response.success) {
             console.log("Reading added successfully:", response.data);
             clearAllFields();
@@ -411,12 +424,12 @@ function ManageParameters() {
               if (window.confirm("Are you sure you want to delete this parameter?")) {
                 try {
                   if (row.paramType === "daily") {
-                    deleteDailyReading(row.id).then(() => {
+                    mutate(() => deleteDailyReading(row.id)).then(() => {
                       setErrMsg({ type: "success", msg: "Deleted Successfully" });
                       getParameterData();
                     });
                   } else {
-                    deleteDialysisReading(row.id).then(() => {
+                    mutate(() => deleteDialysisReading(row.id)).then(() => {
                       setErrMsg({ type: "success", msg: "Deleted Successfully" });
                       getParameterData();
                     });

@@ -6,16 +6,19 @@ import React, { useEffect, useState } from 'react';
 import BarChartComponentPercentageReturn from '../../components/barChartPercentageReturn/BarChart';
 import BarChartComponentAdh from '../../components/horizontalBarChartAdherance/BarChart';
 import { getDoctorReportLogs } from '../../ApiCalls/doctorApis';
+import { usePageCache, PAGE_CACHE } from '../../cache';
+import PageSkeleton from '../../components/PageSkeleton';
 
 function DoctorReport() {
     const [reportLogs, setReportLogs] = useState([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
+    const { fetchWithCache } = usePageCache(PAGE_CACHE.DOCTOR_REPORT);
 
     useEffect(() => {
         const fetchLogs = async () => {
             try {
                 setLoadingLogs(true);
-                const res = await getDoctorReportLogs();
+                const res = await fetchWithCache('doctorReportLogs', () => getDoctorReportLogs());
                 if (res.success) {
                     setReportLogs(res.data?.data || []);
                 }

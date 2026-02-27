@@ -17,22 +17,43 @@
  * @file src/pages/adminDashboard/AdminDashboard.jsx
  */
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Box, Flex, Heading, SortDropdown, Text } from '../../component-library';
+import { getIdByEmail, isDoctorRole } from '../../ApiCalls/authapis';
+import { getDoctorIdByEmail } from '../../ApiCalls/doctorApis';
+import { getDoctorSortAlerts } from '../../ApiCalls/doctorAlert';
+import {
+  getTotalUsers,
+  getUsersThisWeek,
+  getAlerts,
+  getUsersThisWeekSub,
+  getSuperAdminAlerts,
+  sendAlertEmails,
+} from '../../ApiCalls/adminDashApis';
+import { getAlertByType } from '../../ApiCalls/alertsApis';
+import { getDoctorComments } from '../../ApiCalls/GetComments';
+import { useIsMobile } from '../../components/mobile/useIsMobile';
+import { usePageCache, PAGE_CACHE } from '../../cache';
+import PageSkeleton from '../../components/PageSkeleton';
 
-// Hooks
-import { useAdminDashboardData } from '../../hooks/useDashboardData';
-
-// Dashboard components
+// Dashboard components (desktop layout)
 import StatCard from '../../components/dashboard/StatCard';
 import AlertsPanel from '../../components/dashboard/AlertsPanel';
 import PageHeader from '../../components/PageHeader';
 
 // Design system primitives
-import { Heading, Text } from '../../component-library/primitives/Typography';
+import { Heading as DSHeading, Text as DSText } from '../../component-library/primitives/Typography';
 
 // Styles
 import '../dashboard/dashboard.css';
+
+// Additional components for mobile/legacy layout
+import PatientAlertCard from './components/PatientAlertCard';
+import PrescriptionModal from './components/ApprovePrescriptionModal';
+import CommentContainer from './components/CommentContainer';
+import AlertModal from './components/AlertModal';
+import DiaAlertModal from './components/DialysisTechModal';
 
 // ─── SVG Icons ──────────────────────────────────────────────
 
@@ -107,9 +128,31 @@ const DashboardError = ({ message, onRetry }) => (
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { loading, error, data, refetch } = useAdminDashboardData();
+  const { isMobile } = useIsMobile();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [patients, setPatients] = useState([]);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    newUsersThisWeek: 0,
+    weeklySubscriptions: 0,
+    newUsers: 0,
+  });
+  const [alertTypeFilter, setAlertTypeFilter] = useState('');
+  const [allPatients, setAllPatients] = useState([]);
+  const [ready, setReady] = useState(false);
+  const [allAlerts, setAllAlerts] = useState([]);
+  const [modals, setModals] = useState({
+    prescription: false,
+    comment: false,
+    alert: false,
+    dialysis: false,
+  });
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [sendingEmails, setSendingEmails] = useState(false);
 
-  // Navigate to patient profile on alert click
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.DASHBOARD);
+
   const handleAlertClick = useCallback(
     (alert) => {
       if (alert.patientId) {
@@ -119,47 +162,246 @@ const AdminDashboard = () => {
     [navigate]
   );
 
-  // ─── Compute derived stats ───────────────────────────────
-  const stats = useMemo(() => {
-    return {
-      totalUsers: data.totalUsers,
-      newUsersThisWeek: data.newUsersThisWeek,
-      weeklySubscriptions: data.newUsersThisWeek,
+  const handleSendAlertEmails = async () => {
+    setSendingEmails(true);
+    try {
+      await sendAlertEmails();
+      alert('Alert emails sent successfully!');
+    } catch (e) {
+      console.error('Error sending emails:', e);
+      alert('Failed to send alert emails.');
+    } finally {
+      setSendingEmails(false);
+    }
+  };
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const email = localStorage.getItem('email');
+      const adminId = localStorage.getItem('id');
+      const isDoc = localStorage.getItem('isDoctor') === 'true';
+
+      // Fetch Stats (cached)
+      const statsResult = await fetchWithCache('dashboardStats', async () => {
+        const [total, newU, newUSub] = await Promise.all([
+          getTotalUsers(),
+          getUsersThisWeek(),
+          getUsersThisWeekSub(),
+        ]);
+        return {
+          success: true,
+          data: {
+            totalUsers: total || 0,
+            newUsers: adminId === '1' ? (newU || 0) : (newUSub || 0),
+          },
+        };
+      });
+      if (statsResult.success) {
+        const { totalUsers = 0, newUsers = 0 } = statsResult.data;
+        setStats({
+          totalUsers,
+          newUsersThisWeek: newUsers,
+          weeklySubscriptions: newUsers,
+          newUsers,
+        });
+      }
+
+      // Fetch Alerts (cached)
+      const alertsResult = await fetchWithCache('dashboardAlerts', async () => {
+        let alerts = [];
+        if (isDoc) {
+          const doctorIdRes = await getDoctorIdByEmail({ email });
+          const doctorId = doctorIdRes.success ? doctorIdRes.data?.data : null;
+          if (doctorId) {
+            const alertsRes = await getDoctorSortAlerts(doctorId);
+            alerts = alertsRes.success ? alertsRes.data || [] : [];
+          }
+        } else if (adminId === '1') {
+          try {
+            const superRes = await getSuperAdminAlerts(adminId);
+            alerts = superRes?.data || [];
+          } catch {
+            const alertsRes = await getAlerts();
+            alerts = (alertsRes.data || []).reverse();
+          }
+        } else {
+          const alertsRes = await getAlerts();
+          alerts = (alertsRes.data || []).reverse();
+        }
+        return { success: true, data: alerts };
+      });
+      let alerts = alertsResult.success ? alertsResult.data : [];
+      setAllAlerts(alerts);
+
+      // Group by patient
+      const patientMap = new Map();
+      for (const alert of alerts) {
+        const pId = alert.patientId;
+        if (!pId) continue;
+        if (!patientMap.has(pId)) {
+          patientMap.set(pId, {
+            id: pId,
+            name: alert.name || 'Unknown Patient',
+            avatar: alert.patientProfilePhoto,
+            prescriptionAlerts: [],
+            commentAlerts: [],
+            alertAlerts: [],
+            dialysisAlerts: [],
+            prescriptionCount: 0,
+            commentCount: 0,
+            alertCount: 0,
+            dialysisCount: 0,
+          });
+        }
+        const pData = patientMap.get(pId);
+        const type = (alert.type || '').toLowerCase();
+        const category = (alert.category || '').toLowerCase();
+        if (type.includes('prescription') || category.includes('prescription')) {
+          pData.prescriptionAlerts.push(alert);
+          pData.prescriptionCount++;
+        } else if (type.includes('dialysis tech') || category.includes('dialysis tech')) {
+          pData.dialysisAlerts.push(alert);
+          pData.dialysisCount++;
+        } else {
+          pData.alertAlerts.push(alert);
+          if (alert.isRead === 0 || alert.isRead === false) {
+            pData.alertCount++;
+          }
+        }
+      }
+
+      if (isDoc) {
+        const patientPromises = Array.from(patientMap.values()).map(async (p) => {
+          try {
+            const commentRes = await getDoctorComments(email, p.name);
+            const comments = commentRes.comments || [];
+            p.commentAlerts = comments.sort((a, b) => new Date(b.date) - new Date(a.date));
+            p.commentCount = comments.filter(c => !c.isRead).length;
+          } catch (e) {
+            console.error(`Error fetching comments for ${p.name}:`, e);
+          }
+        });
+        await Promise.all(patientPromises);
+      }
+
+      setPatients(Array.from(patientMap.values()));
+      setAllPatients(Array.from(patientMap.values()));
+    } catch (err) {
+      console.error('Dashboard data fetch error:', err);
+      setError(err.message || 'Failed to load dashboard data.');
+    } finally {
+      setLoading(false);
+      setReady(true);
+    }
+  }, [fetchWithCache]);
+
+  const refetch = fetchDashboardData;
+
+  useEffect(() => {
+    const init = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      const role = localStorage.getItem('role');
+      if (role === 'Dialysis Technician') {
+        navigate('/patients');
+        return;
+      }
+      const email = localStorage.getItem('email');
+      try {
+        const idRes = await getIdByEmail({ email });
+        if (idRes.success) {
+          localStorage.setItem('id', idRes.data?.id);
+        }
+      } catch (err) {
+        console.error('Error getting admin id:', err);
+      }
+      try {
+        const docRes = await isDoctorRole();
+        if (docRes.success) {
+          localStorage.setItem('isDoctor', docRes.data?.data);
+        }
+      } catch (err) {
+        console.error('Error checking isDoctor:', err);
+      }
+      fetchDashboardData();
     };
-  }, [data]);
+    init();
+  }, [navigate, fetchDashboardData]);
 
-  // ─── Split alerts ────────────────────────────────────────
+  const handleAction = (patient, type) => {
+    setSelectedPatient(patient);
+    if (type === 'prescription') {
+      localStorage.setItem('prescriptionAlerts', JSON.stringify(patient.prescriptionAlerts));
+    } else if (type === 'alert') {
+      localStorage.setItem('alertAlerts', JSON.stringify(patient.alertAlerts));
+    } else if (type === 'dialysis') {
+      localStorage.setItem('Dialysis_updates', JSON.stringify(patient.dialysisAlerts));
+    }
+    setModals(prev => ({ ...prev, [type]: true }));
+  };
+
+  const closeModal = (type) => {
+    setModals(prev => ({ ...prev, [type]: false }));
+    if (type === 'alert' || type === 'comment') {
+      fetchDashboardData();
+    }
+  };
+
+  const handleAlertTypeFilter = async (type) => {
+    setAlertTypeFilter(type);
+    if (!type) {
+      setPatients(allPatients);
+      return;
+    }
+    try {
+      const res = await getAlertByType(type);
+      const filtered = res?.data || [];
+      const patientMap = new Map();
+      for (const alert of filtered) {
+        const pId = alert.patientId;
+        if (!pId) continue;
+        if (!patientMap.has(pId)) {
+          patientMap.set(pId, {
+            id: pId,
+            name: alert.name || 'Unknown Patient',
+            avatar: alert.patientProfilePhoto,
+            prescriptionAlerts: [], commentAlerts: [],
+            alertAlerts: [], dialysisAlerts: [],
+            prescriptionCount: 0, commentCount: 0,
+            alertCount: 0, dialysisCount: 0,
+          });
+        }
+        const pData = patientMap.get(pId);
+        const t = (alert.type || '').toLowerCase();
+        if (t.includes('prescription')) { pData.prescriptionAlerts.push(alert); pData.prescriptionCount++; }
+        else if (t.includes('dialysis')) { pData.dialysisAlerts.push(alert); pData.dialysisCount++; }
+        else { pData.alertAlerts.push(alert); if (!alert.isRead) pData.alertCount++; }
+      }
+      setPatients(Array.from(patientMap.values()));
+    } catch (e) {
+      console.error('Error filtering by type:', e);
+    }
+  };
+
   const { doctorAlerts, adminAlerts } = useMemo(() => {
-    const doctorAlerts = [];
-    const adminAlerts = [];
-
-    for (const a of data.alerts) {
-      const type = (a.type || a.message || '').toLowerCase();
-      if (
-        type.includes('prescription') ||
-        type.includes('comment') ||
-        type.includes('doctor') ||
-        type.includes('report')
-      ) {
-        doctorAlerts.push(a);
+    const d = [];
+    const a = [];
+    for (const a2 of allAlerts) {
+      const type = (a2.type || a2.message || '').toLowerCase();
+      if (type.includes('prescription') || type.includes('comment') || type.includes('doctor') || type.includes('report')) {
+        d.push(a2);
       } else {
-        adminAlerts.push(a);
+        a.push(a2);
       }
     }
+    return { doctorAlerts: d, adminAlerts: a };
+  }, [allAlerts]);
 
-    return { doctorAlerts, adminAlerts };
-  }, [data.alerts]);
-
-  // ─── Render ──────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <div className="dashboard">
-        <DashboardSkeleton />
-      </div>
-    );
-  }
-
+  // render
   if (error) {
     return (
       <div className="dashboard">
@@ -168,70 +410,207 @@ const AdminDashboard = () => {
     );
   }
 
-  return (
-    <div className="dashboard">
-      <div className="dashboard__content">
-        {/* <div className="dashboard__page-header"> */}
+  if (!isMobile) {
+    if (loading) {
+      return (
+        <div className="dashboard">
+          <DashboardSkeleton />
+        </div>
+      );
+    }
+
+    return (
+      <div className="dashboard">
+        <div className="dashboard__content">
           <PageHeader title="Admin Dashboard" variant="onlyheader" />
-          {/* <span className="dashboard__live-dot" title="Live updates" /> */}
-        {/* </div> */}
-
-        {/* ─── User Stats Section ──────────────────────────── */}
-        <section className="dashboard__section">
-          <Heading as="h4" className="dashboard__section-title">
-            Overview
-          </Heading>
-          <div className="stat-grid">
-            <StatCard
-              icon={<UsersIcon />}
-              label="Total Users"
-              value={stats.totalUsers}
-              color="primary"
-              // subtitle="Updated just now"
-            />
-            <StatCard
-              icon={<WeeklyIcon />}
-              label="Users Joined This Week"
-              value={stats.newUsersThisWeek}
-              // color="info"
-              // subtitle="Updated just now"
-            />
-            <StatCard
-              icon={<SubscriptionsIcon />}
-              label="Weekly Subscriptions"
-              value={stats.weeklySubscriptions}
-              // color="success"
-              // subtitle="Updated just now"
-            />
-          </div>
-        </section>
-
-        {/* ─── Alerts Section ──────────────────────────────── */}
-        <section className="dashboard__section">
-          <Heading as="h2" className="dashboard__section-title">
-            Alerts
-          </Heading>
-          <div className="alerts-grid">
-            <AlertsPanel
-              title="Doctor Alerts"
-              alerts={doctorAlerts}
-              onAlertClick={handleAlertClick}
-              showRoleTabs={false}
-              showSendEmails={true}
-              // maxHeight="400px"
-            />
-            <AlertsPanel
-              title="General Alerts"
-              alerts={adminAlerts}
-              onAlertClick={handleAlertClick}
-              showRoleTabs={false}
-              showSendEmails={false}
-              // maxHeight="400px"
-            />
-          </div>
-        </section>
+          <section className="dashboard__section">
+            <Heading as="h4" className="dashboard__section-title">
+              Overview
+            </Heading>
+            <div className="stat-grid">
+              <StatCard
+                icon={<UsersIcon />}
+                label="Total Users"
+                value={stats.totalUsers}
+                color="primary"
+              />
+              <StatCard
+                icon={<WeeklyIcon />}
+                label="Users Joined This Week"
+                value={stats.newUsersThisWeek}
+              />
+              <StatCard
+                icon={<SubscriptionsIcon />}
+                label="Weekly Subscriptions"
+                value={stats.weeklySubscriptions}
+              />
+            </div>
+          </section>
+          <section className="dashboard__section">
+            <Heading as="h2" className="dashboard__section-title">
+              Alerts
+            </Heading>
+            <div className="alerts-grid">
+              <AlertsPanel
+                title="Doctor Alerts"
+                alerts={doctorAlerts}
+                onAlertClick={handleAlertClick}
+                showRoleTabs={false}
+                showSendEmails={true}
+              />
+              <AlertsPanel
+                title="General Alerts"
+                alerts={adminAlerts}
+                onAlertClick={handleAlertClick}
+                showRoleTabs={false}
+                showSendEmails={false}
+              />
+            </div>
+          </section>
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  // mobile layout
+  return (
+    <Box className={`flex-1 flex flex-col min-h-0 bg-white ${isMobile ? 'px-3 pt-2' : ''}`}>
+      {/* Main Content Scrollable Area */}
+      <Box className="flex-1 overflow-y-auto">
+
+          {/* Header */}
+          <Flex
+            align="center"
+            justify="between"
+            className={`border-b-2 border-[#00cccc] ${isMobile ? 'pb-3 mb-4' : 'pb-6 mb-8'}`}
+          >
+            <Heading as="h1" size={isMobile ? 'lg' : '2xl'} className="text-[#3F6B85] mt-3">
+              My Dashboard
+            </Heading>
+            <Flex align="center" gap={3}>
+              {isMobile && (
+                <Flex gap={2} align="center">
+                  <Box
+                    className="flex items-center gap-1 px-3 py-1 rounded-full"
+                    style={{ background: 'var(--color-primary-light, #dbeafe)' }}
+                  >
+                    <Text size="xs" weight="bold" className="text-primary">{stats.totalUsers}</Text>
+                    <Text size="xs" className="text-primary">Total</Text>
+                  </Box>
+                  <Box
+                    className="flex items-center gap-1 px-3 py-1 rounded-full"
+                    style={{ background: 'var(--color-success-light, #d1fae5)' }}
+                  >
+                    <Text size="xs" weight="bold" className="text-success">{stats.newUsers}</Text>
+                    <Text size="xs" className="text-success">New</Text>
+                  </Box>
+                </Flex>
+              )}
+            </Flex>
+          </Flex>
+
+          {/* Desktop stats summary */}
+          {!isMobile && (
+            <Flex gap={4} className="mb-6">
+              <Box className="flex-1 p-4 rounded-xl  ">
+                <Text size="sm" className="text-muted">Total Patients</Text>
+                <Text size="2xl" weight="bold" className="text-accent">{stats.totalUsers}</Text>
+              </Box>
+              <Box className="flex-1 p-4 rounded-xl ">
+                <Text size="sm" className="text-muted">New This Week</Text>
+                <Text size="2xl" weight="bold" className="text-success">{stats.newUsers}</Text>
+              </Box>
+            </Flex>
+          )}
+
+          {/* Alerts Section */}
+          <Box className={isMobile ? 'pb-20' : 'pb-8'}>
+            <Flex justify="between" align="center" className={isMobile ? 'mb-3' : 'mb-6'}>
+              <Heading as="h2" size={isMobile ? 'md' : 'xl'} className="text-black font-bold">
+                Important Alerts
+              </Heading>
+              <Flex gap={2} align="center">
+              <SortDropdown
+                  value={alertTypeFilter}
+                  onChange={(e) => handleAlertTypeFilter(e.target.value)}
+                options={[
+                  { value: '', label: 'All Types' },
+                  { value: 'prescription', label: 'Prescription' },
+                  { value: 'daily', label: 'Daily Readings' },
+                  { value: 'dialysis', label: 'Dialysis' },
+                  { value: 'lab', label: 'Lab Reports' },
+                  { value: 'enrollment', label: 'Enrollment' },
+                  { value: 'contact', label: 'Contact' },
+                ]}
+                className={`${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-2'}  rounded-lg bg-white text-gray-700`}
+              />
+                {alertTypeFilter && (
+                  <button
+                    onClick={() => handleAlertTypeFilter('')}
+                    className="text-lg text-[#5886a5] underline hover:text-[#4164df]"
+                  >
+                    Clear
+                  </button>
+                )}
+              </Flex>
+            </Flex>
+
+            {loading && !ready ? (
+              <PageSkeleton variant="dashboard" />
+            ) : patients.length === 0 ? (
+              <Flex justify="center" align="center" className="py-12 text-gray-500">
+                <Text size="md">No alerts at this time</Text>
+              </Flex>
+            ) : (
+              <Flex direction={isMobile ? 'column' : 'row'} gap={6}>
+                <Box className="flex-1">
+                  <Heading as="h3" size={isMobile ? 'sm' : 'lg'} className="mb-3">Admin Alerts</Heading>
+                  <Flex direction="column" gap={0}>
+                    {patients
+                      .filter(p => (p.prescriptionCount === 0 && p.commentCount === 0))
+                      .map((patient) => (
+                        <React.Fragment key={`admin-${patient.id}`}>
+                          <PatientAlertCard patient={patient} onAction={handleAction} />
+                          <Box className={`h-[2px] bg-gray-200 ${isMobile ? 'my-3' : 'my-6'}`} />
+                        </React.Fragment>
+                      ))}
+                  </Flex>
+                </Box>
+                <Box className="flex-1">
+                  <Heading as="h3" size={isMobile ? 'sm' : 'lg'} className="mb-3">Doctor Alerts</Heading>
+                  <Flex direction="column" gap={0}>
+                    {patients
+                      .filter(p => (p.prescriptionCount > 0 || p.commentCount > 0))
+                      .map((patient) => (
+                        <React.Fragment key={`doctor-${patient.id}`}>
+                          <PatientAlertCard patient={patient} onAction={handleAction} />
+                          <Box className={`h-[2px] bg-gray-200 ${isMobile ? 'my-3' : 'my-6'}`} />
+                        </React.Fragment>
+                      ))}
+                  </Flex>
+                </Box>
+              </Flex>
+            )}
+          </Box>
+      </Box>
+
+      {/* Modals */}
+      {modals.prescription && (
+        <PrescriptionModal closeModal={() => closeModal('prescription')} />
+      )}
+      {modals.comment && (
+        <CommentContainer
+          comments={selectedPatient?.commentAlerts || []}
+          closeModal={() => closeModal('comment')}
+        />
+      )}
+      {modals.alert && (
+        <AlertModal closeModal={() => closeModal('alert')} />
+      )}
+      {modals.dialysis && (
+        <DiaAlertModal closeModal={() => closeModal('dialysis')} />
+      )}
+    </Box>
   );
 };
 

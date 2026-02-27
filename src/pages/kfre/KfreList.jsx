@@ -22,6 +22,7 @@ import { Heading, Text } from "../../component-library/primitives/Typography";
 import { PageHeader } from "../../components";
 import { Grid } from "../../component-library/layout";
 import MyPDFViewer from "../../components/pdf/MyPDFViewer";
+import { usePageCache, PAGE_CACHE } from "../../cache";
 
 function KfreList() {
   const [patients, setPatients] = useState([]);
@@ -48,11 +49,12 @@ function KfreList() {
 
   const id = useParams();
   const { isMobile } = useIsMobile();
+  const { fetchWithCache } = usePageCache(PAGE_CACHE.KFRE);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const patientResult = await getPatients();
+        const patientResult = await fetchWithCache('patients', () => getPatients());
         if (patientResult.success) {
           setPatients(patientResult.data.data);
         } else {
@@ -113,7 +115,7 @@ function KfreList() {
 
     // Fetch lab report data for the selected patient
     try {
-      const labResponse = await getLabreportGetLabReportsByid(selectedOption.value);
+      const labResponse = await fetchWithCache(`labReport-${selectedOption.value}`, () => getLabreportGetLabReportsByid(selectedOption.value));
       if (labResponse.success) {
         setLabReportData(labResponse.data?.data || []);
         console.log("Lab Report Data:", labResponse.data?.data);

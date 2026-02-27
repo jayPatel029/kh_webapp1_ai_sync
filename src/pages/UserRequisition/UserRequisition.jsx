@@ -38,6 +38,10 @@ import sortIcon from "../../assets/Sort_Amount_Up.svg";
 // Import design system styles
 import "../../design-system/styles/index.css";
 
+// Cache
+import { usePageCache, PAGE_CACHE } from "../../cache";
+import PageSkeleton from "../../components/PageSkeleton";
+
 const REQUISITION_SORT_OPTIONS = [
   { value: "latest", label: "Latest first" },
   { value: "oldest", label: "Oldest first" },
@@ -57,6 +61,7 @@ const UserRequisition = () => {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_REQUISITION);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -79,7 +84,7 @@ const UserRequisition = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await getRequisitionGetRequisitionByid(id);
+      const response = await fetchWithCache('requisition_' + id, () => getRequisitionGetRequisitionByid(id));
       if (response.success) {
         setUserRequisitionData(response?.data?.data || []);
       } else {
@@ -94,7 +99,7 @@ const UserRequisition = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await getPatientGetPatientByid(id);
+      const response = await fetchWithCache('patient_' + id, () => getPatientGetPatientByid(id));
       if (response.success) {
         setUserData(response?.data?.data || {});
       }
@@ -145,11 +150,11 @@ const UserRequisition = () => {
     );
     if (isConfirmed) {
       try {
-        const response = await deleteRequisitionById(requisitionId, {
+        const response = await mutate(() => deleteRequisitionById(requisitionId, {
           data: {
             email: email,
           },
-        });
+        }));
 
         if (!response.success) {
           throw new Error(response?.data?.message || "Delete failed");
@@ -166,7 +171,7 @@ const UserRequisition = () => {
   };
 
   if (loading) {
-    return <Box className="p-20 text-center">Loading...</Box>;
+    return <PageSkeleton variant="table" rows={5} />;
   }
 
   // Prepare columns for UnifiedListTable

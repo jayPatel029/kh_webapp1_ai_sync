@@ -5,6 +5,7 @@ import { loginUser, getUserByEmail, identifyRole } from "../../ApiCalls/authapis
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setPermissions } from "../../redux/permissionSlice";
+import { clearAllCaches } from "../../cache";
 
 // Design primitives
 import { Button } from "../../component-library/primitives/Button";
@@ -49,6 +50,7 @@ function Login() {
       setIsLoading(false);
       if (response.success) {
         setErrMsg([]);
+        clearAllCaches();
 
         const userResponse = await getUserByEmail(email);
         localStorage.setItem(

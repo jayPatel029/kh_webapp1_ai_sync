@@ -10,6 +10,7 @@ import { getUserByEmail } from "../../ApiCalls/authapis";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { useDispatch } from "react-redux";
 import { setPermissions } from "../../redux/permissionSlice";
+import { clearAllCaches } from "../../cache";
 import { server_url } from "../../constants/constants";
 import { notifySuccess, notifyInfo, notifyError } from "../../helpers/notify";
 import SendIcon from "@mui/icons-material/Send";
@@ -84,6 +85,7 @@ function DoctorLogin() {
           const res = await verifyOTP(email, otp);
           if (res.status === "true") {
             setErrMsg("");
+            clearAllCaches();
             const userResponse = await getUserByEmail(email);
             localStorage.setItem("firstname", userResponse.data.data[0].firstname);
             localStorage.setItem("email", userResponse.data.data[0].email);

@@ -38,6 +38,10 @@ import sortIcon from "../../assets/Sort_Amount_Up.svg";
 // Import design system styles
 import "../../design-system/styles/index.css";
 
+// Cache
+import { usePageCache, PAGE_CACHE } from "../../cache";
+import PageSkeleton from "../../components/PageSkeleton";
+
 const Userprescription = () => {
   const [showModal, setShowModal] = useState(false);
   const [userPrescriptionData, setUserPrescriptionData] = useState([]);
@@ -62,6 +66,7 @@ const Userprescription = () => {
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
   const { isMobile } = useIsMobile();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_PRESCRIPTION);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -83,7 +88,7 @@ const Userprescription = () => {
 
   const fetchData = async () => {
     try {
-      const response = await getPrescriptionsById(id);
+      const response = await fetchWithCache('prescriptions_' + id, () => getPrescriptionsById(id));
       if (response.success) {
         setUserPrescriptionData(response?.data?.data || []);
         setFilteredPrescriptionData(response?.data?.data || []);
@@ -95,7 +100,7 @@ const Userprescription = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await getPatientGetPatientByid(id);
+      const response = await fetchWithCache('patient_' + id, () => getPatientGetPatientByid(id));
       if (response.success) {
         setUserData(response?.data?.data || {});
       }
@@ -107,7 +112,7 @@ const Userprescription = () => {
   const fetchMedicalTeam = async (user_id) => {
     setLoading(true);
     try {
-      const response = await getPatientGetMedicalTeamByid(user_id);
+      const response = await fetchWithCache('medicalTeam_' + user_id, () => getPatientGetMedicalTeamByid(user_id));
       if (response.success) {
         setDoctorOptions(response?.data?.data || []);
       }
@@ -145,7 +150,7 @@ const Userprescription = () => {
     );
     if (isConfirmed) {
       try {
-        const result = await deletePrescriptionByRoute(prescriptionId);
+        const result = await mutate(() => deletePrescriptionByRoute(prescriptionId));
         if (!result.success) {
           throw new Error("Delete failed");
         }
@@ -208,7 +213,7 @@ const Userprescription = () => {
   };
 
   if (loading) {
-    return <Box className="p-20 text-center">Loading...</Box>;
+    return <PageSkeleton variant="table" rows={5} />;
   }
 
   // Prepare columns for UnifiedListTable
