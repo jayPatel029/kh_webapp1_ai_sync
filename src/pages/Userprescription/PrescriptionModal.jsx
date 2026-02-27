@@ -35,6 +35,7 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
 
   const [images, setImages] = useState([]);
   const [errorMsg, setErrorMsg] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const fetchMedicalTeam = async (uid) => {
     setLoading(true);
@@ -65,18 +66,18 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
 
 
   const handleSubmit = async () => {
-    if (!selectedDate) {
-      setErrorMsg("Please select a prescription date.");
+    const nextFieldErrors = {};
+    if (!selectedDate) nextFieldErrors.date = true;
+    if (!selectedDoctorId || selectedDoctorId === "0") nextFieldErrors.doctor = true;
+    if (images.length === 0) nextFieldErrors.images = true;
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      if (!selectedDate) setErrorMsg("Please select a prescription date.");
+      else if (!selectedDoctorId || selectedDoctorId === "0") setErrorMsg("Please select the prescribing doctor.");
+      else setErrorMsg("Please upload or capture at least one prescription page.");
       return;
     }
-    if (!selectedDoctorId || selectedDoctorId === "0") {
-      setErrorMsg("Please select the prescribing doctor.");
-      return;
-    }
-    if (images.length === 0) {
-      setErrorMsg("Please upload or capture at least one prescription page.");
-      return;
-    }
+    setFieldErrors({});
 
     setIsSubmitting(true);
     try {
@@ -130,30 +131,36 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
       isSubmitDisabled={images.length === 0 || !selectedDate || !selectedDoctorId || selectedDoctorId === "0"}
       errorMessage={errorMsg}
       size="lg"
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
     >
       {/* Date Field */}
-      <FormControl isRequired>
+      <FormControl isRequired isInvalid={Boolean(fieldErrors.date)}>
         <FormLabel>Prescription Date</FormLabel>
         <Input
           type="date"
           value={selectedDate}
           max={getCurrentDate()}
+          isInvalid={Boolean(fieldErrors.date)}
           onChange={(e) => {
             setSelectedDate(e.target.value);
             setErrorMsg("");
+            setFieldErrors((prev) => ({ ...prev, date: false }));
           }}
           size="md"
         />
       </FormControl>
 
       {/* Doctor Field */}
-      <FormControl isRequired>
+      <FormControl isRequired isInvalid={Boolean(fieldErrors.doctor)}>
         <FormLabel>Prescribing Doctor</FormLabel>
         <Select
           value={selectedDoctorId}
+          isInvalid={Boolean(fieldErrors.doctor)}
           onChange={(e) => {
             setSelectedDoctorId(e.target.value);
             setErrorMsg("");
+            setFieldErrors((prev) => ({ ...prev, doctor: false }));
           }}
           size="md"
         >

@@ -13,8 +13,19 @@ const EnterReadingsModel = ({ closeModal, title, question_id, user_id, onSuccess
   const [readingDia, setReadingDia] = useState("");
   const [errMessage, setErrMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleSubmit = () => {
+    const errors = {};
+    if (!selectedDate) errors.date = true;
+    if (!readingSys.toString().trim()) errors.readingSys = true;
+    if (!readingDia.toString().trim()) errors.readingDia = true;
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setErrMessage("Please fill all required fields");
+      return;
+    }
+    setErrMessage("");
     let data = {
       user_id: user_id,
       date: selectedDate,
@@ -61,34 +72,48 @@ const EnterReadingsModel = ({ closeModal, title, question_id, user_id, onSuccess
       submitText="Submit"
       isLoading={isLoading}
       errorMessage={errMessage}
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       size="sm"
     >
       <VStack gap={4} align="stretch">
-        <FormControl>
+        <FormControl isRequired isInvalid={Boolean(fieldErrors.date)}>
           <FormLabel>Date</FormLabel>
           <Input
+            isInvalid={Boolean(fieldErrors.date)}
             type="date"
             value={selectedDate}
             max={getCurrentDate()}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => {
+              setSelectedDate(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, date: false }));
+            }}
           />
         </FormControl>
-        <FormControl>
+        <FormControl isRequired isInvalid={Boolean(fieldErrors.readingSys)}>
           <FormLabel>Systolic Readings</FormLabel>
           <Input
+            isInvalid={Boolean(fieldErrors.readingSys)}
             type="text"
             required
             value={readingSys}
-            onChange={(e) => setReadingSys(e.target.value)}
+            onChange={(e) => {
+              setReadingSys(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, readingSys: false }));
+            }}
           />
         </FormControl>
-        <FormControl>
+        <FormControl isRequired isInvalid={Boolean(fieldErrors.readingDia)}>
           <FormLabel>Diastolic Readings</FormLabel>
           <Input
+            isInvalid={Boolean(fieldErrors.readingDia)}
             type="text"
             required
             value={readingDia}
-            onChange={(e) => setReadingDia(e.target.value)}
+            onChange={(e) => {
+              setReadingDia(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, readingDia: false }));
+            }}
           />
         </FormControl>
       </VStack>

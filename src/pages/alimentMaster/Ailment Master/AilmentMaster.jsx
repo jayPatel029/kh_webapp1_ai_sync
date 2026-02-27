@@ -28,6 +28,7 @@ export default function AilmentMasterComponent() {
   const [id, setId] = useState(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const { isMobile } = useIsMobile();
   const { showToast, ToastContainer } = useAdminToast();
 
@@ -93,9 +94,20 @@ export default function AilmentMasterComponent() {
     setTranslations(transaltiondict);
     setSuccessmsg("");
     setErrmsg("");
+    setFieldErrors({});
   };
 
   const submitAilment = async () => {
+    // Validate required fields
+    const nextFieldErrors = {};
+    if (!name || name.trim() === "") nextFieldErrors.name = true;
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      showToast("Please fill all the required fields", "error");
+      return;
+    }
+    setFieldErrors({});
+
     const Ailment_Img_Url = await getFileRes(Ailment_Img);
     const ailmentData = {
       id: id,
@@ -253,14 +265,19 @@ export default function AilmentMasterComponent() {
         submitText={editMode ? "Update" : "Submit"}
         size="lg"
         errorMessage={errmsg}
+        fieldErrors={fieldErrors}
+        onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       >
-        <FormControl>
-          <FormLabel>English</FormLabel>
+        {({ getFieldProps, clearFieldError }) => (
+          <>
+        <FormControl isInvalid={getFieldProps("name").isInvalid}>
+          <FormLabel>English<span className="text-red-500">*</span></FormLabel>
           <Input
             type="text"
             placeholder="Enter ailment in English"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            isInvalid={getFieldProps("name").isInvalid}
+            onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
           />
         </FormControl>
 
@@ -301,7 +318,8 @@ export default function AilmentMasterComponent() {
             multiple={false}
           />
         </FormControl>
-
+          </>
+        )}
       </FormModal>
       <ToastContainer />
     </div>

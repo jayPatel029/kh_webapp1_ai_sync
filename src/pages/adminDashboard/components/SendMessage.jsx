@@ -9,8 +9,14 @@ import {
 
 const SendMessage = ({ closeModal, patientid }) => {
   const [message, setMessage] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const submitMessage = async () => {
+    if (!message.trim()) {
+      setFieldErrors({ message: true });
+      return;
+    }
+    setFieldErrors({});
     const doctorEmail = localStorage.getItem("email");
     const patientId = patientid;
     const category = "Send Message";
@@ -33,14 +39,20 @@ const SendMessage = ({ closeModal, patientid }) => {
       title="Please Enter the message here"
       submitText="Submit"
       cancelText="Close"
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       size="md"
     >
-      <FormControl>
+      <FormControl isRequired isInvalid={Boolean(fieldErrors.message)}>
         <FormLabel>Message</FormLabel>
         <Textarea
+          isInvalid={Boolean(fieldErrors.message)}
           placeholder="Enter the message here"
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            setFieldErrors((prev) => ({ ...prev, message: false }));
+          }}
           rows={4}
         />
       </FormControl>

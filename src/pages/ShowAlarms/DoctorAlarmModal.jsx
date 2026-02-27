@@ -50,6 +50,7 @@ const DoctorAlarmModal = ({ closeModal, alarmData }) => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [prescription, setPrescription] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch prescription data if needed
@@ -72,15 +73,20 @@ const DoctorAlarmModal = ({ closeModal, alarmData }) => {
 
   // Submit handler
   const handleSubmit = async () => {
+    const nextFieldErrors = {};
     if (!approvalStatus) {
-      setErrorMessage("Please select an approval status");
-      return;
+      nextFieldErrors.approvalStatus = true;
     }
-
     if (approvalStatus === "rejected" && !rejectionReason.trim()) {
-      setErrorMessage("Please enter a reason for rejection");
+      nextFieldErrors.rejectionReason = true;
+    }
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      if (!approvalStatus) setErrorMessage("Please select an approval status");
+      else setErrorMessage("Please enter a reason for rejection");
       return;
     }
+    setFieldErrors({});
 
     setIsSubmitting(true);
     try {
@@ -106,6 +112,8 @@ const DoctorAlarmModal = ({ closeModal, alarmData }) => {
       isLoading={isSubmitting}
       errorMessage={errorMessage}
       size="2xl"
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
     >
       {/* Alarm Information Section */}
       <VStack spacing={6} align="stretch">
@@ -203,7 +211,7 @@ const DoctorAlarmModal = ({ closeModal, alarmData }) => {
         )}
 
         {/* Approval Status Selection */}
-        <FormControl isRequired isInvalid={!approvalStatus && errorMessage}>
+        <FormControl isRequired isInvalid={Boolean(fieldErrors.approvalStatus)}>
           <FormLabel>Approval Status</FormLabel>
           <VStack spacing={3} align="stretch">
             <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50">
@@ -215,6 +223,7 @@ const DoctorAlarmModal = ({ closeModal, alarmData }) => {
                 onChange={(e) => {
                   setApprovalStatus(e.target.value);
                   setErrorMessage("");
+                  setFieldErrors((prev) => ({ ...prev, approvalStatus: false }));
                 }}
                 className="w-4 h-4"
               />
@@ -233,6 +242,7 @@ const DoctorAlarmModal = ({ closeModal, alarmData }) => {
                 onChange={(e) => {
                   setApprovalStatus(e.target.value);
                   setErrorMessage("");
+                  setFieldErrors((prev) => ({ ...prev, approvalStatus: false }));
                 }}
                 className="w-4 h-4"
               />
@@ -247,15 +257,17 @@ const DoctorAlarmModal = ({ closeModal, alarmData }) => {
 
         {/* Rejection Reason - shown only when rejected */}
         {approvalStatus === "rejected" && (
-          <FormControl isRequired isInvalid={!rejectionReason.trim() && errorMessage}>
+          <FormControl isRequired isInvalid={Boolean(fieldErrors.rejectionReason)}>
             <FormLabel>Reason for Rejection</FormLabel>
             <Input
               as="textarea"
               placeholder="Please explain why you are rejecting this alarm..."
               value={rejectionReason}
+              isInvalid={Boolean(fieldErrors.rejectionReason)}
               onChange={(e) => {
                 setRejectionReason(e.target.value);
                 setErrorMessage("");
+                setFieldErrors((prev) => ({ ...prev, rejectionReason: false }));
               }}
               className="min-h-[100px] p-3 border border-gray-300 rounded-md"
             />

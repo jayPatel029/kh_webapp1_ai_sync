@@ -96,9 +96,10 @@ const PatientList = ({ data, onAddClick }) => {
 
   // prepare columns for unified table (desktop + mobile card support)
   const columns = useMemo(() => [
-    { key: 'profile', label: 'Profile', type: 'image', width: '111px' , justifyContent: 'start'},
+    { key: 'profile', label: 'Profile', type: 'image', width: '111px', justifyContent: 'start' },
     { key: 'name', label: 'Name', type: 'text', width: '107px' },
-    { key: 'condition', label: 'Condition', type: 'custom', width: '120px', render: (row) => (
+    {
+      key: 'condition', label: 'Condition', type: 'custom', width: '120px', render: (row) => (
         <span className={getConditionStyles(row.condition)}>{row.condition || '-'}</span>
       )
     },
@@ -119,8 +120,8 @@ const PatientList = ({ data, onAddClick }) => {
       render: (row) =>
         medicalTeamNames[row.id]
           ? medicalTeamNames[row.id].split(',').map((name, i) => (
-              <div key={i}>{name.trim()}</div>
-            ))
+            <div key={i}>{name.trim()}</div>
+          ))
           : '-',
     },
     {
@@ -131,8 +132,8 @@ const PatientList = ({ data, onAddClick }) => {
       render: (row) =>
         adminNames[row.id]
           ? adminNames[row.id].split(',').map((name, i) => (
-              <div key={i}>{name.trim()}</div>
-            ))
+            <div key={i}>{name.trim()}</div>
+          ))
           : '-',
     },
     { key: 'actions', label: 'Actions', type: 'actions', width: '90px' },
@@ -248,8 +249,8 @@ const PatientList = ({ data, onAddClick }) => {
     <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : ''}`}>
       <div className="">
 
-      {/* Header & toolbar section */}
-      {/* {!isMobile && (
+        {/* Header & toolbar section */}
+        {/* {!isMobile && (
         <Box
           className={`border-b-2 border-solid ${isMobile ? 'pb-2' : ''}`}
           style={{
@@ -277,87 +278,88 @@ const PatientList = ({ data, onAddClick }) => {
           </Heading>
         </Box>
       )} */}
-        
-        <PageHeader
-          title="My Patients"
-          breadcrumbs={["Dashboard", "My Patients"]}
-          onBack={() => navigate(ROUTES.HOME)}
-        />
 
-      <div className={`admin-card__header`}> 
-        <div className={`admin-toolbar ${isMobile ? 'flex-col gap-2' : ''}`}> 
-          <div className="admin-toolbar__left" style={isMobile ? { width: '100%' } : {}}>
-            <SearchBar
-              placeholder="Search by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={isMobile ? { width: '100%' } : { flex: 1, minWidth: '200px' }}
-            />
-          </div>
-          <div className={`admin-toolbar__right ${isMobile ? 'w-full justify-between' : ''}`}>
+        {!isMobile && (
+          <PageHeader
+            title="My Patients"
+            breadcrumbs={["Dashboard", "My Patients"]}
+            onBack={() => navigate(ROUTES.HOME)}
+          />
+        )}
+        <div className={`admin-card__header`}>
+          <div className={`admin-toolbar ${isMobile ? 'flex-col gap-2' : ''}`}>
+            <div className="admin-toolbar__left" style={isMobile ? { width: '100%' } : {}}>
+              <SearchBar
+                placeholder="Search by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={isMobile ? { width: '100%' } : { flex: 1, minWidth: '200px' }}
+              />
+            </div>
+            <div className={`admin-toolbar__right ${isMobile ? 'w-full justify-between' : ''}`}>
               <span className={`admin-toolbar__count ${isMobile ? 'text-xs' : ''}`}>Total patients: <span className='font-bold'>{filteredPatients.length}</span></span>
-            <Flex gap={4} className={isMobile ? '' : ''}>
-              <Button
-                variant="solid"
-                // size="lg"
-                onClick={() => {
-                  if (onAddClick) onAddClick();
-                  else navigate("/patients/new");
-                }}
-                style={{
-                  backgroundColor: '#4164df',
-                  borderRadius: '10px',
-                  fontFamily: 'Sora, sans-serif',
-                  fontSize: isMobile ? '13px' : '16px',
-                  fontWeight: '600',
-                  padding: isMobile ? '6px 12px' : '9px 15px',
-                }}
-              >
-                <Flex gap={isMobile ? 1 : 2}  justify="start" align="start">
-                  <img src={PlusIcon} alt="Add" style={{ width: isMobile ? '14px' : '18px' }} />
-                  <span style={{ color: 'white', fontWeight: 600 }}>{isMobile ? 'Add' : 'Add Patient'}</span>
-                </Flex>
-              </Button>
-              <Button
-                variant="solid"
-                // size="lg"
-                onClick={handleExportAll}
-                style={{
-                  backgroundColor: '#4164df',
-                  borderRadius: '10px',
-                  fontFamily: 'Sora, sans-serif',
-                  fontSize: isMobile ? '13px' : '16px',
-                  fontWeight: '600',
-                  padding: isMobile ? '6px 12px' : '9px 15px',
-                }}
-              >
-                Export all
-              </Button>
-            </Flex>
+              <Flex gap={4} className={isMobile ? '' : ''}>
+                <Button
+                  variant="solid"
+                  // size="lg"
+                  onClick={() => {
+                    if (onAddClick) onAddClick();
+                    else navigate("/patients/new");
+                  }}
+                  style={{
+                    backgroundColor: '#4164df',
+                    borderRadius: '10px',
+                    fontFamily: 'Sora, sans-serif',
+                    fontSize: isMobile ? '13px' : '16px',
+                    fontWeight: '600',
+                    padding: isMobile ? '6px 12px' : '9px 15px',
+                  }}
+                >
+                  <Flex gap={isMobile ? 1 : 2} justify="start" align="start">
+                    <img src={PlusIcon} alt="Add" style={{ width: isMobile ? '14px' : '18px' }} />
+                    <span style={{ color: 'white', fontWeight: 600 }}>{isMobile ? 'Add' : 'Add Patient'}</span>
+                  </Flex>
+                </Button>
+                <Button
+                  variant="solid"
+                  // size="lg"
+                  onClick={handleExportAll}
+                  style={{
+                    backgroundColor: '#4164df',
+                    borderRadius: '10px',
+                    fontFamily: 'Sora, sans-serif',
+                    fontSize: isMobile ? '13px' : '16px',
+                    fontWeight: '600',
+                    padding: isMobile ? '6px 12px' : '9px 15px',
+                  }}
+                >
+                  Export all
+                </Button>
+              </Flex>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* unified list/table for patients (desktop + mobile) */}
-      <UnifiedListTable
-        columns={columns}
-        data={tableData}
-        onRowClick={handlePatientClick}
-        onEdit={handlePatientClick}
-        onDelete={(row) => handleDelete(row.id)}
-        onDownload={(row) => handleDownload(row.id)}
-        enableSearch={false}
-        enablePagination={false}
-        actionButtons={true}
-        displayMode={undefined} /* auto-switch based on isMobile */
-        cardTitleKey="name"
-        cardSubtitleKey="number"
-        cardImageKey="profile"
-        cardFieldKeys={[ 'program', 'registered_date' ]}
-        cardStatusKey="condition"
-      />
+        {/* unified list/table for patients (desktop + mobile) */}
+        <UnifiedListTable
+          columns={columns}
+          data={tableData}
+          onRowClick={handlePatientClick}
+          onEdit={handlePatientClick}
+          onDelete={(row) => handleDelete(row.id)}
+          onDownload={(row) => handleDownload(row.id)}
+          enableSearch={false}
+          enablePagination={false}
+          actionButtons={true}
+          displayMode={undefined} /* auto-switch based on isMobile */
+          cardTitleKey="name"
+          cardSubtitleKey="number"
+          cardImageKey="profile"
+          cardFieldKeys={['program', 'registered_date']}
+          cardStatusKey="condition"
+        />
+      </div>
     </div>
-  </div>
   );
 };
 

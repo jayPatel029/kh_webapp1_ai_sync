@@ -34,6 +34,7 @@ import FileUploadWithCamera from "../../components/FileUploadWithCamera";
 const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [formData, setFormData] = useState({
     name: "",
     aliments: "",
@@ -57,9 +58,25 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
       ...formData,
       [name]: type === "file" ? files[0] : value,
     });
+    setFieldErrors((prev) => ({ ...prev, [name]: false }));
   };
 
   const handleSubmit = async (e) => {
+    // Validate required fields
+    const nextFieldErrors = {};
+    if (!formData.name || formData.name.trim() === "") nextFieldErrors.name = true;
+    if (!formData.dob) nextFieldErrors.dob = true;
+    if (!formData.number || formData.number.trim() === "") nextFieldErrors.number = true;
+    if (!formData.age) nextFieldErrors.age = true;
+    if (!formData.aliments || formData.aliments.trim() === "") nextFieldErrors.aliments = true;
+    if (!formData.registered_date) nextFieldErrors.registered_date = true;
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      alert("Please fill all the required fields");
+      return;
+    }
+    setFieldErrors({});
+
     // e.preventDefault();
     setLoading(true);
 
@@ -101,6 +118,8 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
         submitText="Register Patient"
         isLoading={loading}
         size="2xl"
+        fieldErrors={fieldErrors}
+        onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       >
         {/* form fields start */}
         <VStack spacing={6} align="stretch" className="w-full">
@@ -143,7 +162,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
 
             <GridItem >
               {/* Name and DOB Section */}
-              <FormControl isRequired style={{ flex: 1 }}>
+              <FormControl isRequired style={{ flex: 1 }} isInvalid={Boolean(fieldErrors.name)}>
                 <FormLabel>Name</FormLabel>
                 <Input
                   name="name"
@@ -151,12 +170,13 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
                   onChange={handleChange}
                   placeholder="Full name"
                   variant="outline"
+                  isInvalid={Boolean(fieldErrors.name)}
                 />
               </FormControl>
             </GridItem>
             <GridItem >
 
-              <FormControl isRequired style={{ flex: 1 }}>
+              <FormControl isRequired style={{ flex: 1 }} isInvalid={Boolean(fieldErrors.dob)}>
                 <FormLabel>Date of Birth</FormLabel>
                 <Input
                   type="date"
@@ -164,6 +184,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
                   value={formData.dob}
                   onChange={handleChange}
                   variant="outline"
+                  isInvalid={Boolean(fieldErrors.dob)}
                 />
               </FormControl>
             </GridItem>
@@ -171,7 +192,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
             <GridItem >
 
               {/* Phone and Age Section */}
-              <FormControl isRequired style={{ flex: 1 }}>
+              <FormControl isRequired style={{ flex: 1 }} isInvalid={Boolean(fieldErrors.number)}>
                 <FormLabel>Phone Number</FormLabel>
                 <Input
                   name="number"
@@ -179,12 +200,13 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
                   onChange={handleChange}
                   placeholder="+91 XXXXX XXXXX"
                   variant="outline"
+                  isInvalid={Boolean(fieldErrors.number)}
                 />
               </FormControl>
             </GridItem>
             <GridItem >
 
-              <FormControl isRequired style={{ flex: 1 }}>
+              <FormControl isRequired style={{ flex: 1 }} isInvalid={Boolean(fieldErrors.age)}>
                 <FormLabel>Age</FormLabel>
                 <Input
                   type="number"
@@ -193,6 +215,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
                   onChange={handleChange}
                   placeholder="Age"
                   variant="outline"
+                  isInvalid={Boolean(fieldErrors.age)}
                 />
               </FormControl>
             </GridItem>
@@ -205,7 +228,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
 
           <Grid templateColumns="repeat(2, 1fr)" gap={8}>
             <GridItem>
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={Boolean(fieldErrors.aliments)}>
                 <FormLabel>Aliments</FormLabel>
                 <Textarea
                   name="aliments"
@@ -214,12 +237,13 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
                   placeholder="List aliments and conditions"
                   rows={3}
                   variant="outline"
+                  isInvalid={Boolean(fieldErrors.aliments)}
                   className="!min-h-[40px] h-[40px]"
                 />
               </FormControl>
             </GridItem>
             <GridItem >
-              <FormControl isRequired style={{ flex: 1 }}>
+              <FormControl isRequired style={{ flex: 1 }} isInvalid={Boolean(fieldErrors.registered_date)}>
                 <FormLabel>Registration Date</FormLabel>
                 <Input
                   type="date"
@@ -227,6 +251,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
                   value={formData.registered_date}
                   onChange={handleChange}
                   variant="outline"
+                  isInvalid={Boolean(fieldErrors.registered_date)}
                 />
               </FormControl>
 

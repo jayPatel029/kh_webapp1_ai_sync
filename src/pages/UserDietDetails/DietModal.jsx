@@ -31,6 +31,7 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
   const [description, setDescription] = useState("");
   const [images, setImages] = useState([]);
   const [errorMsg, setErrorMsg] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleImageChange = (next) => {
@@ -39,14 +40,18 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
   };
 
   const handleSubmit = async () => {
-    if (!selectedDate) {
-      setErrorMsg("Please select a diet date.");
+    const nextFieldErrors = {};
+    if (!selectedDate) nextFieldErrors.date = true;
+    if (!selectedReportType) nextFieldErrors.dietType = true;
+    if (images.length === 0) nextFieldErrors.images = true;
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      if (!selectedDate) setErrorMsg("Please select a diet date.");
+      else if (images.length === 0) setErrorMsg("Please attach or capture at least one image.");
+      else setErrorMsg("Please fill all the required fields.");
       return;
     }
-    if (images.length === 0) {
-      setErrorMsg("Please attach or capture at least one image.");
-      return;
-    }
+    setFieldErrors({});
     setIsSubmitting(true);
     try {
       let finalFileUrl = "";
@@ -103,28 +108,34 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
       isSubmitDisabled={!selectedDate || images.length === 0}
       errorMessage={errorMsg}
       size="xl"
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
     >
-      <FormControl isRequired>
+      <FormControl isRequired isInvalid={Boolean(fieldErrors.date)}>
         <FormLabel>Diet Date</FormLabel>
         <Input
           type="date"
           value={selectedDate}
           max={getCurrentDate()}
+          isInvalid={Boolean(fieldErrors.date)}
           onChange={(e) => {
             setSelectedDate(e.target.value);
             setErrorMsg("");
+            setFieldErrors((prev) => ({ ...prev, date: false }));
           }}
           size="md"
         />
       </FormControl>
 
-      <FormControl isRequired>
+      <FormControl isRequired isInvalid={Boolean(fieldErrors.dietType)}>
         <FormLabel>Diet Type</FormLabel>
         <Select
           value={selectedReportType}
+          isInvalid={Boolean(fieldErrors.dietType)}
           onChange={(e) => {
             setSelectedReportType(e.target.value);
             setErrorMsg("");
+            setFieldErrors((prev) => ({ ...prev, dietType: false }));
           }}
           size="md"
         >

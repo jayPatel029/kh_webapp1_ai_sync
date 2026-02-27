@@ -12,8 +12,18 @@ const EnterReadingsModel = ({ closeModal, title, question_id, user_id, onSuccess
   const [reading, setReading] = useState("");
   const [errMessage, setErrMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleSubmit = () => {
+    const errors = {};
+    if (!selectedDate) errors.date = true;
+    if (!reading.toString().trim()) errors.reading = true;
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setErrMessage("Please fill all required fields");
+      return;
+    }
+    setErrMessage("");
     let data = {
       user_id: user_id,
       date: selectedDate,
@@ -61,25 +71,35 @@ const EnterReadingsModel = ({ closeModal, title, question_id, user_id, onSuccess
       submitText={isUpdate === true ? "Update" : "Submit"}
       isLoading={isLoading}
       errorMessage={errMessage}
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       size="sm"
     >
       <VStack gap={4} align="stretch">
-        <FormControl>
+        <FormControl isRequired isInvalid={Boolean(fieldErrors.date)}>
           <FormLabel>Date</FormLabel>
           <Input
+            isInvalid={Boolean(fieldErrors.date)}
             type="date"
             value={selectedDate}
             max={getCurrentDate()}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => {
+              setSelectedDate(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, date: false }));
+            }}
           />
         </FormControl>
-        <FormControl>
+        <FormControl isRequired isInvalid={Boolean(fieldErrors.reading)}>
           <FormLabel>Answer/Readings</FormLabel>
           <Input
+            isInvalid={Boolean(fieldErrors.reading)}
             type="text"
             required
             value={reading}
-            onChange={(e) => setReading(e.target.value)}
+            onChange={(e) => {
+              setReading(e.target.value);
+              setFieldErrors((prev) => ({ ...prev, reading: false }));
+            }}
           />
         </FormControl>
       </VStack>

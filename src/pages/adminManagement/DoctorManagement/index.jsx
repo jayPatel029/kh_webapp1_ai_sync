@@ -414,13 +414,20 @@ function AdminManagement() {
           setSuccessMessage("");
           setErrMsg("Please fill all the * fields correctly!");
         }
+      } else {
+        // Validation failed — highlight the invalid fields
+        const errors = getFieldErrors(newDoctor);
+        setFieldErrors(errors);
+        setSuccessMessage("");
+        setErrMsg("Please fill all the * fields correctly!");
+        showToast("Please fill all the * fields correctly!", "error");
+        return;
       }
     } catch (error) {
       console.error("Error in submission:", error);
       setErrMsg("An unexpected error occurred. Please try again.");
       setSuccessMessage("");
-      setErrMsg("Please fill all the * fields correctly!");
-      showToast("Please fill all the * fields correctly!", "error");
+      showToast("An unexpected error occurred. Please try again.", "error");
     }
 
 
@@ -614,15 +621,17 @@ function AdminManagement() {
           submitText={editMode ? "Update" : "Submit"}
           size="3xl"
           errorMessage={errMsg}
+          fieldErrors={fieldErrors}
+          onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
         >
           {/* User Role */}
           <Box className="w-full md:w-1/2 mb-6 flex flex-row gap-8">
             <Box className="flex-1">
-              <FormControl>
+              <FormControl isInvalid={Boolean(fieldErrors.role)}>
                 <FormLabel>User Role<span className="text-red-500">*</span></FormLabel>
                 <Select
                   value={newDoctor.role}
-                  className={fieldErrors.role ? "border border-red-500" : ""}
+                  isInvalid={Boolean(fieldErrors.role)}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "role",
@@ -641,7 +650,6 @@ function AdminManagement() {
                   rows={1}
                   placeholder="Qualification"
                   value={newDoctor.description}
-                  className={fieldErrors.description ? "border border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "description",
@@ -668,13 +676,13 @@ function AdminManagement() {
             {/* Left Column */}
             {/* <Box className=""> */}
             <Box>
-              <FormControl>
+              <FormControl isInvalid={Boolean(fieldErrors.name)}>
                 <FormLabel>Name<span className="text-red-500">*</span></FormLabel>
                 <Input
                   type="text"
                   placeholder="Name"
                   value={newDoctor.name}
-                  className={fieldErrors.name ? "border-2 border-red-500" : ""}
+                  isInvalid={Boolean(fieldErrors.name)}
                   onChange={(event) => {
                     const nameArr = event.target.value.split(" ");
                     newDoctorDispatch({
@@ -699,13 +707,13 @@ function AdminManagement() {
             </Box>
 
             <Box>
-              <FormControl>
+              <FormControl isInvalid={Boolean(fieldErrors.email)}>
                 <FormLabel>Email<span className="text-red-500">*</span></FormLabel>
                 <Input
                   type="email"
                   placeholder="Email"
                   value={newDoctor.email}
-                  className={fieldErrors.email ? "border-2 border-red-500" : ""}
+                  isInvalid={Boolean(fieldErrors.email)}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "email",
@@ -719,13 +727,13 @@ function AdminManagement() {
 
             {newDoctor.role === "Doctor" && (
               <Box>
-                <FormControl>
+                <FormControl isInvalid={Boolean(fieldErrors.licenseNo)}>
                   <FormLabel>License No<span className="text-red-500">*</span></FormLabel>
                   <Input
                     type="text"
                     placeholder="License No"
                     value={newDoctor.licenseNo}
-                    className={fieldErrors.licenseNo ? "border-2 border-red-500" : ""}
+                    isInvalid={Boolean(fieldErrors.licenseNo)}
                     onChange={(event) => {
                       newDoctorDispatch({
                         type: "licenseNo",
@@ -743,7 +751,7 @@ function AdminManagement() {
                 <FormLabel>Practicing At<span className="text-red-500">*</span></FormLabel>
                 <Select
                   value={newDoctor.practicingAt}
-                  className={fieldErrors.practicingAt ? "border-2 border-red-500" : ""}
+                  isInvalid={Boolean(fieldErrors.practicingAt)}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "practicingAt",
@@ -764,7 +772,6 @@ function AdminManagement() {
                   type="number"
                   placeholder="Years Of Experience"
                   value={newDoctor.yearsOfExperience}
-                  className={fieldErrors.yearsOfExperience ? "border border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "yearsOfExperience",
@@ -783,7 +790,6 @@ function AdminManagement() {
                   type="text"
                   placeholder="Reference"
                   value={newDoctor.reference}
-                  className={fieldErrors.reference ? "border border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "reference",
@@ -800,7 +806,7 @@ function AdminManagement() {
             {/* Right Column */}
             {/* <Box className="space-y-4"> */}
             <Box>
-              <FormControl>
+              <FormControl isInvalid={Boolean(fieldErrors.specialities)}>
                 <FormLabel>Specialities<span className="text-red-500">*</span></FormLabel>
                 {/* <Select
                           value={newDoctor.specialities}
@@ -868,7 +874,7 @@ function AdminManagement() {
                     newDoctorDispatch({ type: "specialities", payload: vals });
                     setFieldErrors((prev) => ({ ...prev, specialities: false }));
                   }}
-                  className={fieldErrors.specialities ? "border-2 border-red-500" : ""}
+                  isInvalid={Boolean(fieldErrors.specialities)}
                 >
                   {specialitiesOptions.map((option, index) => (
                     <option key={index} value={option.value}>
@@ -880,13 +886,13 @@ function AdminManagement() {
             </Box>
 
             <Box>
-              <FormControl>
+              <FormControl isInvalid={Boolean(fieldErrors.phoneNo)}>
                 <FormLabel>Phone No<span className="text-red-500">*</span></FormLabel>
                 <Input
                   type="number"
                   placeholder="Phone No"
                   value={newDoctor.phoneNo}
-                  className={fieldErrors.phoneNo ? "border-2 border-red-500" : ""}
+                  isInvalid={Boolean(fieldErrors.phoneNo)}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "phoneNo",
@@ -900,13 +906,13 @@ function AdminManagement() {
 
             {newDoctor.role === "Doctor" && (
               <Box>
-                <FormControl>
+                <FormControl isInvalid={Boolean(fieldErrors.doctorsCode)}>
                   <FormLabel>Doctors Code<span className="text-red-500">*</span></FormLabel>
                   <Input
                     type="text"
                     placeholder="Doctors Code"
                     value={newDoctor.doctorsCode}
-                    className={fieldErrors.doctorsCode ? "border-2 border-red-500" : ""}
+                    isInvalid={Boolean(fieldErrors.doctorsCode)}
                     onChange={(event) => {
                       newDoctorDispatch({
                         type: "doctorsCode",
@@ -926,7 +932,6 @@ function AdminManagement() {
                   type="text"
                   placeholder="Institute/Hospital/Clinic"
                   value={newDoctor.institute}
-                  className={fieldErrors.institute ? "border-2 border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "institute",
@@ -945,7 +950,6 @@ function AdminManagement() {
                   type="text"
                   placeholder="Address"
                   value={newDoctor.address}
-                  className={fieldErrors.address ? "border-2 border-red-500" : ""}
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "address",
@@ -964,7 +968,7 @@ function AdminManagement() {
                   type="file"
                   name="Photo"
                   id="file-input"
-                  className={`${fieldErrors.photo ? "border-2 border-red-500" : ""} file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100`}
+                  className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
                   onChange={(event) => {
                     newDoctorDispatch({
                       type: "photo",
@@ -1003,7 +1007,7 @@ function AdminManagement() {
                     type="file"
                     name="Resume"
                     id="file-input"
-                    className={`${fieldErrors.resume ? "border-2 border-red-500" : ""} file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100`}
+                    className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
                     onChange={(event) => {
                       newDoctorDispatch({
                         type: "resume",

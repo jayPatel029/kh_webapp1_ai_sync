@@ -27,6 +27,7 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [images, setImages] = useState([]);
   const [msg, setMsg] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const email = localStorage.getItem("email");
 
@@ -36,14 +37,16 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess }) => {
   };
 
   const handleSubmit = () => {
-    if (!selectedDate) {
-      setMsg("Please select a valid date");
+    const nextFieldErrors = {};
+    if (!selectedDate) nextFieldErrors.date = true;
+    if (images.length === 0) nextFieldErrors.images = true;
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      if (!selectedDate) setMsg("Please select a valid date");
+      else setMsg("Please upload at least one document or image");
       return;
     }
-    if (images.length === 0) {
-      setMsg("Please upload at least one document or image");
-      return;
-    }
+    setFieldErrors({});
 
     setIsSubmitting(true);
     setMsg("");
@@ -104,15 +107,18 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess }) => {
       isSubmitDisabled={!selectedDate || images.length === 0}
       errorMessage={msg}
       size="lg"
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
     >
-      <FormControl isRequired>
+      <FormControl isRequired isInvalid={Boolean(fieldErrors.date)}>
         <FormLabel>Requisition Date:</FormLabel>
         <Input
           type="date"
           id="Date"
           value={selectedDate}
           max={getCurrentDate()}
-          onChange={(e) => setSelectedDate(e.target.value)}
+          isInvalid={Boolean(fieldErrors.date)}
+          onChange={(e) => { setSelectedDate(e.target.value); setFieldErrors((prev) => ({ ...prev, date: false })); }}
           size="md"
         />
       </FormControl>

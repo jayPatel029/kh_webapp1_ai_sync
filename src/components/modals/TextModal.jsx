@@ -13,8 +13,14 @@ import { FormModal, FormControl, FormLabel, Input } from "../../component-librar
 const TextModal = ({ closeModal, user_id, question_id, question }) => {
   const [selectedResponse, setSelectedResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleSubmit = () => {
+    if (!selectedResponse.trim()) {
+      setFieldErrors({ response: true });
+      return;
+    }
+    setFieldErrors({});
     const postData = {
       question_id: question_id,
       user_id: user_id,
@@ -46,14 +52,20 @@ const TextModal = ({ closeModal, user_id, question_id, question }) => {
       title={question}
       submitText="Submit"
       isLoading={isLoading}
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       size="sm"
     >
-      <FormControl>
+      <FormControl isRequired isInvalid={Boolean(fieldErrors.response)}>
         <FormLabel>Enter Response</FormLabel>
         <Input
+          isInvalid={Boolean(fieldErrors.response)}
           type="text"
           value={selectedResponse}
-          onChange={(e) => setSelectedResponse(e.target.value)}
+          onChange={(e) => {
+            setSelectedResponse(e.target.value);
+            setFieldErrors((prev) => ({ ...prev, response: false }));
+          }}
           placeholder="Enter your response"
         />
       </FormControl>

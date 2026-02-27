@@ -36,6 +36,7 @@ function LanguageMaster() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [jsonPreview, setJsonPreview] = useState([]);
   const [audioPreview, setAudioPreview] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -81,12 +82,18 @@ function LanguageMaster() {
     setAudioPreview([]);
     setEditID("");
     setEditMode(false);
+    setFieldErrors({});
   };
 
   function validateForm() {
-    if (newLanguage.trim() === "") {
+    const nextFieldErrors = {};
+    if (newLanguage.trim() === "") nextFieldErrors.language = true;
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      showToast("Please fill all the required fields", "error");
       return false;
     }
+    setFieldErrors({});
     return true;
   }
   async function handleSubmit() {
@@ -227,16 +234,21 @@ function LanguageMaster() {
             submitText={editMode ? "Update" : "Submit"}
             size="lg"
             errorMessage={errMsg}
+            fieldErrors={fieldErrors}
+            onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
           >
+            {({ getFieldProps, clearFieldError }) => (
             <Box className="space-y-6">
-              <FormControl>
-                <FormLabel>Language</FormLabel>
+              <FormControl isInvalid={getFieldProps("language").isInvalid}>
+                <FormLabel>Language<span className="text-red-500">*</span></FormLabel>
                 <Input
                   type="text"
                   placeholder="Language Name"
                   value={newLanguage}
+                  isInvalid={getFieldProps("language").isInvalid}
                   onChange={(event) => {
                     setNewLanguage(event.target.value);
+                    clearFieldError("language");
                   }}
                 />
               </FormControl>
@@ -277,6 +289,7 @@ function LanguageMaster() {
                 </Box>
               )}
             </Box>
+            )}
           </FormModal>
         </div>
         <ToastContainer />

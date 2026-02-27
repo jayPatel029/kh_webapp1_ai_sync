@@ -295,45 +295,45 @@ function AdminManagement() {
 
         <div className={`admin-page-content ${isMobile ? "px-3 pb-20" : ""}`}>
           {/* <div className="admin-card"> */}
-            <div className="admin-card__header">
-              <div className={`admin-toolbar ${isMobile ? "flex-col gap-2" : ""}`}>
-                <div
+          <div className="admin-card__header">
+            <div className={`admin-toolbar ${isMobile ? "flex-col gap-2" : ""}`}>
+              <div
+                className={`admin-toolbar__count ${isMobile ? "text-xs" : ""}`}
+              >
+                Total admins: <span className="font-bold">{users.length}</span>
+              </div>
+              <div
+                className={`admin-toolbar__right ${isMobile ? "w-full justify-between" : ""
+                  }`}
+              >
+                <span
                   className={`admin-toolbar__count ${isMobile ? "text-xs" : ""}`}
                 >
-                  Total admins: <span className="font-bold">{users.length}</span> 
-                </div>
+                  {users.length} Records Found
+                </span>
                 <div
-                  className={`admin-toolbar__right ${isMobile ? "w-full justify-between" : ""
-                    }`}
+                  className="admin-toolbar__left"
+                  style={isMobile ? { width: "100%" } : {}}
                 >
-                  <span
-                    className={`admin-toolbar__count ${isMobile ? "text-xs" : ""}`}
-                  >
-                    {users.length} Records Found
-                  </span>
-                  <div
-                    className="admin-toolbar__left"
-                    style={isMobile ? { width: "100%" } : {}}
-                  >
-                    <Input
-                      type="text"
-                      placeholder="Search by name..."
-                      value={searchTerm}
-                      onChange={(e) => {
-                        setSearchTerm(e.target.value);
-                        searchUser(e.target.value);
-                      }}
-                      style={isMobile ? { width: "100%" } : { width: "250px" }}
-                    />
-                  </div>
-                  <Button
-                    variant="primary"
-                    className="admin-btn admin-btn--primary"
-                    onClick={openAddModal}
-                  >
-                    Add Admin
-                  </Button>
+                  <Input
+                    type="text"
+                    placeholder="Search by name..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      searchUser(e.target.value);
+                    }}
+                    style={isMobile ? { width: "100%" } : { width: "250px" }}
+                  />
                 </div>
+                <Button
+                  variant="primary"
+                  className="admin-btn admin-btn--primary"
+                  onClick={openAddModal}
+                >
+                  Add Admin
+                </Button>
+              </div>
               {/* </div> */}
             </div>
 
@@ -372,11 +372,12 @@ function AdminManagement() {
         >
           {({ getFieldProps, clearFieldError }) => (
             <>
-          {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> */}
-            {/* Left Column */}
-            {/* <div className="space-y-4"> */}
-              <FormControl isInvalid={getFieldProps("name").isInvalid}>
-                <FormLabel>Name*</FormLabel>
+              {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> */}
+              {/* Left Column */}
+              {/* <div className="space-y-4"> */}
+              <FormControl
+                isRequired={true} isInvalid={getFieldProps("name").isInvalid}>
+                <FormLabel>Name</FormLabel>
                 <Input
                   type="text"
                   placeholder="Enter name"
@@ -392,8 +393,9 @@ function AdminManagement() {
                 />
               </FormControl>
 
-              <FormControl isInvalid={getFieldProps("phone").isInvalid}>
-                <FormLabel>Phone No*</FormLabel>
+              <FormControl
+                isRequired={true} isInvalid={getFieldProps("phone").isInvalid}>
+                <FormLabel>Phone No</FormLabel>
                 <Input
                   type="tel"
                   placeholder="10-digit phone number"
@@ -410,8 +412,9 @@ function AdminManagement() {
               </FormControl>
 
               {(!editMode || passEditMode) && (
-                <FormControl isInvalid={getFieldProps("password").isInvalid}>
-                  <FormLabel>Password*</FormLabel>
+                <FormControl
+                  isRequired={true} isInvalid={getFieldProps("password").isInvalid}>
+                  <FormLabel>Password</FormLabel>
                   <Input
                     type="password"
                     placeholder="Enter password"
@@ -427,12 +430,13 @@ function AdminManagement() {
                   />
                 </FormControl>
               )}
-            {/* </div> */}
+              {/* </div> */}
 
-            {/* Right Column */}
-            {/* <div className="space-y-4"> */}
-              <FormControl isInvalid={getFieldProps("email").isInvalid}>
-                <FormLabel>Email*</FormLabel>
+              {/* Right Column */}
+              {/* <div className="space-y-4"> */}
+              <FormControl
+                isRequired={true} isInvalid={getFieldProps("email").isInvalid}>
+                <FormLabel>Email</FormLabel>
                 <Input
                   type="email"
                   placeholder="Enter email"
@@ -449,8 +453,8 @@ function AdminManagement() {
                 />
               </FormControl>
 
-              <FormControl isInvalid={getFieldProps("role").isInvalid}>
-                <FormLabel>Role*</FormLabel>
+              <FormControl isRequired={true} isInvalid={getFieldProps("role").isInvalid}>
+                <FormLabel>Role</FormLabel>
                 <Select
                   value={newUser.role}
                   {...getFieldProps("role")}
@@ -469,9 +473,9 @@ function AdminManagement() {
                   ))}
                 </Select>
               </FormControl>
-            {/* </div>
+              {/* </div>
           </div> */}
-{/* 
+              {/* 
           {errMsg.length > 1 && (
             <div className="mt-4">
               {errMsg.slice(1).map((msg, idx) => (
@@ -479,7 +483,7 @@ function AdminManagement() {
               ))}
             </div>
           )} */}
-          </>
+            </>
           )}
         </FormModal>
         <ToastContainer />

@@ -32,8 +32,20 @@ const UpdateRangeModalDialysisSys = ({
   const [lowRangeDia1, setLowRangeDia1] = useState(lrDia1);
   const [lowRangeDia2, setLowRangeDia2] = useState(lrDia2);
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleSubmit = () => {
+    const errors = {};
+    if (!highRangeSys1 && highRangeSys1 !== 0) errors.highRangeSys1 = true;
+    if (!lowRangeSys1 && lowRangeSys1 !== 0) errors.lowRangeSys1 = true;
+    if (!highRangeSys2 && highRangeSys2 !== 0) errors.highRangeSys2 = true;
+    if (!lowRangeSys2 && lowRangeSys2 !== 0) errors.lowRangeSys2 = true;
+    if (!highRangeDia1 && highRangeDia1 !== 0) errors.highRangeDia1 = true;
+    if (!lowRangeDia1 && lowRangeDia1 !== 0) errors.lowRangeDia1 = true;
+    if (!highRangeDia2 && highRangeDia2 !== 0) errors.highRangeDia2 = true;
+    if (!lowRangeDia2 && lowRangeDia2 !== 0) errors.lowRangeDia2 = true;
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     const data = {
       question_id: question_id,
       user_id: user_id,
@@ -75,6 +87,8 @@ const UpdateRangeModalDialysisSys = ({
       title="Define Custom Range"
       submitText="Submit"
       isLoading={isLoading}
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       size="lg"
     >
       <HStack gap={6} align="stretch">
@@ -83,40 +97,56 @@ const UpdateRangeModalDialysisSys = ({
             Systolic
           </Heading>
           <VStack gap={3} align="stretch">
-            <FormControl>
+            <FormControl isRequired isInvalid={Boolean(fieldErrors.highRangeSys1)}>
               <FormLabel className="text-orange-400">High Range 1 *</FormLabel>
               <Input
+                isInvalid={Boolean(fieldErrors.highRangeSys1)}
                 type="text"
                 required
                 value={highRangeSys1}
-                onChange={(e) => sethighRangeSys1(e.target.value)}
+                onChange={(e) => {
+                  sethighRangeSys1(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, highRangeSys1: false }));
+                }}
               />
             </FormControl>
-            <FormControl>
+            <FormControl isRequired isInvalid={Boolean(fieldErrors.lowRangeSys1)}>
               <FormLabel className="text-orange-400">Low Range 1 *</FormLabel>
               <Input
+                isInvalid={Boolean(fieldErrors.lowRangeSys1)}
                 type="text"
                 required
                 value={lowRangeSys1}
-                onChange={(e) => setlowRangeSys1(e.target.value)}
+                onChange={(e) => {
+                  setlowRangeSys1(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, lowRangeSys1: false }));
+                }}
               />
             </FormControl>
-            <FormControl>
+            <FormControl isRequired isInvalid={Boolean(fieldErrors.highRangeSys2)}>
               <FormLabel className="text-red-600">High Range 2 *</FormLabel>
               <Input
+                isInvalid={Boolean(fieldErrors.highRangeSys2)}
                 type="text"
                 required
                 value={highRangeSys2}
-                onChange={(e) => sethighRangeSys2(e.target.value)}
+                onChange={(e) => {
+                  sethighRangeSys2(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, highRangeSys2: false }));
+                }}
               />
             </FormControl>
-            <FormControl>
+            <FormControl isRequired isInvalid={Boolean(fieldErrors.lowRangeSys2)}>
               <FormLabel className="text-red-600">Low Range 2 *</FormLabel>
               <Input
+                isInvalid={Boolean(fieldErrors.lowRangeSys2)}
                 type="text"
                 required
                 value={lowRangeSys2}
-                onChange={(e) => setlowRangeSys2(e.target.value)}
+                onChange={(e) => {
+                  setlowRangeSys2(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, lowRangeSys2: false }));
+                }}
               />
             </FormControl>
           </VStack>
@@ -127,40 +157,56 @@ const UpdateRangeModalDialysisSys = ({
             Diastolic
           </Heading>
           <VStack gap={3} align="stretch">
-            <FormControl>
+            <FormControl isRequired isInvalid={Boolean(fieldErrors.highRangeDia1)}>
               <FormLabel className="text-orange-400">High Range 1 *</FormLabel>
               <Input
+                isInvalid={Boolean(fieldErrors.highRangeDia1)}
                 type="text"
                 required
                 value={highRangeDia1}
-                onChange={(e) => setHighRangeDia1(e.target.value)}
+                onChange={(e) => {
+                  setHighRangeDia1(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, highRangeDia1: false }));
+                }}
               />
             </FormControl>
-            <FormControl>
+            <FormControl isRequired isInvalid={Boolean(fieldErrors.lowRangeDia1)}>
               <FormLabel className="text-orange-400">Low Range 1 *</FormLabel>
               <Input
+                isInvalid={Boolean(fieldErrors.lowRangeDia1)}
                 type="text"
                 required
                 value={lowRangeDia1}
-                onChange={(e) => setLowRangeDia1(e.target.value)}
+                onChange={(e) => {
+                  setLowRangeDia1(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, lowRangeDia1: false }));
+                }}
               />
             </FormControl>
-            <FormControl>
+            <FormControl isRequired isInvalid={Boolean(fieldErrors.highRangeDia2)}>
               <FormLabel className="text-red-600">High Range 2 *</FormLabel>
               <Input
+                isInvalid={Boolean(fieldErrors.highRangeDia2)}
                 type="text"
                 required
                 value={highRangeDia2}
-                onChange={(e) => setHighRangeDia2(e.target.value)}
+                onChange={(e) => {
+                  setHighRangeDia2(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, highRangeDia2: false }));
+                }}
               />
             </FormControl>
-            <FormControl>
+            <FormControl isRequired isInvalid={Boolean(fieldErrors.lowRangeDia2)}>
               <FormLabel className="text-red-600">Low Range 2 *</FormLabel>
               <Input
+                isInvalid={Boolean(fieldErrors.lowRangeDia2)}
                 type="text"
                 required
                 value={lowRangeDia2}
-                onChange={(e) => setLowRangeDia2(e.target.value)}
+                onChange={(e) => {
+                  setLowRangeDia2(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, lowRangeDia2: false }));
+                }}
               />
             </FormControl>
           </VStack>

@@ -69,6 +69,7 @@ function ManageParameters() {
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errMsg, setErrMsg] = useState({});
+  const [fieldErrors, setFieldErrors] = useState({});
   const [ailmentOptions, setAilmentOptions] = useState([]);
   const [ailments, setAilments] = useState([]);
   const [userData, setUserData] = useState({});
@@ -205,9 +206,21 @@ function ManageParameters() {
     setIsParamDisabled(false);
     setEditMode(false);
     setEditId(null);
+    setFieldErrors({});
   }
 
   const handleSubmit = async () => {
+    // Validate required fields
+    const nextFieldErrors = {};
+    if (!selectTitle || selectTitle.trim() === "") nextFieldErrors.title = true;
+    if (!selectParameterType) nextFieldErrors.parameterType = true;
+    if (!selectReadingType) nextFieldErrors.readingType = true;
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      return;
+    }
+    setFieldErrors({});
+
     try {
       const newData = {
         id: patientId,
@@ -562,15 +575,19 @@ function ManageParameters() {
         title={editMode ? "Edit Parameter" : "Add New Parameter"}
         submitText={editMode ? "UPDATE" : "SUBMIT"}
         size="lg"
+        fieldErrors={fieldErrors}
+        onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       >
-        <FormControl id="param-name" isRequired>
-          <FormLabel>Parameter Name</FormLabel>
-          <Input id="param-name" type="text" value={selectTitle} onChange={(e) => setSelectTitle(e.target.value)} className="w-full" placeholder="Enter parameter name" />
+        {({ getFieldProps, clearFieldError }) => (
+          <>
+        <FormControl id="param-name" isRequired isInvalid={getFieldProps("title").isInvalid}>
+          <FormLabel>Parameter Name<span className="text-red-500">*</span></FormLabel>
+          <Input id="param-name" type="text" value={selectTitle} isInvalid={getFieldProps("title").isInvalid} onChange={(e) => { setSelectTitle(e.target.value); clearFieldError("title"); }} className="w-full" placeholder="Enter parameter name" />
         </FormControl>
 
-        <FormControl id="param-type" isRequired>
-          <FormLabel>Parameter Type</FormLabel>
-          <Select id="param-type" value={selectParameterType} onChange={(e) => setSelectedParameterType(e.target.value)} className="w-full" disabled={isParamDisabled}>
+        <FormControl id="param-type" isRequired isInvalid={getFieldProps("parameterType").isInvalid}>
+          <FormLabel>Parameter Type<span className="text-red-500">*</span></FormLabel>
+          <Select id="param-type" value={selectParameterType} isInvalid={getFieldProps("parameterType").isInvalid} onChange={(e) => { setSelectedParameterType(e.target.value); clearFieldError("parameterType"); }} className="w-full" disabled={isParamDisabled}>
             <option value="">Select Parameter Type</option>
             {parameterTypes.map((type) => (
               <option key={type.value} value={type.value}>{type.label}</option>
@@ -578,9 +595,9 @@ function ManageParameters() {
           </Select>
         </FormControl>
 
-        <FormControl id="reading-type" isRequired>
-          <FormLabel>Special Reading Type</FormLabel>
-          <Select id="reading-type" value={selectReadingType} onChange={(e) => setSelectedReadingType(e.target.value)} className="w-full">
+        <FormControl id="reading-type" isRequired isInvalid={getFieldProps("readingType").isInvalid}>
+          <FormLabel>Special Reading Type<span className="text-red-500">*</span></FormLabel>
+          <Select id="reading-type" value={selectReadingType} isInvalid={getFieldProps("readingType").isInvalid} onChange={(e) => { setSelectedReadingType(e.target.value); clearFieldError("readingType"); }} className="w-full">
             <option value="">Select Special Reading Type</option>
             {specialReadingTypes.map((type) => (
               <option key={type.value} value={type.value}>{type.label}</option>
@@ -627,6 +644,8 @@ function ManageParameters() {
             ))}
           </MultiSelect>
         </FormControl>
+          </>
+        )}
       </FormModal>
 
 

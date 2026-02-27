@@ -55,6 +55,7 @@ function ProfileQuestions() {
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [translations, setTranslations] = useState({});
   const [optTranslations, setOptTranslations] = useState({});
+  const [fieldErrors, setFieldErrors] = useState({});
   const role = useSelector((state) => state.permission);
 
   const closeModal = () => {
@@ -150,26 +151,32 @@ function ProfileQuestions() {
   });
 
   function validateForm() {
-    if (newQuestion.type.trim() === "" || newQuestion.name.trim() === "") {
-      return false;
-    }
+    const nextFieldErrors = {};
+    if (newQuestion.type.trim() === "") nextFieldErrors.type = true;
+    if (newQuestion.name.trim() === "") nextFieldErrors.name = true;
 
     if (
       (newQuestion.type === "MultipleChoice" ||
         newQuestion.type === "SelectAnyOne") &&
       (newQuestion.options === null || newQuestion.options.trim() === "")
     ) {
-      return false;
+      nextFieldErrors.options = true;
     }
 
     if (
       (newQuestion.type === "MultipleChoice" ||
         newQuestion.type === "SelectAnyOne") &&
-      !newQuestion.options.includes(",")
+      newQuestion.options && !newQuestion.options.includes(",")
     ) {
-      return false;
+      nextFieldErrors.options = true;
     }
 
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      showToast("Please fill all the required fields correctly", "error");
+      return false;
+    }
+    setFieldErrors({});
     return true;
   }
   async function handleSubmit() {
@@ -387,6 +394,7 @@ function ProfileQuestions() {
             setModelOpenOpt(false);
             setEditMode(false);
             setErrMsg("");
+            setFieldErrors({});
             newQuestionDispatch({ type: "all", payload: {} });
           }}
           onSubmit={handleSubmit}
@@ -394,6 +402,8 @@ function ProfileQuestions() {
           submitText={editMode ? "Update" : "Submit"}
           size="xl"
           errorMessage={errMsg}
+          fieldErrors={fieldErrors}
+          onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
         >{/* ... existing modal fields ... */}
           <FormControl>
             <FormLabel>Ailment</FormLabel>
@@ -434,33 +444,37 @@ function ProfileQuestions() {
             />
           )}
 
-          <FormControl>
-            <FormLabel>Question Type</FormLabel>
+          <FormControl isInvalid={Boolean(fieldErrors.type)}>
+            <FormLabel>Question Type<span className="text-red-500">*</span></FormLabel>
             <Select
               value={newQuestion.type}
+              isInvalid={Boolean(fieldErrors.type)}
               onChange={(event) => {
                 newQuestionDispatch({
                   type: "type",
                   payload: event.target.value,
                 });
+                setFieldErrors((prev) => ({ ...prev, type: false }));
               }}
             >
               {questionTypeOptions}
             </Select>
           </FormControl>
 
-          <FormControl>
-            <FormLabel>Name</FormLabel>
+          <FormControl isInvalid={Boolean(fieldErrors.name)}>
+            <FormLabel>Name<span className="text-red-500">*</span></FormLabel>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <Input
                 type="text"
                 placeholder="Question Name"
                 value={newQuestion.name}
+                isInvalid={Boolean(fieldErrors.name)}
                 onChange={(event) => {
                   newQuestionDispatch({
                     type: "name",
                     payload: event.target.value,
                   });
+                  setFieldErrors((prev) => ({ ...prev, name: false }));
                 }}
                 style={{ flex: 1, minWidth: '200px' }}
               />
@@ -475,8 +489,8 @@ function ProfileQuestions() {
           </FormControl>
 
           {(newQuestion.type === "MultipleChoice" || newQuestion.type === "SelectAnyOne") && (
-            <FormControl>
-              <FormLabel>Options (Comma Separated)</FormLabel>
+            <FormControl isInvalid={Boolean(fieldErrors.options)}>
+              <FormLabel>Options (Comma Separated)<span className="text-red-500">*</span></FormLabel>
 
 
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -484,11 +498,13 @@ function ProfileQuestions() {
                   type="text"
                   placeholder="eg: Option1, Option2, Option3"
                   value={newQuestion.options}
+                  isInvalid={Boolean(fieldErrors.options)}
                   onChange={(event) => {
                     newQuestionDispatch({
                       type: "options",
                       payload: event.target.value,
                     });
+                    setFieldErrors((prev) => ({ ...prev, options: false }));
                   }}
                   style={{ flex: 1, minWidth: '200px' }}
                 />

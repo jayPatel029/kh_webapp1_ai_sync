@@ -61,75 +61,86 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
   const [dirOptions, setDirOptions] = useState([]);
   const [viewPrescription, setViewPrescription] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Validation
   const validate = () => {
     setErrorMessage("");
+    const nextFieldErrors = {};
 
     if (!selectedAlarmType) {
-      setErrorMessage("Please select Alarm Type");
-      return false;
+      nextFieldErrors.alarmType = true;
     }
 
     if (selectedAlarmType === "Health Reading") {
       if (!selectedHealthParameter) {
-        setErrorMessage("Please select Parameter");
-        return false;
+        nextFieldErrors.healthParameter = true;
       }
     }
 
     if (selectedAlarmType === "Prescription") {
       if (!selectedPrescription) {
-        setErrorMessage("Please select Prescription");
-        return false;
+        nextFieldErrors.prescription = true;
       }
       if (doses.some(d => !d)) {
-        setErrorMessage("Please enter Dose for all times");
-        return false;
+        nextFieldErrors.doses = true;
       }
       if (doseUnit.some(u => !u)) {
-        setErrorMessage("Please select Dose Unit for all times");
-        return false;
+        nextFieldErrors.doseUnit = true;
       }
       if (timings.some(t => !t)) {
-        setErrorMessage("Please select Time for all entries");
-        return false;
+        nextFieldErrors.timings = true;
       }
     }
 
-    if (selectedAlarmType === "Diet Details" || selectedAlarmType === "Prescription") {
+    if (selectedAlarmType === "Diet Details" || selectedAlarmType === "Prescription" || selectedAlarmType === "Dialysis") {
       if (!description) {
-        setErrorMessage("Please enter Description");
-        return false;
+        nextFieldErrors.description = true;
       }
     }
 
     if (selectTimings === "Daily/Weekly") {
       if (weekdays.length === 0) {
-        setErrorMessage("Please select at least one weekday");
-        return false;
+        nextFieldErrors.weekdays = true;
       }
       if (timings.some(t => !t)) {
-        setErrorMessage("Please select Time for all entries");
-        return false;
+        nextFieldErrors.timings = true;
       }
     } else if (selectTimings === "Monthly") {
       if (dateOfMonth.some(d => !d)) {
-        setErrorMessage("Please select Date for all entries");
-        return false;
+        nextFieldErrors.dateOfMonth = true;
       }
       if (timings.some(t => !t)) {
-        setErrorMessage("Please select Time for all entries");
-        return false;
+        nextFieldErrors.timings = true;
       }
     }
 
     if (!doctorid) {
-      setErrorMessage("Please select Doctor for approval");
+      nextFieldErrors.doctor = true;
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      // Set the first error message
+      const firstKey = Object.keys(nextFieldErrors)[0];
+      const errorMessages = {
+        alarmType: "Please select Alarm Type",
+        healthParameter: "Please select Parameter",
+        prescription: "Please select Prescription",
+        doses: "Please enter Dose for all times",
+        doseUnit: "Please select Dose Unit for all times",
+        description: "Please enter Description",
+        weekdays: "Please select at least one weekday",
+        timings: "Please select Time for all entries",
+        dateOfMonth: "Please select Date for all entries",
+        doctor: "Please select Doctor for approval",
+      };
+      setErrorMessage(errorMessages[firstKey] || "Please fill all required fields");
       return false;
     }
 
+    setFieldErrors({});
     return true;
   };
 
@@ -336,18 +347,22 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
         isLoading={isSubmitting}
         errorMessage={errorMessage}
         size={selectedAlarmType === "Prescription" ? "7xl" : "lg"}
+        fieldErrors={fieldErrors}
+        onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       >
         <Grid gap={6} className="!min-w-full" templateColumns="repeat(8, 1fr)">
           <GridItem colSpan={selectedAlarmType === "Prescription" ? 2 : 8} className="gap-8 !min-w-60">
             {/* Alarm Type */}
-            <FormControl isRequired isInvalid={!selectedAlarmType && errorMessage}>
+            <FormControl isRequired isInvalid={Boolean(fieldErrors.alarmType)}>
               <FormLabel>Alarm Type</FormLabel>
               <Select
                 value={selectedAlarmType}
+                isInvalid={Boolean(fieldErrors.alarmType)}
                 onChange={(e) => {
                   setSelectedAlarmType(e.target.value);
                   setSelectedHealthParameter("");
                   setErrorMessage("");
+                  setFieldErrors((prev) => ({ ...prev, alarmType: false }));
                 }}
               >
                 {alarmTypeOptions.map((type) => (
@@ -361,13 +376,15 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
 
             {/* Health Parameter */}
             {selectedAlarmType === "Health Reading" && (
-              <FormControl isRequired isInvalid={!selectedHealthParameter && errorMessage}>
+              <FormControl isRequired isInvalid={Boolean(fieldErrors.healthParameter)}>
                 <FormLabel>Health Parameter</FormLabel>
                 <Select
                   value={selectedHealthParameter}
+                  isInvalid={Boolean(fieldErrors.healthParameter)}
                   onChange={(e) => {
                     setSelectedHealthParameter(e.target.value);
                     setErrorMessage("");
+                    setFieldErrors((prev) => ({ ...prev, healthParameter: false }));
                   }}
                   placeholder="Select parameter"
                 >
@@ -401,7 +418,7 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
             {selectedAlarmType === "Prescription" && (
               <Flex className="mb-4 mt-4" gap={4} align="start">
                 <Box>
-                  <FormControl isRequired isInvalid={!selectedPrescription && errorMessage}>
+                  <FormControl isRequired isInvalid={Boolean(fieldErrors.prescription)}>
                     <FormLabel>Select Prescription</FormLabel>
                     <Box className="border-[1px] border-accent rounded-md overflow-hidden">
                       <table className="w-full text-sm">
@@ -464,15 +481,17 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
             {(selectedAlarmType === "Diet Details" ||
               selectedAlarmType === "Prescription" ||
               selectedAlarmType === "Dialysis") && (
-                <FormControl className="mb-4 mt-4" isRequired>
+                <FormControl className="mb-4 mt-4" isRequired isInvalid={Boolean(fieldErrors.description)}>
                   <FormLabel>Short Description</FormLabel>
                   <Input
                     type="text"
                     placeholder="Enter description"
                     value={description}
+                    isInvalid={Boolean(fieldErrors.description)}
                     onChange={(e) => {
                       setDescription(e.target.value);
                       setErrorMessage("");
+                      setFieldErrors((prev) => ({ ...prev, description: false }));
                     }}
                   />
                   {/* <FormHelperText>Provide brief description</FormHelperText> */}
@@ -518,7 +537,7 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
 
             {/* Weekdays - for Daily/Weekly */}
             {selectTimings === "Daily/Weekly" && (
-              <FormControl isRequired isInvalid={weekdays.length === 0 && errorMessage}>
+              <FormControl isRequired isInvalid={Boolean(fieldErrors.weekdays)}>
                 {/* <FormLabel>Select Days</FormLabel> */}
                 <Flex gap={2} wrap="wrap">
                   {["Mon", "Tues", "Wed", "Thurs", "Fri", "Sat", "Sun"].map((day) => (
@@ -533,6 +552,7 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
                           setWeekdays(weekdays.filter((d) => d !== day));
                         }
                         setErrorMessage("");
+                        setFieldErrors((prev) => ({ ...prev, weekdays: false }));
                       }}
                     >
                       {day}
@@ -567,13 +587,15 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
             {renderTimingInputs()}
 
             {/* Doctor Selection */}
-            <FormControl isRequired isInvalid={!doctorid && errorMessage}>
+            <FormControl isRequired isInvalid={Boolean(fieldErrors.doctor)}>
               <FormLabel>Select Doctor for Approval</FormLabel>
               <Select
                 value={doctorid}
+                isInvalid={Boolean(fieldErrors.doctor)}
                 onChange={(e) => {
                   setDoctorid(e.target.value);
                   setErrorMessage("");
+                  setFieldErrors((prev) => ({ ...prev, doctor: false }));
                 }}
               >
                 <option value="">Select Doctor</option>

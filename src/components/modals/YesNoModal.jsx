@@ -13,8 +13,14 @@ import { FormModal, FormControl, Checkbox, Flex } from "../../component-library"
 const YesNoModal = ({ closeModal, user_id, question_id, question }) => {
   const [selectedResponse, setSelectedResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleSubmit = () => {
+    if (!selectedResponse) {
+      setFieldErrors({ selection: true });
+      return;
+    }
+    setFieldErrors({});
     const postData = {
       question_id: question_id,
       user_id: user_id,
@@ -47,21 +53,29 @@ const YesNoModal = ({ closeModal, user_id, question_id, question }) => {
       submitText="Submit"
       isLoading={isLoading}
       isSubmitDisabled={!selectedResponse}
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       size="sm"
     >
-      <FormControl>
+      <FormControl isRequired isInvalid={Boolean(fieldErrors.selection)}>
         <Flex gap={4}>
           <Checkbox
             value="Yes"
             isChecked={selectedResponse === "Yes"}
-            onChange={() => setSelectedResponse("Yes")}
+            onChange={() => {
+              setSelectedResponse("Yes");
+              setFieldErrors((prev) => ({ ...prev, selection: false }));
+            }}
           >
             Yes
           </Checkbox>
           <Checkbox
             value="No"
             isChecked={selectedResponse === "No"}
-            onChange={() => setSelectedResponse("No")}
+            onChange={() => {
+              setSelectedResponse("No");
+              setFieldErrors((prev) => ({ ...prev, selection: false }));
+            }}
           >
             No
           </Checkbox>

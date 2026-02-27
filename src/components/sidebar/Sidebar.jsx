@@ -234,7 +234,7 @@ const Sidebar = ({ mobile = false }) => {
             return clsx(
               'transition-colors duration-150',
               isIconOnly
-                ? 'flex flex-col items-center justify-center rounded-xl  w-fit px-2 py-2 hover:bg-white/8 space-y-1'
+                ? 'flex flex-col items-center justify-center rounded-none  w-fit px-2 py-2 hover:bg-white/8 space-y-1'
                 : 'flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold',
               isActive ? (isIconOnly ? 'bg-white/20 w-full ' : 'bg-white/20 shadow-[0_10px_35px_rgba(0,0,0,0.35)]') : 'text-white/90 hover:bg-white/10',
               'text-white'
@@ -288,11 +288,14 @@ const Sidebar = ({ mobile = false }) => {
           className={clsx(
             'text-white transition-colors duration-200',
             isIconOnly
-              ? 'flex items-center justify-center rounded-xl px-2 py-2.5 '
+              ? clsx(
+                'flex flex-col items-center justify-center px-2 py-2.5 rounded-lg',
+                pathname.toLowerCase().includes('/users/') ? 'bg-white/10 text-white' : 'text-white hover:text-white hover:bg-white/10'
+              )
               : 'w-full flex items-center gap-3 px-3 py-3 text-sm font-semibold justify-between rounded-2xl'
           )}
         >
-          <AdminPanelSettings className="text-2xl  text-white" />
+          <AdminPanelSettings className="text-2xl text-white" />
           {!isIconOnly && (
             <>
               <span className="text-sm font-semibold break-words">User Management</span>
@@ -300,6 +303,8 @@ const Sidebar = ({ mobile = false }) => {
                 ▾
               </span>
             </>
+          )}
+          {isIconOnly && (<span className="text-[8px] font-semibold break-words">Users</span>
           )}
         </button>
         {shouldShowChildren && (

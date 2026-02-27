@@ -14,8 +14,14 @@ import { FormModal, FormControl, FormLabel, Input } from "../../component-librar
 const DateModal = ({ closeModal, user_id, question_id, question }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const handleSubmit = () => {
+    if (!selectedDate) {
+      setFieldErrors({ date: true });
+      return;
+    }
+    setFieldErrors({});
     const postData = {
       question_id: question_id,
       user_id: user_id,
@@ -47,15 +53,21 @@ const DateModal = ({ closeModal, user_id, question_id, question }) => {
       title={question}
       submitText="Submit"
       isLoading={isLoading}
+      fieldErrors={fieldErrors}
+      onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       size="sm"
     >
-      <FormControl>
+      <FormControl isRequired isInvalid={Boolean(fieldErrors.date)}>
         <FormLabel>Select Date</FormLabel>
         <Input
+          isInvalid={Boolean(fieldErrors.date)}
           type="date"
           value={selectedDate}
           max={getCurrentDate()}
-          onChange={(e) => setSelectedDate(e.target.value)}
+          onChange={(e) => {
+            setSelectedDate(e.target.value);
+            setFieldErrors((prev) => ({ ...prev, date: false }));
+          }}
         />
       </FormControl>
     </FormModal>

@@ -32,6 +32,7 @@ function DialysisReadingsList() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [translations, setTranslations] = useState({});
+  const [fieldErrors, setFieldErrors] = useState({});
   const { showToast, ToastContainer } = useAdminToast();
 
   const closeModal = () => {
@@ -93,15 +94,18 @@ function DialysisReadingsList() {
   }, []);
 
   function validateForm() {
+    const errors = {};
+    if (newReading.title.trim() === "") errors.title = true;
     if (
-      newReading.title.trim() === "" ||
-      (newReading.assign_range.trim() === "yes" &&
-        (isNaN(newReading.lower_assign_range) ||
-          isNaN(newReading.upper_assign_range)))
+      newReading.assign_range.trim() === "yes" &&
+      (isNaN(newReading.lower_assign_range) ||
+        isNaN(newReading.upper_assign_range))
     ) {
-      return false;
+      if (isNaN(newReading.lower_assign_range)) errors.lower_assign_range = true;
+      if (isNaN(newReading.upper_assign_range)) errors.upper_assign_range = true;
     }
-    return true;
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   }
 
   async function handleSubmit() {
@@ -190,6 +194,7 @@ function DialysisReadingsList() {
     });
     setTranslations(transaltiondict);
     setErrMsg("");
+    setFieldErrors({});
   };
 
   return (
@@ -213,6 +218,8 @@ function DialysisReadingsList() {
         submitText={editMode ? "Update" : "Submit"}
         size="xl"
         errorMessage={errMsg}
+        fieldErrors={fieldErrors}
+        onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       >
         {modelOpen && (
           <TranslationModal
@@ -245,10 +252,11 @@ function DialysisReadingsList() {
           </MultiSelect>
         </FormControl>
 
-        <FormControl>
+        <FormControl isRequired isInvalid={Boolean(fieldErrors.title)}>
           <FormLabel>Title</FormLabel>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
             <Input
+              isInvalid={Boolean(fieldErrors.title)}
               type="text"
               placeholder="Reading Title"
               value={newReading.title}
@@ -257,6 +265,7 @@ function DialysisReadingsList() {
                   type: "title",
                   payload: event.target.value,
                 });
+                setFieldErrors((prev) => ({ ...prev, title: false }));
               }}
               style={{ flex: 1 }}
             />
