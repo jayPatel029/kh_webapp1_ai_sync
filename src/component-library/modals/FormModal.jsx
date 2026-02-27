@@ -5,12 +5,22 @@
  * @file src/component-library/modals/FormModal.jsx
  */
 
-import React from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { BaseModal } from './BaseModal';
 import { Button } from '../primitives/Button';
 import { Text } from '../primitives/Typography';
 import { Flex, Stack } from '../layout/Layout';
+
+const FormModalValidationContext = createContext({
+  fieldErrors: {},
+  hasError: () => false,
+  getErrorMessage: () => '',
+  clearFieldError: () => {},
+  getFieldProps: () => ({}),
+});
+
+export const useFormModalValidation = () => useContext(FormModalValidationContext);
 
 /**
  * FormModal Component
@@ -42,9 +52,28 @@ export const FormModal = ({
   isLoading = false,
   isSubmitDisabled = false,
   errorMessage,
+  fieldErrors = {},
+  onFieldErrorClear,
   size = 'md',
   ...props
 }) => {
+  const normalizeErrorMessage = (fieldError) => {
+    if (typeof fieldError === 'string') return fieldError;
+    if (fieldError) return 'Invalid value';
+    return '';
+  };
+
+  const validationApi = useMemo(() => ({
+    fieldErrors,
+    hasError: (fieldName) => Boolean(fieldErrors?.[fieldName]),
+    getErrorMessage: (fieldName) => normalizeErrorMessage(fieldErrors?.[fieldName]),
+    clearFieldError: (fieldName) => onFieldErrorClear?.(fieldName),
+    getFieldProps: (fieldName) => ({
+      isInvalid: Boolean(fieldErrors?.[fieldName]),
+      'aria-invalid': Boolean(fieldErrors?.[fieldName]),
+    }),
+  }), [fieldErrors, onFieldErrorClear]);
+
   const handleSubmit = (e) => {
     e?.preventDefault?.();
     onSubmit?.();
@@ -52,9 +81,9 @@ export const FormModal = ({
 
   const footer = (
     <Stack spacing={3}>
-      {errorMessage && (
+      {/* {errorMessage && (
         <Text color="danger" size="sm">{errorMessage}</Text>
-      )}
+      )} */}
       <Flex justify="end" gap={4}>
         <Button
           variant={cancelVariant}
@@ -76,20 +105,22 @@ export const FormModal = ({
   );
 
   return (
-    <BaseModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={title}
-      footer={footer}
-      size={size}
-      {...props}
-    >
-      <form onSubmit={handleSubmit}>
-        <Stack spacing={4}>
-          {children}
-        </Stack>
-      </form>
-    </BaseModal>
+    <FormModalValidationContext.Provider value={validationApi}>
+      <BaseModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={title}
+        footer={footer}
+        size={size}
+        {...props}
+      >
+        <form onSubmit={handleSubmit}>
+          <Stack spacing={4}>
+            {typeof children === 'function' ? children(validationApi) : children}
+          </Stack>
+        </form>
+      </BaseModal>
+    </FormModalValidationContext.Provider>
   );
 };
 
@@ -103,7 +134,7 @@ FormModal.propTypes = {
   /** Modal title */
   title: PropTypes.string,
   /** Form fields */
-  children: PropTypes.node,
+  children: PropTypes.oneOfType([PropTypes.node, PropTypes.func]),
   /** Submit button text */
   submitText: PropTypes.string,
   /** Cancel button text */
@@ -116,6 +147,10 @@ FormModal.propTypes = {
   isSubmitDisabled: PropTypes.bool,
   /** Error message to display */
   errorMessage: PropTypes.string,
+  /** Field-level errors map e.g. { email: 'Invalid email' } */
+  fieldErrors: PropTypes.object,
+  /** Callback when a field error should be cleared */
+  onFieldErrorClear: PropTypes.func,
   /** Modal size */
   size: PropTypes.string,
 };

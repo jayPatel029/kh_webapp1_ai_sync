@@ -38,6 +38,7 @@ function AdminManagement() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [errMsg, setErrMsg] = useState([]);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [passEditMode, setPassEditMode] = useState(false);
@@ -105,27 +106,34 @@ function AdminManagement() {
   }
   function validateUserData(userData) {
     const errors = [];
+    const nextFieldErrors = {};
     if (!userData.name.trim()) {
       errors.push("Name is required");
+      nextFieldErrors.name = "Name is required";
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!userData.email.trim() || !emailRegex.test(userData.email)) {
       errors.push("Enter a valid email address");
+      nextFieldErrors.email = "Enter a valid email address";
     }
     if (!userData.role.trim()) {
       errors.push("Role is required");
+      nextFieldErrors.role = "Role is required";
     }
     const phoneRegex = /^[0-9]{10}$/;
     if (!userData.phone.trim() || !phoneRegex.test(userData.phone)) {
       errors.push("Enter a valid phone number");
+      nextFieldErrors.phone = "Enter a valid phone number";
     }
     if (passEditMode && !userData.password.trim()) {
       errors.push("Password is required");
+      nextFieldErrors.password = "Password is required";
     }
     if (!editMode && !userData.password.trim()) {
       errors.push("Password is required");
+      nextFieldErrors.password = "Password is required";
     }
-    return errors;
+    return { errors, fieldErrors: nextFieldErrors };
   }
 
   const clearFields = () => {
@@ -134,16 +142,18 @@ function AdminManagement() {
     setPassEditMode(false);
     setEditMail("");
     setErrMsg([]);
+    setFieldErrors({});
   };
 
   const handleSubmit = async () => {
-    const errors = validateUserData({
+    const { errors, fieldErrors: validationFieldErrors } = validateUserData({
       name: newUser.name,
       email: newUser.email,
       role: newUser.role,
       phone: newUser.phone,
       password: newUser.password,
     });
+    setFieldErrors(validationFieldErrors);
 
     if (errors.length === 0) {
       if (!editMode) {
@@ -202,6 +212,7 @@ function AdminManagement() {
       }
     } else {
       setErrMsg(errors);
+      showToast(errors[0] || "Please fix the highlighted fields", "error");
     }
   };
 
@@ -295,11 +306,11 @@ function AdminManagement() {
                   className={`admin-toolbar__right ${isMobile ? "w-full justify-between" : ""
                     }`}
                 >
-                  {/* <span
+                  <span
                     className={`admin-toolbar__count ${isMobile ? "text-xs" : ""}`}
                   >
                     {users.length} Records Found
-                  </span> */}
+                  </span>
                   <div
                     className="admin-toolbar__left"
                     style={isMobile ? { width: "100%" } : {}}
@@ -337,11 +348,11 @@ function AdminManagement() {
               displayMode="table"
             />
 
-            {successMessage && (
+            {/* {successMessage && (
               <div className="mt-4 admin-message admin-message--success" style={{ marginLeft: "16px", marginRight: "16px" }}>
                 {successMessage}
               </div>
-            )}
+            )} */}
           </div>
         </div>
 
@@ -354,52 +365,64 @@ function AdminManagement() {
           submitText={editMode ? "Update" : "Submit"}
           size="lg"
           errorMessage={errMsg.length > 0 ? errMsg[0] : ""}
+          fieldErrors={fieldErrors}
+          onFieldErrorClear={(fieldName) => {
+            setFieldErrors((prev) => ({ ...prev, [fieldName]: undefined }));
+          }}
         >
+          {({ getFieldProps, clearFieldError }) => (
+            <>
           {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> */}
             {/* Left Column */}
             {/* <div className="space-y-4"> */}
-              <FormControl>
+              <FormControl isInvalid={getFieldProps("name").isInvalid}>
                 <FormLabel>Name*</FormLabel>
                 <Input
                   type="text"
                   placeholder="Enter name"
                   value={newUser.name}
+                  {...getFieldProps("name")}
                   onChange={(event) => {
                     newUserDispatch({
                       type: "name",
                       payload: event.target.value,
                     });
+                    clearFieldError("name");
                   }}
                 />
               </FormControl>
 
-              <FormControl>
+              <FormControl isInvalid={getFieldProps("phone").isInvalid}>
                 <FormLabel>Phone No*</FormLabel>
                 <Input
                   type="tel"
                   placeholder="10-digit phone number"
                   value={newUser.phone}
+                  {...getFieldProps("phone")}
                   onChange={(event) => {
                     newUserDispatch({
                       type: "phone",
                       payload: event.target.value,
                     });
+                    clearFieldError("phone");
                   }}
                 />
               </FormControl>
 
               {(!editMode || passEditMode) && (
-                <FormControl>
+                <FormControl isInvalid={getFieldProps("password").isInvalid}>
                   <FormLabel>Password*</FormLabel>
                   <Input
                     type="password"
                     placeholder="Enter password"
                     value={newUser.password}
+                    {...getFieldProps("password")}
                     onChange={(event) => {
                       newUserDispatch({
                         type: "password",
                         payload: event.target.value,
                       });
+                      clearFieldError("password");
                     }}
                   />
                 </FormControl>
@@ -408,31 +431,35 @@ function AdminManagement() {
 
             {/* Right Column */}
             {/* <div className="space-y-4"> */}
-              <FormControl>
+              <FormControl isInvalid={getFieldProps("email").isInvalid}>
                 <FormLabel>Email*</FormLabel>
                 <Input
                   type="email"
                   placeholder="Enter email"
                   value={newUser.email}
+                  {...getFieldProps("email")}
                   onChange={(event) => {
                     newUserDispatch({
                       type: "email",
                       payload: event.target.value,
                     });
+                    clearFieldError("email");
                   }}
                   disabled={editMode}
                 />
               </FormControl>
 
-              <FormControl>
+              <FormControl isInvalid={getFieldProps("role").isInvalid}>
                 <FormLabel>Role*</FormLabel>
                 <Select
                   value={newUser.role}
+                  {...getFieldProps("role")}
                   onChange={(event) => {
                     newUserDispatch({
                       type: "role",
                       payload: event.target.value,
                     });
+                    clearFieldError("role");
                   }}
                 >
                   {roles.map((role, index) => (
@@ -444,13 +471,15 @@ function AdminManagement() {
               </FormControl>
             {/* </div>
           </div> */}
-
+{/* 
           {errMsg.length > 1 && (
             <div className="mt-4">
               {errMsg.slice(1).map((msg, idx) => (
                 <div key={idx} className="text-red-600 text-sm">{msg}</div>
               ))}
             </div>
+          )} */}
+          </>
           )}
         </FormModal>
         <ToastContainer />

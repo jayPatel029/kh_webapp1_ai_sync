@@ -1,288 +1,179 @@
 /**
- * Doctor Dashboard - Redesigned
- * Renders doctor-specific alerts, patient stats, and recent activity.
- * 
+ * Doctor Dashboard — Redesigned
+ *
+ * Displays:
+ *   1. Top row   → Stat cards (My Patients, New Patients, Active)
+ *   2. Bottom    → Single Alerts panel (doctor-specific alerts)
+ *
+ * Reuses the same StatCard + AlertsPanel components as Admin Dashboard.
+ *
  * @file src/pages/doctorDashboard/DoctorDashboard.jsx
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Container,
-  Flex,
-  Heading,
-  Text
-} from '../../component-library';
 
-// Design System
-import '../../design-system/styles/index.css';
+// Hooks
+import { useDoctorDashboardData } from '../../hooks/useDashboardData';
 
-// APIs
-import { getDoctorIdByEmail, getDoctorReportLogs } from '../../ApiCalls/doctorApis';
-import { getDoctorSortAlerts } from '../../ApiCalls/doctorAlert';
-import { getDoctorComments } from '../../ApiCalls/GetComments';
-import { getPatientsByDoctorId } from '../../ApiCalls/analyticsApis';
-import { sendAlertEmails } from '../../ApiCalls/adminDashApis';
-import { useIsMobile } from '../../components/mobile/useIsMobile';
+// Dashboard components
+import StatCard from '../../components/dashboard/StatCard';
+import AlertsPanel from '../../components/dashboard/AlertsPanel';
+import PageHeader from '../../components/PageHeader';
 
-function DoctorDashboard() {
+// Design system primitives
+import { Heading, Text } from '../../component-library/primitives/Typography';
+
+// Styles
+import '../dashboard/dashboard.css';
+
+// ─── SVG Icons ──────────────────────────────────────────────
+
+const iconStyle = { color: '#32617d' };
+
+const PatientIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style={iconStyle} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" fill="currentColor" fillOpacity="0.14" />
+    <circle cx="12" cy="7" r="3.2" />
+  </svg>
+);
+
+const NewPatientIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style={iconStyle} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="currentColor" fillOpacity="0.14" />
+    <circle cx="8.5" cy="7" r="3" />
+    <line x1="20" y1="8" x2="20" y2="14" />
+    <line x1="23" y1="11" x2="17" y2="11" />
+  </svg>
+);
+
+const ActiveIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style={iconStyle} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" fill="currentColor" fillOpacity="0.14" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
+// ─── Skeleton ───────────────────────────────────────────────
+
+const DoctorSkeleton = () => (
+  <div className="dashboard-skeleton">
+    <div className="dashboard-skeleton__row dashboard-skeleton__row--4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="dashboard-skeleton__card dashboard-skeleton__card--sm" />
+      ))}
+    </div>
+    <div className="dashboard-skeleton__row" style={{ gridTemplateColumns: '1fr' }}>
+      <div className="dashboard-skeleton__card dashboard-skeleton__card--lg" />
+    </div>
+  </div>
+);
+
+// ─── Error State ────────────────────────────────────────────
+
+const DashboardError = ({ message, onRetry }) => (
+  <div className="dashboard-error">
+    <svg className="dashboard-error__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+    <Heading as="h3">Something went wrong</Heading>
+    <Text color="muted" size="sm">{message || 'Failed to load dashboard data.'}</Text>
+    {onRetry && (
+      <button className="dashboard-error__btn" onClick={onRetry}>
+        Try Again
+      </button>
+    )}
+  </div>
+);
+
+// ─── DoctorDashboard ────────────────────────────────────────
+
+const DoctorDashboard = () => {
   const navigate = useNavigate();
-  const { isMobile } = useIsMobile();
-  const [loading, setLoading] = useState(true);
-  const [alerts, setAlerts] = useState([]);
-  const [patientStats, setPatientStats] = useState({ online: 0, inperson: 0 });
-  const [recentLogs, setRecentLogs] = useState([]);
-  const [commentCount, setCommentCount] = useState(0);
-  const [doctorName, setDoctorName] = useState('');
+  const { loading, error, data, refetch } = useDoctorDashboardData();
 
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const email = localStorage.getItem('email');
-      const name = localStorage.getItem('name') || 'Doctor';
-      setDoctorName(name);
-
-      // Get doctor ID
-      const idRes = await getDoctorIdByEmail({ email });
-      const doctorId = idRes.success ? idRes.data?.data : null;
-
-      if (!doctorId) {
-        console.error('Could not resolve doctor id');
-        setLoading(false);
-        return;
+  const handleAlertClick = useCallback(
+    (alert) => {
+      if (alert.patientId) {
+        navigate(`/userProfile/${alert.patientId}`);
       }
+    },
+    [navigate]
+  );
 
-      // Fetch alerts, stats, logs, comments in parallel
-      const [alertsRes, statsRes, logsRes, commentsRes] = await Promise.allSettled([
-        getDoctorSortAlerts(doctorId),
-        getPatientsByDoctorId(),
-        getDoctorReportLogs(),
-        getDoctorComments(email, name),
-      ]);
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <DoctorSkeleton />
+      </div>
+    );
+  }
 
-      // Alerts
-      if (alertsRes.status === 'fulfilled' && alertsRes.value.success) {
-        setAlerts(alertsRes.value.data || []);
-      }
-
-      // Patient stats (latest day data)
-      if (statsRes.status === 'fulfilled' && statsRes.value.success) {
-        const statsData = statsRes.value.data?.data || [];
-        if (statsData.length > 0) {
-          const latest = statsData[statsData.length - 1];
-          setPatientStats({ online: latest.online || 0, inperson: latest.inperson || 0 });
-        }
-      }
-
-      // Recent report logs
-      if (logsRes.status === 'fulfilled' && logsRes.value.success) {
-        setRecentLogs((logsRes.value.data?.data || []).slice(0, 5));
-      }
-
-      // Unread comments
-      if (commentsRes.status === 'fulfilled' && commentsRes.value) {
-        setCommentCount(commentsRes.value.count || 0);
-      }
-    } catch (error) {
-      console.error('Error loading doctor dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-    fetchDashboardData();
-  }, [navigate, fetchDashboardData]);
-
-  const handleSendEmails = async () => {
-    try {
-      await sendAlertEmails();
-      alert('Alert emails sent successfully!');
-    } catch (e) {
-      console.error('Error sending emails:', e);
-      alert('Failed to send alert emails.');
-    }
-  };
-
-  // Group alerts by type
-  const prescriptionAlerts = alerts.filter(a => (a.type || '').toLowerCase().includes('prescription'));
-  const readingAlerts = alerts.filter(a => !(a.type || '').toLowerCase().includes('prescription'));
+  if (error) {
+    return (
+      <div className="dashboard">
+        <DashboardError message={error} onRetry={refetch} />
+      </div>
+    );
+  }
 
   return (
-    <Box className="flex-1 flex flex-col bg-gray-50 h-full overflow-hidden">
-      <Box className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
-          
-          {/* Header with Cyan Underline - Figma Design */}
-          <Box className="pb-6 mb-6 border-b-2 border-[#00cccc]">
-            <Heading as="h1" size="2xl" className="text-[#32617d] font-bold">
-              My Dashboard,
-            </Heading>
-          </Box>
+    <div className="dashboard">
+      <div className="dashboard__content">
+        <div className="dashboard__page-header">
+          <PageHeader title="Doctor Dashboard" variant="onlyheader" />
+          <span className="dashboard__live-dot" title="Live updates" />
+        </div>
 
-        {loading ? (
-          <Flex justify="center" align="center" className="py-12">
-            <Text className="text-gray-500">Loading dashboard...</Text>
-          </Flex>
-        ) : (
-          <>
-            {/* Stats Cards */}
-            <Flex gap={4} className="mb-6" wrap="wrap">
-              <Box className="flex-1 min-w-[140px] p-4 rounded-xl border border-gray-200 bg-white">
-                <Text size="sm" className="text-gray-500">Alerts</Text>
-                <Text size="2xl" weight="bold" className="text-[#32617d]">{alerts.length}</Text>
-              </Box>
-              <Box className="flex-1 min-w-[140px] p-4 rounded-xl border border-gray-200 bg-white">
-                <Text size="sm" className="text-gray-500">Prescriptions Pending</Text>
-                <Text size="2xl" weight="bold" className="text-orange-600">{prescriptionAlerts.length}</Text>
-              </Box>
-              <Box className="flex-1 min-w-[140px] p-4 rounded-xl border border-gray-200 bg-white">
-                <Text size="sm" className="text-gray-500">Unread Comments</Text>
-                <Text size="2xl" weight="bold" className="text-blue-600">{commentCount}</Text>
-              </Box>
-              <Box className="flex-1 min-w-[140px] p-4 rounded-xl border border-gray-200 bg-white">
-                <Text size="sm" className="text-gray-500">Online / In-person</Text>
-                <Text size="2xl" weight="bold" className="text-green-600">
-                  {patientStats.online} / {patientStats.inperson}
-                </Text>
-              </Box>
-            </Flex>
+        {/* ─── Welcome / Stats ─────────────────────────────── */}
+        <section className="dashboard__section">
+          <Heading as="h4" className="dashboard__section-title">
+            Welcome, Dr. {data.doctorName}
+          </Heading>
+          <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+            <StatCard
+              icon={<PatientIcon />}
+              label="My Patients"
+              value={data.totalPatients}
+              color="primary"
+              subtitle="Updated just now"
+            />
+            <StatCard
+              icon={<NewPatientIcon />}
+              label="New This Week"
+              value={data.newPatients}
+              color="success"
+              subtitle="Updated just now"
+            />
+            <StatCard
+              icon={<ActiveIcon />}
+              label="Active Patients"
+              value={data.activePatients}
+              color="info"
+              subtitle="Updated just now"
+            />
+          </div>
+        </section>
 
-            {/* Important Alerts Section - Figma Design */}
-            <Box className="mb-6">
-              <Heading as="h2" size="lg" className="mb-6 text-black font-bold">
-                Important Alerts
-              </Heading>
-              {alerts.length === 0 ? (
-                <Box className="bg-green-50 p-6 rounded-lg border border-green-200 text-center">
-                  <Text className="text-green-700">No pending alerts. All clear!</Text>
-                </Box>
-              ) : (
-                <Box className="space-y-6">
-                  {alerts.slice(0, 10).map((alert, idx) => {
-                    // Count alert types for this patient
-                    const patientAlerts = alerts.filter(
-                      a => a.patientId === alert.patientId || a.name === alert.name
-                    );
-                    const prescriptionCount = patientAlerts.filter(
-                      a => (a.type || '').toLowerCase().includes('prescription')
-                    ).length;
-                    const commentCount = patientAlerts.filter(
-                      a => (a.type || '').toLowerCase().includes('comment')
-                    ).length;
-                    const dialysisTechnicianCount = patientAlerts.filter(
-                      a => (a.type || '').toLowerCase().includes('dialysis') || 
-                           (a.type || '').toLowerCase().includes('technician')
-                    ).length;
-                    const otherAlertCount = patientAlerts.filter(
-                      a => !(a.type || '').toLowerCase().includes('prescription') &&
-                            !(a.type || '').toLowerCase().includes('comment') &&
-                            !(a.type || '').toLowerCase().includes('dialysis') &&
-                            !(a.type || '').toLowerCase().includes('technician')
-                    ).length;
-
-                    return (
-                      <Box key={alert.id || idx} className="pb-6  last:border-b-0">
-                        <Flex gap={6} align="start">
-                          {/* Patient Avatar */}
-                          <Box className="flex-shrink-0">
-                            <Box className="w-20 h-20 rounded-full bg-gray-300 overflow-hidden flex items-center justify-center border-2 border-gray-300">
-                              <Text className="text-center text-white font-bold text-2xl">
-                                {(alert.name || 'P').charAt(0).toUpperCase()}
-                              </Text>
-                            </Box>
-                          </Box>
-
-                          {/* Patient Info and Actions */}
-                          <Box className="flex-1">
-                            <Heading as="h3" size="md" className="mb-4 text-black font-semibold">
-                              {alert.name || 'Unknown Patient'}
-                            </Heading>
-
-                            {/* Action Buttons */}
-                            <Flex gap={4} wrap="wrap" align="center">
-                              {prescriptionCount > 0 && (
-                                <button
-                                  onClick={() => alert.patientId && navigate(`/userProfile/${alert.patientId}`)}
-                                  className="px-6 py-3 bg-[#00cccc] text-white font-bold text-sm rounded hover:bg-[#00b8b8] transition-colors"
-                                >
-                                  {prescriptionCount} Approve Prescription{prescriptionCount !== 1 ? 's' : ''}
-                                </button>
-                              )}
-                              {commentCount > 0 && (
-                                <button
-                                  onClick={() => alert.patientId && navigate(`/userProfile/${alert.patientId}`)}
-                                  className="px-6 py-3 bg-[#00c008] text-white font-bold text-sm rounded hover:bg-[#00a906] transition-colors"
-                                >
-                                  {commentCount} Comments
-                                </button>
-                              )}
-                              {dialysisTechnicianCount > 0 && (
-                                <button
-                                  onClick={() => alert.patientId && navigate(`/userProfile/${alert.patientId}`)}
-                                  className="px-6 py-3 bg-[#9c27b0] text-white font-bold text-sm rounded hover:bg-[#7b1fa2] transition-colors"
-                                >
-                                  {dialysisTechnicianCount} Dialysis technician alert{dialysisTechnicianCount !== 1 ? 's' : ''}
-                                </button>
-                              )}
-                              {otherAlertCount > 0 && (
-                                <button
-                                  onClick={() => alert.patientId && navigate(`/userProfile/${alert.patientId}`)}
-                                  className="px-6 py-3 bg-[#ff5252] text-white font-bold text-sm rounded hover:bg-[#ff1744] transition-colors"
-                                >
-                                  {otherAlertCount} Alerts
-                                </button>
-                              )}
-                              {prescriptionCount === 0 && commentCount === 0 && otherAlertCount === 0 && dialysisTechnicianCount === 0 && (
-                                <button
-                                  className="px-6 py-3 bg-[#989898] text-white font-bold text-sm rounded cursor-default"
-                                >
-                                  0 alerts
-                                </button>
-                              )}
-                            </Flex>
-                          </Box>
-                        </Flex>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              )}
-            </Box>
-
-            {/* Recent Activity Logs */}
-            {recentLogs.length > 0 && (
-              <Box className="mb-6">
-                <Heading as="h2" size="lg" className="mb-4 text-black font-bold">
-                  Recent Activity
-                </Heading>
-                <Box className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  {recentLogs.map((log, idx) => (
-                    <Box
-                      key={idx}
-                      className={`p-3 flex justify-between items-center ${idx > 0 ? 'border-t border-gray-100' : ''}`}
-                    >
-                      <Text size="sm" className="text-gray-700">
-                        {log.action || log.message || 'Activity logged'}
-                      </Text>
-                      <Text size="xs" className="text-gray-400">
-                        {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : ''}
-                      </Text>
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            )}
-          </>
-        )}
-      </Box>
-    </Box>
+        {/* ─── Alerts Section ──────────────────────────────── */}
+        <section className="dashboard__section">
+          <Heading as="h2" className="dashboard__section-title">
+            My Alerts
+          </Heading>
+          <AlertsPanel
+            title="Patient Alerts"
+            alerts={data.alerts}
+            onAlertClick={handleAlertClick}
+            showSendEmails={false}
+            showRoleTabs={false}
+            maxHeight="480px"
+          />
+        </section>
+      </div>
+    </div>
   );
-}
+};
 
 export default DoctorDashboard;

@@ -89,7 +89,59 @@ const EditRole = () => {
     },
   });
 
-  const { rolename } = useParams();
+  const permissionOrder = [
+    "manageRoles",
+    "ailmentMaster",
+    "createAdmin",
+    "createDoctor",
+    "profileQuestions",
+    "patients",
+    "dailyReadings",
+    "dialysisReadings",
+    "changePassword",
+    "userProgramSelection",
+    "doctorReports",
+    "feedback",
+  ];
+
+  const { id, rolename } = useParams();
+  const roleParam = decodeURIComponent(rolename || id || "");
+
+  const getPermissionsFromRole = (roleData) => {
+    const auth_arr = Array.isArray(roleData?.auth_arr)
+      ? roleData.auth_arr
+      : [
+          roleData?.can_vud_mr,
+          roleData?.can_vud_am,
+          roleData?.can_vud_ca,
+          roleData?.can_vud_cd,
+          roleData?.can_vud_pq,
+          roleData?.can_vud_p,
+          roleData?.can_vud_dr,
+          roleData?.can_vud_dir,
+          roleData?.can_vud_cp,
+          roleData?.can_vud_ups,
+          roleData?.can_vud_docr,
+          roleData?.can_vud_fb,
+        ];
+
+    const binaryArr = auth_arr.map((auth) =>
+      (Number(auth) || 0).toString(2).padStart(3, "0")
+    );
+
+    const permiss = {};
+    permissionOrder.forEach((pageName, index) => {
+      const bin = binaryArr[index] || "000";
+      permiss[pageName] = {
+        view: Boolean(Number(bin[2])),
+        edit: Boolean(Number(bin[1])),
+        delete: Boolean(Number(bin[0])),
+        name: permissions[pageName].name,
+      };
+    });
+
+    return permiss;
+  };
 
   const handleCheckboxChange = (pageName, permissionType) => {
     setPermissions((prevPermissions) => ({
@@ -112,10 +164,10 @@ const EditRole = () => {
     const role = {
       auth_arr: auth_arr,
     };
-    updateRoleByName(rolename, role)
+    updateRoleByName(roleParam, role)
       .then((res) => {
         showToast("Role updated successfully!", "success");
-        window.location.reload();
+        navigate(ROUTES.USERS_ROLES);
       })
       .catch((err) => {
         console.log(err);
@@ -124,48 +176,23 @@ const EditRole = () => {
   };
 
   useEffect(() => {
-    getRoleByName(rolename)
+    if (!roleParam) {
+      showToast("Role not found", "error");
+      return;
+    }
+
+    getRoleByName(roleParam)
       .then((res) => {
         if (res.success) {
-          console.log(res);
-          setRoleName(res.data.data.role_name);
-          const auth_arr = [
-            res.data.data.can_vud_mr,
-            res.data.data.can_vud_am,
-            res.data.data.can_vud_ca,
-            res.data.data.can_vud_cd,
-            res.data.data.can_vud_pq,
-            res.data.data.can_vud_p,
-            res.data.data.can_vud_dr,
-            res.data.data.can_vud_dir,
-            res.data.data.can_vud_cp,
-            res.data.data.can_vud_ups,
-            res.data.data.can_vud_docr,
-            res.data.data.can_vud_fb,
-
-          ];
-        console.log("at",auth_arr);
-        const binaryArr = auth_arr.map((auth) =>
-          auth.toString(2).padStart(3, "0")
-        );
-        console.log("bina",binaryArr);
-        const permiss = {};
-        Object.keys(permissions).forEach((pageName, index) => {
-          permiss[pageName] = {
-            view: Boolean(Number(binaryArr[index][2])),
-            edit: Boolean(Number(binaryArr[index][1])),
-            delete: Boolean(Number(binaryArr[index][0])),
-            name: permissions[pageName].name,
-          };
-        });
-        setPermissions(permiss);
-        console.log(permiss);
+          const roleData = res.data?.data || res.data;
+          setRoleName(roleData?.role_name || roleParam);
+          setPermissions(getPermissionsFromRole(roleData));
         }
       })
       .catch((err) => {
         console.log(err);
       });
-  }, [rolename]);
+  }, [roleParam]);
 
   return (
     <ThemeProvider>

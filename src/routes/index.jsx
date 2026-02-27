@@ -68,7 +68,7 @@ const getLegacyRedirectRoutes = () => [
   { path: "createDoctor", element: <Navigate to={ROUTES.USERS_DOCTORS} replace /> },
   { path: "create-doctor", element: <Navigate to={ROUTES.USERS_DOCTORS} replace /> },
   { path: "manageRoles", element: <Navigate to={ROUTES.USERS_ROLES} replace /> },
-  { path: "add-role", element: <Navigate to="/users/roles/new" replace /> },
+  { path: "add-role", element: <Navigate to={ROUTES.USERS_ROLES} replace /> },
   {
     path: "edit-role/:id",
     element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.roleDetail(id)} />,

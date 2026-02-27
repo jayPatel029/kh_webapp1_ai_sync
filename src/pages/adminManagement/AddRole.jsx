@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   createRole,
   getRoles,
+  getRoleByName,
   updateRoleByName,
   deleteRoleByName,
 } from "../../ApiCalls/authapis";
@@ -20,6 +21,7 @@ import {
   Button,
 } from "../../component-library";
 import { useAdminToast } from "../../components/AdminToast";
+import { SearchBar } from "../../components";
 
 const PERMISSIONS_CONFIG = {
   manageRoles: { view: false, edit: false, delete: false, name: "Manage Roles" },
@@ -36,6 +38,12 @@ const PERMISSIONS_CONFIG = {
   feedback: { view: false, edit: false, delete: false, name: "Feedback" },
 };
 
+const getInitialPermissions = () =>
+  Object.keys(PERMISSIONS_CONFIG).reduce((acc, key) => {
+    acc[key] = { ...PERMISSIONS_CONFIG[key] };
+    return acc;
+  }, {});
+
 const AddRole = () => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
@@ -44,13 +52,49 @@ const AddRole = () => {
   // State management
   const [roles, setRoles] = useState([]);
   const [roleName, setRoleName] = useState("");
-  const [permissions, setPermissions] = useState(PERMISSIONS_CONFIG);
+  const [permissions, setPermissions] = useState(getInitialPermissions);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const [editingRoleName, setEditingRoleName] = useState(null);
+
+  const mapRoleToPermissions = (roleData) => {
+    const pageKeys = Object.keys(PERMISSIONS_CONFIG);
+    const initialPermissions = getInitialPermissions();
+
+    const authArr = Array.isArray(roleData?.auth_arr)
+      ? roleData.auth_arr
+      : [
+          roleData?.can_vud_mr,
+          roleData?.can_vud_am,
+          roleData?.can_vud_ca,
+          roleData?.can_vud_cd,
+          roleData?.can_vud_pq,
+          roleData?.can_vud_p,
+          roleData?.can_vud_dr,
+          roleData?.can_vud_dir,
+          roleData?.can_vud_cp,
+          roleData?.can_vud_ups,
+          roleData?.can_vud_docr,
+          roleData?.can_vud_fb,
+        ];
+
+    authArr.forEach((authValue, index) => {
+      if (!pageKeys[index]) return;
+      const binary = (Number(authValue) || 0).toString(2).padStart(3, "0");
+      initialPermissions[pageKeys[index]] = {
+        ...initialPermissions[pageKeys[index]],
+        delete: binary[0] === "1",
+        edit: binary[1] === "1",
+        view: binary[2] === "1",
+      };
+    });
+
+    return initialPermissions;
+  };
 
   // Fetch roles on mount
   useEffect(() => {
@@ -70,10 +114,11 @@ const AddRole = () => {
 
   const clearFields = () => {
     setRoleName("");
-    setPermissions(PERMISSIONS_CONFIG);
+    setPermissions(getInitialPermissions());
     setEditMode(false);
     setEditingRoleName(null);
     setErrorMessage("");
+    setFieldErrors({});
   };
 
   const handleCheckboxChange = (pageName, permissionType) => {
@@ -98,11 +143,17 @@ const AddRole = () => {
 
   const handleSubmit = async () => {
     setErrorMessage("");
+    const nextFieldErrors = {};
 
     if (!roleName.trim()) {
+      nextFieldErrors.roleName = "Role Name is required";
+      setFieldErrors(nextFieldErrors);
       setErrorMessage("Role Name is required");
+      showToast("Role Name is required", "error");
       return;
     }
+
+    setFieldErrors({});
 
     const auth_arr = convertPermissionsToAuthArr();
     const role = {
@@ -160,33 +211,26 @@ const AddRole = () => {
   };
 
   const handleEdit = (role) => {
-    setRoleName(role.role_name);
-    setEditingRoleName(role.role_name);
+    const selectedRoleName = role.role_name;
+    setRoleName(selectedRoleName);
+    setEditingRoleName(selectedRoleName);
     setEditMode(true);
     setSuccessMessage("");
     setErrorMessage("");
-
-    // Convert auth_arr back to permissions object
-    if (role.auth_arr && Array.isArray(role.auth_arr)) {
-      const pageKeys = Object.keys(PERMISSIONS_CONFIG);
-      const newPermissions = { ...PERMISSIONS_CONFIG };
-
-      role.auth_arr.forEach((authValue, index) => {
-        if (pageKeys[index]) {
-          const binary = authValue.toString(2).padStart(3, "0");
-          newPermissions[pageKeys[index]] = {
-            ...newPermissions[pageKeys[index]],
-            delete: binary[0] === "1",
-            edit: binary[1] === "1",
-            view: binary[2] === "1",
-          };
-        }
-      });
-
-      setPermissions(newPermissions);
-    }
-
+    setFieldErrors({});
     setIsFormModalOpen(true);
+
+    // Always fetch full role detail so edit form has all allocated permissions
+    getRoleByName(selectedRoleName)
+      .then((result) => {
+        if (!result.success) return;
+        const roleData = result.data?.data || result.data || role;
+        setRoleName(roleData.role_name || selectedRoleName);
+        setPermissions(mapRoleToPermissions(roleData));
+      })
+      .catch((error) => {
+        console.error("Error loading role details:", error);
+      });
   };
 
   const openAddModal = () => {
@@ -227,19 +271,14 @@ const AddRole = () => {
           <div className="admin-card">
             <div className="admin-card__header">
               <div className={`admin-toolbar ${isMobile ? "flex-col gap-2" : ""}`}>
-                <div
-                  className="admin-toolbar__left"
-                  style={isMobile ? { width: "100%" } : {}}
-                >
-                  <input
-                    type="text"
-                    placeholder="Search by role name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="form-control"
-                    style={isMobile ? { width: "100%" } : { width: "250px" }}
-                  />
-                </div>
+                <SearchBar
+                  type="text"
+                  placeholder="Search by role name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="form-control"
+                  style={isMobile ? { width: "100%" } : { width: "250px" }}
+                />
                 <div
                   className={`admin-toolbar__right ${isMobile ? "w-full justify-between" : ""
                     }`}
@@ -285,15 +324,25 @@ const AddRole = () => {
           submitText={editMode ? "Update" : "Submit"}
           size="lg"
           errorMessage={errorMessage}
+          fieldErrors={fieldErrors}
+          onFieldErrorClear={(fieldName) => {
+            setFieldErrors((prev) => ({ ...prev, [fieldName]: undefined }));
+          }}
         >
+          {({ getFieldProps, clearFieldError }) => (
+            <>
           {/* Role Name Input */}
-          <FormControl>
+          <FormControl isInvalid={getFieldProps("roleName").isInvalid}>
             <FormLabel>Role Name*</FormLabel>
             <Input
               type="text"
               placeholder="Enter role name"
               value={roleName}
-              onChange={(e) => setRoleName(e.target.value)}
+              {...getFieldProps("roleName")}
+              onChange={(e) => {
+                setRoleName(e.target.value);
+                clearFieldError("roleName");
+              }}
               disabled={editMode}
             />
           </FormControl>
@@ -351,6 +400,8 @@ const AddRole = () => {
               </table>
             </div>
           </div>
+          </>
+          )}
         </FormModal>
         <ToastContainer />
       </Box>
