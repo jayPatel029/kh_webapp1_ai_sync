@@ -14,18 +14,21 @@ import {
 import { SearchBar } from "../../components";
 import isMobile from "../../components/mobile/useIsMobile";
 import { useAdminToast } from "../../components/AdminToast";
+import { usePageCache, PAGE_CACHE } from "../../cache";
 
 const UserRoles = () => {
   const navigate = useNavigate();
   const [roles, setRoles] = useState([]);
   const { showToast, ToastContainer } = useAdminToast();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_ROLES);
 
   useEffect(() => {
-    getRoles()
-      .then((res) => {
-        if (res.success) {
-          setRoles(res.data?.data || []);
-          console.log(res.data?.data);
+    fetchWithCache('getRoles', () => getRoles(), {
+      transform: (apiData) => apiData?.data || [],
+    })
+      .then((result) => {
+        if (result.success) {
+          setRoles(result.data);
         }
       })
       .catch((err) => {
@@ -33,16 +36,15 @@ const UserRoles = () => {
       });
   }, []);
 
-  const deleteRole = (role_name) => {
-    deleteRoleByName(role_name)
-      .then((res) => {
-        showToast("Role deleted successfully!", "success");
-        setRoles((prev) => prev.filter((r) => r.role_name !== role_name));
-      })
-      .catch((err) => {
-        console.log(err);
-        showToast("Failed to delete role", "error");
-      });
+  const deleteRole = async (role_name) => {
+    try {
+      await mutate(() => deleteRoleByName(role_name));
+      showToast("Role deleted successfully!", "success");
+      setRoles((prev) => prev.filter((r) => r.role_name !== role_name));
+    } catch (err) {
+      console.log(err);
+      showToast("Failed to delete role", "error");
+    }
   };
 
   return (

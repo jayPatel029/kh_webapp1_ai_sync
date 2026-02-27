@@ -25,10 +25,13 @@ import { getDoctorComments } from '../../ApiCalls/GetComments';
 import { getPatientsByDoctorId } from '../../ApiCalls/analyticsApis';
 import { sendAlertEmails } from '../../ApiCalls/adminDashApis';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
+import { usePageCache, PAGE_CACHE } from '../../cache';
+import PageSkeleton from '../../components/PageSkeleton';
 
 function DoctorDashboard() {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
+  const { fetchWithCache } = usePageCache(PAGE_CACHE.DOCTOR_DASHBOARD);
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState([]);
   const [patientStats, setPatientStats] = useState({ online: 0, inperson: 0 });
@@ -53,37 +56,24 @@ function DoctorDashboard() {
         return;
       }
 
-      // Fetch alerts, stats, logs, comments in parallel
-      const [alertsRes, statsRes, logsRes, commentsRes] = await Promise.allSettled([
-        getDoctorSortAlerts(doctorId),
-        getPatientsByDoctorId(),
-        getDoctorReportLogs(),
-        getDoctorComments(email, name),
+      // Fetch all in parallel, cached
+      const [alertsResult, statsResult, logsResult, commentsResult] = await Promise.all([
+        fetchWithCache('doctorAlerts', () => getDoctorSortAlerts(doctorId)),
+        fetchWithCache('patientStats', () => getPatientsByDoctorId()),
+        fetchWithCache('reportLogs', () => getDoctorReportLogs()),
+        fetchWithCache('comments', () => getDoctorComments(email, name).then(r => ({ success: true, data: r }))),
       ]);
 
-      // Alerts
-      if (alertsRes.status === 'fulfilled' && alertsRes.value.success) {
-        setAlerts(alertsRes.value.data || []);
-      }
-
-      // Patient stats (latest day data)
-      if (statsRes.status === 'fulfilled' && statsRes.value.success) {
-        const statsData = statsRes.value.data?.data || [];
+      if (alertsResult.success) setAlerts(alertsResult.data?.data || alertsResult.data || []);
+      if (statsResult.success) {
+        const statsData = statsResult.data?.data || [];
         if (statsData.length > 0) {
           const latest = statsData[statsData.length - 1];
           setPatientStats({ online: latest.online || 0, inperson: latest.inperson || 0 });
         }
       }
-
-      // Recent report logs
-      if (logsRes.status === 'fulfilled' && logsRes.value.success) {
-        setRecentLogs((logsRes.value.data?.data || []).slice(0, 5));
-      }
-
-      // Unread comments
-      if (commentsRes.status === 'fulfilled' && commentsRes.value) {
-        setCommentCount(commentsRes.value.count || 0);
-      }
+      if (logsResult.success) setRecentLogs((logsResult.data?.data || []).slice(0, 5));
+      if (commentsResult.success) setCommentCount(commentsResult.data?.count || 0);
     } catch (error) {
       console.error('Error loading doctor dashboard:', error);
     } finally {
@@ -126,9 +116,7 @@ function DoctorDashboard() {
           </Box>
 
         {loading ? (
-          <Flex justify="center" align="center" className="py-12">
-            <Text className="text-gray-500">Loading dashboard...</Text>
-          </Flex>
+          <PageSkeleton variant="dashboard" />
         ) : (
           <>
             {/* Stats Cards */}

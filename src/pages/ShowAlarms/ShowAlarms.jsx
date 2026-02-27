@@ -36,6 +36,10 @@ import { BsTrash, BsPencilSquare } from "react-icons/bs";
 // Mobile
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 
+// Cache
+import { usePageCache, PAGE_CACHE } from "../../cache";
+import PageSkeleton from "../../components/PageSkeleton";
+
 // Import design system styles
 import "../../design-system/styles/index.css";
 import { Sort } from "@mui/icons-material";
@@ -58,6 +62,7 @@ const ShowAlarms = () => {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const { isMobile } = useIsMobile();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.SHOW_ALARMS);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -83,7 +88,7 @@ const ShowAlarms = () => {
     );
     if (isConfirmed) {
       try {
-        const result = await deleteAlarm(id);
+        const result = await mutate(() => deleteAlarm(id));
         if (result.success) {
           setUserAlarmData((prevData) =>
             prevData.filter((alarm) => alarm.id !== id)
@@ -124,9 +129,9 @@ const ShowAlarms = () => {
 
   const fetchData = async () => {
     try {
-      const result = await getAlarmByPatientId(patientId);
+      const result = await fetchWithCache(`alarms_${patientId}`, () => getAlarmByPatientId(patientId));
       if (result.success) {
-        setUserAlarmData(result.data.data || []);
+        setUserAlarmData(result.data.data || result.data || []);
         setDosesData(result.data.doses);
       }
     } catch (error) {
@@ -136,9 +141,9 @@ const ShowAlarms = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await getPatientGetPatientByid(patientId);
+      const response = await fetchWithCache(`patient_${patientId}`, () => getPatientGetPatientByid(patientId));
       if (response.success) {
-        setUserData(response?.data?.data || {});
+        setUserData(response?.data?.data || response?.data || {});
       }
     } catch (error) {
       console.error("Error fetching patient data:", error);
@@ -194,7 +199,7 @@ const ShowAlarms = () => {
   }));
 
   if (loading) {
-    return <Box className="p-20 text-center">Loading...</Box>;
+    return <PageSkeleton variant="table" rows={6} />;
   }
 
   return (

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { notifyWarning } from "../../helpers/notify";
+import { clearAllCaches } from "../../cache";
 
 const events = [
   "load",
@@ -46,6 +47,7 @@ const AppLogout = ({ children }) => {
 
   // logs out user by clearing out auth token in localStorage and redirecting url to /signin page.
   const logoutAction = () => {
+    clearAllCaches();
     localStorage.clear();
     // Use toast instead of blocking alert() — it renders before the redirect
     notifyWarning("You have been logged out due to inactivity.");

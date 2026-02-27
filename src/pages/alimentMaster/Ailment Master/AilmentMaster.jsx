@@ -13,6 +13,7 @@ import { UnifiedListTable, SearchBar } from "../../../components";
 import { Input, FormControl, FormLabel, Button } from "../../../component-library";
 import { useIsMobile } from "../../../components/mobile/useIsMobile";
 import { useAdminToast } from "../../../components/AdminToast";
+import { usePageCache, PAGE_CACHE } from "../../../cache";
 
 export default function AilmentMasterComponent() {
   // State to hold the selected ailment data
@@ -30,11 +31,12 @@ export default function AilmentMasterComponent() {
   const [searchTerm, setSearchTerm] = useState("");
   const { isMobile } = useIsMobile();
   const { showToast, ToastContainer } = useAdminToast();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.AILMENT_MASTER);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        getAilments().then((resultAilment) => {
+        fetchWithCache('ailments', () => getAilments()).then((resultAilment) => {
           if (resultAilment.success && resultAilment.data.listOfAilments) {
             setAilments(resultAilment.data.listOfAilments);
           } else {
@@ -42,7 +44,7 @@ export default function AilmentMasterComponent() {
           }
         });
 
-        getLanguages().then((resultLanguage) => {
+        fetchWithCache('languages', () => getLanguages()).then((resultLanguage) => {
           if (resultLanguage.success && resultLanguage.data) {
             setLanguages(resultLanguage.data);
             let transaltiondict = {};
@@ -105,7 +107,7 @@ export default function AilmentMasterComponent() {
     };
     try {
       if (!editMode) {
-        addAilment(ailmentData).then((result) => {
+        mutate(() => addAilment(ailmentData)).then((result) => {
           if (result.success) {
             clearFields();
             setSuccessmsg("Ailment added successfully");
@@ -117,7 +119,7 @@ export default function AilmentMasterComponent() {
           }
         });
       } else {
-        updateAilment(id, ailmentData).then((result) => {
+        mutate(() => updateAilment(id, ailmentData)).then((result) => {
           if (result.success) {
             clearFields();
             setSuccessmsg("Ailment updated successfully");
@@ -224,7 +226,7 @@ export default function AilmentMasterComponent() {
           }}
           onDelete={(ailment) => {
             if (window.confirm(`Delete ailment "${ailment.name}"?`)) {
-              deleteAilment(ailment.id)
+              mutate(() => deleteAilment(ailment.id))
                 .then(() => {
                   setSuccessmsg("Ailment deleted successfully!");
                   showToast("Ailment deleted successfully!", "success");

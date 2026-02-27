@@ -23,6 +23,7 @@ import {
 } from "../../component-library";
 import { Button } from "../../component-library";
 import { useAdminToast } from "../../components/AdminToast";
+import { usePageCache, PAGE_CACHE } from "../../cache";
 
 function LanguageMaster() {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ function LanguageMaster() {
   const [errMsg, setErrMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const { showToast, ToastContainer } = useAdminToast();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.LANGUAGE);
 
   const [languages, setLanguages] = useState([]);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -40,7 +42,7 @@ function LanguageMaster() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await getLanguages();
+        const result = await fetchWithCache('languages', () => getLanguages());
         if (result.success) {
           setLanguages(result.data);
         } else {
@@ -56,7 +58,7 @@ function LanguageMaster() {
 
   async function removeLang(id) {
 
-    const response = await deleteLanguage(id);
+    const response = await mutate(() => deleteLanguage(id));
     if (response.success) {
       setErrMsg("");
       setSuccessful("Language Deleted Successful!");
@@ -97,7 +99,7 @@ function LanguageMaster() {
           language_json: langJson,
           language_audio: langAudio,
         };
-        const response = await createLanguage(payload);
+        const response = await mutate(() => createLanguage(payload));
         if (response.success) {
           setErrMsg("");
           // setSuccessful("Language Created Successful!");
@@ -113,7 +115,7 @@ function LanguageMaster() {
         const payload = {
           language_name: newLanguage,
         };
-        const response = await updateLanguage(editID, payload);
+        const response = await mutate(() => updateLanguage(editID, payload));
         if (response.success) {
           setErrMsg("");
           setSuccessful("Language Updated Successful!");

@@ -35,6 +35,7 @@ import {
   Container
 } from "../../component-library";
 import { useAdminToast } from "../../components/AdminToast";
+import { usePageCache, PAGE_CACHE } from "../../cache";
 
 function ProfileQuestions() {
   const navigate = useNavigate();
@@ -43,6 +44,7 @@ function ProfileQuestions() {
   const [errMsg, setErrMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const { showToast, ToastContainer } = useAdminToast();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.PROFILE_QUESTION);
 
   const [questionsList, setQuestionsList] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -69,7 +71,7 @@ function ProfileQuestions() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await getQuestions();
+        const result = await fetchWithCache('questions', () => getQuestions());
         if (result.success) {
           console.log(result.data);
           setQuestionsList(result.data);
@@ -77,7 +79,7 @@ function ProfileQuestions() {
         } else {
           console.error("Failed to fetch questions:", result.data);
         }
-        getAilments().then((resultAilment) => {
+        fetchWithCache('ailments', () => getAilments()).then((resultAilment) => {
           if (resultAilment.success && resultAilment.data.listOfAilments) {
             setAilments(resultAilment.data.listOfAilments);
             setAilments((prevAilments) => [
@@ -92,7 +94,7 @@ function ProfileQuestions() {
             console.error("Failed to fetch Ailments:", resultAilment.data);
           }
         });
-        getLanguages().then((resultLanguage) => {
+        fetchWithCache('languages', () => getLanguages()).then((resultLanguage) => {
           if (resultLanguage.success && resultLanguage.data) {
             setLanguages(resultLanguage.data);
             let transaltiondict = {};
@@ -130,7 +132,7 @@ function ProfileQuestions() {
     setSuccessful("");
     setQuestions(questions.filter((q) => q.id !== id));
     setQuestionsList(questionsList.filter((q) => q.id !== id));
-    const response = await deleteQuestion(id);
+    const response = await mutate(() => deleteQuestion(id));
     if (response.success) {
       setErrMsg("");
       setSuccessful("Question Deleted Successful!");
@@ -193,7 +195,7 @@ function ProfileQuestions() {
           options: newQuestion.options,
           translations: formattedTranslations,
         };
-        const response = await createQuestion(payload);
+        const response = await mutate(() => createQuestion(payload));
         if (response.success) {
           setErrMsg("");
           setSuccessful("Question Created Successful!");
@@ -222,7 +224,7 @@ function ProfileQuestions() {
         console.log("translations here: ", translations);
         console.log("options: ", newQuestion.options);
         console.log(newQuestion.id);
-        const response = await updateQuestion(newQuestion.id, payload);
+        const response = await mutate(() => updateQuestion(newQuestion.id, payload));
         if (response.success) {
           setErrMsg("");
           setEditMode(false);

@@ -45,6 +45,10 @@ import expandIcon from "../../assets/Expand.svg";
 // CSV Components
 import CSVLab2 from "../../components/csvLab2/CSVLab2";
 
+// Cache
+import { usePageCache, PAGE_CACHE } from "../../cache";
+import PageSkeleton from "../../components/PageSkeleton";
+
 const LAB_REPORT_SORT_OPTIONS = [
   "Lab",
   "Ultrasound",
@@ -75,6 +79,7 @@ const UserLabReports = () => {
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
   const { isMobile } = useIsMobile();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_LAB_REPORTS);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -96,9 +101,9 @@ const UserLabReports = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await getPatientGetPatientByid(id);
+      const response = await fetchWithCache(`patient_${id}`, () => getPatientGetPatientByid(id));
       if (response.success) {
-        setUserData(response?.data?.data || null);
+        setUserData(response?.data?.data || response?.data || null);
       }
     } catch (error) {
       console.error("Error fetching patient data:", error);
@@ -107,9 +112,9 @@ const UserLabReports = () => {
 
   const fetchMedicalTeam = async () => {
     try {
-      const response = await getPatientGetMedicalTeamByid(id);
+      const response = await fetchWithCache(`medicalTeam_${id}`, () => getPatientGetMedicalTeamByid(id));
       if (response.success) {
-        setMedicalTeam(response?.data?.data || []);
+        setMedicalTeam(response?.data?.data || response?.data || []);
       }
     } catch (error) {
       console.error("Error fetching medical team:", error);
@@ -119,10 +124,11 @@ const UserLabReports = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await getLabreportGetLabReportsByid(id);
+      const response = await fetchWithCache(`labReports_${id}`, () => getLabreportGetLabReportsByid(id));
       if (response.success) {
-        setLabReportData(response?.data?.data || []);
-        setFilteredReportData(response?.data?.data || []);
+        const reports = response?.data?.data || response?.data || [];
+        setLabReportData(reports);
+        setFilteredReportData(reports);
       }
     } catch (error) {
       console.error("Error fetching lab report data:", error);
@@ -170,7 +176,7 @@ const UserLabReports = () => {
     );
     if (isConfirmed) {
       try {
-        const result = await deleteLabreportDeleteLabReportByid(reportId, { email });
+        const result = await mutate(() => deleteLabreportDeleteLabReportByid(reportId, { email }));
         if (!result.success) {
           throw new Error("Delete failed");
         }

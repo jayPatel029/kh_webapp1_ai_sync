@@ -24,6 +24,7 @@ import { BulkUploadProof } from '../../../components';
 import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton } from "../../../component-library/primitives/Modal";
 import { set } from "date-fns";
 import { useAdminToast } from "../../../components/AdminToast";
+import { usePageCache, PAGE_CACHE } from "../../../cache";
 function DailyForm() {
   const [editMode, setEditMode] = useState(false);
   const [successful, setSuccessful] = useState("");
@@ -35,6 +36,7 @@ function DailyForm() {
   const [translations, setTranslations] = useState({});
   const [data, setData] = useState([]);
   const { showToast, ToastContainer } = useAdminToast();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.DAILY_READINGS);
 
 
   const closeModal = () => {
@@ -61,14 +63,14 @@ function DailyForm() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        getAilments().then((resultAilment) => {
+        fetchWithCache('ailments', () => getAilments()).then((resultAilment) => {
           if (resultAilment.success && resultAilment.data.listOfAilments) {
             setAilments(resultAilment.data.listOfAilments);
           } else {
             console.error("Failed to fetch Ailments:", resultAilment);
           }
         });
-        getLanguages().then((resultLanguage) => {
+        fetchWithCache('languages', () => getLanguages()).then((resultLanguage) => {
           if (resultLanguage.success && resultLanguage.data) {
             setLanguages(resultLanguage.data);
             let transaltiondict = {};
@@ -126,7 +128,7 @@ function DailyForm() {
     if (validateForm()) {
       if (!editMode) {
         console.log("Payload:", payload);
-        const response = await addDailyReading(payload);
+        const response = await mutate(() => addDailyReading(payload));
         if (response.success) {
           let transaltiondict = {};
           languages.forEach((lang) => {
@@ -150,7 +152,7 @@ function DailyForm() {
         }
       } else {
         console.log("Payload:", payload);
-        const response = await updateDailyReading(payload);
+        const response = await mutate(() => updateDailyReading(payload));
         if (response.success) {
           let transaltiondict = {};
           languages.forEach((lang) => {

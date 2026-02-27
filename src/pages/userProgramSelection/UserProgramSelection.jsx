@@ -11,6 +11,7 @@ import { UnifiedListTable, SearchBar } from "../../components";
 
 // Component Library
 import { Box, Container } from "../../component-library";
+import { usePageCache, PAGE_CACHE } from "../../cache";
 
 function UserProgramSelection() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ function UserProgramSelection() {
   const [request, setrequest] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const role = useSelector((state) => state.permission);
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_PROGRAM);
 
   useEffect(() => {
     // Fetch patients data when component mounts
@@ -27,7 +29,7 @@ function UserProgramSelection() {
 
   const getPatientsList = async () => {
     try {
-      const response = await getPatients();
+      const response = await fetchWithCache('patients', () => getPatients());
       if (response.success) {
         setRecords(response?.data?.data || []);
       }
@@ -39,7 +41,7 @@ function UserProgramSelection() {
   useEffect(()=>{
     const getProgramChangeAlert = async ()=>{
       try {
-        const response = await getAlertByCategory();
+        const response = await fetchWithCache('programAlerts', () => getAlertByCategory());
         console.log("Program",response);
         setrequest(response)
       }
@@ -56,10 +58,10 @@ function UserProgramSelection() {
         alert("You are not authorized to perform this action");
         return;
       }
-      await updateProgram({
+      await mutate(() => updateProgram({
         id: patientId,
         program_id: program,
-      });
+      }));
 
       // Update the records state with the updated program for the specific patient
       setRecords(

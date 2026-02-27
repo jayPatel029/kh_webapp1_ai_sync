@@ -25,6 +25,7 @@ import ThemeProvider from "../../components/ThemeProvider";
 
 // APIs and Helpers
 import { getPatientLog } from "../../ApiCalls/patientAPis";
+import { usePageCache, PAGE_CACHE } from "../../cache";
 
 // Design System
 import "../../design-system/styles/index.css";
@@ -38,12 +39,13 @@ const LogsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const role = useSelector((state) => state.permission);
+  const { fetchWithCache } = usePageCache(PAGE_CACHE.AUDIT_LOGS);
 
   // Fetch logs from the backend
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const response = await getPatientLog();
+      const response = await fetchWithCache('patientLogs', () => getPatientLog());
       if (response.success) {
         setLogs(response.data?.logs || []);
       } else {

@@ -24,12 +24,14 @@ import {
   Button
 } from "../../component-library";
 import UnifiedListTable from "../../components/table/UnifiedListTable";
+import { usePageCache, PAGE_CACHE } from "../../cache";
 
 function AdminManagement() {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
   const myRole = useSelector((state) => state.permission);
   const { showToast, ToastContainer } = useAdminToast();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.ADMIN_MANAGEMENT);
 
   // State management
   const [roles, setRoles] = useState([]);
@@ -54,33 +56,31 @@ function AdminManagement() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await getUsers();
+        const result = await fetchWithCache('getUsers', () => getUsers(), {
+          transform: (apiData) =>
+            (apiData?.data || []).filter(
+              (user) => user.role !== "Doctor" && user.role !== "Medical Staff"
+            ),
+        });
         if (result.success) {
-          setUserList(
-            result.data.data.filter(
-              (user) => user.role !== "Doctor" && user.role !== "Medical Staff"
-            )
-          );
-          setUsers(
-            result.data.data.filter(
-              (user) => user.role !== "Doctor" && user.role !== "Medical Staff"
-            )
-          );
+          setUserList(result.data);
+          setUsers(result.data);
         } else {
           console.error("Failed to fetch users:", result.data);
         }
-        const rolesResult = await getRoles();
-        if (rolesResult.success) {
-          setRoles(
-            rolesResult.data.data.filter(
+        const rolesResult = await fetchWithCache('getRoles', () => getRoles(), {
+          transform: (apiData) =>
+            (apiData?.data || []).filter(
               (role) =>
                 role.role_name !== "Doctor" &&
                 role.role_name !== "Patient" &&
                 role.role_name !== "Medical Staff"
-            )
-          );
+            ),
+        });
+        if (rolesResult.success) {
+          setRoles(rolesResult.data);
         } else {
-          console.error("Failed to fetch users:", result.data);
+          console.error("Failed to fetch roles:", rolesResult.data);
         }
       } catch (error) {
         console.error("Error fetching users/roles:", error);
@@ -156,7 +156,7 @@ function AdminManagement() {
           role: newUser.role,
           phoneno: newUser.phone,
         };
-        const response = await registerUser(payload);
+        const response = await mutate(() => registerUser(payload));
         if (response.success) {
           setErrMsg([]);
           setSuccessMessage("Admin added successfully!");
@@ -188,7 +188,7 @@ function AdminManagement() {
             phoneno: newUser.phone,
           };
         }
-        const response = await updateUserByEmail(editMail, payload);
+        const response = await mutate(() => updateUserByEmail(editMail, payload));
         if (response.success) {
           setErrMsg([]);
           setSuccessMessage("Admin updated successfully!");
@@ -210,7 +210,7 @@ function AdminManagement() {
       alert("This user cannot be deleted.");
       return;
     }
-    const response = await deleteUserByEmail(email);
+    const response = await mutate(() => deleteUserByEmail(email));
     if (response.success) {
       setErrMsg([]);
       setSuccessMessage("User deleted successfully!");

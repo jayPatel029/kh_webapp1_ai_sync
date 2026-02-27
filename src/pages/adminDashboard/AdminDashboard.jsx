@@ -33,6 +33,8 @@ import { getDoctorComments } from "../../ApiCalls/GetComments";
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 // Import CSS for modals (legacy styles)
 import "./adminDashboard.css"; 
+import { usePageCache, PAGE_CACHE } from "../../cache";
+import PageSkeleton from "../../components/PageSkeleton";
 
 // Components
 import PatientAlertCard from "./components/PatientAlertCard";
@@ -45,6 +47,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
   const [loading, setLoading] = useState(true);
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.DASHBOARD);
 
   // Data State
   const [patients, setPatients] = useState([]);
@@ -55,6 +58,7 @@ const AdminDashboard = () => {
   
   const [alertTypeFilter, setAlertTypeFilter] = useState("");
   const [allPatients, setAllPatients] = useState([]);
+  const [ready, setReady] = useState(false);
 
   // Modal State
   const [modals, setModals] = useState({
@@ -116,40 +120,50 @@ const AdminDashboard = () => {
       const adminId = localStorage.getItem("id");
       const isDoc = localStorage.getItem("isDoctor") === "true";
 
-      // Fetch Stats
-      const [total, newU, newUSub] = await Promise.all([
-        getTotalUsers(),
-        getUsersThisWeek(),
-        getUsersThisWeekSub()
-      ]);
-      setStats({
-        totalUsers: total || 0,
-        newUsers: adminId === "1" ? (newU || 0) : (newUSub || 0)
+      // Fetch Stats (cached)
+      const statsResult = await fetchWithCache('dashboardStats', async () => {
+        const [total, newU, newUSub] = await Promise.all([
+          getTotalUsers(),
+          getUsersThisWeek(),
+          getUsersThisWeekSub()
+        ]);
+        return {
+          success: true,
+          data: {
+            totalUsers: total || 0,
+            newUsers: adminId === "1" ? (newU || 0) : (newUSub || 0),
+          },
+        };
       });
+      if (statsResult.success) {
+        setStats(statsResult.data);
+      }
 
-      // Fetch Alerts
-      let alerts = [];
-      if (isDoc) {
-        const doctorIdRes = await getDoctorIdByEmail({ email });
-        const doctorId = doctorIdRes.success ? doctorIdRes.data?.data : null;
-        if (doctorId) {
-          const alertsRes = await getDoctorSortAlerts(doctorId);
-          alerts = alertsRes.success ? (alertsRes.data || []) : [];
-        }
-      } else if (adminId === "1") {
-        // Super admin: fetch consolidated super admin alerts
-        try {
-          const superRes = await getSuperAdminAlerts(adminId);
-          alerts = superRes?.data || [];
-        } catch {
-          // fallback to regular alerts
+      // Fetch Alerts (cached)
+      const alertsResult = await fetchWithCache('dashboardAlerts', async () => {
+        let alerts = [];
+        if (isDoc) {
+          const doctorIdRes = await getDoctorIdByEmail({ email });
+          const doctorId = doctorIdRes.success ? doctorIdRes.data?.data : null;
+          if (doctorId) {
+            const alertsRes = await getDoctorSortAlerts(doctorId);
+            alerts = alertsRes.success ? (alertsRes.data || []) : [];
+          }
+        } else if (adminId === "1") {
+          try {
+            const superRes = await getSuperAdminAlerts(adminId);
+            alerts = superRes?.data || [];
+          } catch {
+            const alertsRes = await getAlerts();
+            alerts = (alertsRes.data || []).reverse();
+          }
+        } else {
           const alertsRes = await getAlerts();
           alerts = (alertsRes.data || []).reverse();
         }
-      } else {
-        const alertsRes = await getAlerts();
-        alerts = (alertsRes.data || []).reverse();
-      }
+        return { success: true, data: alerts };
+      });
+      let alerts = alertsResult.success ? alertsResult.data : [];
 
       // Group alerts by Patient
       const patientMap = new Map();
@@ -213,8 +227,9 @@ const AdminDashboard = () => {
       console.error("Dashboard data fetch error:", error);
     } finally {
       setLoading(false);
+      setReady(true);
     }
-  }, []);
+  }, [fetchWithCache]);
 
   const handleAction = (patient, type) => {
     setSelectedPatient(patient);
@@ -379,10 +394,8 @@ const AdminDashboard = () => {
               </Flex>
             </Flex>
 
-            {loading ? (
-              <Flex justify="center" align="center" className="py-12 text-gray-500">
-                <Text size="md">Loading alerts...</Text>
-              </Flex>
+            {loading && !ready ? (
+              <PageSkeleton variant="dashboard" />
             ) : (patients.length === 0) ? (
               <Flex justify="center" align="center" className="py-12 text-gray-500">
                 <Text size="md">No alerts at this time</Text>

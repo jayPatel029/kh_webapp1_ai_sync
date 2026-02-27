@@ -2,6 +2,7 @@ import axios from 'axios';
 import { server_url } from '../../constants/constants';
 import { normalizeAxiosError } from '../errors/ApiError';
 import { reportError } from '../errors/reportError';
+import { clearAllCaches } from '../../cache';
 
 const axiosInstance = axios.create({
   baseURL: server_url,
@@ -40,6 +41,7 @@ axiosInstance.interceptors.response.use(
         window.location.pathname.includes('/doctorLogin');
 
       if (!onLoginPage) {
+        clearAllCaches();
         localStorage.clear();
         window.location.href = '/doctorLogin';
       }

@@ -36,6 +36,10 @@ import {
 import { BsTrash } from "react-icons/bs";
 import { FaFilePdf } from "react-icons/fa6";
 
+// Cache
+import { usePageCache, PAGE_CACHE } from "../../cache";
+import PageSkeleton from "../../components/PageSkeleton";
+
 const UserDietDetails = () => {
   const [showModal, setShowModal] = useState(false);
   const [dietData, setDietData] = useState([]);
@@ -49,6 +53,7 @@ const UserDietDetails = () => {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const { isMobile } = useIsMobile();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_DIET);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -70,7 +75,7 @@ const UserDietDetails = () => {
 
   const fetchData = async () => {
     try {
-      const result = await getDietdetailsGetPatientDietDetailsAdminByid(id);
+      const result = await fetchWithCache('diet_' + id, () => getDietdetailsGetPatientDietDetailsAdminByid(id));
       if (result.success) {
         setDietData(result?.data?.data || []);
       }
@@ -81,7 +86,7 @@ const UserDietDetails = () => {
 
   const fetchPatientData = async () => {
     try {
-      const response = await getPatientGetPatientByid(id);
+      const response = await fetchWithCache('patient_' + id, () => getPatientGetPatientByid(id));
       if (response.success) {
         setUserData(response?.data?.data || {});
       }
@@ -116,7 +121,7 @@ const UserDietDetails = () => {
     );
     if (isConfirmed) {
       try {
-        const result = await deleteDietdetailsDeleteDietDetailsByid(dietId);
+        const result = await mutate(() => deleteDietdetailsDeleteDietDetailsByid(dietId));
         if (!result.success) {
           throw new Error("Delete failed");
         }
@@ -129,7 +134,7 @@ const UserDietDetails = () => {
   };
 
   if (loading) {
-    return <Box className="p-20 text-center">Loading...</Box>;
+    return <PageSkeleton variant="table" rows={5} />;
   }
 
   // Prepare columns for UnifiedListTable

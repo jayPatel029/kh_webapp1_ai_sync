@@ -32,6 +32,7 @@ import {
 } from "../../../component-library";
 import UnifiedListTable from "../../../components/table/UnifiedListTable";
 import { useAdminToast } from "../../../components/AdminToast";
+import { usePageCache, PAGE_CACHE } from "../../../cache";
 
 function AdminManagement() {
   const navigate = useNavigate();
@@ -54,6 +55,7 @@ function AdminManagement() {
   };
   const myRole = useSelector((state) => state.permission);
   const { showToast, ToastContainer } = useAdminToast();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.DOCTOR_MANAGEMENT);
 
   const roleoptions = ["Doctor", "Medical Staff", "Dialysis Technician"].map(
     (role, index) => (
@@ -93,12 +95,14 @@ function AdminManagement() {
     const fetchData = async () => {
       try {
         devLog("fetchData: starting");
-        const result = await getDoctors();
+        const result = await fetchWithCache('getDoctors', () => getDoctors(), {
+          transform: (apiData) => apiData?.data || [],
+        });
         devLog("fetchData: result", result);
         if (result.success) {
-          setDoctorsList(result.data.data);
-          setDoctors(result.data.data);
-          devLog("fetchData: set doctors", result.data.data.length, "records");
+          setDoctorsList(result.data);
+          setDoctors(result.data);
+          devLog("fetchData: set doctors", result.data.length, "records");
         } else {
           console.error("Failed to fetch doctors:", result.data);
         }
@@ -293,7 +297,7 @@ function AdminManagement() {
         };
         console.log("ipdating with,", payload.dailyReadings);
         if (!editMode) {
-          const response = await registerDoctor(payload);
+          const response = await mutate(() => registerDoctor(payload));
           if (response.success) {
             setErrMsg("");
             setSuccessMessage("Registration Successful!");
@@ -306,7 +310,7 @@ function AdminManagement() {
             setSuccessMessage("");
           }
         } else {
-          const response = await updateDoctor(newDoctor.id, payload);
+          const response = await mutate(() => updateDoctor(newDoctor.id, payload));
           if (response.success) {
             setErrMsg("");
             setSuccessMessage("Update Successful!");
@@ -346,7 +350,7 @@ function AdminManagement() {
         };
         console.log("docs payload", payload);
         if (!editMode) {
-          const response = await registerDoctor(payload);
+          const response = await mutate(() => registerDoctor(payload));
           if (response.success) {
             setErrMsg("");
             setSuccessMessage("Registration Successful!");
@@ -359,7 +363,7 @@ function AdminManagement() {
             setSuccessMessage("");
           }
         } else {
-          const response = await updateDoctor(newDoctor.id, payload);
+          const response = await mutate(() => updateDoctor(newDoctor.id, payload));
           if (response.success) {
             setErrMsg("");
             setSuccessMessage("Update Successful!");
@@ -399,8 +403,8 @@ function AdminManagement() {
 
         console.log("Dialysis Technician payload", payload);
         const response = editMode
-          ? await updateDoctor(newDoctor.id, payload)
-          : await registerDoctor(payload);
+          ? await mutate(() => updateDoctor(newDoctor.id, payload))
+          : await mutate(() => registerDoctor(payload));
 
         if (response.success) {
           setErrMsg("");
@@ -440,7 +444,7 @@ function AdminManagement() {
 
       setErrMsg("");
       setSuccessMessage("Deleting Data");
-      const response = await deleteDoctor(id);
+      const response = await mutate(() => deleteDoctor(id));
       devLog("handleDelete response", response);
       if (response.success) {
         setSuccessMessage("Delete Successful!");

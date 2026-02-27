@@ -22,6 +22,7 @@ import {
   Button
 } from "../../../component-library";
 import { useAdminToast } from "../../../components/AdminToast";
+import { usePageCache, PAGE_CACHE } from "../../../cache";
 
 function DialysisReadingsList() {
   const [editMode, setEditMode] = useState(false);
@@ -33,6 +34,7 @@ function DialysisReadingsList() {
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [translations, setTranslations] = useState({});
   const { showToast, ToastContainer } = useAdminToast();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.DIALYSIS_READINGS);
 
   const closeModal = () => {
     setModelOpen(false);
@@ -58,7 +60,7 @@ function DialysisReadingsList() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        getAilments().then((resultAilment) => {
+        fetchWithCache('ailments', () => getAilments()).then((resultAilment) => {
           if (resultAilment.success && resultAilment.data.listOfAilments) {
             console.log("listofailments", resultAilment.data.listOfAilments);
             const filteredAilments = resultAilment.data.listOfAilments.filter((a) => a.name.includes("Dialysis"));
@@ -70,7 +72,7 @@ function DialysisReadingsList() {
             console.error("Failed to fetch Ailments:", resultAilment);
           }
         });
-        getLanguages().then((resultLanguage) => {
+        fetchWithCache('languages', () => getLanguages()).then((resultLanguage) => {
           if (resultLanguage.success && resultLanguage.data) {
             setLanguages(resultLanguage.data);
             let transaltiondict = {};
@@ -126,7 +128,7 @@ function DialysisReadingsList() {
     if (validateForm()) {
       console.log("submiting ailmetns", payload.ailments);
       if (!editMode) {
-        const response = await addDialysisReading(payload);
+        const response = await mutate(() => addDialysisReading(payload));
         if (response.success) {
           let transaltiondict = {};
           languages.forEach((lang) => {
@@ -149,7 +151,7 @@ function DialysisReadingsList() {
           setSuccessful("");
         }
       } else {
-        const response = await updateDialysisReading(payload);
+        const response = await mutate(() => updateDialysisReading(payload));
         if (response.success) {
           let transaltiondict = {};
           languages.forEach((lang) => {

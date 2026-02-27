@@ -11,28 +11,34 @@ import { useParams } from "react-router-dom";
 import PatientList from "./PatientDetails/PatientList";
 import AddPatientForm from "./AddPatientForm";
 import { getPatients } from "../../ApiCalls/patientAPis";
+import { usePageCache, PAGE_CACHE } from "../../cache";
 
 function Patient() {
   const [patientData, setPatientData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const { id } = useParams();
+  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.PATIENTS);
 
-  const fetchPatients = () => {
+  const fetchPatients = async (forceRefresh = false) => {
     setLoading(true);
-    getPatients()
-      .then((response) => {
-        if (response.success) {
-          const data = (response.data?.data || []).filter((patient) => patient.name);
-          setPatientData(data);
+    try {
+      const result = await fetchWithCache(
+        'getPatients',
+        () => getPatients(),
+        {
+          forceRefresh,
+          transform: (apiData) => (apiData?.data || []).filter((patient) => patient.name),
         }
-      })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      );
+      if (result.success) {
+        setPatientData(result.data);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -44,7 +50,7 @@ function Patient() {
   const closeAddModal = () => setShowAddModal(false);
   const handleAddSuccess = () => {
     closeAddModal();
-    fetchPatients();
+    fetchPatients(true); // Force refresh after adding a patient
   };
 
   return (
