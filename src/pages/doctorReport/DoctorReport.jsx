@@ -12,7 +12,7 @@ import PageSkeleton from '../../components/PageSkeleton';
 function DoctorReport() {
     const [reportLogs, setReportLogs] = useState([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
-    const { fetchWithCache } = usePageCache(PAGE_CACHE.DOCTOR_REPORT);
+    const { fetchWithCache, refreshKey } = usePageCache(PAGE_CACHE.DOCTOR_REPORT);
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -29,7 +29,7 @@ function DoctorReport() {
             }
         };
         fetchLogs();
-    }, []);
+    }, [refreshKey]);
 
     return (
       <div className="flex-1 block w-full">

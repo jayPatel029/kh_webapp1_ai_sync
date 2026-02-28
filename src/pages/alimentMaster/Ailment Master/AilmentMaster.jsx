@@ -33,7 +33,7 @@ export default function AilmentMasterComponent() {
   const [fieldErrors, setFieldErrors] = useState({});
   const { isMobile } = useIsMobile();
   const { showToast, ToastContainer } = useAdminToast();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.AILMENT_MASTER);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.AILMENT_MASTER);
   const role = useSelector((state) => state.permission);
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function AilmentMasterComponent() {
     };
 
     fetchData();
-  }, [successmsg]);
+  }, [successmsg, refreshKey]);
 
   const getFileRes = async (file) => {
     try {
@@ -107,7 +107,7 @@ export default function AilmentMasterComponent() {
     if (!name || name.trim() === "") nextFieldErrors.name = true;
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
-      showToast("Please fill all the required fields", "error");
+      // showToast("Please fill all the required fields", "error");
       return;
     }
     setFieldErrors({});
@@ -128,8 +128,8 @@ export default function AilmentMasterComponent() {
             showToast("Ailment added successfully!", "success");
             setIsFormModalOpen(false);
           } else {
-            setErrmsg("Failed to add Ailment");
-            showToast("Failed to add Ailment", "error");
+            const msg = typeof result.data === 'string' ? result.data : result.data?.message || "Failed to add Ailment";
+            setErrmsg(msg);
           }
         });
       } else {
@@ -140,13 +140,15 @@ export default function AilmentMasterComponent() {
             showToast("Ailment updated successfully!", "success");
             setIsFormModalOpen(false);
           } else {
-            setErrmsg("Failed to update Ailment");
-            showToast("Failed to update Ailment", "error");
+            const msg = typeof result.data === 'string' ? result.data : result.data?.message || "Failed to update Ailment";
+            setErrmsg(msg);
           }
         });
       }
     } catch (error) {
       console.error("Error adding Ailment:", error);
+      const msg = error?.message || "An unexpected error occurred. Please try again.";
+      setErrmsg(msg);
     }
   };
 
@@ -199,7 +201,6 @@ export default function AilmentMasterComponent() {
         .catch((error) => {
           console.error("Error deleting Ailment:", error);
           setErrmsg("Error deleting ailment");
-          showToast("Error deleting ailment", "error");
         });
     }
   };

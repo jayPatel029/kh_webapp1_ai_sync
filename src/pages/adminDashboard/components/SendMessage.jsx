@@ -10,6 +10,7 @@ import {
 const SendMessage = ({ closeModal, patientid }) => {
   const [message, setMessage] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
+  const [errorMsg, setErrorMsg] = useState("");
 
   const submitMessage = async () => {
     if (!message.trim()) {
@@ -17,17 +18,19 @@ const SendMessage = ({ closeModal, patientid }) => {
       return;
     }
     setFieldErrors({});
+    setErrorMsg("");
     const doctorEmail = localStorage.getItem("email");
     const patientId = patientid;
     const category = "Send Message";
     const mess = message;
     try {
-      const data = await insertAlert(doctorEmail, patientId, category, mess);
+      await insertAlert(doctorEmail, patientId, category, mess);
       alert("Your Message has been sent.");
-      console.log(data);
       closeModal();
     } catch (error) {
-      console.log(error);
+      console.error("Error sending message:", error);
+      const msg = error?.message || "Failed to send message. Please try again.";
+      setErrorMsg(msg.includes("Network") ? "Network error — please check your connection." : msg);
     }
   };
 
@@ -41,6 +44,7 @@ const SendMessage = ({ closeModal, patientid }) => {
       cancelText="Close"
       fieldErrors={fieldErrors}
       onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
+      errorMessage={errorMsg}
       size="md"
     >
       <FormControl isRequired isInvalid={Boolean(fieldErrors.message)}>

@@ -83,7 +83,7 @@ function ManageParameters() {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const { isMobile } = useIsMobile();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.MANAGE_PARAMETERS);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.MANAGE_PARAMETERS);
 
   // Sort / Filter state and helper functions
   const [selectedFilter, setSelectedFilter] = useState("");
@@ -187,7 +187,7 @@ function ManageParameters() {
   useEffect(() => {
     getParameterData();
     fetchPatientData();
-  }, [errMsg, patientId]);
+  }, [errMsg, patientId, refreshKey]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -206,9 +206,7 @@ function ManageParameters() {
     };
 
     fetchData();
-  }, []);
-
-  function clearAllFields() {
+  }, [refreshKey]);  function clearAllFields() {
     setSelectTitle("");
     setSelectedParameterType("");
     setSelectedReadingType("");
@@ -274,6 +272,8 @@ function ManageParameters() {
               });
             } else {
               console.error("Failed to update reading:", response.data);
+              const msg = typeof response.data === 'string' ? response.data : response.data?.message || "Failed to update reading";
+              setErrMsg({ type: "error", msg });
             }
           });
         } else {
@@ -289,6 +289,8 @@ function ManageParameters() {
               });
             } else {
               console.error("Failed to update reading:", response.data);
+              const msg = typeof response.data === 'string' ? response.data : response.data?.message || "Failed to update reading";
+              setErrMsg({ type: "error", msg });
             }
           });
         }
@@ -301,11 +303,15 @@ function ManageParameters() {
             setIsModalOpen(false);
           } else {
             console.error("Failed to add reading:", response.data);
+            const msg = typeof response.data === 'string' ? response.data : response.data?.message || "Failed to add reading";
+            setErrMsg({ type: "error", msg });
           }
         });
       }
     } catch (err) {
       console.error(err);
+      const msg = err?.message || "An unexpected error occurred. Please try again.";
+      setErrMsg({ type: "error", msg });
     }
   };
 

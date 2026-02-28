@@ -55,7 +55,7 @@ function AdminManagement() {
   };
   const myRole = useSelector((state) => state.permission);
   const { showToast, ToastContainer } = useAdminToast();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.DOCTOR_MANAGEMENT);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.DOCTOR_MANAGEMENT);
 
   const roleoptions = ["Doctor", "Medical Staff", "Dialysis Technician"].map(
     (role, index) => (
@@ -112,7 +112,7 @@ function AdminManagement() {
     };
 
     fetchData();
-  }, [successMessage]);
+  }, [successMessage, refreshKey]);
 
   const [editMode, setEditMode] = useState(false);
 
@@ -306,7 +306,6 @@ function AdminManagement() {
             setIsFormModalOpen(false);
           } else {
             setErrMsg("Registration Error! " + response.data);
-            showToast("Registration Error! " + response.data, "error");
             setSuccessMessage("");
           }
         } else {
@@ -319,7 +318,6 @@ function AdminManagement() {
             setIsFormModalOpen(false);
           } else {
             setErrMsg("Update Error! " + response.data);
-            showToast("Update Error! " + response.data, "error");
             setSuccessMessage("");
           }
         }
@@ -359,7 +357,6 @@ function AdminManagement() {
             setIsFormModalOpen(false);
           } else {
             setErrMsg("Registration Error! " + response.data);
-            showToast("Registration Error! " + response.data, "error");
             setSuccessMessage("");
           }
         } else {
@@ -372,7 +369,6 @@ function AdminManagement() {
             setIsFormModalOpen(false);
           } else {
             setErrMsg("Update Error! " + response.data);
-            showToast("Update Error! " + response.data, "error");
             setSuccessMessage("");
           }
         }
@@ -414,7 +410,6 @@ function AdminManagement() {
           setIsFormModalOpen(false);
         } else {
           setErrMsg((editMode ? "Update Error! " : "Registration Error! ") + response.data);
-          showToast((editMode ? "Update Error! " : "Registration Error! ") + response.data, "error");
           setSuccessMessage("");
           setErrMsg("Please fill all the * fields correctly!");
         }
@@ -424,14 +419,14 @@ function AdminManagement() {
         setFieldErrors(errors);
         setSuccessMessage("");
         setErrMsg("Please fill all the * fields correctly!");
-        showToast("Please fill all the * fields correctly!", "error");
         return;
       }
     } catch (error) {
       console.error("Error in submission:", error);
-      setErrMsg("An unexpected error occurred. Please try again.");
+      const msg = error?.message || "An unexpected error occurred. Please try again.";
+      const displayMsg = msg.includes("Network") ? "Network error — please check your connection." : msg;
+      setErrMsg(displayMsg);
       setSuccessMessage("");
-      showToast("An unexpected error occurred. Please try again.", "error");
     }
 
 
@@ -459,7 +454,6 @@ function AdminManagement() {
       } else {
         setErrMsg(
           "Delete Error! (Please delete this doctor from the patients list for all the assigned patients before deleting it permantly!)");
-        showToast("Delete Error! Please remove doctor from assigned patients first.", "error");
         setSuccessMessage("");
       }
     } catch (error) {
@@ -598,7 +592,6 @@ function AdminManagement() {
                   columns={columns}
                   data={tableData}
                   rowsPerPage={8}
-                  enablePagination
                   emptyMessage="No doctor records found"
                   actionButtons={true}
                   displayMode="table"

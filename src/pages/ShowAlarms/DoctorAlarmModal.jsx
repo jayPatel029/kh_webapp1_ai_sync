@@ -29,7 +29,7 @@ import { updateReason } from "../../ApiCalls/alarmsApis";
 // Import design system styles
 import "../../design-system/styles/index.css";
 
-const DoctorAlarmModal = ({ closeModal, alarmData }) => {
+const DoctorAlarmModal = ({ closeModal, alarmData, mutate, onSuccess }) => {
   const {
     id,
     type,
@@ -90,12 +90,27 @@ const DoctorAlarmModal = ({ closeModal, alarmData }) => {
 
     setIsSubmitting(true);
     try {
-      await updateReason(id, approvalStatus, rejectionReason, patientid);
+      const updateRunner = () => updateReason(id, approvalStatus, rejectionReason, patientid);
+      const result = mutate
+        ? await mutate(updateRunner, {
+            waitForRefetch: true,
+            refetchKeys: [`alarms_${patientid}`],
+          })
+        : await updateRunner();
+
+      if (!result?.success) {
+        throw new Error(result?.data || "Error updating alarm");
+      }
+
+      if (onSuccess) {
+        await onSuccess();
+      }
+
       closeModal();
-      setTimeout(() => window.location.reload(), 500);
     } catch (error) {
       console.error("Error updating alarm:", error);
-      setErrorMessage("Error updating alarm. Please try again.");
+      const msg = error?.message || "Error updating alarm. Please try again.";
+      setErrorMessage(msg.includes("Network") ? "Network error — please check your connection." : msg);
     } finally {
       setIsSubmitting(false);
     }

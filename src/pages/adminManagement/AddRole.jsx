@@ -149,7 +149,7 @@ const AddRole = () => {
       nextFieldErrors.roleName = "Role Name is required";
       setFieldErrors(nextFieldErrors);
       setErrorMessage("Role Name is required");
-      showToast("Role Name is required", "error");
+      // showToast("Role Name is required", "error");
       return;
     }
 
@@ -171,7 +171,6 @@ const AddRole = () => {
           setIsFormModalOpen(false);
         } else {
           setErrorMessage(result.message || "Failed to add role");
-          showToast(result.message || "Failed to add role", "error");
         }
       } else {
         const result = await updateRoleByName(editingRoleName, role);
@@ -182,7 +181,6 @@ const AddRole = () => {
           setIsFormModalOpen(false);
         } else {
           setErrorMessage(result.message || "Failed to update role");
-          showToast(result.message || "Failed to update role", "error");
         }
       }
     } catch (error) {
@@ -201,7 +199,6 @@ const AddRole = () => {
           showToast("Role deleted successfully!", "success");
         } else {
           setErrorMessage("Failed to delete role");
-          showToast("Failed to delete role", "error");
         }
       } catch (error) {
         setErrorMessage("Error deleting role: " + error.message);
@@ -332,8 +329,8 @@ const AddRole = () => {
           {({ getFieldProps, clearFieldError }) => (
             <>
           {/* Role Name Input */}
-          <FormControl isInvalid={getFieldProps("roleName").isInvalid}>
-            <FormLabel>Role Name*</FormLabel>
+          <FormControl isRequired={true} isInvalid={getFieldProps("roleName").isInvalid}>
+            <FormLabel>Role Name</FormLabel>
             <Input
               type="text"
               placeholder="Enter role name"

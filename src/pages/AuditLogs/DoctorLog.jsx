@@ -39,7 +39,7 @@ const DocLogPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const role = useSelector((state) => state.permission);
-  const { fetchWithCache } = usePageCache(PAGE_CACHE.AUDIT_LOGS);
+  const { fetchWithCache, refreshKey } = usePageCache(PAGE_CACHE.AUDIT_LOGS);
 
   // Fetch logs from the backend
   const fetchLogs = async () => {
@@ -60,7 +60,7 @@ const DocLogPage = () => {
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [refreshKey]);
 
   // Convert logs to CSV format
   const convertToCSV = (data) => {

@@ -66,7 +66,7 @@ const Userprescription = () => {
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
   const { isMobile } = useIsMobile();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_PRESCRIPTION);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.USER_PRESCRIPTION);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -86,9 +86,9 @@ const Userprescription = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh = false) => {
     try {
-      const response = await fetchWithCache('prescriptions_' + id, () => getPrescriptionsById(id));
+      const response = await fetchWithCache('prescriptions_' + id, () => getPrescriptionsById(id), { forceRefresh });
       if (response.success) {
         setUserPrescriptionData(response?.data?.data || []);
         setFilteredPrescriptionData(response?.data?.data || []);
@@ -98,9 +98,9 @@ const Userprescription = () => {
     }
   };
 
-  const fetchPatientData = async () => {
+  const fetchPatientData = async (forceRefresh = false) => {
     try {
-      const response = await fetchWithCache('patient_' + id, () => getPatientGetPatientByid(id));
+      const response = await fetchWithCache('patient_' + id, () => getPatientGetPatientByid(id), { forceRefresh });
       if (response.success) {
         setUserData(response?.data?.data || {});
       }
@@ -109,10 +109,10 @@ const Userprescription = () => {
     }
   };
 
-  const fetchMedicalTeam = async (user_id) => {
+  const fetchMedicalTeam = async (user_id, forceRefresh = false) => {
     setLoading(true);
     try {
-      const response = await fetchWithCache('medicalTeam_' + user_id, () => getPatientGetMedicalTeamByid(user_id));
+      const response = await fetchWithCache('medicalTeam_' + user_id, () => getPatientGetMedicalTeamByid(user_id), { forceRefresh });
       if (response.success) {
         setDoctorOptions(response?.data?.data || []);
       }
@@ -142,7 +142,7 @@ const Userprescription = () => {
     fetchMedicalTeam(id);
     fetchData();
     fetchPatientData();
-  }, [id]);
+  }, [id, refreshKey]);
 
   const handleDelete = async (prescriptionId, email) => {
     const isConfirmed = window.confirm(
@@ -193,14 +193,20 @@ const Userprescription = () => {
     if (!commentText.trim()) return;
     try {
       setSubmittingComment(true);
-      const res = await addPrescriptionComment(prescriptionId, {
-        comment: commentText,
-        email: email,
-      });
+      const res = await mutate(
+        () => addPrescriptionComment(prescriptionId, {
+          comment: commentText,
+          email: email,
+        }),
+        {
+          waitForRefetch: true,
+          refetchKeys: ['prescriptions_' + id],
+        }
+      );
       if (res.success) {
         setCommentText("");
         setCommentingId(null);
-        fetchData();
+        await fetchData(true);
       } else {
         alert("Failed to add comment.");
       }
@@ -315,7 +321,8 @@ const Userprescription = () => {
         <PrescriptionModal
           closeModal={closeModal}
           user_id={id}
-          onSuccess={fetchData}
+          mutate={mutate}
+          onSuccess={() => fetchData(true)}
         />
       )}
 

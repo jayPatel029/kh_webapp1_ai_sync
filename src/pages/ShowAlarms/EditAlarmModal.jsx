@@ -35,7 +35,7 @@ import {
 // Import design system styles
 import "../../design-system/styles/index.css";
 
-const EditAlarmModal = ({ closeModal, alarmData, pid, dosesData }) => {
+const EditAlarmModal = ({ closeModal, alarmData, pid, dosesData, mutate, onSuccess }) => {
   // Form state
   const [selectedAlarmType, setSelectedAlarmType] = useState(alarmData?.type || "");
   const [selectedHealthParameter, setSelectedHealthParameter] = useState("");
@@ -156,16 +156,26 @@ const EditAlarmModal = ({ closeModal, alarmData, pid, dosesData }) => {
         payload.time = timings.toString();
       }
 
-      const res = await updateAlarm(alarmData.id, payload);
+      const updateRunner = () => updateAlarm(alarmData.id, payload);
+      const res = mutate
+        ? await mutate(updateRunner, {
+            waitForRefetch: true,
+            refetchKeys: [`alarms_${pid}`],
+          })
+        : await updateRunner();
       if (res.success) {
+        if (onSuccess) {
+          await onSuccess();
+        }
         closeModal();
-        setTimeout(() => window.location.reload(), 500);
       } else {
-        setErrorMessage(res.message || "Error updating alarm");
+        const msg = typeof res.data === 'string' ? res.data : res.data?.message || "Error updating alarm";
+        setErrorMessage(msg);
       }
     } catch (error) {
       console.error("Error updating alarm:", error);
-      setErrorMessage("Error updating alarm. Please try again.");
+      const msg = error?.message || "Error updating alarm. Please try again.";
+      setErrorMessage(msg.includes("Network") ? "Network error — please check your connection." : msg);
     } finally {
       setIsSubmitting(false);
     }

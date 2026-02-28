@@ -53,7 +53,7 @@ const UserDietDetails = () => {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const { isMobile } = useIsMobile();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_DIET);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.USER_DIET);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -73,9 +73,9 @@ const UserDietDetails = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh = false) => {
     try {
-      const result = await fetchWithCache('diet_' + id, () => getDietdetailsGetPatientDietDetailsAdminByid(id));
+      const result = await fetchWithCache('diet_' + id, () => getDietdetailsGetPatientDietDetailsAdminByid(id), { forceRefresh });
       if (result.success) {
         setDietData(result?.data?.data || []);
       }
@@ -84,9 +84,9 @@ const UserDietDetails = () => {
     }
   };
 
-  const fetchPatientData = async () => {
+  const fetchPatientData = async (forceRefresh = false) => {
     try {
-      const response = await fetchWithCache('patient_' + id, () => getPatientGetPatientByid(id));
+      const response = await fetchWithCache('patient_' + id, () => getPatientGetPatientByid(id), { forceRefresh });
       if (response.success) {
         setUserData(response?.data?.data || {});
       }
@@ -113,7 +113,7 @@ const UserDietDetails = () => {
   useEffect(() => {
     fetchData();
     fetchPatientData();
-  }, [id]);
+  }, [id, refreshKey]);
 
   const deleteDietDetails = async (dietId) => {
     const isConfirmed = window.confirm(
@@ -125,7 +125,7 @@ const UserDietDetails = () => {
         if (!result.success) {
           throw new Error("Delete failed");
         }
-        await fetchData(); // Refresh the data
+        await fetchData(true); // Refresh data + cache with latest server state
       } catch (error) {
         console.error("Error deleting diet details:", error);
         alert("Failed to delete diet details. Please try again.");
@@ -219,7 +219,8 @@ const UserDietDetails = () => {
           closeModal={closeModal}
           user_id={id}
           userData={userData}
-          onSuccess={fetchData}
+          mutate={mutate}
+          onSuccess={() => fetchData(true)}
         />
       )}
 

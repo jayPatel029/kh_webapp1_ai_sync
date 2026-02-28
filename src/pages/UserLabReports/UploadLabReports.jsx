@@ -28,6 +28,7 @@ import { Input } from "../../component-library/primitives/Input";
 import { Select } from "../../component-library/primitives/Select";
 import { VStack, HStack, Box, Flex } from "../../component-library/layout/Layout";
 import { Text, Heading } from "../../component-library/primitives/Typography";
+import { useAdminToast } from "../../components/AdminToast";
 
 const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
   const [selectedDate, setSelectedDate] = useState("");
@@ -38,6 +39,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [email] = useState(localStorage.getItem("email"));
   const [errorMsg, setErrorMsg] = useState("");
+  const { showToast, ToastContainer } = useAdminToast();
 
   const handleImageChange = (imagesArray) => {
     // FileUploadWithCamera passes an array of { data, name, file }
@@ -80,15 +82,18 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
 
       const extractRes = await postLabreportExtract(data);
 
-      if (extractRes?.data?.message === "Lab Report confirmed and saved successfully") {
-        alert("Data saved successfully.");
-        onSuccess();
-        closeModal();
+      if (extractRes.success) {
+        setExtractedValues(extractRes.data.extractedValues);
+      } else {
+        const msg = typeof extractRes.data === 'string' ? extractRes.data : extractRes.data?.message || "Failed to extract data.";
+        setErrorMsg(msg);
+        // showToast(msg, "error");
       }
-      setExtractedValues(extractRes?.data?.extractedValues);
     } catch (error) {
       console.error("Error during extraction:", error);
-      setErrorMsg("Something went wrong while extracting data.");
+      const msg = error?.message || "Something went wrong while extracting data.";
+      setErrorMsg(msg.includes("Network") ? "Network error. Please check your connection." : msg);
+      // showToast(msg, "error");
     } finally {
       setIsExtracting(false);
     }
@@ -96,7 +101,8 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
 
   const handleSave = async () => {
     if (!extractedValues) {
-      alert("No data to save.");
+      setErrorMsg("No data to save.");
+      showToast("No data to save.", "error");
       return;
     }
 
@@ -115,13 +121,21 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
         confirmedValues: extractedValues,
       };
 
-      await postLabreportConfirm(finalData);
-      alert("Data saved successfully.");
-      onSuccess();
-      closeModal();
+      const result = await postLabreportConfirm(finalData);
+      if (result.success) {
+        showToast("Data saved successfully.", "success");
+        onSuccess();
+        closeModal();
+      } else {
+        const msg = typeof result.data === 'string' ? result.data : result.data?.message || "Failed to save data.";
+        setErrorMsg(msg);
+        showToast(msg, "error");
+      }
     } catch (error) {
       console.error("Error saving data:", error);
-      setErrorMsg("Something went wrong while saving the data.");
+      const msg = error?.message || "Something went wrong while saving the data.";
+      setErrorMsg(msg.includes("Network") ? "Network error. Please check your connection." : msg);
+      showToast(msg, "error");
     } finally {
       setIsSaving(false);
     }
@@ -139,7 +153,8 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
   };
 
   return (
-    <Modal isOpen={true} onClose={closeModal} size="lg" isCentered>
+    <>
+      <Modal isOpen={true} onClose={closeModal} size="lg" isCentered>
       <ModalOverlay />
       <ModalContent
         // className="rounded-xl overflow-hidden border-t-4 border-primary"
@@ -147,7 +162,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
         
         <ModalHeader >
           <Heading size="md" weight="bold">Upload Lab Reports</Heading>
-          <ModalCloseButton />
+          {/* <ModalCloseButton /> */}
         </ModalHeader>
 
         <ModalBody className="py-6">
@@ -262,6 +277,9 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
         </ModalFooter>
       </ModalContent>
     </Modal>
+      {/* <ToastContainer ></ToastContainer> */}
+
+    </>
   );
 };
 

@@ -16,3 +16,7 @@ export {
 export { usePageCache } from './usePageCache';
 
 export { PAGE_CACHE, TTL } from './cacheConfig';
+
+export { onCacheInvalidation, emitCacheInvalidation } from './cacheEventBus';
+
+export { getAffectedPages, MUTATION_CACHE_MAP } from './mutationCacheMap';

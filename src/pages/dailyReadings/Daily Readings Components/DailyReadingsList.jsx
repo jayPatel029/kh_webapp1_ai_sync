@@ -37,7 +37,7 @@ function DailyForm() {
   const [data, setData] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const { showToast, ToastContainer } = useAdminToast();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.DAILY_READINGS);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.DAILY_READINGS);
 
 
   const closeModal = () => {
@@ -92,7 +92,7 @@ function DailyForm() {
     };
 
     fetchData();
-  }, []);
+  }, [refreshKey]);
 
   function validateForm() {
     const errors = {};
@@ -112,6 +112,7 @@ function DailyForm() {
   async function handleSubmit() {
     setSuccessful("");
     setErrMsg("");
+    try {
     const payload = {
       id: newReading.id,
       title: newReading.title,
@@ -151,7 +152,6 @@ function DailyForm() {
           });
         } else {
           setErrMsg("Error Creating Reading:" + response.data);
-          showToast("Error creating daily reading", "error");
           setSuccessful("");
         }
       } else {
@@ -176,13 +176,17 @@ function DailyForm() {
           });
         } else {
           setErrMsg("Error Updating Reading:" + response.data);
-          showToast("Error updating daily reading", "error");
           setSuccessful("");
         }
       }
     } else {
       setErrMsg("Please fill all the fields!");
       setSuccessful("");
+    }
+    } catch (error) {
+      console.error("Error in daily readings submit:", error);
+      const msg = error?.message || "An unexpected error occurred. Please try again.";
+      setErrMsg(msg.includes("Network") ? "Network error — please check your connection." : msg);
     }
   }
 

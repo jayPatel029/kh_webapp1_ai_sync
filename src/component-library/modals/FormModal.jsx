@@ -81,9 +81,9 @@ export const FormModal = ({
 
   const footer = (
     <Stack spacing={3}>
-      {/* {errorMessage && (
+      {errorMessage && (
         <Text color="danger" size="sm">{errorMessage}</Text>
-      )} */}
+      )}
       <Flex justify="end" gap={4}>
         <Button
           variant={cancelVariant}

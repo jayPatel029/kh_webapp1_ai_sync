@@ -39,7 +39,7 @@ import {
 import "../../design-system/styles/index.css";
 import { Grid } from "../../component-library/layout/Layout";
 
-const AlarmModal = ({ closeModal, pid, patient }) => {
+const AlarmModal = ({ closeModal, pid, patient, mutate, onSuccess }) => {
   // Form state
   const [selectedAlarmType, setSelectedAlarmType] = useState("Dialysis");
   const [selectedHealthParameter, setSelectedHealthParameter] = useState("");
@@ -181,17 +181,26 @@ const AlarmModal = ({ closeModal, pid, patient }) => {
         payload.time = timings.toString();
       }
 
-      const res = await insertAlarm(payload);
+      const submitRunner = () => insertAlarm(payload);
+      const res = mutate
+        ? await mutate(submitRunner, {
+            waitForRefetch: true,
+            refetchKeys: [`alarms_${pid}`],
+          })
+        : await submitRunner();
       if (res.success) {
+        if (onSuccess) {
+          await onSuccess();
+        }
         closeModal();
-        // Refresh page to show new alarm
-        setTimeout(() => window.location.reload(), 500);
       } else {
-        setErrorMessage(res.message || "Error inserting alarm");
+        const msg = typeof res.data === 'string' ? res.data : res.data?.message || "Error inserting alarm";
+        setErrorMessage(msg);
       }
     } catch (error) {
       console.error("Error inserting alarm:", error);
-      setErrorMessage("Error inserting alarm. Please try again.");
+      const msg = error?.message || "Error inserting alarm. Please try again.";
+      setErrorMessage(msg.includes("Network") ? "Network error — please check your connection." : msg);
     } finally {
       setIsSubmitting(false);
     }

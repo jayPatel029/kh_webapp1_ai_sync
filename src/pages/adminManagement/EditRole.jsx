@@ -171,13 +171,11 @@ const EditRole = () => {
       })
       .catch((err) => {
         console.log(err);
-        showToast("Failed to update role", "error");
       });
   };
 
   useEffect(() => {
     if (!roleParam) {
-      showToast("Role not found", "error");
       return;
     }
 
@@ -219,7 +217,7 @@ const EditRole = () => {
 
               <div className="admin-card__body">
                 <div className="max-w-md mb-6">
-                  <FormControl>
+                <FormControl isRequired={true}>
                     <FormLabel>Role Name</FormLabel>
                     <Input
                       type="text"

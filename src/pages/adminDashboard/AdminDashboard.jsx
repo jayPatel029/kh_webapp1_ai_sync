@@ -151,7 +151,7 @@ const AdminDashboard = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [sendingEmails, setSendingEmails] = useState(false);
 
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.DASHBOARD);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.DASHBOARD);
 
   const handleAlertClick = useCallback(
     (alert) => {
@@ -330,7 +330,7 @@ const AdminDashboard = () => {
       fetchDashboardData();
     };
     init();
-  }, [navigate, fetchDashboardData]);
+  }, [navigate, fetchDashboardData, refreshKey]);
 
   const handleAction = (patient, type) => {
     setSelectedPatient(patient);

@@ -24,8 +24,6 @@ import {
 import { Button } from "../../component-library";
 import { useAdminToast } from "../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../cache";
-import { useSelector } from "react-redux";
-
 
 function LanguageMaster() {
   const navigate = useNavigate();
@@ -34,30 +32,30 @@ function LanguageMaster() {
   const [errMsg, setErrMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const { showToast, ToastContainer } = useAdminToast();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.LANGUAGE);
-  const role = useSelector((state) => state.permission);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.LANGUAGE);
+
   const [languages, setLanguages] = useState([]);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [jsonPreview, setJsonPreview] = useState([]);
   const [audioPreview, setAudioPreview] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const result = await fetchWithCache('languages', () => getLanguages());
-        if (result.success) {
-          setLanguages(result.data);
-        } else {
-          console.error("Failed to fetch languages:", result.data);
-        }
-      } catch (error) {
-        console.error("Error fetching languages:", error);
+  const fetchLanguages = async (forceRefresh = false) => {
+    try {
+      const result = await fetchWithCache('languages', () => getLanguages(), { forceRefresh });
+      if (result.success) {
+        setLanguages(result.data);
+      } else {
+        console.error("Failed to fetch languages:", result.data);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching languages:", error);
+    }
+  };
 
-    fetchData();
-  }, [successful]);
+  useEffect(() => {
+    fetchLanguages();
+  }, [refreshKey]);
 
   async function removeLang(id) {
 
@@ -66,9 +64,9 @@ function LanguageMaster() {
       setErrMsg("");
       setSuccessful("Language Deleted Successful!");
       showToast("Language deleted successfully!", "success");
+      await fetchLanguages(true);
     } else {
       setErrMsg("Error Deleting Language:" + response.data);
-      showToast("Error deleting language", "error");
       setSuccessful("");
     }
   }
@@ -94,7 +92,7 @@ function LanguageMaster() {
     if (newLanguage.trim() === "") nextFieldErrors.language = true;
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
-      showToast("Please fill all the required fields", "error");
+      // showToast("Please fill all the required fields", "error");
       return false;
     }
     setFieldErrors({});
@@ -102,6 +100,7 @@ function LanguageMaster() {
   }
   async function handleSubmit() {
     if (validateForm()) {
+      try {
       if (!editMode) {
         const payload = {
           language_name: newLanguage,
@@ -113,11 +112,11 @@ function LanguageMaster() {
           setErrMsg("");
           // setSuccessful("Language Created Successful!");
           showToast("Language created successfully!", "success");
+          await fetchLanguages(true);
           resetForm();
           setIsFormModalOpen(false);
         } else {
           setErrMsg("Error Creating Language:" + response.data);
-          showToast("Error creating language", "error");
           setSuccessful("");
         }
       } else {
@@ -129,32 +128,23 @@ function LanguageMaster() {
           setErrMsg("");
           setSuccessful("Language Updated Successful!");
           showToast("Language updated successfully!", "success");
+          await fetchLanguages(true);
           resetForm();
           setIsFormModalOpen(false);
         } else {
           setErrMsg("Error Updating Language:" + response.data);
-          showToast("Error updating language", "error");
           setSuccessful("");
         }
+      }
+      } catch (error) {
+        console.error("Error in language submit:", error);
+        const msg = error?.message || "An unexpected error occurred. Please try again.";
+        setErrMsg(msg.includes("Network") ? "Network error — please check your connection." : msg);
       }
     } else {
       setErrMsg("Please fill all the fields!");
       setSuccessful("");
     }
-  }
-
-  const handleDelete = (lang) => {
-    if (window.confirm(`Delete language "${lang.language_name}"?`)) {
-      removeLang(lang.id);
-    }
-  }
-
-
-  const handleEdit = (lang) => {
-    setEditID(lang.id);
-    setNewLanguage(lang.language_name);
-    setEditMode(true);
-    setIsFormModalOpen(true);
   }
 
   return (
@@ -226,8 +216,17 @@ function LanguageMaster() {
                 enableSearch={true}
                 renderSearchUI={false}
                 searchKeys={['language_name']}
-                onEdit={role.canEditLanguages ? handleEdit : null}
-                onDelete={role.canDeleteLanguages ? handleDelete : null}
+                onEdit={(lang) => {
+                  setEditID(lang.id);
+                  setNewLanguage(lang.language_name);
+                  setEditMode(true);
+                  setIsFormModalOpen(true);
+                }}
+                onDelete={(lang) => {
+                  if (window.confirm(`Delete language "${lang.language_name}"?`)) {
+                    removeLang(lang.id);
+                  }
+                }}
                 emptyMessage="No languages found"
               />
             </div>
@@ -247,57 +246,57 @@ function LanguageMaster() {
             onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
           >
             {({ getFieldProps, clearFieldError }) => (
-              <>
-                <FormControl isInvalid={getFieldProps("language").isInvalid}>
-                  <FormLabel>Language<span className="text-red-500">*</span></FormLabel>
-                  <Input
-                    type="text"
-                    placeholder="Language Name"
-                    value={newLanguage}
-                    isInvalid={getFieldProps("language").isInvalid}
-                    onChange={(event) => {
-                      setNewLanguage(event.target.value);
-                      clearFieldError("language");
-                    }}
-                  />
-                </FormControl>
+            <Box className="space-y-10">
+              <FormControl isInvalid={getFieldProps("language").isInvalid}>
+                <FormLabel>Language<span className="text-red-500">*</span></FormLabel>
+                <Input
+                  type="text"
+                  placeholder="Language Name"
+                  value={newLanguage}
+                  isInvalid={getFieldProps("language").isInvalid}
+                  onChange={(event) => {
+                    setNewLanguage(event.target.value);
+                    clearFieldError("language");
+                  }}
+                />
+              </FormControl>
 
-                {!editMode && (
-                  <Box className="flex flex-col md:flex-row gap-6">
-                    <FormControl>
-                      <FormLabel>JSON File</FormLabel>
-                      <FileUploadWithCamera
-                        images={jsonPreview}
-                        size="xs"
-                        onChange={setJsonPreview}
-                        onFileChange={(file) => setLangJson(file)}
-                        accept=".json,application/json"
-                        multiple={false}
-                        attachLabel="Upload JSON"
-                        captureLabel="Capture"
-                        showCountInfo={false}
-                        showCamera={false}
-                      />
-                    </FormControl>
+              {!editMode && (
+                <Box className="flex flex-col md:flex-row gap-10">
+                  <FormControl>
+                    <FormLabel>JSON File</FormLabel>
+                    <FileUploadWithCamera
+                      images={jsonPreview}
+                      size="xs"
+                      onChange={setJsonPreview}
+                      onFileChange={(file) => setLangJson(file)}
+                      accept=".json,application/json"
+                      multiple={false}
+                      attachLabel="Upload JSON"
+                      captureLabel="Capture"
+                      showCountInfo={false}
+                      showCamera={false}
+                    />
+                  </FormControl>
 
-                    <FormControl>
-                      <FormLabel>Audio Zip File</FormLabel>
-                      <FileUploadWithCamera
-                        size="xs"
-                        images={audioPreview}
-                        onChange={setAudioPreview}
-                        onFileChange={(file) => setLangAudio(file)}
-                        accept=".zip,application/zip,application/x-zip-compressed"
-                        multiple={false}
-                        attachLabel="Upload Audio Zip"
-                        captureLabel="Capture"
-                        showCountInfo={false}
-                        showCamera={false}
-                      />
-                    </FormControl>
-                  </Box>
-                )}
-              </>
+                  <FormControl>
+                    <FormLabel>Audio Zip File</FormLabel>
+                    <FileUploadWithCamera
+                      size="xs"
+                      images={audioPreview}
+                      onChange={setAudioPreview}
+                      onFileChange={(file) => setLangAudio(file)}
+                      accept=".zip,application/zip,application/x-zip-compressed"
+                      multiple={false}
+                      attachLabel="Upload Audio Zip"
+                      captureLabel="Capture"
+                      showCountInfo={false}
+                      showCamera={false}
+                    />
+                  </FormControl>
+                </Box>
+              )}
+            </Box>
             )}
           </FormModal>
         </div>

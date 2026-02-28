@@ -10,7 +10,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import PatientList from "./PatientDetails/PatientList";
 import AddPatientForm from "./AddPatientForm";
-import { getPatients } from "../../ApiCalls/patientAPis";
+import { AddPatient, deletePatient, getPatients } from "../../ApiCalls/patientAPis";
 import { usePageCache, PAGE_CACHE } from "../../cache";
 
 function Patient() {
@@ -18,7 +18,7 @@ function Patient() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const { id } = useParams();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.PATIENTS);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.PATIENTS);
 
   const fetchPatients = async (forceRefresh = false) => {
     setLoading(true);
@@ -43,7 +43,7 @@ function Patient() {
 
   useEffect(() => {
     fetchPatients();
-  }, []);
+  }, [refreshKey]);
 
   console.log(patientData);
 
@@ -53,6 +53,32 @@ function Patient() {
     fetchPatients(true); // Force refresh after adding a patient
   };
 
+  const handleAddPatient = async (formDataToSend) => {
+    const response = await mutate(() => AddPatient(formDataToSend), {
+      waitForRefetch: true,
+      refetchKeys: ['getPatients'],
+    });
+
+    if (response.success) {
+      await fetchPatients(true);
+    }
+
+    return response;
+  };
+
+  const handleDeletePatient = async (patientId) => {
+    const response = await mutate(() => deletePatient(patientId), {
+      waitForRefetch: true,
+      refetchKeys: ['getPatients'],
+    });
+
+    if (response.success) {
+      await fetchPatients(true);
+    }
+
+    return response;
+  };
+
   return (
     <>
       <PatientList
@@ -60,6 +86,7 @@ function Patient() {
         patientId={id}
         className="!p-0 !md:-p-0"
         onAddClick={() => setShowAddModal(true)}
+        onDeletePatient={handleDeletePatient}
       />
 
       {showAddModal && (
@@ -67,6 +94,7 @@ function Patient() {
           isOpen={showAddModal}
           onSuccess={handleAddSuccess}
           onCancel={closeAddModal}
+          onAddPatient={handleAddPatient}
         />
       )}
     </>

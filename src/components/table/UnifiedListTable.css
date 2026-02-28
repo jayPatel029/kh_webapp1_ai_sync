@@ -104,6 +104,16 @@
   text-overflow: ellipsis;
 }
 
+.list-table__header-cell--sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.list-table__header-cell--sortable:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
 /* border-bottom: 2px solid rgba(0, 0, 0, 0.1); */
 
 /* ===================== TABLE BODY & ROWS ===================== */
@@ -296,12 +306,25 @@
 .list-table__pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 15px;
   padding: 15px 20px;
   background-color: var(--color-surface, #fafafa);
   border-radius: 4px;
   margin-top: 15px;
+}
+
+.list-table__pagination-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.list-table__pagination-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
 }
 
 .list-table__pagination-btn {
@@ -338,6 +361,45 @@
   font-family: var(--font-family-primary, 'Sora', sans-serif);
   min-width: 120px;
   text-align: center;
+}
+
+.list-table__rows-per-page-label {
+  color: var(--color-text-muted, #989898);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-family-primary, 'Sora', sans-serif);
+  white-space: nowrap;
+}
+
+.list-table__rows-per-page-select {
+  padding: 8px 12px;
+  background-color: var(--color-background, #ffffff);
+  color: var(--color-text, #393939);
+  border: 1px solid var(--color-border-light, #d9d9d9);
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: var(--font-family-primary, 'Sora', sans-serif);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 60px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 30px;
+}
+
+.list-table__rows-per-page-select:hover {
+  border-color: var(--color-accent, #5886a5);
+  background-color: var(--color-surface, #fafafa);
+}
+
+.list-table__rows-per-page-select:focus {
+  outline: none;
+  border-color: var(--color-accent, #5886a5);
+  box-shadow: 0 0 0 3px rgba(88, 134, 165, 0.1);
 }
 
 /* ===================== INFO ===================== */
@@ -405,11 +467,25 @@
     flex-wrap: wrap;
     gap: 10px;
     padding: 12px 15px;
+    justify-content: space-between;
+  }
+
+  .list-table__pagination-left,
+  .list-table__pagination-center {
+    width: 100%;
+    justify-content: center;
   }
 
   .list-table__pagination-btn {
     padding: 7px 14px;
     font-size: 12px;
+  }
+
+  .list-table__rows-per-page-select {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-width: 55px;
+    padding-right: 28px;
   }
 }
 

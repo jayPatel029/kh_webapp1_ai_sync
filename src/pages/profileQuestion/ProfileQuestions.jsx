@@ -44,7 +44,7 @@ function ProfileQuestions() {
   const [errMsg, setErrMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const { showToast, ToastContainer } = useAdminToast();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.PROFILE_QUESTION);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.PROFILE_QUESTION);
 
   const [questionsList, setQuestionsList] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -116,7 +116,7 @@ function ProfileQuestions() {
     };
 
     fetchData();
-  }, [successful]);
+  }, [successful, refreshKey]);
 
   function searchQuestion(keyword) {
     if (keyword.trim() === '') {
@@ -140,7 +140,6 @@ function ProfileQuestions() {
       showToast("Question deleted successfully!", "success");
     } else {
       setErrMsg("Error Deleting Question:" + response.data);
-      showToast("Error deleting question", "error");
       setSuccessful("");
     }
   }
@@ -175,7 +174,7 @@ function ProfileQuestions() {
 
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
-      showToast("Please fill all the required fields correctly", "error");
+      // showToast("Please fill all the required fields correctly", "error");
       return false;
     }
     setFieldErrors({});
@@ -183,6 +182,7 @@ function ProfileQuestions() {
   }
   async function handleSubmit() {
     if (validateForm()) {
+      try {
       if (!editMode) {
 
         console.log("translations are: ", translations);
@@ -214,7 +214,6 @@ function ProfileQuestions() {
           });
         } else {
           setErrMsg("Error Creating Question:" + response.data);
-          showToast("Error creating question", "error");
           setSuccessful("");
         }
       } else {
@@ -244,9 +243,13 @@ function ProfileQuestions() {
           });
         } else {
           setErrMsg("Error Updating Question:" + response.data);
-          showToast("Error updating question", "error");
           setSuccessful("");
         }
+      }
+      } catch (error) {
+        console.error("Error in question submit:", error);
+        const msg = error?.message || "An unexpected error occurred. Please try again.";
+        setErrMsg(msg.includes("Network") ? "Network error — please check your connection." : msg);
       }
     } else {
       setErrMsg("Please fill all the fields!");

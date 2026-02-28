@@ -47,8 +47,9 @@ const UnifiedListTable = ({
     onRowClick = null,
     isLoading = false,
     emptyMessage = 'No data found',
-    rowsPerPage = 10,
-    enablePagination = false,
+    rowsPerPage: initialRowsPerPage = 10,
+    rowsPerPageOptions = [4, 10, 25, 50],
+    enablePagination = true,
     enableSearch = false,
     searchKeys = [],
     actionButtons = true,
@@ -68,6 +69,9 @@ const UnifiedListTable = ({
 }) => {
     const { isMobile } = useIsMobile();
     const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(initialRowsPerPage);
+    const [sortColumn, setSortColumn] = useState(null);
+    const [sortDirection, setSortDirection] = useState('desc'); // 'asc' or 'desc'
     //   const [searchTerm, setSearchTerm] = useState('');
 
     // Filter data based on search
@@ -84,15 +88,58 @@ const UnifiedListTable = ({
         );
     }, [data, searchTerm, enableSearch, searchKeys]);
 
+    // Sort data - prioritize date columns if available
+    const sortedData = useMemo(() => {
+        let dataCopy = [...filteredData];
+        
+        // Auto-detect and sort by date column if available on first render
+        let columnToSort = sortColumn;
+        if (!columnToSort && columns.length > 0) {
+            const dateCol = columns.find(col => 
+                (col.key === 'date' || col.key === 'createdAt' || col.key === 'created_at' || col.label?.toLowerCase().includes('date')) &&
+                col.type !== 'image' && col.type !== 'actions'
+            );
+            if (dateCol) {
+                columnToSort = dateCol.key;
+            }
+        }
+
+        if (columnToSort) {
+            dataCopy.sort((a, b) => {
+                const aVal = a[columnToSort];
+                const bVal = b[columnToSort];
+
+                // Handle date sorting
+                if (aVal instanceof Date || typeof aVal === 'string' && !isNaN(Date.parse(aVal))) {
+                    const aDate = new Date(aVal);
+                    const bDate = new Date(bVal);
+                    return sortDirection === 'desc' ? bDate - aDate : aDate - bDate;
+                }
+
+                // Handle numeric sorting
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return sortDirection === 'desc' ? bVal - aVal : aVal - bVal;
+                }
+
+                // Handle string sorting
+                const aStr = String(aVal || '').toLowerCase();
+                const bStr = String(bVal || '').toLowerCase();
+                return sortDirection === 'desc' ? bStr.localeCompare(aStr) : aStr.localeCompare(bStr);
+            });
+        }
+
+        return dataCopy;
+    }, [filteredData, sortColumn, sortDirection, columns]);
+
     // Paginate data
     const paginatedData = useMemo(() => {
-        if (!enablePagination) return filteredData;
+        if (!enablePagination) return sortedData;
         const start = (currentPage - 1) * rowsPerPage;
         const end = start + rowsPerPage;
-        return filteredData.slice(start, end);
-    }, [filteredData, enablePagination, currentPage, rowsPerPage]);
+        return sortedData.slice(start, end);
+    }, [sortedData, enablePagination, currentPage, rowsPerPage]);
 
-    const totalPages = enablePagination ? Math.ceil(filteredData.length / rowsPerPage) : 1;
+    const totalPages = enablePagination ? Math.ceil(sortedData.length / rowsPerPage) : 1;
 
     // Determine if we should show cards
     const showCards = displayMode === 'cards' || (displayMode !== 'table' && isMobile);
@@ -334,15 +381,33 @@ const UnifiedListTable = ({
                     {/* Header */}
                     <thead className="list-table__header">
                         <tr className="list-table__header-row">
-                            {columns.map((column) => (
-                                <th
-                                    key={column.key}
-                                    className="list-table__header-cell"
-                                    style={{ width: column.width, minWidth: column.minWidth }}
-                                >
-                                    {column.label}
-                                </th>
-                            ))}
+                            {columns.map((column) => {
+                                const isSortableCol = column.type !== 'image' && column.type !== 'actions';
+                                const isSorted = sortColumn === column.key;
+                                return (
+                                    <th
+                                        key={column.key}
+                                        className={`list-table__header-cell ${isSortableCol ? 'list-table__header-cell--sortable' : ''}`}
+                                        style={{ width: column.width, minWidth: column.minWidth }}
+                                        onClick={() => {
+                                            if (isSortableCol) {
+                                                setSortColumn(column.key);
+                                                setSortDirection(isSorted && sortDirection === 'desc' ? 'asc' : 'desc');
+                                                setCurrentPage(1);
+                                            }
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            {column.label}
+                                            {isSortableCol && (
+                                                <span style={{ fontSize: '12px', opacity: isSorted ? 1 : 0.5 }}>
+                                                    {isSorted ? (sortDirection === 'desc' ? '▼' : '▲') : '↕'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </th>
+                                );
+                            })}
                         </tr>
                     </thead>
 
@@ -389,25 +454,44 @@ const UnifiedListTable = ({
             )}
 
             {/* Pagination */}
-            {enablePagination && totalPages > 1 && (
+            {enablePagination && (
                 <div className="list-table__pagination">
-                    <button
-                        className="list-table__pagination-btn"
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                        disabled={currentPage === 1}
-                    >
-                        Previous
-                    </button>
-                    <span className="list-table__pagination-info">
-                        Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                        className="list-table__pagination-btn"
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                        disabled={currentPage === totalPages}
-                    >
-                        Next
-                    </button>
+                    <div className="list-table__pagination-left">
+                        <label className="list-table__rows-per-page-label">Show</label>
+                        <select
+                            className="list-table__rows-per-page-select"
+                            value={rowsPerPage}
+                            onChange={(e) => {
+                                setRowsPerPage(Number(e.target.value));
+                                setCurrentPage(1);
+                            }}
+                        >
+                            {rowsPerPageOptions.map((option) => (
+                                <option key={option} value={option}>
+                                    {option}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="list-table__pagination-center">
+                        <button
+                            className="list-table__pagination-btn"
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                        >
+                            Previous
+                        </button>
+                        <span className="list-table__pagination-info">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            className="list-table__pagination-btn"
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -415,7 +499,7 @@ const UnifiedListTable = ({
             <div className="list-table__info">
                 <small>
                     Showing {paginatedData.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0} to{' '}
-                    {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length} items
+                    {Math.min(currentPage * rowsPerPage, sortedData.length)} of {sortedData.length} items
                 </small>
             </div>
         </div>

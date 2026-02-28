@@ -61,7 +61,7 @@ const UserRequisition = () => {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_REQUISITION);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.USER_REQUISITION);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -81,10 +81,10 @@ const UserRequisition = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh = false) => {
     setLoading(true);
     try {
-      const response = await fetchWithCache('requisition_' + id, () => getRequisitionGetRequisitionByid(id));
+      const response = await fetchWithCache('requisition_' + id, () => getRequisitionGetRequisitionByid(id), { forceRefresh });
       if (response.success) {
         setUserRequisitionData(response?.data?.data || []);
       } else {
@@ -97,9 +97,9 @@ const UserRequisition = () => {
     }
   };
 
-  const fetchPatientData = async () => {
+  const fetchPatientData = async (forceRefresh = false) => {
     try {
-      const response = await fetchWithCache('patient_' + id, () => getPatientGetPatientByid(id));
+      const response = await fetchWithCache('patient_' + id, () => getPatientGetPatientByid(id), { forceRefresh });
       if (response.success) {
         setUserData(response?.data?.data || {});
       }
@@ -142,7 +142,7 @@ const UserRequisition = () => {
   useEffect(() => {
     fetchData();
     fetchPatientData();
-  }, [id]);
+  }, [id, refreshKey]);
 
   const handleDelete = async (requisitionId, email) => {
     const isConfirmed = window.confirm(
@@ -274,7 +274,8 @@ const UserRequisition = () => {
         <RequisitionModal
           closeModal={closeModal}
           user_id={id}
-          onSuccess={fetchData}
+          mutate={mutate}
+          onSuccess={() => fetchData(true)}
         />
       )}
 

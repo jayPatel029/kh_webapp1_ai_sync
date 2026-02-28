@@ -26,7 +26,7 @@ import { getFileRes } from "../../helpers/fileuploadHelper";
 import { getPatientGetMedicalTeamByid } from "../../ApiCalls/remainingApis";
 import getCurrentDate from "../../helpers/formatDate";
 
-const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
+const PrescriptionModal = ({ closeModal, user_id, onSuccess, mutate }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
   const [doctorOptions, setDoctorOptions] = useState([]);
@@ -101,12 +101,24 @@ const PrescriptionModal = ({ closeModal, user_id, onSuccess }) => {
         prescriptionGivenBy: selectedDoctorId,
       };
 
-      await addPrescriptionById(prescriptionData);
+      const mutationRunner = () => addPrescriptionById(prescriptionData);
+      const result = mutate
+        ? await mutate(mutationRunner, {
+            waitForRefetch: true,
+            refetchKeys: [`prescriptions_${user_id}`],
+          })
+        : await mutationRunner();
+
+      if (!result?.success) {
+        throw new Error(result?.data || "Failed to upload prescription");
+      }
+
       onSuccess();
       closeModal();
     } catch (error) {
       console.error("Error submitting prescription:", error);
-      setErrorMsg("Failed to upload prescription. Please try again.");
+      const msg = error?.message || "Failed to upload prescription. Please try again.";
+      setErrorMsg(msg.includes("Network") ? "Network error — please check your connection." : msg);
     } finally {
       setIsSubmitting(false);
     }

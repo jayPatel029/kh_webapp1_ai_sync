@@ -35,7 +35,7 @@ function DialysisReadingsList() {
   const [translations, setTranslations] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
   const { showToast, ToastContainer } = useAdminToast();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.DIALYSIS_READINGS);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.DIALYSIS_READINGS);
 
   const closeModal = () => {
     setModelOpen(false);
@@ -93,7 +93,7 @@ function DialysisReadingsList() {
     };
 
     fetchData();
-  }, []);
+  }, [refreshKey]);
 
   function validateForm() {
     const errors = {};
@@ -113,6 +113,7 @@ function DialysisReadingsList() {
   async function handleSubmit() {
     setSuccessful("");
     setErrMsg("");
+    try {
 
     const payload = {
       id: newReading.id,
@@ -151,7 +152,6 @@ function DialysisReadingsList() {
           });
         } else {
           setErrMsg("Error Creating Reading:" + response.data);
-          showToast("Error creating dialysis reading", "error");
           setSuccessful("");
         }
       } else {
@@ -175,13 +175,17 @@ function DialysisReadingsList() {
           });
         } else {
           setErrMsg("Error Updating Reading:" + response.data);
-          showToast("Error updating dialysis reading", "error");
           setSuccessful("");
         }
       }
     } else {
       setErrMsg("Please fill all the fields!");
       setSuccessful("");
+    }
+    } catch (error) {
+      console.error("Error in dialysis readings submit:", error);
+      const msg = error?.message || "An unexpected error occurred. Please try again.";
+      setErrMsg(msg.includes("Network") ? "Network error — please check your connection." : msg);
     }
   }
 

@@ -31,10 +31,11 @@ import "../../design-system/styles/index.css";
 import FileUploadWithCamera from "../../components/FileUploadWithCamera";
 
 
-const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
+const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [errorMsg, setErrorMsg] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     aliments: "",
@@ -72,13 +73,14 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
     if (!formData.registered_date) nextFieldErrors.registered_date = true;
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
-      alert("Please fill all the required fields");
+      // alert("Please fill all the required fields");
       return;
     }
     setFieldErrors({});
 
     // e.preventDefault();
     setLoading(true);
+    setErrorMsg("");
 
     try {
       const formDataToSend = new FormData();
@@ -88,21 +90,24 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
         }
       }
 
-      const response = await AddPatient(formDataToSend);
+      const response = onAddPatient
+        ? await onAddPatient(formDataToSend)
+        : await AddPatient(formDataToSend);
 
       if (response.success) {
-        alert("Patient Registered Successfully!");
         if (onSuccess) {
           onSuccess();
         } else {
           navigate("/patients");
         }
       } else {
-        alert("Error: " + response.data);
+        const msg = typeof response.data === 'string' ? response.data : response.data?.message || "Failed to register patient";
+        setErrorMsg(msg);
       }
     } catch (error) {
       console.error("Error submitting form:", error);
-      alert("Failed to register patient. Please try again.");
+      const msg = error?.message || "Failed to register patient. Please try again.";
+      setErrorMsg(msg.includes("Network") ? "Network error — please check your connection." : msg);
     } finally {
       setLoading(false);
     }
@@ -118,6 +123,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel }) => {
         submitText="Register Patient"
         isLoading={loading}
         size="2xl"
+        errorMessage={errorMsg}
         fieldErrors={fieldErrors}
         onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
       >

@@ -19,12 +19,12 @@ function UserProgramSelection() {
   const [request, setrequest] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const role = useSelector((state) => state.permission);
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_PROGRAM);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.USER_PROGRAM);
 
   useEffect(() => {
     // Fetch patients data when component mounts
     getPatientsList();
-  }, []);
+  }, [refreshKey]);
   console.log(records);
 
   const getPatientsList = async () => {
@@ -50,7 +50,7 @@ function UserProgramSelection() {
       }
     }
     getProgramChangeAlert();
-  },[])
+  },[refreshKey])
 
   const handleSubmit = async (program, patientId) => {
     try {
@@ -71,7 +71,6 @@ function UserProgramSelection() {
       );
 
       console.log("Selected Program:", program);
-      window.location.reload();
     } catch (error) {
       console.error("Error updating patient program:", error);
     }
@@ -208,7 +207,6 @@ function UserProgramSelection() {
               enableSearch={true}
               renderSearchUI={false}
               searchKeys={['name', 'number']}
-              enablePagination={true}
               rowsPerPage={5}
               loadingMessage="Loading patient records..."
               emptyMessage="No patient records found."

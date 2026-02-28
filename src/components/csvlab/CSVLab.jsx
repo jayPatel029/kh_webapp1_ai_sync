@@ -255,7 +255,6 @@ export default function CSVReader({ setData, setSuccess, success, patientId, tit
                       });
                       return obj;
                     })}
-                    enablePagination={false}
                     enableSearch={false}
                     actionButtons={false}
                     displayMode="table"

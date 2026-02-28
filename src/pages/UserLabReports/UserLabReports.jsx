@@ -79,7 +79,7 @@ const UserLabReports = () => {
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
   const { isMobile } = useIsMobile();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_LAB_REPORTS);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.USER_LAB_REPORTS);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -168,7 +168,7 @@ const UserLabReports = () => {
       }
     };
     fetchColumns();
-  }, [id, showModal]);
+  }, [id, refreshKey]);
 
   const deleteLabReport = async (reportId, email) => {
     const isConfirmed = window.confirm(

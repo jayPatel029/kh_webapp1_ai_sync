@@ -31,7 +31,7 @@ function AdminManagement() {
   const { isMobile } = useIsMobile();
   const myRole = useSelector((state) => state.permission);
   const { showToast, ToastContainer } = useAdminToast();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.ADMIN_MANAGEMENT);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.ADMIN_MANAGEMENT);
 
   // State management
   const [roles, setRoles] = useState([]);
@@ -89,7 +89,7 @@ function AdminManagement() {
     };
 
     fetchData();
-  }, [successMessage]);
+  }, [successMessage, refreshKey]);
 
   function searchUser(keyword) {
     setUsers(
@@ -342,7 +342,6 @@ function AdminManagement() {
               data={tableData}
               onEdit={myRole.createAdmin >= 2 ? (row) => prepareEditForm(row, false) : undefined}
               onDelete={myRole.createAdmin >= 4 ? (row) => deleteUser(row.email) : undefined}
-              enablePagination
               rowsPerPage={8}
               emptyMessage="No admin records found"
               displayMode="table"

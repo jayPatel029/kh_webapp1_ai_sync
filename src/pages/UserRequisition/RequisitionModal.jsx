@@ -23,7 +23,7 @@ import FormControl from "../../component-library/primitives/FormControl";
 import FileUploadWithCamera, { buildMergedPdfFile } from "../../components/FileUploadWithCamera";
 
 
-const RequisitionModal = ({ closeModal, user_id, onSuccess }) => {
+const RequisitionModal = ({ closeModal, user_id, onSuccess, mutate }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [images, setImages] = useState([]);
   const [msg, setMsg] = useState("");
@@ -65,12 +65,24 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess }) => {
           Date: selectedDate,
           Requisition: finalFileUrl,
         };
-        await UploadRequisition(data);
+        const mutationRunner = () => UploadRequisition(data);
+        const result = mutate
+          ? await mutate(mutationRunner, {
+              waitForRefetch: true,
+              refetchKeys: [`requisition_${user_id}`],
+            })
+          : await mutationRunner();
+
+        if (!result?.success) {
+          throw new Error(result?.data || "Upload failed");
+        }
+
         onSuccess();
         closeModal();
       } catch (err) {
         console.error(err);
-        setMsg("Upload failed, please try again");
+        const msg = err?.message || "Upload failed, please try again";
+        setMsg(msg.includes("Network") ? "Network error — please check your connection." : msg);
       } finally {
         setIsSubmitting(false);
       }
@@ -83,8 +95,10 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess }) => {
       if (response.success) {
         await createAlert(response?.data?.data);
       }
+      return response;
     } catch (error) {
       console.error("Error:", error?.message || error);
+      throw error;
     }
   };
 

@@ -49,7 +49,7 @@ function KfreList() {
 
   const id = useParams();
   const { isMobile } = useIsMobile();
-  const { fetchWithCache } = usePageCache(PAGE_CACHE.KFRE);
+  const { fetchWithCache, refreshKey } = usePageCache(PAGE_CACHE.KFRE);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,7 +65,7 @@ function KfreList() {
       }
     };
     fetchData();
-  }, []);
+  }, [refreshKey]);
 
   const patientOptions = patients.map((patient) => ({
     label: patient.name,

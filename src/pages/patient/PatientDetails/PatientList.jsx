@@ -23,8 +23,11 @@ import { SearchBar } from '../../../components';
 import { useIsMobile } from '../../../components/mobile/useIsMobile';
 import UnifiedListTable from '../../../components/table/UnifiedListTable';
 
-// Import icons
+// Import icons and default avatars
 import PlusIcon from '../../../assets/icons/plus.svg';
+import DefaultAvatarFemale from '../../../assets/default-avatar-female.png';
+import DefaultAvatarMale from '../../../assets/default-avatar-male.png';
+import DefaultAvatar from '../../../assets/default-avatar.png';
 
 
 const PatientList = ({ data, onAddClick }) => {
@@ -98,6 +101,7 @@ const PatientList = ({ data, onAddClick }) => {
   const columns = useMemo(() => [
     { key: 'profile', label: 'Profile', type: 'image', width: '111px', justifyContent: 'start' },
     { key: 'name', label: 'Name', type: 'text', width: '107px' },
+    { key: 'gender', label: 'Gender', type: 'text', width: '90px' },
     {
       key: 'condition', label: 'Condition', type: 'custom', width: '120px', render: (row) => (
         <span className={getConditionStyles(row.condition)}>{row.condition || '-'}</span>
@@ -139,17 +143,23 @@ const PatientList = ({ data, onAddClick }) => {
     { key: 'actions', label: 'Actions', type: 'actions', width: '90px' },
   ], [medicalTeamNames, adminNames]);
 
-  // Profile Image or default
-  const getProfileImageUrl = (photoUrl) => {
-    if (!photoUrl) return '/assets/default-avatar.png';
-    if (photoUrl.startsWith('http')) return photoUrl;
-    return `${process.env.REACT_APP_API_BASE_URL}${photoUrl}`;
+  // Profile Image or default with gender-based avatar fallback
+  const getProfileImageUrl = (photoUrl, gender) => {
+    if (photoUrl) {
+      if (photoUrl.startsWith('http')) return photoUrl;
+      return `${process.env.REACT_APP_API_BASE_URL}${photoUrl}`;
+    }
+    // Use gender-based default avatar
+    const genderLower = gender?.toLowerCase();
+    if (genderLower === 'female') return DefaultAvatarFemale;
+    if (genderLower === 'male') return DefaultAvatarMale;
+    return DefaultAvatar;
   };
 
   const tableData = useMemo(() =>
     filteredPatients.map((p) => ({
       ...p,
-      profile: getProfileImageUrl(p.profile_photo),
+      profile: getProfileImageUrl(p.profile_photo, p.gender),
     })),
     [filteredPatients]
   );
@@ -349,7 +359,6 @@ const PatientList = ({ data, onAddClick }) => {
           onDelete={(row) => handleDelete(row.id)}
           onDownload={(row) => handleDownload(row.id)}
           enableSearch={false}
-          enablePagination={false}
           actionButtons={true}
           displayMode={undefined} /* auto-switch based on isMobile */
           cardTitleKey="name"

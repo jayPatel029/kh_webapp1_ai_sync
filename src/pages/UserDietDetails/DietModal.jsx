@@ -25,7 +25,7 @@ import { postDietdetailsInsertDietDetailsAdmin } from "../../ApiCalls/remainingA
 import { getFileRes } from "../../helpers/fileuploadHelper";
 import getCurrentDate from "../../helpers/formatDate";
 
-const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
+const DietModal = ({ closeModal, user_id, userData, onSuccess, mutate }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedReportType, setSelectedReportType] = useState("");
   const [description, setDescription] = useState("");
@@ -73,28 +73,34 @@ const DietModal = ({ closeModal, user_id, userData, onSuccess }) => {
         patientId: user_id,
       };
 
-      await uploadDietDetails(data);
+      const mutationRunner = () => uploadDietDetails(data);
+      const result = mutate
+        ? await mutate(mutationRunner, {
+            waitForRefetch: true,
+            refetchKeys: [`diet_${user_id}`],
+          })
+        : await mutationRunner();
+
+      if (!result?.success) {
+        const msg = typeof result?.data === 'string' ? result.data : result?.data?.message || "Failed to upload diet details";
+        setErrorMsg(msg);
+        return;
+      }
+
       onSuccess();
       closeModal();
     } catch (error) {
       console.error("Error submitting diet details:", error);
-      setErrorMsg("Failed to upload diet details. Please try again.");
+      const msg = error?.message || "Failed to upload diet details. Please try again.";
+      setErrorMsg(msg.includes("Network") ? "Network error — please check your connection and try again." : msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const uploadDietDetails = async (data) => {
-    try {
-      const result = await postDietdetailsInsertDietDetailsAdmin(data);
-      if (!result.success) {
-        throw new Error("Upload failed");
-      }
-      console.log("Response:", result.data);
-    } catch (error) {
-      console.error("Error:", error.message);
-      throw error;
-    }
+    const result = await postDietdetailsInsertDietDetailsAdmin(data);
+    return result;
   };
 
   return (

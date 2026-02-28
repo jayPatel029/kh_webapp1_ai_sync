@@ -62,7 +62,7 @@ const ShowAlarms = () => {
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const { isMobile } = useIsMobile();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.SHOW_ALARMS);
+  const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.SHOW_ALARMS);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -93,6 +93,7 @@ const ShowAlarms = () => {
           setUserAlarmData((prevData) =>
             prevData.filter((alarm) => alarm.id !== id)
           );
+          await fetchData(true);
         } else {
           throw new Error("Delete failed");
         }
@@ -108,13 +109,15 @@ const ShowAlarms = () => {
       alarmId: id,
       status: status,
     };
-    await approveOrDisapprovePrescription(reqbody);
-    if (status === "Approved") {
-      alert("Prescription Approved Successfully");
-      window.location.reload();
+    const result = await mutate(() => approveOrDisapprovePrescription(reqbody), {
+      waitForRefetch: true,
+      refetchKeys: [`alarms_${patientId}`],
+    });
+    if (result.success) {
+      await fetchData(true);
+      alert(status === "Approved" ? "Prescription Approved Successfully" : "Prescription Rejected Successfully");
     } else {
-      alert("Prescription Rejected Successfully");
-      window.location.reload();
+      alert("Failed to update prescription status");
     }
   };
 
@@ -127,9 +130,9 @@ const ShowAlarms = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const fetchData = async () => {
+  const fetchData = async (forceRefresh = false) => {
     try {
-      const result = await fetchWithCache(`alarms_${patientId}`, () => getAlarmByPatientId(patientId));
+      const result = await fetchWithCache(`alarms_${patientId}`, () => getAlarmByPatientId(patientId), { forceRefresh });
       if (result.success) {
         setUserAlarmData(result.data.data || result.data || []);
         setDosesData(result.data.doses);
@@ -139,9 +142,9 @@ const ShowAlarms = () => {
     }
   };
 
-  const fetchPatientData = async () => {
+  const fetchPatientData = async (forceRefresh = false) => {
     try {
-      const response = await fetchWithCache(`patient_${patientId}`, () => getPatientGetPatientByid(patientId));
+      const response = await fetchWithCache(`patient_${patientId}`, () => getPatientGetPatientByid(patientId), { forceRefresh });
       if (response.success) {
         setUserData(response?.data?.data || response?.data || {});
       }
@@ -161,7 +164,7 @@ const ShowAlarms = () => {
     fetchData();
     fetchPatientData();
     isDoctorfunc();
-  }, [showModal, showEditModal, showDoctorModal]);
+  }, [refreshKey]);
 
   useEffect(() => {
     const getUnreadMessagesFromAdmin = async () => {
@@ -273,7 +276,15 @@ const ShowAlarms = () => {
       />
 
       {/* Modals */}
-      {showModal && <AlarmModal closeModal={closeModal} pid={patientId} patient={userData} />}
+      {showModal && (
+        <AlarmModal
+          closeModal={closeModal}
+          pid={patientId}
+          patient={userData}
+          mutate={mutate}
+          onSuccess={() => fetchData(true)}
+        />
+      )}
 
       {showEditModal && !isDoctor && (
         <EditAlarmModal
@@ -281,6 +292,8 @@ const ShowAlarms = () => {
           alarmData={editData}
           pid={patientId}
           dosesData={dosesData}
+          mutate={mutate}
+          onSuccess={() => fetchData(true)}
         />
       )}
 
@@ -289,6 +302,8 @@ const ShowAlarms = () => {
           closeModal={closeDoctorModal}
           alarmData={editData}
           pid={patientId}
+          mutate={mutate}
+          onSuccess={() => fetchData(true)}
         />
       )}
     </PatientDetailLayout>

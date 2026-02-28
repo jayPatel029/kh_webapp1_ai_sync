@@ -143,7 +143,6 @@ const ReadingsListTable = ({
       actionButtons={Boolean(onEdit || onDelete)}
       enableSearch={true}
       searchKeys={['date', 'parameterName', 'status']}
-      enablePagination={true}
       rowsPerPage={15}
     />
   );

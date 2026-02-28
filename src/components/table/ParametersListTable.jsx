@@ -82,7 +82,6 @@ const ParametersListTable = ({
       actionButtons={Boolean(onEdit || onDelete)}
       enableSearch={true}
       searchKeys={['parameterName', 'type', 'readingType']}
-      enablePagination={true}
       rowsPerPage={10}
     />
   );
