@@ -14,6 +14,7 @@ import { Input, FormControl, FormLabel, Button } from "../../../component-librar
 import { useIsMobile } from "../../../components/mobile/useIsMobile";
 import { useAdminToast } from "../../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../../cache";
+import { useSelector } from "react-redux";
 
 export default function AilmentMasterComponent() {
   // State to hold the selected ailment data
@@ -33,6 +34,7 @@ export default function AilmentMasterComponent() {
   const { isMobile } = useIsMobile();
   const { showToast, ToastContainer } = useAdminToast();
   const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.AILMENT_MASTER);
+  const role = useSelector((state) => state.permission);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -167,6 +169,41 @@ export default function AilmentMasterComponent() {
     clearFields();
   };
 
+  const handleEdit = (ailment) => {
+    setSuccessmsg("");
+    setName(ailment.name);
+    setId(ailment.id);
+    if (ailment.ailmentTranslations) {
+      let translationDict = {};
+      ailment.ailmentTranslations.forEach((element) => {
+        translationDict[element.languageId] = element.name;
+      });
+      setTranslations(translationDict);
+    }
+    setEditMode(true);
+    setIsFormModalOpen(true);
+  };
+
+  const handleDelete = (ailment) => {
+    if (window.confirm(`Delete ailment "${ailment.name}"?`)) {
+      mutate(() => deleteAilment(ailment.id))
+        .then(() => {
+          setSuccessmsg("Ailment deleted successfully!");
+          showToast("Ailment deleted successfully!", "success");
+          getAilments().then((resultAilment) => {
+            if (resultAilment.success && resultAilment.data.listOfAilments) {
+              setAilments(resultAilment.data.listOfAilments);
+            }
+          });
+        })
+        .catch((error) => {
+          console.error("Error deleting Ailment:", error);
+          setErrmsg("Error deleting ailment");
+          showToast("Error deleting ailment", "error");
+        });
+    }
+  };
+
   return (
     <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : ''}`}>
       <div className="admin-card">
@@ -222,39 +259,8 @@ export default function AilmentMasterComponent() {
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           searchKeys={['name']}
-          onEdit={(ailment) => {
-            setSuccessmsg("");
-            setName(ailment.name);
-            setId(ailment.id);
-            if (ailment.ailmentTranslations) {
-              let translationDict = {};
-              ailment.ailmentTranslations.forEach((element) => {
-                translationDict[element.languageId] = element.name;
-              });
-              setTranslations(translationDict);
-            }
-            setEditMode(true);
-            setIsFormModalOpen(true);
-          }}
-          onDelete={(ailment) => {
-            if (window.confirm(`Delete ailment "${ailment.name}"?`)) {
-              mutate(() => deleteAilment(ailment.id))
-                .then(() => {
-                  setSuccessmsg("Ailment deleted successfully!");
-                  showToast("Ailment deleted successfully!", "success");
-                  getAilments().then((resultAilment) => {
-                    if (resultAilment.success && resultAilment.data.listOfAilments) {
-                      setAilments(resultAilment.data.listOfAilments);
-                    }
-                  });
-                })
-                .catch((error) => {
-                  console.error("Error deleting Ailment:", error);
-                  setErrmsg("Error deleting ailment");
-                  showToast("Error deleting ailment", "error");
-                });
-            }
-          }}
+          onEdit={role.canEditAilmentMaster ? handleEdit : null}
+          onDelete={role.canDeleteAilmentMaster ? handleDelete : null}
         />
       </div>
       {/* </div> */}
@@ -272,54 +278,54 @@ export default function AilmentMasterComponent() {
       >
         {({ getFieldProps, clearFieldError }) => (
           <>
-        <FormControl isInvalid={getFieldProps("name").isInvalid}>
-          <FormLabel>English<span className="text-red-500">*</span></FormLabel>
-          <Input
-            type="text"
-            placeholder="Enter ailment in English"
-            value={name}
-            isInvalid={getFieldProps("name").isInvalid}
-            onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
-          />
-        </FormControl>
-
-        {languages.map((language) => {
-          if (language.id === 1) return null;
-          return (
-            <FormControl key={language.id}>
-              <FormLabel>{language.language_name}</FormLabel>
+            <FormControl isInvalid={getFieldProps("name").isInvalid}>
+              <FormLabel>English<span className="text-red-500">*</span></FormLabel>
               <Input
                 type="text"
-                placeholder={`Enter ailment in ${language.language_name}`}
-                value={translations[language.id] || ""}
-                onChange={(e) => {
-                  setTranslations({
-                    ...translations,
-                    [language.id]: e.target.value,
-                  });
-                }}
+                placeholder="Enter ailment in English"
+                value={name}
+                isInvalid={getFieldProps("name").isInvalid}
+                onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
               />
             </FormControl>
-          );
-        })}
 
-        <FormControl>
-          <FormLabel>Icon</FormLabel>
-          <FileUploadWithCamera
+            {languages.map((language) => {
+              if (language.id === 1) return null;
+              return (
+                <FormControl key={language.id}>
+                  <FormLabel>{language.language_name}</FormLabel>
+                  <Input
+                    type="text"
+                    placeholder={`Enter ailment in ${language.language_name}`}
+                    value={translations[language.id] || ""}
+                    onChange={(e) => {
+                      setTranslations({
+                        ...translations,
+                        [language.id]: e.target.value,
+                      });
+                    }}
+                  />
+                </FormControl>
+              );
+            })}
 
-            size="xs"
-            images={Ailment_Img ? [Ailment_Img] : []}
-            onFileChange={(file) => setAilment_Img(file)}
-            accept="image/*"
-            attachLabel="Upload Icon"
-            captureLabel="Capture Icon"
-            previewWidth={100}
-            previewHeight={100}
-            showCountInfo={false}
-            showCamera={false}
-            multiple={false}
-          />
-        </FormControl>
+            <FormControl>
+              <FormLabel>Icon</FormLabel>
+              <FileUploadWithCamera
+
+                size="xs"
+                images={Ailment_Img ? [Ailment_Img] : []}
+                onFileChange={(file) => setAilment_Img(file)}
+                accept="image/*"
+                attachLabel="Upload Icon"
+                captureLabel="Capture Icon"
+                previewWidth={100}
+                previewHeight={100}
+                showCountInfo={false}
+                showCamera={false}
+                multiple={false}
+              />
+            </FormControl>
           </>
         )}
       </FormModal>

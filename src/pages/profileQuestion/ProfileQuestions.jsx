@@ -262,6 +262,50 @@ function ProfileQuestions() {
     );
   });
 
+
+
+  const handleEdit = (q) => {
+    setSuccessful("");
+    newQuestionDispatch({
+      type: "all",
+      payload: {
+        id: q.id,
+        ailment: q.ailments?.map((x) => ({
+          value: x.id,
+          label: x.name,
+        })) || [],
+        type: q.type,
+        name: q.name,
+        options: q.options,
+      },
+    });
+    if (q.question_translations) {
+      let translationDict = {};
+      let optionDict = {};
+      q.question_translations.forEach((element) => {
+        translationDict[element.language_id] = {
+          text: element.name,
+          options: element.options,
+        };
+        optionDict[element.language_id] = element.options || "";
+      });
+      setTranslations(translationDict);
+      setOptTranslations(optionDict);
+    }
+    setEditMode(true);
+    setIsFormModalOpen(true);
+  }
+
+
+
+
+  const handleDelete = (question) => {
+    if (window.confirm(`Delete question "${question.name}"?`)) {
+      removeQuestion(question.id);
+    }
+  };
+
+
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
@@ -345,42 +389,8 @@ function ProfileQuestions() {
                 enableSearch={true}
                 renderSearchUI={false}
                 searchKeys={['name', 'type']}
-                onEdit={(q) => {
-                  setSuccessful("");
-                  newQuestionDispatch({
-                    type: "all",
-                    payload: {
-                      id: q.id,
-                      ailment: q.ailments?.map((x) => ({
-                        value: x.id,
-                        label: x.name,
-                      })) || [],
-                      type: q.type,
-                      name: q.name,
-                      options: q.options,
-                    },
-                  });
-                  if (q.question_translations) {
-                    let translationDict = {};
-                    let optionDict = {};
-                    q.question_translations.forEach((element) => {
-                      translationDict[element.language_id] = {
-                        text: element.name,
-                        options: element.options,
-                      };
-                      optionDict[element.language_id] = element.options || "";
-                    });
-                    setTranslations(translationDict);
-                    setOptTranslations(optionDict);
-                  }
-                  setEditMode(true);
-                  setIsFormModalOpen(true);
-                }}
-                onDelete={(q) => {
-                  if (window.confirm(`Delete question "${q.name}"?`)) {
-                    removeQuestion(q.id);
-                  }
-                }}
+                onEdit={role.canEditProfileQuestions ? handleEdit : null}
+                onDelete={role.canDeleteProfileQuestions ? handleDelete : null}
                 emptyMessage="No questions found"
                 actionButtons={role.canEditProfileQuestions || role.canDeleteProfileQuestions}
               />

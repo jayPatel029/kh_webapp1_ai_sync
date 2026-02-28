@@ -454,14 +454,14 @@ const AdminDashboard = () => {
               <AlertsPanel
                 title="Doctor Alerts"
                 alerts={doctorAlerts}
-                onAlertClick={handleAlertClick}
+                // onAlertClick={handleAlertClick}
                 showRoleTabs={false}
                 showSendEmails={true}
               />
               <AlertsPanel
-                title="General Alerts"
+                title="Patients Alerts"
                 alerts={adminAlerts}
-                onAlertClick={handleAlertClick}
+                // onAlertClick={handleAlertClick}
                 showRoleTabs={false}
                 showSendEmails={false}
               />

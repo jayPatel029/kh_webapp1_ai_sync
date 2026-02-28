@@ -24,6 +24,8 @@ import {
 import { Button } from "../../component-library";
 import { useAdminToast } from "../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import { useSelector } from "react-redux";
+
 
 function LanguageMaster() {
   const navigate = useNavigate();
@@ -33,7 +35,7 @@ function LanguageMaster() {
   const [searchTerm, setSearchTerm] = useState("");
   const { showToast, ToastContainer } = useAdminToast();
   const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.LANGUAGE);
-
+  const role = useSelector((state) => state.permission);
   const [languages, setLanguages] = useState([]);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [jsonPreview, setJsonPreview] = useState([]);
@@ -141,6 +143,20 @@ function LanguageMaster() {
     }
   }
 
+  const handleDelete = (lang) => {
+    if (window.confirm(`Delete language "${lang.language_name}"?`)) {
+      removeLang(lang.id);
+    }
+  }
+
+
+  const handleEdit = (lang) => {
+    setEditID(lang.id);
+    setNewLanguage(lang.language_name);
+    setEditMode(true);
+    setIsFormModalOpen(true);
+  }
+
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
@@ -210,17 +226,8 @@ function LanguageMaster() {
                 enableSearch={true}
                 renderSearchUI={false}
                 searchKeys={['language_name']}
-                onEdit={(lang) => {
-                  setEditID(lang.id);
-                  setNewLanguage(lang.language_name);
-                  setEditMode(true);
-                  setIsFormModalOpen(true);
-                }}
-                onDelete={(lang) => {
-                  if (window.confirm(`Delete language "${lang.language_name}"?`)) {
-                    removeLang(lang.id);
-                  }
-                }}
+                onEdit={role.canEditLanguages ? handleEdit : null}
+                onDelete={role.canDeleteLanguages ? handleDelete : null}
                 emptyMessage="No languages found"
               />
             </div>
@@ -240,57 +247,57 @@ function LanguageMaster() {
             onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
           >
             {({ getFieldProps, clearFieldError }) => (
-            <Box className="space-y-6">
-              <FormControl isInvalid={getFieldProps("language").isInvalid}>
-                <FormLabel>Language<span className="text-red-500">*</span></FormLabel>
-                <Input
-                  type="text"
-                  placeholder="Language Name"
-                  value={newLanguage}
-                  isInvalid={getFieldProps("language").isInvalid}
-                  onChange={(event) => {
-                    setNewLanguage(event.target.value);
-                    clearFieldError("language");
-                  }}
-                />
-              </FormControl>
+              <>
+                <FormControl isInvalid={getFieldProps("language").isInvalid}>
+                  <FormLabel>Language<span className="text-red-500">*</span></FormLabel>
+                  <Input
+                    type="text"
+                    placeholder="Language Name"
+                    value={newLanguage}
+                    isInvalid={getFieldProps("language").isInvalid}
+                    onChange={(event) => {
+                      setNewLanguage(event.target.value);
+                      clearFieldError("language");
+                    }}
+                  />
+                </FormControl>
 
-              {!editMode && (
-                <Box className="flex flex-col md:flex-row gap-6">
-                  <FormControl>
-                    <FormLabel>JSON File</FormLabel>
-                    <FileUploadWithCamera
-                      images={jsonPreview}
-                      size="xs"
-                      onChange={setJsonPreview}
-                      onFileChange={(file) => setLangJson(file)}
-                      accept=".json,application/json"
-                      multiple={false}
-                      attachLabel="Upload JSON"
-                      captureLabel="Capture"
-                      showCountInfo={false}
-                      showCamera={false}
-                    />
-                  </FormControl>
+                {!editMode && (
+                  <Box className="flex flex-col md:flex-row gap-6">
+                    <FormControl>
+                      <FormLabel>JSON File</FormLabel>
+                      <FileUploadWithCamera
+                        images={jsonPreview}
+                        size="xs"
+                        onChange={setJsonPreview}
+                        onFileChange={(file) => setLangJson(file)}
+                        accept=".json,application/json"
+                        multiple={false}
+                        attachLabel="Upload JSON"
+                        captureLabel="Capture"
+                        showCountInfo={false}
+                        showCamera={false}
+                      />
+                    </FormControl>
 
-                  <FormControl>
-                    <FormLabel>Audio Zip File</FormLabel>
-                    <FileUploadWithCamera
-                      size="xs"
-                      images={audioPreview}
-                      onChange={setAudioPreview}
-                      onFileChange={(file) => setLangAudio(file)}
-                      accept=".zip,application/zip,application/x-zip-compressed"
-                      multiple={false}
-                      attachLabel="Upload Audio Zip"
-                      captureLabel="Capture"
-                      showCountInfo={false}
-                      showCamera={false}
-                    />
-                  </FormControl>
-                </Box>
-              )}
-            </Box>
+                    <FormControl>
+                      <FormLabel>Audio Zip File</FormLabel>
+                      <FileUploadWithCamera
+                        size="xs"
+                        images={audioPreview}
+                        onChange={setAudioPreview}
+                        onFileChange={(file) => setLangAudio(file)}
+                        accept=".zip,application/zip,application/x-zip-compressed"
+                        multiple={false}
+                        attachLabel="Upload Audio Zip"
+                        captureLabel="Capture"
+                        showCountInfo={false}
+                        showCamera={false}
+                      />
+                    </FormControl>
+                  </Box>
+                )}
+              </>
             )}
           </FormModal>
         </div>
