@@ -236,6 +236,16 @@ const UnifiedListTable = ({
         }
     };
 
+    // Determine whether any action buttons are enabled for rows
+    const hasAnyAction = actionButtons && (onEdit || onDelete || onDownload || onAction);
+
+    // If there are no action callbacks enabled, hide any 'actions' columns
+    const visibleColumns = useMemo(() => {
+        if (columns?.length === 0) return columns;
+        if (hasAnyAction) return columns;
+        return columns.filter(c => c.type !== 'actions');
+    }, [columns, hasAnyAction]);
+
     return (
         <div className="list-table__container">
             {/* Search Bar - Only render if renderSearchUI is true */}
@@ -273,13 +283,13 @@ const UnifiedListTable = ({
                             }
 
                             // Default card rendering
-                            const imageCol = columns.find(c => c.key === cardImageKey || c.type === 'image');
-                            const titleCol = columns.find(c => c.key === cardTitleKey) || columns.find(c => c.type === 'text');
-                            const subtitleCol = cardSubtitleKey ? columns.find(c => c.key === cardSubtitleKey) : null;
-                            const statusCol = cardStatusKey ? columns.find(c => c.key === cardStatusKey) : null;
+                            const imageCol = visibleColumns.find(c => c.key === cardImageKey || c.type === 'image');
+                            const titleCol = visibleColumns.find(c => c.key === cardTitleKey) || visibleColumns.find(c => c.type === 'text');
+                            const subtitleCol = cardSubtitleKey ? visibleColumns.find(c => c.key === cardSubtitleKey) : null;
+                            const statusCol = cardStatusKey ? visibleColumns.find(c => c.key === cardStatusKey) : null;
                             const detailCols = cardFieldKeys
-                                ? columns.filter(c => cardFieldKeys.includes(c.key))
-                                : columns.filter(c => c.type !== 'image' && c.type !== 'actions' && c.key !== titleCol?.key && c.key !== subtitleCol?.key);
+                                ? visibleColumns.filter(c => cardFieldKeys.includes(c.key))
+                                : visibleColumns.filter(c => c.type !== 'image' && c.type !== 'actions' && c.key !== titleCol?.key && c.key !== subtitleCol?.key);
 
                             return (
                                 <div
@@ -381,7 +391,7 @@ const UnifiedListTable = ({
                     {/* Header */}
                     <thead className="list-table__header">
                         <tr className="list-table__header-row">
-                            {columns.map((column) => {
+                            {visibleColumns.map((column) => {
                                 const isSortableCol = column.type !== 'image' && column.type !== 'actions';
                                 const isSorted = sortColumn === column.key;
                                 return (
@@ -414,14 +424,14 @@ const UnifiedListTable = ({
                     {/* Body */}
                     <tbody>
                         {isLoading ? (
-                            <tr>
-                                <td colSpan={columns.length} className="list-table__loading">
+                                <tr>
+                                <td colSpan={visibleColumns.length} className="list-table__loading">
                                     Loading...
                                 </td>
                             </tr>
                         ) : paginatedData.length === 0 ? (
                             <tr>
-                                <td colSpan={columns.length} className="list-table__empty">
+                                <td colSpan={visibleColumns.length} className="list-table__empty">
                                     {emptyMessage}
                                 </td>
                             </tr>
@@ -434,7 +444,7 @@ const UnifiedListTable = ({
                                     onClick={() => onRowClick?.(row)}
                                     style={onRowClick ? { cursor: 'pointer' } : undefined}
                                 >
-                                    {columns.map((column) => (
+                                    {visibleColumns.map((column) => (
                                         <td
                                             key={`${rowIdx}-${column.key}`}
                                             className="list-table__cell"

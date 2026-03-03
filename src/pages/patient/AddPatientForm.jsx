@@ -204,7 +204,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient }) =>
                   name="number"
                   value={formData.number}
                   onChange={handleChange}
-                  placeholder="+91 XXXXX XXXXX"
+                  placeholder="XXXXX XXXXX"
                   variant="outline"
                   isInvalid={Boolean(fieldErrors.number)}
                 />

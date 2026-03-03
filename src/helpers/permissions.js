@@ -1,0 +1,163 @@
+const VIEW_PERMISSION_BIT = 1;
+const EDIT_PERMISSION_BIT = 2;
+const DELETE_PERMISSION_BIT = 4;
+
+export const ADMIN_ROLE_NAMES = ["Admin", "PSadmin"];
+export const DASHBOARD_ROLE_NAMES = ["Admin", "PSadmin", "Doctor"];
+
+export const PERMISSION_FIELDS = [
+  { key: "manageRoles", apiKey: "can_vud_mr", label: "Manage Roles" },
+  { key: "ailmentMaster", apiKey: "can_vud_am", label: "Ailment Master" },
+  { key: "createAdmin", apiKey: "can_vud_ca", label: "Create Admin" },
+  { key: "createDoctor", apiKey: "can_vud_cd", label: "Create Doctor" },
+  { key: "profileQuestions", apiKey: "can_vud_pq", label: "Profile Questions" },
+  { key: "patients", apiKey: "can_vud_p", label: "Patients" },
+  { key: "dailyReadings", apiKey: "can_vud_dr", label: "Daily Readings" },
+  { key: "dialysisReadings", apiKey: "can_vud_dir", label: "Dialysis Readings" },
+  { key: "changePassword", apiKey: "can_vud_cp", label: "Change Password" },
+  { key: "userProgramSelection", apiKey: "can_vud_ups", label: "User Program Selection" },
+  { key: "doctorReports", apiKey: "can_vud_docr", label: "Doctor Reports" },
+  { key: "feedback", apiKey: "can_vud_fb", label: "Feedback" },
+];
+
+export const ROUTE_PERMISSION_MAP = {
+  CreateAdmin: "createAdmin",
+  AlimentMaster: "ailmentMaster",
+  ChangePassword: "changePassword",
+  DailyReadings: "dailyReadings",
+  DialysisReadings: "dialysisReadings",
+  ProfileQuestions: "profileQuestions",
+  UserProgramSelection: "userProgramSelection",
+  Patient: "patients",
+  UserRoles: "manageRoles",
+  EditRole: "manageRoles",
+  DoctorManagement: "createDoctor",
+  ShowAlarms: "patients",
+  ManageParameters: "patients",
+  Userprescription: "patients",
+  UserLabReports: "patients",
+  UserDietDetails: "patients",
+  UserRequisition: "patients",
+  AdminChat: "patients",
+  DoctorChat: "patients",
+  LanguageMaster: "createAdmin",
+  ContactUsPage: "feedback",
+  logs: "changePassword",
+};
+
+const toPascalCase = (value = "") =>
+  String(value)
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("");
+
+export const getPermissionValue = (role, permissionKey) =>
+  Number(role?.[permissionKey] ?? 0);
+
+export const hasAnyPermission = (role, permissionKey) =>
+  getPermissionValue(role, permissionKey) > 0;
+
+export const hasViewPermission = (role, permissionKey) =>
+  (getPermissionValue(role, permissionKey) & VIEW_PERMISSION_BIT) !== 0;
+
+export const hasEditPermission = (role, permissionKey) =>
+  (getPermissionValue(role, permissionKey) & EDIT_PERMISSION_BIT) !== 0;
+
+export const hasDeletePermission = (role, permissionKey) =>
+  (getPermissionValue(role, permissionKey) & DELETE_PERMISSION_BIT) !== 0;
+
+export const isAdminRole = (roleName) => ADMIN_ROLE_NAMES.includes(roleName);
+
+export const hasDashboardAccess = (roleName) =>
+  DASHBOARD_ROLE_NAMES.includes(roleName);
+
+export const decodePermissionValue = (value) => {
+  const num = Number(value) || 0;
+  return {
+    view: (num & VIEW_PERMISSION_BIT) !== 0,
+    edit: (num & EDIT_PERMISSION_BIT) !== 0,
+    delete: (num & DELETE_PERMISSION_BIT) !== 0,
+  };
+};
+
+export const encodePermissionValue = ({ view, edit, delete: canDelete }) =>
+  (view ? VIEW_PERMISSION_BIT : 0) +
+  (edit ? EDIT_PERMISSION_BIT : 0) +
+  (canDelete ? DELETE_PERMISSION_BIT : 0);
+
+export const getRoleAuthArray = (roleData = {}) => {
+  if (Array.isArray(roleData?.auth_arr)) {
+    return roleData.auth_arr;
+  }
+
+  return PERMISSION_FIELDS.map(({ apiKey }) => roleData?.[apiKey] ?? 0);
+};
+
+export const getInitialRolePermissions = () =>
+  PERMISSION_FIELDS.reduce((acc, { key, label }) => {
+    acc[key] = { name: label, view: false, edit: false, delete: false };
+    return acc;
+  }, {});
+
+export const mapRoleDataToFormPermissions = (roleData = {}) => {
+  const initial = getInitialRolePermissions();
+  const authArray = getRoleAuthArray(roleData);
+
+  PERMISSION_FIELDS.forEach(({ key }, index) => {
+    initial[key] = {
+      ...initial[key],
+      ...decodePermissionValue(authArray[index]),
+    };
+  });
+
+  return initial;
+};
+
+export const mapFormPermissionsToAuthArray = (permissions = {}) =>
+  PERMISSION_FIELDS.map(({ key }) =>
+    encodePermissionValue(permissions?.[key] || {})
+  );
+
+export const getEmptyPermissionPayload = () =>
+  PERMISSION_FIELDS.reduce((acc, { apiKey }) => {
+    acc[apiKey] = 0;
+    return acc;
+  }, {});
+
+export const getInitialPermissionState = () =>
+  buildPermissionState({
+    role_name: "",
+    ...getEmptyPermissionPayload(),
+  }, false);
+
+export const buildPermissionState = (payload = {}, isLoaded = true) => {
+  const next = {
+    role_name: payload?.role_name,
+    isLoaded,
+  };
+
+  PERMISSION_FIELDS.forEach(({ key, apiKey }) => {
+    const value = Number(payload?.[apiKey] ?? 0);
+    const pascal = toPascalCase(key);
+    next[key] = value;
+    next[apiKey] = value;
+    next[`canView${pascal}`] = (value & VIEW_PERMISSION_BIT) !== 0;
+    next[`canEdit${pascal}`] = (value & EDIT_PERMISSION_BIT) !== 0;
+    next[`canDelete${pascal}`] = (value & DELETE_PERMISSION_BIT) !== 0;
+  });
+
+  return next;
+};
+
+export const canAccessRoute = (role, routeName) => {
+  const permissionKey = ROUTE_PERMISSION_MAP[routeName];
+  if (!permissionKey) return true;
+
+  if (permissionKey === "patients" && isAdminRole(role?.role_name)) {
+    return true;
+  }
+
+  return hasAnyPermission(role, permissionKey);
+};

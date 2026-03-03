@@ -94,7 +94,7 @@ const Navbar = () => {
                             {dropdownVisible && (
                                 <Card className="absolute right-0 mt-2 w-44 bg-white border border-border rounded shadow-md z-50 p-0 overflow-hidden">
                                     <Flex direction="column" className="py-1">
-                                        <Button variant="ghost" className="justify-start px-3 py-2 w-full" onClick={() => { setDDVisible(false); navigate('/reset-password'); }}>
+                                        <Button variant="ghost" className="justify-start px-3 py-2 w-full" onClick={() => { setDDVisible(false); navigate('/ChangePassword'); }}>
                                             Reset Password
                                         </Button>
                                         <Button variant="ghost" className="justify-start px-3 py-2 w-full" onClick={() => { setDDVisible(false); logout(); }}>

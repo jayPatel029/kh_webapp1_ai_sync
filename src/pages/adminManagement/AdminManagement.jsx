@@ -25,11 +25,14 @@ import {
 } from "../../component-library";
 import UnifiedListTable from "../../components/table/UnifiedListTable";
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import { hasEditPermission, hasDeletePermission } from "../../helpers/permissions";
 
 function AdminManagement() {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
   const myRole = useSelector((state) => state.permission);
+  const canEditAdmins = hasEditPermission(myRole, "createAdmin");
+  const canDeleteAdmins = hasDeletePermission(myRole, "createAdmin");
   const { showToast, ToastContainer } = useAdminToast();
   const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.ADMIN_MANAGEMENT);
 
@@ -221,6 +224,13 @@ function AdminManagement() {
       alert("This user cannot be deleted.");
       return;
     }
+    // alert 
+    const confirmDelete = window.confirm("Are you sure you want to delete this user?");
+
+    if (!confirmDelete) {
+      return;
+    }
+
     const response = await mutate(() => deleteUserByEmail(email));
     if (response.success) {
       setErrMsg([]);
@@ -340,8 +350,8 @@ function AdminManagement() {
             <UnifiedListTable
               columns={columns}
               data={tableData}
-              onEdit={myRole.createAdmin >= 2 ? (row) => prepareEditForm(row, false) : undefined}
-              onDelete={myRole.createAdmin >= 4 ? (row) => deleteUser(row.email) : undefined}
+              onEdit={canEditAdmins ? (row) => prepareEditForm(row, false) : undefined}
+              onDelete={canDeleteAdmins ? (row) => deleteUser(row.email) : undefined}
               rowsPerPage={8}
               emptyMessage="No admin records found"
               displayMode="table"

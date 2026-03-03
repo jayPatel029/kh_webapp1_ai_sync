@@ -15,6 +15,7 @@ import { BsTrash } from "react-icons/bs";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import { isValidHttpUrl } from "../../helpers/utils";
+import { hasEditPermission, hasDeletePermission } from '../../helpers/permissions';
 import DocOpenModal from "./DocOpenModal";
 
 import { Box, Flex, Text, Button } from "../../component-library";
@@ -51,6 +52,8 @@ const ReadingsTable = ({
     const [modalData, setModalData] = useState(null);
     const [deleteData, setDeleteData] = useState(null);
     const role = useSelector((state) => state.permission);
+
+    const hasActions = hasEditPermission(role, 'dailyReadings') || hasDeletePermission(role, 'dailyReadings') || hasEditPermission(role, 'dialysisReadings') || hasDeletePermission(role, 'dialysisReadings');
 
     // Determine API endpoint based on type
     const apiEndpoint = type === 'dialysis' ? 'dialysisReading' : 'readings';
@@ -139,9 +142,11 @@ const ReadingsTable = ({
                     <Box className="flex-1">
                         <Text size="xs" weight="bold" className="text-muted uppercase">Answer</Text>
                     </Box>
-                    <Box className="w-28">
-                        <Text size="xs" weight="bold" className="text-muted uppercase">Actions</Text>
-                    </Box>
+                    {hasActions && (
+                        <Box className="w-28">
+                            <Text size="xs" weight="bold" className="text-muted uppercase">Actions</Text>
+                        </Box>
+                    )}
                 </Flex>
 
                 {/* Table Body */}
@@ -173,26 +178,28 @@ const ReadingsTable = ({
                                     <Text size="sm" className="text-muted-foreground">{data.readings}</Text>
                                 )}
                             </Box>
-                            <Box className="w-28">
-                                <Flex gap={2}>
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => openModalUpdate(data)}
-                                        className="p-1"
-                                        aria-label="Edit reading"
-                                    >
-                                        <BorderColorIcon className="text-info" style={{ fontSize: 18 }} />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => openModalDelete(data)}
-                                        className="p-1"
-                                        aria-label="Delete reading"
-                                    >
-                                        <BsTrash className="text-error" />
-                                    </Button>
-                                </Flex>
-                            </Box>
+                            {hasActions && (
+                                <Box className="w-28">
+                                    <Flex gap={2}>
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => openModalUpdate(data)}
+                                            className="p-1"
+                                            aria-label="Edit reading"
+                                        >
+                                            <BorderColorIcon className="text-info" style={{ fontSize: 18 }} />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => openModalDelete(data)}
+                                            className="p-1"
+                                            aria-label="Delete reading"
+                                        >
+                                            <BsTrash className="text-error" />
+                                        </Button>
+                                    </Flex>
+                                </Box>
+                            )}
                         </Flex>
                     ))
                 ) : (

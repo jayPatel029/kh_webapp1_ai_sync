@@ -22,6 +22,7 @@ import { Sidebar as DSidebar, SidebarHeader } from "../../component-library/navi
 import Account from "../../assets/Account.svg";
 import { ROUTES } from "../../routes/routeConstants";
 import { IconButton } from "../../component-library";
+import { hasAnyPermission, hasDashboardAccess } from "../../helpers/permissions";
 
 const Sidebar = ({ mobile = false }) => {
   const [dropdown, setDropdown] = useState(false);
@@ -75,10 +76,10 @@ const Sidebar = ({ mobile = false }) => {
   }, [isCollapsed]);
 
   const navItems = useMemo(() => {
-    const hasDashboardAccess = ['Admin', 'PSadmin', 'Doctor'].includes(role?.role_name);
+    const canOpenDashboard = hasDashboardAccess(role?.role_name);
     const items = [];
 
-    if (hasDashboardAccess) {
+    if (canOpenDashboard) {
       items.push({
         id: 'admin-dashboard',
         label: 'Admin Dashboard',
@@ -89,7 +90,7 @@ const Sidebar = ({ mobile = false }) => {
       });
     }
 
-    if (role?.patients) {
+    if (hasAnyPermission(role, "patients")) {
       items.push({
         id: 'patients',
         label: 'Patients',
@@ -99,7 +100,7 @@ const Sidebar = ({ mobile = false }) => {
       });
     }
 
-    if (role?.ailmentMaster) {
+    if (hasAnyPermission(role, "ailmentMaster")) {
       items.push({
         id: 'ailment-master',
         label: 'Aliment Master',
@@ -108,7 +109,7 @@ const Sidebar = ({ mobile = false }) => {
       });
     }
 
-    if (role?.profileQuestions) {
+    if (hasAnyPermission(role, "profileQuestions")) {
       items.push({
         id: 'profile-questions',
         label: 'Profile Questions',
@@ -117,7 +118,7 @@ const Sidebar = ({ mobile = false }) => {
       });
     }
 
-    if (role?.createAdmin) {
+    if (hasAnyPermission(role, "createAdmin")) {
       items.push({
         id: 'language-master',
         label: 'Language Master',
@@ -126,7 +127,7 @@ const Sidebar = ({ mobile = false }) => {
       });
     }
 
-    if (role?.dailyReadings) {
+    if (hasAnyPermission(role, "dailyReadings")) {
       items.push({
         id: 'daily-readings',
         label: 'Daily Readings',
@@ -136,7 +137,7 @@ const Sidebar = ({ mobile = false }) => {
       });
     }
 
-    if (role?.dialysisReadings) {
+    if (hasAnyPermission(role, "dialysisReadings")) {
       items.push({
         id: 'dialysis-readings',
         label: 'Dialysis Readings',
@@ -146,7 +147,7 @@ const Sidebar = ({ mobile = false }) => {
     }
 
     // Add KFRE to navigation for dashboard access users
-    if (hasDashboardAccess) {
+    if (canOpenDashboard) {
       items.push({
         id: 'kfre',
         label: 'KFRE',
@@ -157,7 +158,7 @@ const Sidebar = ({ mobile = false }) => {
       });
     }
 
-    if (role?.userProgramSelection) {
+    if (hasAnyPermission(role, "userProgramSelection")) {
       items.push({
         id: 'user-program',
         label: 'User Program',
@@ -166,7 +167,7 @@ const Sidebar = ({ mobile = false }) => {
       });
     }
 
-    if (role?.feedback) {
+    if (hasAnyPermission(role, "feedback")) {
       items.push({
         id: 'patient-feedback',
         label: 'Patient Feedback',
@@ -219,7 +220,11 @@ const Sidebar = ({ mobile = false }) => {
 
   const activeId = getActiveIdFromPath(pathname);
 
-  const adminGroupVisible = !!(role?.createAdmin || role?.createDoctor || role?.manageRoles);
+  const adminGroupVisible = !!(
+    hasAnyPermission(role, "createAdmin") ||
+    hasAnyPermission(role, "createDoctor") ||
+    hasAnyPermission(role, "manageRoles")
+  );
 
   const renderDesktopNavItem = (item) => {
     const Icon = item.icon;
@@ -309,9 +314,9 @@ const Sidebar = ({ mobile = false }) => {
         </button>
         {shouldShowChildren && (
           <div className="mt-2 flex flex-col gap-1 pl-4">
-            {role?.createAdmin && renderAdminChild('Create Admin', SubdirectoryArrowRightIcon, ROUTES.USERS_ADMINS)}
-            {role?.createDoctor && renderAdminChild('Create Doctor', SubdirectoryArrowRightIcon, ROUTES.USERS_DOCTORS)}
-            {role?.manageRoles && renderAdminChild('Manage Roles', SubdirectoryArrowRightIcon, ROUTES.USERS_ROLES)}
+            {hasAnyPermission(role, "createAdmin") && renderAdminChild('Create Admin', SubdirectoryArrowRightIcon, ROUTES.USERS_ADMINS)}
+            {hasAnyPermission(role, "createDoctor") && renderAdminChild('Create Doctor', SubdirectoryArrowRightIcon, ROUTES.USERS_DOCTORS)}
+            {hasAnyPermission(role, "manageRoles") && renderAdminChild('Manage Roles', SubdirectoryArrowRightIcon, ROUTES.USERS_ROLES)}
           </div>
         )}
       </li>
@@ -396,12 +401,19 @@ const Sidebar = ({ mobile = false }) => {
                 // ensure Admin Management appears immediately after Admin Dashboard
                 (() => {
                   const nodes = [];
+                  let inserted = false;
                   navItems.forEach((it) => {
                     nodes.push(renderDesktopNavItem(it));
                     if (it.id === 'admin-dashboard') {
                       nodes.push(renderAdminGroup());
+                      inserted = true;
                     }
                   });
+
+                  if (!inserted && adminGroupVisible) {
+                    nodes.unshift(renderAdminGroup());
+                  }
+
                   return nodes;
                 })()
               }

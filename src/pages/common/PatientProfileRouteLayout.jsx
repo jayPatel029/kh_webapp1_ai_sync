@@ -69,9 +69,10 @@ const PatientProfileRouteLayout = () => {
         <ThemeProvider>
             <PatientProfileShellContext.Provider value={shellValue}>
                 <Box className="flex-1 flex flex-col min-w-0">
-                    <Box className={`sticky ${isMobile ? "top-0" : "top-[56px]"} z-20 bg-white`}>
+                    <Box className={`sticky ${isMobile ? "top-0" : "top-[112px]"} z-20 bg-white`}>
                         <PageHeader
                             title={userData?.name || "Patient"}
+                            className={`${isMobile ? "top-0" : "top-[112px]"}`}
                             variant={isMobile ? "mobile" : "desktop"}
                             breadcrumbs={[
                                 { label: "Patient  /", path: ROUTES.patientDetail(patientId), active: false },

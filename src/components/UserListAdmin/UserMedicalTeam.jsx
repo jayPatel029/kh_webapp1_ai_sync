@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from 'react-redux';
+import { PERMISSION_FIELDS, hasEditPermission, hasDeletePermission } from '../../helpers/permissions';
 import Sidebar from "../../components/sidebar/Sidebar";
 import Navbar from "../../components/navbar/Navbar";
 import { useParams } from "react-router-dom";
@@ -11,6 +13,8 @@ function UserMedicalTeam() {
   const [searchQuery, setSearchQuery] = useState("");
   const [patientDoctors, setPatientDoctors] = useState([]);
   const { pid } = useParams();
+  const perms = useSelector(state => state.permission);
+  const hasActions = PERMISSION_FIELDS.some(f => hasEditPermission(perms, f.key) || hasDeletePermission(perms, f.key));
 
   useEffect(() => {
     axiosInstance
@@ -113,7 +117,7 @@ function UserMedicalTeam() {
                   <tr className="border-b-2 border-black">
                     <th className="py-3 px-4 text-left">Doctor Code</th>
                     <th className="py-3 px-4 text-left">Type</th>
-                    <th className="py-3 px-4 text-left">Actions</th>
+                    {hasActions && <th className="py-3 px-4 text-left">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -127,15 +131,17 @@ function UserMedicalTeam() {
                       >
                         <td className="py-3 px-4 text-left">{doctor.name}</td>
                         <td className="py-3 px-4 text-left">{doctor.role}</td>
-                        <td className="py-3 px-4 text-left">
-                          <button
-                            className="text-red-500"
-                            style={{ fontSize: "1.5rem" }}
-                            onClick={() => deleteUser(doctor.id)}
-                          >
-                            <BsTrash />
-                          </button>
-                        </td>
+                        {hasActions && (
+                          <td className="py-3 px-4 text-left">
+                            <button
+                              className="text-red-500"
+                              style={{ fontSize: "1.5rem" }}
+                              onClick={() => deleteUser(doctor.id)}
+                            >
+                              <BsTrash />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     )
                   )}

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from 'react-redux';
+import { PERMISSION_FIELDS, hasEditPermission, hasDeletePermission } from '../../helpers/permissions';
 import Sidebar from "../../components/sidebar/Sidebar";
 import Navbar from "../../components/navbar/Navbar";
 import { server_url } from "../../constants/constants";
@@ -11,6 +13,8 @@ function UserListManage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [patientAdmins, setPatientAdmins] = useState([]);
   const { pid } = useParams();
+  const perms = useSelector(state => state.permission);
+  const hasActions = PERMISSION_FIELDS.some(f => hasEditPermission(perms, f.key) || hasDeletePermission(perms, f.key));
   // console.log(useParams());
 
   // console.log(pid);
@@ -136,7 +140,8 @@ function UserListManage() {
                   <tr className="border-b-2 border-black">
                     <th className="py-3 px-4 text-left">Admin Name</th>
                     <th className="py-3 px-4 text-left">Type</th>
-                    <th className="py-3 px-4 text-left">Actions</th>
+                    {/** Hide Actions column when user has no edit/delete permissions anywhere */}
+                    {hasActions && <th className="py-3 px-4 text-left">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -144,15 +149,17 @@ function UserListManage() {
                     <tr key={admin.userId} className="border-b-2 border-gray">
                       <td className="py-3 px-4 text-left">{admin.firstname}</td>
                       <td className="py-3 px-4 text-left">{admin.role}</td>
-                      <td className="py-3 px-4 text-left">
-                        <button
-                          className="text-red-500"
-                          style={{ fontSize: "1.5rem" }}
-                          onClick={() => deleteUser(admin.id)}
-                        >
-                          <BsTrash />
-                        </button>
-                      </td>
+                      {hasActions && (
+                        <td className="py-3 px-4 text-left">
+                          <button
+                            className="text-red-500"
+                            style={{ fontSize: "1.5rem" }}
+                            onClick={() => deleteUser(admin.id)}
+                          >
+                            <BsTrash />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

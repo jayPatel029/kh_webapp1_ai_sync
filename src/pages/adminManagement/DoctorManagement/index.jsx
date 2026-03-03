@@ -33,6 +33,7 @@ import {
 import UnifiedListTable from "../../../components/table/UnifiedListTable";
 import { useAdminToast } from "../../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../../cache";
+import { hasEditPermission, hasDeletePermission } from "../../../helpers/permissions";
 
 function AdminManagement() {
   const navigate = useNavigate();
@@ -54,6 +55,8 @@ function AdminManagement() {
     }
   };
   const myRole = useSelector((state) => state.permission);
+  const canEditDoctors = hasEditPermission(myRole, "createDoctor");
+  const canDeleteDoctors = hasDeletePermission(myRole, "createDoctor");
   const { showToast, ToastContainer } = useAdminToast();
   const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.DOCTOR_MANAGEMENT);
 
@@ -595,8 +598,8 @@ function AdminManagement() {
                   emptyMessage="No doctor records found"
                   actionButtons={true}
                   displayMode="table"
-                  onEdit={myRole.createDoctor >= 2 ? prepareEditDoctor : undefined}
-                  onDelete={myRole.createDoctor >= 4 ? (row) => handleDelete(row.id) : undefined}
+                  onEdit={canEditDoctors ? prepareEditDoctor : undefined}
+                  onDelete={canDeleteDoctors ? (row) => handleDelete(row.id) : undefined}
                 />
               </div>
             </div>
