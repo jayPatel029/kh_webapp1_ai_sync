@@ -498,6 +498,7 @@ function UserProfile() {
             initialData={userData}
             updateData={updateUserData}
             user_id={userData.id}
+            
           />
         )}
         {editalimentsModalOpen && (
@@ -516,14 +517,12 @@ function UserProfile() {
         {/* Ailment details are now shown inside the PatientProfileCard component */}
 
         {/* General Parameters */}
-        {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
+        {/* {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
           <Box className="space-y-6">
             <Box className="flex items-center gap-4">
-              {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
               <Box as="h2" className={`${isSmall ? "text-md" : "text-xl"} font-bold mt-8`}>General Parameters</Box>
             </Box>
 
-            {/* Generic Profile Section */}
             <ParameterSection title="Generic Profile">
               <QuestionsContainer aliment="Generic Profile" user_id={id} />
             </ParameterSection>
@@ -572,7 +571,7 @@ function UserProfile() {
                 );
               })}
           </Box>
-        )}
+        )} */}
 
         {/* Dialysis Parameters */}
         {userData.program !== "Basic" && dialysisParameters.length > 0 && (

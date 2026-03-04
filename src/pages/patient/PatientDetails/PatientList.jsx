@@ -176,9 +176,7 @@ const PatientList = ({ data, onAddClick }) => {
         document.body.appendChild(link);
         link.click();
         link.remove();
-        // open csv in new tab in pdf format
-        window.open(url, '_blank');
-        } else {
+      } else {
         setError('Failed to download data.');
       }
     } catch (err) {

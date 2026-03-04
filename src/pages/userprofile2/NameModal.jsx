@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { updatePatient } from "../../ApiCalls/patientAPis";
 import {
   Modal,
@@ -24,13 +24,14 @@ const NameModal = ({
   state: initialState,
   pincode: initialPincode,
 }) => {
-  const [name, setName] = useState(initialName || "");
-  const [number, setNumber] = useState(initialNumber || "");
-  const [dob, setDob] = useState(initialDob || "");
-  const [address, setAddress] = useState(initialAddress || "");
-  const [state, setState] = useState(initialState || "");
-  const [pincode, setPincode] = useState(initialPincode || "");
-  
+  // Prefer explicit props (initialName/etc). If not provided, fall back to initialData from parent.
+  const [name, setName] = useState(initialName ?? initialData?.name ?? "");
+  const [number, setNumber] = useState(initialNumber ?? initialData?.number ?? "");
+  const [dob, setDob] = useState(initialDob ?? initialData?.dob ?? "");
+  const [address, setAddress] = useState(initialAddress ?? initialData?.address ?? "");
+  const [patientState, setPatientState] = useState(initialState ?? initialData?.state ?? "");
+  const [pincode, setPincode] = useState(initialPincode ?? initialData?.pincode ?? "");
+
   const handleUpdate = async () => {
     const updatedUserData = {
       id: initialData.id,
@@ -38,7 +39,7 @@ const NameModal = ({
       number: number,
       dob: dob,
       address: address,
-      state: state,
+      state: patientState,
       pincode: pincode,
     };
     try {
@@ -51,15 +52,25 @@ const NameModal = ({
     }
   };
 
+  // Sync local state with incoming initial props when switching users
+  useEffect(() => {
+    setName(initialName ?? initialData?.name ?? "");
+    setNumber(initialNumber ?? initialData?.number ?? "");
+    setDob(initialDob ?? initialData?.dob ?? "");
+    setAddress(initialAddress ?? initialData?.address ?? "");
+    setPatientState(initialState ?? initialData?.state ?? "");
+    setPincode(initialPincode ?? initialData?.pincode ?? "");
+  }, [initialData?.id]);
+
   return (
     <Modal isOpen={true} onClose={closeEditModal} size="lg">
       <ModalOverlay />
-      <ModalContent className="border-t-4 border-primary">
-        <ModalHeader className="border-b pb-2 mb-4">
+      <ModalContent>
+        <ModalHeader className="pb-2 mb-4">
           <h2 className="text-2xl font-bold">Update User Details</h2>
-        <ModalCloseButton />
+           
         </ModalHeader>
-        
+
         <ModalBody className="py-4 space-y-4">
           <FormControl>
             <FormLabel>Name</FormLabel>
@@ -69,7 +80,7 @@ const NameModal = ({
               placeholder="Enter name"
             />
           </FormControl>
-          
+
           <FormControl>
             <FormLabel>Number</FormLabel>
             <Input
@@ -78,7 +89,7 @@ const NameModal = ({
               placeholder="Enter phone number"
             />
           </FormControl>
-          
+
           <FormControl>
             <FormLabel>DOB</FormLabel>
             <Input
@@ -87,7 +98,7 @@ const NameModal = ({
               onChange={(e) => setDob(e.target.value)}
             />
           </FormControl>
-          
+
           <FormControl>
             <FormLabel>Address</FormLabel>
             <Input
@@ -96,16 +107,16 @@ const NameModal = ({
               placeholder="Enter address"
             />
           </FormControl>
-          
+
           <FormControl>
             <FormLabel>State</FormLabel>
             <Input
-              value={state}
-              onChange={(e) => setState(e.target.value)}
+              value={patientState}
+              onChange={(e) => setPatientState(e.target.value)}
               placeholder="Enter state"
             />
           </FormControl>
-          
+
           <FormControl>
             <FormLabel>Pincode</FormLabel>
             <Input
@@ -115,7 +126,7 @@ const NameModal = ({
             />
           </FormControl>
         </ModalBody>
-        
+
         <ModalFooter className="flex justify-end gap-3 p-4">
           <Button variant="outline" onClick={closeEditModal}>
             CANCEL

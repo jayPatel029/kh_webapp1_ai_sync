@@ -162,7 +162,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
         
         <ModalHeader >
           <Heading size="md" weight="bold">Upload Lab Reports</Heading>
-          {/* <ModalCloseButton /> */}
+          {/*   */}
         </ModalHeader>
 
         <ModalBody className="py-6">

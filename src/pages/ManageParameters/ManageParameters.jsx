@@ -474,7 +474,7 @@ function ManageParameters() {
 
           <Stack spacing={4}>
             {/* Parameter Name */}
-            <FormControl id="param-name" isRequired>
+            <FormControl id="param-name" >
               <FormLabel>Parameter Name</FormLabel>
               <Input
                 id="param-name"
@@ -600,12 +600,12 @@ function ManageParameters() {
         {({ getFieldProps, clearFieldError }) => (
           <>
         <FormControl id="param-name" isRequired isInvalid={getFieldProps("title").isInvalid}>
-          <FormLabel>Parameter Name<span className="text-red-500">*</span></FormLabel>
+          <FormLabel>Parameter Name </FormLabel>
           <Input id="param-name" type="text" value={selectTitle} isInvalid={getFieldProps("title").isInvalid} onChange={(e) => { setSelectTitle(e.target.value); clearFieldError("title"); }} className="w-full" placeholder="Enter parameter name" />
         </FormControl>
 
         <FormControl id="param-type" isRequired isInvalid={getFieldProps("parameterType").isInvalid}>
-          <FormLabel>Parameter Type<span className="text-red-500">*</span></FormLabel>
+          <FormLabel>Parameter Type </FormLabel>
           <Select id="param-type" value={selectParameterType} isInvalid={getFieldProps("parameterType").isInvalid} onChange={(e) => { setSelectedParameterType(e.target.value); clearFieldError("parameterType"); }} className="w-full" disabled={isParamDisabled}>
             <option value="">Select Parameter Type</option>
             {parameterTypes.map((type) => (
@@ -615,7 +615,7 @@ function ManageParameters() {
         </FormControl>
 
         <FormControl id="reading-type" isRequired isInvalid={getFieldProps("readingType").isInvalid}>
-          <FormLabel>Special Reading Type<span className="text-red-500">*</span></FormLabel>
+          <FormLabel>Special Reading Type </FormLabel>
           <Select id="reading-type" value={selectReadingType} isInvalid={getFieldProps("readingType").isInvalid} onChange={(e) => { setSelectedReadingType(e.target.value); clearFieldError("readingType"); }} className="w-full">
             <option value="">Select Special Reading Type</option>
             {specialReadingTypes.map((type) => (
