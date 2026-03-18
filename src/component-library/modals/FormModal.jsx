@@ -16,7 +16,7 @@ const FormModalValidationContext = createContext({
   fieldErrors: {},
   hasError: () => false,
   getErrorMessage: () => '',
-  clearFieldError: () => {},
+  clearFieldError: () => { },
   getFieldProps: () => ({}),
 });
 
@@ -81,10 +81,10 @@ export const FormModal = ({
 
   const footer = (
     <Stack spacing={3}>
-      {errorMessage && (
-        <Text color="danger" size="sm">{errorMessage}</Text>
-      )}
-      <Flex justify="end" gap={4}>
+      <Flex justify="end" align="center" gap={4}>
+        {errorMessage && (
+          <Text color="danger" size="sm">{errorMessage}</Text>
+        )}
         <Button
           variant={cancelVariant}
           onClick={onClose}

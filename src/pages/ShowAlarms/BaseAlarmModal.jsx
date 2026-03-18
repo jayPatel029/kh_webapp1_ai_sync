@@ -115,6 +115,17 @@ const BaseAlarmModal = ({
   onSubmit,
   showPrescriptionViewer = true,
 }) => {
+  const extractArrayFromResponse = (res) => {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.result)) return res.result;
+    if (Array.isArray(res.items)) return res.items;
+
+    // Find first array in the object values
+    const nestedArray = Object.values(res).find(Array.isArray);
+    return Array.isArray(nestedArray) ? nestedArray : [];
+  };
   // Request tracking refs to prevent duplicate requests
   const hasInitialized = useRef(false);
   const lastFetchTimeRef = useRef(0);
@@ -124,7 +135,9 @@ const BaseAlarmModal = ({
   const [selectedAlarmType, setSelectedAlarmType] = useState(
     alarmData?.type || "Dialysis"
   );
-  const [selectedHealthParameter, setSelectedHealthParameter] = useState("");
+  const [selectedHealthParameter, setSelectedHealthParameter] = useState(
+    alarmData?.parameter || ""
+  );
   const [selectTimings, setSelectTimings] = useState(
     alarmData?.frequency || "Daily/Weekly"
   );
@@ -139,9 +152,15 @@ const BaseAlarmModal = ({
   const [dateOfMonth, setDOM] = useState(
     alarmData?.dateofmonth?.split(",") || Array(1).fill("")
   );
-  const [doctorid, setDoctorid] = useState(alarmData?.doctorId || "");
+  const [doctorid, setDoctorid] = useState(
+    alarmData?.doctorId
+      ? String(alarmData.doctorId)
+      : alarmData?.doctor_id
+      ? String(alarmData.doctor_id)
+      : ""
+  );
   const [selectedPrescription, setSelectedPrescription] = useState(
-    alarmData?.prescriptionid || ""
+    alarmData?.prescriptionid || alarmData?.prescription_id || ""
   );
   const [doses, setDoses] = useState([]);
   const [doseUnit, setDoseUnit] = useState([]);
@@ -304,8 +323,10 @@ const BaseAlarmModal = ({
     }
   };
 
-  // Fetch data on mount with throttling
+  // Fetch data when pid changes (or on initial mount) with throttling
   useEffect(() => {
+    if (!pid) return;
+
     const abortController = new AbortController();
     let isMounted = true;
 
@@ -334,37 +355,51 @@ const BaseAlarmModal = ({
         if (!isMounted) return;
 
         if (drResult?.success) {
+          const drList = extractArrayFromResponse(drResult.data);
           setDrOptions(
-            drResult.data.map((dr) => ({
-              value: dr.title,
-              label: dr.title,
+            drList.map((dr) => ({
+              value: dr?.title || dr?.name || dr?.label || "",
+              label: dr?.title || dr?.name || dr?.label || "",
             }))
           );
         }
 
         if (dirResult?.success) {
+          const dirList = extractArrayFromResponse(dirResult.data);
           setDirOptions(
-            dirResult.data.map((dr) => ({
-              value: dr.title,
-              label: dr.title,
+            dirList.map((dr) => ({
+              value: dr?.title || dr?.name || dr?.label || "",
+              label: dr?.title || dr?.name || dr?.label || "",
             }))
           );
         }
 
-        if (medicalTeam?.success && medicalTeam.data.data?.length > 0) {
-          setConsultDoctor(medicalTeam.data.data);
-          if (!doctorid) {
-            setDoctorid(medicalTeam.data.data[0]?.id || "");
+        if (medicalTeam?.success) {
+          const team = extractArrayFromResponse(medicalTeam.data);
+          if (team.length > 0) {
+            setConsultDoctor(team);
+            if (!doctorid) {
+              const firstMember = team[0];
+              setDoctorid(
+                firstMember?.id
+                  ? String(firstMember.id)
+                  : firstMember?._id
+                  ? String(firstMember._id)
+                  : firstMember?.doctor_id
+                  ? String(firstMember.doctor_id)
+                  : ""
+              );
+            }
           }
         }
 
-        if (
-          prescriptionData?.success &&
-          prescriptionData.data.data?.length > 0
-        ) {
-          setPrescription(prescriptionData.data.data);
-          if (!selectedPrescription) {
-            setSelectedPrescription(prescriptionData.data.data[0]?.id || "");
+        if (prescriptionData?.success) {
+          const prescriptionList = extractArrayFromResponse(prescriptionData.data);
+          if (prescriptionList.length > 0) {
+            setPrescription(prescriptionList);
+            if (!selectedPrescription) {
+              setSelectedPrescription(prescriptionList[0]?.id || "");
+            }
           }
         }
 
@@ -391,11 +426,7 @@ const BaseAlarmModal = ({
       }
     };
 
-    // Only fetch on first mount
-    if (!hasInitialized.current) {
-      hasInitialized.current = true;
-      fetchData();
-    }
+    fetchData();
 
     // Cleanup function
     return () => {
@@ -406,16 +437,48 @@ const BaseAlarmModal = ({
       }
     };
   }, [pid, isEdit, alarmData?.id, alarmData?.type, dosesData]);
-  // Auto-select and display latest prescription when Prescription type is selected
-  // Memoize to prevent unnecessary re-renders
+  // When Prescription type is selected, ensure prescriptions are loaded and a selection is made
   useEffect(() => {
-    if (selectedAlarmType === "Prescription" && prescription.length > 0) {
-      setSelectedPrescription((prev) => prev || prescription[0]?.id || "");
-      if (showPrescriptionViewer) {
-        setViewPrescription(1);
+    if (selectedAlarmType !== "Prescription" || !pid) return;
+
+    let isMounted = true;
+
+    const loadPrescriptions = async () => {
+      // If we don't have prescriptions yet, fetch them
+      if (prescription.length === 0) {
+        try {
+          const prescriptionData = await makeDedupedRequest(`prescriptions-${pid}`, () =>
+            getPrescriptionByPatient(pid)
+          );
+
+          if (!isMounted) return;
+
+          if (prescriptionData?.success && prescriptionData.data.data?.length > 0) {
+            setPrescription(prescriptionData.data.data);
+          }
+        } catch (error) {
+          if (error.name !== "AbortError") {
+            console.error("Error fetching prescriptions:", error);
+            setErrorMessage("Error loading prescriptions");
+          }
+        }
       }
-    }
-  }, [selectedAlarmType, showPrescriptionViewer]); // Removed prescription from dependencies to prevent rapid re-triggers
+
+      // Once prescriptions are available, ensure a default selection is set
+      if (prescription.length > 0) {
+        setSelectedPrescription((prev) => prev || prescription[0]?.id || "");
+        if (showPrescriptionViewer) {
+          setViewPrescription(1);
+        }
+      }
+    };
+
+    loadPrescriptions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedAlarmType, pid, prescription.length, showPrescriptionViewer]);
 
   // Handle timing changes
   const handleTimesChange = (newTimes) => {
@@ -615,7 +678,21 @@ const BaseAlarmModal = ({
                         </thead>
                         <tbody>
                           {prescription.map((pres, index) => (
-                            <tr key={index} className="border-b hover:bg-gray-50">
+                            <tr
+                              key={index}
+                              className={`border-b hover:bg-gray-50 ${
+                                selectedPrescription === pres.id
+                                  ? "bg-blue-50"
+                                  : ""
+                              }`}
+                              onClick={() => {
+                                setSelectedPrescription(pres.id);
+                                if (showPrescriptionViewer) {
+                                  setViewPrescription(index + 1);
+                                }
+                                setErrorMessage("");
+                              }}
+                            >
                               <td className="px-4 py-3">
                                 {pres.Prescription?.endsWith(".pdf") ? (
                                   <FaFilePdf className="w-8 h-8 text-red-500" />
@@ -624,7 +701,8 @@ const BaseAlarmModal = ({
                                     src={pres.Prescription}
                                     alt={`prescription-${index}`}
                                     className="h-10 w-10 object-cover rounded cursor-pointer hover:opacity-80"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setViewPrescription(
                                         viewPrescription === index + 1
                                           ? null
@@ -798,11 +876,28 @@ const BaseAlarmModal = ({
                 }}
               >
                 <option value="">Select Doctor</option>
-                {consultDoctor.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.name}
-                  </option>
-                ))}
+                {consultDoctor.map((doc) => {
+                  const rawValue =
+                    doc?.id ||
+                    doc?._id ||
+                    doc?.doctor_id ||
+                    doc?.user_id ||
+                    "";
+                  const value = rawValue ? String(rawValue) : "";
+                  const label =
+                    doc?.name ||
+                    doc?.fullName ||
+                    doc?.fullname ||
+                    doc?.doctorName ||
+                    doc?.doctor_name ||
+                    doc?.email ||
+                    value;
+                  return (
+                    <option key={value || label} value={value}>
+                      {label}
+                    </option>
+                  );
+                })}
               </Select>
             </FormControl>
           </GridItem>

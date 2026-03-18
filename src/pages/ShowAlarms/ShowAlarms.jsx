@@ -207,7 +207,7 @@ const ShowAlarms = () => {
 
   return (
     <PatientDetailLayout
-             title={"Alarms"}
+      title={"Alarms"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}

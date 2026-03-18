@@ -970,7 +970,7 @@ const LineChartComponentLab = ({
             }}
             className={`flex items-center focus:outline-none ${isCheckedRed ? '' : ''}`}
           >
-            <Box className={`w-3 h-3 rounded-full mr-2 ${isCheckedRed ? 'bg-blue-700' : 'bg-gray-300'}`} />
+            <Box className={`w-3 h-3 rounded-full mr-2 ${isCheckedRed ? 'bg-red-700' : 'bg-gray-300'}`} />
             <Text size="sm" className="mr-4">Red</Text>
           </Box>
 

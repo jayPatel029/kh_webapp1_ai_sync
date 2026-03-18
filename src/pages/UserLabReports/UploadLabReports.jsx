@@ -213,19 +213,6 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
               {errorMsg && <FormErrorMessage>{errorMsg}</FormErrorMessage>}
             </FormControl>
 
-            {!extractedValues && (
-              <Button
-                variant="solid"
-                isFullWidth
-                isLoading={isExtracting}
-                loadingText="Extracting Data..."
-                onClick={handleExtract}
-
-              >
-                Extract Data
-              </Button>
-            )}
-
             {/* Extracted Data Section */}
             {extractedValues && (
               <Box className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -260,9 +247,19 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
         </ModalBody>
 
         <ModalFooter >
-          <Button variant="outline" onClick={closeModal} className="flex-1">
+          <Button variant="outline" onClick={closeModal} >
             Cancel
           </Button>
+          {!extractedValues && (
+            <Button
+              variant="solid"
+              isLoading={isExtracting}
+              loadingText="Extracting Data..."
+              onClick={handleExtract}
+            >
+              Extract Data
+            </Button>
+          )}
           {extractedValues && (
             <Button 
               variant="solid" 
