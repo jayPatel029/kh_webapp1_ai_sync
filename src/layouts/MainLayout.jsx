@@ -16,6 +16,7 @@ import MobileBottomNav from '../components/mobile/MobileBottomNav';
 import { Box } from '../component-library';
 import { useIsMobile } from '../components/mobile/useIsMobile';
 import { useMobileNavItems } from '../hooks/useMobileNavItems';
+import { useSelector } from 'react-redux';
 
 const MainLayout = () => {
     const location = useLocation();
@@ -56,15 +57,19 @@ const MainLayout = () => {
     const noSidebarRoutes = ['/login', '/doctorLogin', '/forgotpassword'];
     const showSidebar = !noSidebarRoutes.includes(location.pathname);
 
+    const role = useSelector((state) => state.permission);
+    const isDoctor = role?.role_name === 'Doctor';
+
     // On mobile, always hide desktop sidebar; calculate offset only for desktop
-    const showDesktopSidebar = showSidebar && !isMobile;
+    // For Doctor role we render a compact left area inside PageHeader instead of the fixed Sidebar
+    const showDesktopSidebar = showSidebar && !isMobile && !isDoctor;
 
     // Calculate sidebar width for layout offset
     const SIDEBAR_WIDTH = 250;
     const COLLAPSED_WIDTH = 96; // 24 * 4 (w-24 in tailwind)
     const sidebarOffset = showDesktopSidebar
         ? (isSidebarCollapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH)
-        : 0;
+        : (isDoctor ? COLLAPSED_WIDTH : 0);
 
     return (
         <Box className="flex min-h-screen w-full">

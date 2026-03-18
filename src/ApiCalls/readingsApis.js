@@ -9,7 +9,7 @@ export const getDailyReadings = async () => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -23,7 +23,7 @@ export const addDailyReading = async (data) => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -37,7 +37,7 @@ export const modifyDailyReadingRange = async (data) => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -51,7 +51,7 @@ export const getDialysisReadings = async () => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -65,7 +65,7 @@ export const addDialysisReading = async (data) => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -79,7 +79,7 @@ export const modifyDialysisReadingRange = async (data) => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -91,7 +91,7 @@ export const deleteDailyReading = async (id) => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -103,7 +103,7 @@ export const deleteDialysisReading = async (id) => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -116,7 +116,7 @@ export const updateDailyReading = async (data) => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -129,7 +129,7 @@ export const updateDialysisReading = async (data) => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -142,7 +142,7 @@ export const postBulkDailyReadings = async (data) => {
     return { success: true, data: response.data };
   } catch (error) {
     console.error(error);
-    throw error;
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -153,7 +153,7 @@ export const getSystolicIdByTitle = async (questionTitle) => {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -164,6 +164,6 @@ export const getDialysisSystolicIdByTitle = async (questionTitle) => {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };

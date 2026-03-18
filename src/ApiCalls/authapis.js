@@ -9,7 +9,7 @@ export async function registerUser(userData) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message || 'Registration failed' };
+    return { success: false, error: error?.response?.data?.error || error.message || 'Registration failed' };
   }
 }
 
@@ -21,7 +21,7 @@ export async function loginUser(userData) {
     );
     return { success: true, data: response?.data };
   } catch (error) {
-    return { success: false, data: error.message || 'Login failed' };
+    return { success: false, error: error?.response?.data?.error || error.message || 'Login failed' };
   }
 }
 
@@ -32,7 +32,7 @@ export async function getUserByEmail(email) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message || 'Failed to get user' };
+    return { success: false, error: error?.response?.data?.error || error.message || 'Failed to get user' };
   }
 }
 
@@ -43,7 +43,7 @@ export async function getUserByEmailDoctor(email) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message || 'Failed to get doctor' };
+    return { success: false, error: error?.response?.data?.error || error.message || 'Failed to get doctor' };
   }
 }
 
@@ -52,18 +52,18 @@ export async function getUsers() {
     const response = await axiosInstance.get(server_url + "/users");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message || 'Failed to get users' };
+    return { success: false, error: error?.response?.data?.error || error.message || 'Failed to get users' };
   }
 }
 
-export async function getDoctorsByPatientId() {
+export async function getDoctorsByPatientId(patientId) {
   try {
     const response = await axiosInstance.get(
-      server_url + "/assignedDoctor/getDoctor/10"
+      server_url + "/assignedDoctor/getDoctor/" + patientId
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message || 'Failed to get doctors' };
+    return { success: false, error: error?.response?.data?.error || error.message || 'Failed to get doctors' };
   }
 }
 
@@ -75,7 +75,7 @@ export async function updateUserByEmail(email, userData) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message || 'Failed to update user' };
+    return { success: false, error: error?.response?.data?.error || error.message || 'Failed to update user' };
   }
 }
 
@@ -84,7 +84,7 @@ export async function deleteUserByEmail(email) {
     const response = await axiosInstance.delete(server_url + "/users/" + email);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message || 'Failed to delete user' };
+    return { success: false, error: error?.response?.data?.error || error.message || 'Failed to delete user' };
   }
 }
 
@@ -93,7 +93,7 @@ export async function getRoles() {
     const response = await axiosInstance.get(server_url + "/roles");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message || 'Failed to get roles' };
+    return { success: false, error: error?.response?.data?.error || error.message || 'Failed to get roles' };
   }
 }
 
@@ -104,7 +104,7 @@ export async function identifyRole() {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message || 'Failed to identify role' };
+    return { success: false, error: error?.response?.data?.error || error.message || 'Failed to identify role' };
   }
 }
 
@@ -116,7 +116,7 @@ export async function changePassword(payload) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -125,7 +125,7 @@ export async function getPrivateAuth() {
     const response = await axiosInstance.get(server_url + "/auth/private");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -134,7 +134,7 @@ export async function createRole(roleData) {
     const response = await axiosInstance.post(server_url + "/roles", roleData);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -143,7 +143,7 @@ export async function getRoleByName(roleName) {
     const response = await axiosInstance.get(server_url + "/roles/byName/" + roleName);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -155,7 +155,7 @@ export async function updateRoleByName(roleName, roleData) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -164,7 +164,7 @@ export async function deleteRoleByName(roleName) {
     const response = await axiosInstance.delete(server_url + "/roles/byName/" + roleName);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -173,7 +173,7 @@ export async function isDoctorRole() {
     const response = await axiosInstance.get(server_url + "/roles/isDoctor");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -182,7 +182,7 @@ export async function getAdmins() {
     const response = await axiosInstance.get(server_url + "/users/admins");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -191,7 +191,7 @@ export async function getUsersByRole(role) {
     const response = await axiosInstance.get(server_url + "/users/byRole/" + role);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -202,7 +202,7 @@ export async function getUsersAssignedToPatient(id) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -213,7 +213,7 @@ export async function getDoctorsAssignedToPatient(id) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -222,7 +222,7 @@ export async function isUserDoctor() {
     const response = await axiosInstance.get(server_url + "/users/isDoctor");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -235,6 +235,6 @@ export async function getIdByEmail(payload, config = {}) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }

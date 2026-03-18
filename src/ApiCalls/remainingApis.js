@@ -78,7 +78,7 @@ export async function postDietdetailsInsertDietDetailsAdmin(payload, config = {}
 
 export async function getDoctorAnalyticsGetAdherenceMedicine(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/doctorAnalytics/getAdherenceMedicine", config);
+    const response = await axiosInstance.get(server_url + "/analytics/getAdherenceMedicine", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -87,7 +87,7 @@ export async function getDoctorAnalyticsGetAdherenceMedicine(config = {}) {
 
 export async function getDoctorAnalyticsGetPatientsByAge(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/doctorAnalytics/getPatientsByAge", config);
+    const response = await axiosInstance.get(server_url + "/analytics/getPatientsByAge", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -96,7 +96,7 @@ export async function getDoctorAnalyticsGetPatientsByAge(config = {}) {
 
 export async function getDoctorAnalyticsGetPatientsByDoctorId(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/doctorAnalytics/getPatientsByDoctorId", config);
+    const response = await axiosInstance.get(server_url + "/analytics/getPatientsByDoctorId", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -105,7 +105,7 @@ export async function getDoctorAnalyticsGetPatientsByDoctorId(config = {}) {
 
 export async function getDoctorAnalyticsGetPatientsByGender(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/doctorAnalytics/getPatientsByGender", config);
+    const response = await axiosInstance.get(server_url + "/analytics/getPatientsByGender", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -114,7 +114,7 @@ export async function getDoctorAnalyticsGetPatientsByGender(config = {}) {
 
 export async function getDoctorAnalyticsGetPercentageReturn(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/doctorAnalytics/getPercentageReturn", config);
+    const response = await axiosInstance.get(server_url + "/analytics/getPercentageReturn", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -123,7 +123,7 @@ export async function getDoctorAnalyticsGetPercentageReturn(config = {}) {
 
 export async function postGraphReadingDialysisAdd(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/graphReadingDialysis/add", payload, config);
+    const response = await axiosInstance.post(server_url + "/dialysisReading/add", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -132,7 +132,7 @@ export async function postGraphReadingDialysisAdd(payload, config = {}) {
 
 export async function postGraphReadingDialysisDelete(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/graphReadingDialysis/delete", payload, config);
+    const response = await axiosInstance.post(server_url + "/dialysisReading/delete", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -141,7 +141,7 @@ export async function postGraphReadingDialysisDelete(payload, config = {}) {
 
 export async function getGraphReadingDialysisGet(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/graphReadingDialysis/get", config);
+    const response = await axiosInstance.get(server_url + "/dialysisReading/get", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -150,7 +150,7 @@ export async function getGraphReadingDialysisGet(config = {}) {
 
 export async function getGraphReadingDialysisGetGraph(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/graphReadingDialysis/getGraph", config);
+    const response = await axiosInstance.get(server_url + "/dialysisReading/getGraph", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -159,7 +159,7 @@ export async function getGraphReadingDialysisGetGraph(config = {}) {
 
 export async function postGraphReadingDialysisUpdate(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/graphReadingDialysis/update", payload, config);
+    const response = await axiosInstance.post(server_url + "/dialysisReading/update", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -168,7 +168,7 @@ export async function postGraphReadingDialysisUpdate(payload, config = {}) {
 
 export async function postGraphReadingsAdd(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/graphReadings/add", payload, config);
+    const response = await axiosInstance.post(server_url + "/readings/add", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -177,7 +177,7 @@ export async function postGraphReadingsAdd(payload, config = {}) {
 
 export async function postGraphReadingsAddDiaSys(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/graphReadings/add/dia/sys", payload, config);
+    const response = await axiosInstance.post(server_url + "/readings/add/dia/sys", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -186,7 +186,7 @@ export async function postGraphReadingsAddDiaSys(payload, config = {}) {
 
 export async function postGraphReadingsAddSys(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/graphReadings/add/sys", payload, config);
+    const response = await axiosInstance.post(server_url + "/readings/add/sys", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -195,7 +195,7 @@ export async function postGraphReadingsAddSys(payload, config = {}) {
 
 export async function postGraphReadingsDelete(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/graphReadings/delete", payload, config);
+    const response = await axiosInstance.post(server_url + "/readings/delete", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -204,7 +204,7 @@ export async function postGraphReadingsDelete(payload, config = {}) {
 
 export async function getGraphReadingsGet(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/graphReadings/get", config);
+    const response = await axiosInstance.get(server_url + "/readings/get", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -213,7 +213,7 @@ export async function getGraphReadingsGet(config = {}) {
 
 export async function getGraphReadingsGetDiaSys(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/graphReadings/get/dia/sys", config);
+    const response = await axiosInstance.get(server_url + "/readings/get/dia/sys", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -222,7 +222,7 @@ export async function getGraphReadingsGetDiaSys(config = {}) {
 
 export async function getGraphReadingsGetDiaSysidBydiastolicTitle(diastolicTitle, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/graphReadings/get/dia/sysid/${diastolicTitle}`, config);
+    const response = await axiosInstance.get(`${server_url}/readings/get/dia/sysid/${diastolicTitle}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -231,7 +231,7 @@ export async function getGraphReadingsGetDiaSysidBydiastolicTitle(diastolicTitle
 
 export async function getGraphReadingsGetSys(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/graphReadings/get/sys", config);
+    const response = await axiosInstance.get(server_url + "/readings/get/sys", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -240,7 +240,7 @@ export async function getGraphReadingsGetSys(config = {}) {
 
 export async function getGraphReadingsGetSysidBydiastolicTitle(diastolicTitle, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/graphReadings/get/sysid/${diastolicTitle}`, config);
+    const response = await axiosInstance.get(`${server_url}/readings/get/sysid/${diastolicTitle}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -249,7 +249,7 @@ export async function getGraphReadingsGetSysidBydiastolicTitle(diastolicTitle, c
 
 export async function postGraphReadingsUpdate(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/graphReadings/update", payload, config);
+    const response = await axiosInstance.post(server_url + "/readings/update", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -420,7 +420,7 @@ export async function postMailVerifyOtp(payload, config = {}) {
 
 export async function postModuleRoutesConnectDoctor(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/moduleRoutes/connectDoctor", payload, config);
+    const response = await axiosInstance.post(server_url + "/moduleConnection/connectDoctor", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -429,7 +429,7 @@ export async function postModuleRoutesConnectDoctor(payload, config = {}) {
 
 export async function postModuleRoutesConnectPatient(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/moduleRoutes/connectPatient", payload, config);
+    const response = await axiosInstance.post(server_url + "/moduleConnection/connectPatient", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -438,7 +438,7 @@ export async function postModuleRoutesConnectPatient(payload, config = {}) {
 
 export async function getModuleRoutesGetLabR(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/moduleRoutes/getLabR", config);
+    const response = await axiosInstance.get(server_url + "/moduleConnection/getLabR", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -447,7 +447,7 @@ export async function getModuleRoutesGetLabR(config = {}) {
 
 export async function getModuleRoutesGetPresc(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/moduleRoutes/getPresc", config);
+    const response = await axiosInstance.get(server_url + "/moduleConnection/getPresc", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -456,7 +456,7 @@ export async function getModuleRoutesGetPresc(config = {}) {
 
 export async function getModuleRoutesGetVitals(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/moduleRoutes/getVitals", config);
+    const response = await axiosInstance.get(server_url + "/moduleConnection/getVitals", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -564,7 +564,7 @@ export async function getTeleconsultationGetAllAppointmentsById(config = {}) {
 
 export async function getTempRoutesBp(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/tempRoutes/bp", config);
+    const response = await axiosInstance.get(server_url + "/bp", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -573,7 +573,7 @@ export async function getTempRoutesBp(config = {}) {
 
 export async function postTempRoutesBp(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/tempRoutes/bp", payload, config);
+    const response = await axiosInstance.post(server_url + "/bp", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -582,7 +582,7 @@ export async function postTempRoutesBp(payload, config = {}) {
 
 export async function deleteTempRoutesBpByid(id, payload, config = {}) {
   try {
-    const response = await axiosInstance.delete(`${server_url}/tempRoutes/bp/${id}`, payload ? { ...config, data: payload } : config);
+    const response = await axiosInstance.delete(`${server_url}/bp/${id}`, payload ? { ...config, data: payload } : config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -591,7 +591,7 @@ export async function deleteTempRoutesBpByid(id, payload, config = {}) {
 
 export async function putTempRoutesBpByid(id, payload, config = {}) {
   try {
-    const response = await axiosInstance.put(`${server_url}/tempRoutes/bp/${id}`, payload, config);
+    const response = await axiosInstance.put(`${server_url}/bp/${id}`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -600,7 +600,7 @@ export async function putTempRoutesBpByid(id, payload, config = {}) {
 
 export async function getTempRoutesBpLimits(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/tempRoutes/bp/limits", config);
+    const response = await axiosInstance.get(server_url + "/bp/limits", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -609,7 +609,7 @@ export async function getTempRoutesBpLimits(config = {}) {
 
 export async function postTempRoutesBpLimits(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/tempRoutes/bp/limits", payload, config);
+    const response = await axiosInstance.post(server_url + "/bp/limits", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -618,7 +618,7 @@ export async function postTempRoutesBpLimits(payload, config = {}) {
 
 export async function putTempRoutesBpLimits(payload, config = {}) {
   try {
-    const response = await axiosInstance.put(server_url + "/tempRoutes/bp/limits", payload, config);
+    const response = await axiosInstance.put(server_url + "/bp/limits", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -627,7 +627,7 @@ export async function putTempRoutesBpLimits(payload, config = {}) {
 
 export async function getUserRangeGetRange(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/userRange/getRange", config);
+    const response = await axiosInstance.get(server_url + "/range/getRange", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -636,7 +636,7 @@ export async function getUserRangeGetRange(config = {}) {
 
 export async function getUserRangeGetRangeDiaSys(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/userRange/getRange/dia/sys", config);
+    const response = await axiosInstance.get(server_url + "/range/getRange/dia/sys", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -645,7 +645,7 @@ export async function getUserRangeGetRangeDiaSys(config = {}) {
 
 export async function getUserRangeGetRangeSys(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/userRange/getRange/sys", config);
+    const response = await axiosInstance.get(server_url + "/range/getRange/sys", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -654,7 +654,7 @@ export async function getUserRangeGetRangeSys(config = {}) {
 
 export async function postUserRangeSetRange(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/userRange/setRange", payload, config);
+    const response = await axiosInstance.post(server_url + "/range/setRange", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -663,7 +663,7 @@ export async function postUserRangeSetRange(payload, config = {}) {
 
 export async function postUserRangeSetRangeDiaSys(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/userRange/setRange/dia/sys", payload, config);
+    const response = await axiosInstance.post(server_url + "/range/setRange/dia/sys", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -672,7 +672,7 @@ export async function postUserRangeSetRangeDiaSys(payload, config = {}) {
 
 export async function postUserRangeSetRangeSys(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/userRange/setRange/sys", payload, config);
+    const response = await axiosInstance.post(server_url + "/range/setRange/sys", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -681,7 +681,7 @@ export async function postUserRangeSetRangeSys(payload, config = {}) {
 
 export async function getUserRangeDialysisGetRange(config = {}) {
   try {
-    const response = await axiosInstance.get(server_url + "/userRangeDialysis/getRange", config);
+    const response = await axiosInstance.get(server_url + "/rangeDialysis/getRange", config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -690,7 +690,7 @@ export async function getUserRangeDialysisGetRange(config = {}) {
 
 export async function postUserRangeDialysisSetRange(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(server_url + "/userRangeDialysis/setRange", payload, config);
+    const response = await axiosInstance.post(server_url + "/rangeDialysis/setRange", payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

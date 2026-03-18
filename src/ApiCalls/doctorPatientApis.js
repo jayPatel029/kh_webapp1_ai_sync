@@ -13,10 +13,11 @@ export async function addDoctorToPatient(id, payload) {
   }
 }
 
-export async function deleteAssignedDoctor(id) {
+export async function deleteAssignedDoctor(patientId, doctorId) {
   try {
     const response = await axiosInstance.delete(
-      `${server_url}/assignedDoctor/deleteDoctor/${id}`
+      `${server_url}/assignedDoctor/deleteDoctor/${patientId}`,
+      { data: { doctor_id: doctorId } }
     );
     return { success: true, data: response.data };
   } catch (error) {

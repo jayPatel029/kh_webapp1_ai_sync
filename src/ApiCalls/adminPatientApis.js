@@ -13,10 +13,11 @@ export async function addAdminToPatient(id, payload) {
   }
 }
 
-export async function deleteAssignedAdmin(id) {
+export async function deleteAssignedAdmin(patientId, adminId) {
   try {
     const response = await axiosInstance.delete(
-      `${server_url}/adminPatient/deleteAdmin/${id}`
+      `${server_url}/assignedAdmin/deleteAdmin/${patientId}`,
+      { data: { admin_id: adminId } }
     );
     return { success: true, data: response.data };
   } catch (error) {

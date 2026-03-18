@@ -205,6 +205,7 @@ const Sidebar = ({ mobile = false }) => {
   const location = useLocation();
   const pathname = location?.pathname || '';
 
+
   const getActiveIdFromPath = (path) => {
     if (!path) return null;
     // special mapping: userprofile should activate patients
@@ -341,7 +342,7 @@ const Sidebar = ({ mobile = false }) => {
         <SidebarHeader className={clsx('pt-6', isCollapsed && !mobile ? 'flex justify-center' : 'flex items-center gap-3')}>
           <Link to={ROUTES.DASHBOARD} className={clsx('flex items-center transition-all', isCollapsed && !mobile ? 'justify-center' : 'gap-3')}>
 
-            <img
+            {/* <img
               src={kifayti_logo}
               alt="Kifayti logo"
               className={clsx(
@@ -349,7 +350,7 @@ const Sidebar = ({ mobile = false }) => {
                 isCollapsed && !mobile ? 'w-10 h-10' : 'w-12 h-12'
               )}
             />
-            {!isCollapsed && !mobile && <span className="text-lg font-semibold">Kifayti Health</span>}
+            {!isCollapsed && !mobile && <span className="text-lg font-semibold">Kifayti Health</span>} */}
           </Link>
 
 
@@ -473,6 +474,7 @@ const Sidebar = ({ mobile = false }) => {
     );
   };
 
+  // keep original behavior: mobile -> mobile nav, otherwise desktop sidebar
   return mobile ? renderMobile() : renderDesktop();
 };
 

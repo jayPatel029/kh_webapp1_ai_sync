@@ -13,7 +13,7 @@ export async function createQuestion(questionData) {
     });
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
  
@@ -27,7 +27,7 @@ export async function getQuestions() {
     });
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -45,7 +45,7 @@ export async function updateQuestion(id, questionData) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -59,7 +59,7 @@ export async function deleteQuestion(id) {
     });
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -73,7 +73,7 @@ export async function getQuestionsByType(type) {
     });
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data?.message || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -90,7 +90,7 @@ export async function getDialysisParameterQuestions(type) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data?.message || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -107,7 +107,7 @@ export async function getGeneralParameterQuestions() {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data?.message || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -124,6 +124,6 @@ export async function getGeneralParameterResponses() {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data?.message || error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }

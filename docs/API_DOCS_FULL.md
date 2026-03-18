@@ -60,6 +60,64 @@ Total endpoints documented: **276**
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - id: `<<id>>`
+- **Request Body:**
+```json
+{
+  "doctorId": 123,
+  "type": "Dialysis",
+  "description": "Evening dialysis reminder",
+  "message": "Please confirm the patient’s dialysis schedule.",
+  "frequency": "Daily/Weekly",
+  "status": "Pending",
+  "reason": "",
+  "pid": 456,
+  "prescriptionid": null,
+  "doses": null,
+  "doseUnit": null,
+  "weekdays
+	": "Mon,Wed,Fri",
+  "timesaday": 2,
+  "time": "08:00,20:00"
+}
+
+{
+  "doctorId": 123,
+  "type": "Prescription",
+  "description": "BP medicine reminder",
+  "message": "Monitor BP before taking medication.",
+  "frequency": "Daily/Weekly",
+  "status": "Pending",
+  "reason": "",
+  "pid": 456,
+  "prescriptionid": 789,
+  "doses": [
+    { "dose": 1, "doseUnit": "tablet", "time": "09:00" },
+    { "dose": 1, "doseUnit": "tablet", "time": "21:00" }
+  ],
+  "doseUnit": null,
+  "weekdays": "Mon,Tues,Wed,Thurs,Fri",
+  "timesaday": 2,
+  "time": "09:00,21:00"
+}
+
+{
+  "doctorId": 123,
+  "type": "Diet Details",
+  "description": "Monthly diet review",
+  "message": "Review diet plan and labs.",
+  "frequency": "Monthly",
+  "status": "Pending",
+  "reason": "",
+  "pid": 456,
+  "prescriptionid": null,
+  "doses": null,
+  "doseUnit": null,
+  "dateofmonth": "1,15",
+  "timesamonth": 2,
+  "time": "10:00,16:00"
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -169,6 +227,16 @@ curl -X GET '{{base_url}}/api/ailment/{lang}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": "",
+  "name": "",
+  "translations": "",
+  "Ailment_Img": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -236,6 +304,14 @@ curl -X GET '{{base_url}}/api/ailment/getAilmentByName/{name}'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - id: `<<id>>`
+- **Request Body:**
+```json
+{
+  "name": "",
+  "translations": "",
+  "Ailment_Img": ""
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -348,6 +424,12 @@ curl -X DELETE '{{base_url}}/api/alarmsRouter/{id}'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - id: `<<id>>`
+- **Request Body:**
+```json
+{
+  "admin_id": ""
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -436,6 +518,13 @@ curl -X GET '{{base_url}}/api/alarmsRouter/byPatientId/{id}'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - id: `<<id>>`
+- **Request Body:**
+```json
+{
+  "requisition": "",
+  "patient": ""
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -479,6 +568,14 @@ curl -X GET '{{base_url}}/api/alerts'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": "",
+  "alarmId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -500,6 +597,13 @@ curl -X PUT '{{base_url}}/api/alerts/approveAlert'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "presId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -521,6 +625,15 @@ curl -X PUT '{{base_url}}/api/alerts/approveAllAlerts'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "alarmId": "",
+  "status": "Approved",
+  "patientId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -606,6 +719,14 @@ curl -X GET '{{base_url}}/api/alerts/byType/{type}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "patientId": "",
+  "programName": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -627,6 +748,13 @@ curl -X POST '{{base_url}}/api/alerts/changeInProgram'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "patientId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -690,6 +818,13 @@ curl -X DELETE '{{base_url}}/api/alerts/delete/{id}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "patientId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -734,6 +869,15 @@ curl -X PUT '{{base_url}}/api/alerts/deletePatientAlert/{id}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": "",
+  "alarmId": "",
+  "reason": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -755,6 +899,14 @@ curl -X PUT '{{base_url}}/api/alerts/disapproveAlert'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "presId": "",
+  "reason": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -776,6 +928,15 @@ curl -X PUT '{{base_url}}/api/alerts/disapproveAllAlerts'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "chatId": 2,
+  "message": "wefc",
+  "pid": "12"
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -797,6 +958,13 @@ curl -X POST '{{base_url}}/api/alerts/doctorMessageToAdmin'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "patientId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -818,6 +986,14 @@ curl -X POST '{{base_url}}/api/alerts/newEnrollment'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "labReportId": "",
+  "patient_id": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -860,6 +1036,13 @@ curl -X POST '{{base_url}}/api/alerts/newPrescription'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "alarmId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -881,6 +1064,14 @@ curl -X POST '{{base_url}}/api/alerts/newPrescriptionAlarm'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "patientId": "",
+  "programName": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -923,6 +1114,13 @@ curl -X POST '{{base_url}}/api/alerts/newRequisition'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "alarmId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -944,6 +1142,14 @@ curl -X POST '{{base_url}}/api/alerts/prescriptionDisapprovedAlarm'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "alarmId": "",
+  "patientId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -965,6 +1171,13 @@ curl -X POST '{{base_url}}/api/alerts/prescriptionNotViewed'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1044,6 +1257,16 @@ curl -X POST '{{base_url}}/api/app_apis/alarms/insertAlarm'
 - **Description:** Handler: insertAlert Route File: app_apis.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "doctorEmail": "",
+  "patientId": "",
+  "category": "",
+  "mess": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1120,6 +1343,13 @@ curl -X POST '{{base_url}}/api/app_apis/dailyHealth/submitDailyHealthParams'
 - **Description:** Handler: cancelAccountDeletionRequest Route File: app_apis.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "userID": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1139,6 +1369,14 @@ curl -X POST '{{base_url}}/api/app_apis/deleteAccountDeletionRequest'
 - **Description:** Handler: accountDeletionRequest Route File: app_apis.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "userID": "",
+  "reasonText": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1215,6 +1453,16 @@ curl -X POST '{{base_url}}/api/app_apis/dialysisHealth/submitDialysisHealthParam
 - **Description:** Handler: addDietComment Route File: app_apis.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "dietId": "",
+  "comment": "",
+  "userID": "",
+  "isDoctor": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1234,6 +1482,13 @@ curl -X POST '{{base_url}}/api/app_apis/dietdetails/addDietComment'
 - **Description:** Handler: fetchDietComments Route File: app_apis.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "dietId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1253,6 +1508,13 @@ curl -X POST '{{base_url}}/api/app_apis/dietdetails/fetchDietComments'
 - **Description:** Handler: getPatientDietDetails Route File: app_apis.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "userID": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1365,6 +1627,13 @@ curl -X GET '{{base_url}}/api/app_apis/getUnreadDoctorCmts'
 - **Description:** Handler: isAccountDeletionRequest Route File: app_apis.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "userID": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1802,6 +2071,14 @@ curl -X POST '{{base_url}}/api/app_apis/updateUserAilments'
 - **Description:** Handler: submitUserFeedback Route File: app_apis.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "userID": "",
+  "feedbackText": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1823,6 +2100,14 @@ curl -X POST '{{base_url}}/api/app_apis/userFeedback'
 - **Description:** Handler: changePassword Route File: auth.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "token": "",
+  "newPassword": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1887,6 +2172,18 @@ curl -X GET '{{base_url}}/api/auth/private'
 - **Description:** Handler: register Route File: auth.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "firstname": "John",
+  "lastname": "Doe",
+  "email": "admin@example.com",
+  "password": "securePassword123",
+  "role": "Admin",
+  "phoneno": "9876543210"
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1955,6 +2252,12 @@ curl -X GET '{{base_url}}/api/chatRouter/admin/{pid}'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - pid: `<<pid>>`
+- **Request Body:**
+```json
+{
+  "sender": "abc@email.com"
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -1976,6 +2279,14 @@ curl -X POST '{{base_url}}/api/chatRouter/adminSW/{pid}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "receiver": "",
+  "pid": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2064,6 +2375,19 @@ curl -X GET '{{base_url}}/api/chatRouter/messageSW/{chatId}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "content": "",
+  "fileId": "",
+  "fileType": "",
+  "userId": "",
+  "iSDoctor": "",
+  "doctorId": "",
+  "docId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2085,6 +2409,14 @@ curl -X POST '{{base_url}}/api/comments/addComment'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "fileId": "",
+  "fileType": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2106,6 +2438,13 @@ curl -X POST '{{base_url}}/api/comments/getComments'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "email": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2127,6 +2466,13 @@ curl -X POST '{{base_url}}/api/comments/getDoctorComments'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "patientId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2148,6 +2494,14 @@ curl -X POST '{{base_url}}/api/comments/getPatientComments'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "email": "",
+  "commentIds": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2191,6 +2545,16 @@ curl -X GET '{{base_url}}/api/contactus'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "phoneno": "",
+  "email": "",
+  "message": "",
+  "patientId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2258,6 +2622,16 @@ curl -X GET '{{base_url}}/api/contactus/{id}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "question_id": "",
+  "user_id": "",
+  "date": "",
+  "readings": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2279,6 +2653,16 @@ curl -X POST '{{base_url}}/api/dailyAlerts/AddDailyReadingsAlerts'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "question_id": "",
+  "user_id": "",
+  "date": "",
+  "readings": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2300,6 +2684,14 @@ curl -X POST '{{base_url}}/api/dailyAlerts/AddDialysisReadingsAlerts'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "email": "",
+  "alerts": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2426,6 +2818,16 @@ curl -X POST '{{base_url}}/api/dietdetails/insertDietDetails'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "type": "",
+  "desc": "",
+  "img": "",
+  "patientId": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2553,6 +2955,12 @@ curl -X GET '{{base_url}}/api/doctorAnalytics/getPercentageReturn'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - id: `<<id>>`
+- **Request Body:**
+```json
+{
+  "doctor_id": 3
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -2665,6 +3073,34 @@ curl -X DELETE '{{base_url}}/api/doctors/{id}'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - id: `<<id>>`
+- **Request Body:**
+```json
+{
+  "changeby": "admin@example.com",
+  "doctorid": 7,
+  "name": "Dr. Jane Smith",
+  "role": "Doctor",
+  "email": "jane.smith@example.com",
+  "licenseNo": "LIC-123",
+  "practicingAt": "City Hospital",
+  "experience": "12",
+  "ref": "",
+  "resume": "",
+  "phoneno": "9876543210",
+  "doctorsCode": "DOC001",
+  "institute": "Medical Institute",
+  "address": "123 Main St",
+  "photo": "",
+  "description": "Nephrologist",
+  "specialities": [{ "value": "Nephrology" }],
+  "email_notification": 1,
+  "can_export": 1,
+  "Dialysis_updates": 1,
+  "dailyReadingsAlerts": 1,
+  "dailyReadings": [],
+  "dialysisReadings": []
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -3192,6 +3628,16 @@ curl -X GET '{{base_url}}/api/labreport/{patient}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "data": "",
+  "patient_id": "",
+  "Report_Type": "",
+  "Lab_Report": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -3213,6 +3659,16 @@ curl -X POST '{{base_url}}/api/labreport/addBulkIndividual'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "question_id": "",
+  "user_id": "",
+  "date": "",
+  "readings": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -3233,6 +3689,18 @@ curl -X POST '{{base_url}}/api/labreport/addLabReading'
 - **Description:** Handler: saveConfirmedData Route File: labreport.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "patient_id": "",
+  "date": "",
+  "Report_Type": "",
+  "email": "",
+  "Lab_Report": "",
+  "confirmedValues": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -3296,6 +3764,17 @@ curl -X DELETE '{{base_url}}/api/labreport/deleteLabReport/{id}'
 - **Description:** Handler: addLabReport Route File: labreport.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "patient_id": "",
+  "date": "",
+  "Report_Type": "",
+  "Lab_Report": "",
+  "email": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -3462,6 +3941,12 @@ curl -X GET '{{base_url}}/api/labreport/responses'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - readingId: `<<readingId>>`
+- **Request Body:**
+```json
+{
+  "newTitle": ""
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -3726,6 +4211,15 @@ curl -X GET '{{base_url}}/api/moduleRoutes/getVitals'
 - **Description:** Handler: pushNotifs Route File: notifs.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "user_id": "",
+  "message": "",
+  "title": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -3747,6 +4241,25 @@ curl -X POST '{{base_url}}/api/notifs/pushNotifs'
 - **Description:** Handler: AddPatient Route File: patient.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "name": "Sahil N",
+  "aliments": [1,2],
+  "number": "9888832210",
+  "dob": "2016-2-05",
+  "profile_photo": "",
+  "registered_date": "2026-01-20",
+  "program_assigned_to": 1,
+  "medical_team": 1,
+  "pushNotificationId": "fcm_token_here",
+  "program": "Basic",
+  "address": "123 Main  4B",
+  "pincode": "400001",
+  "state": "Maharashtra"
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -3977,6 +4490,15 @@ curl -X PUT '{{base_url}}/api/patient/updateAdmin/{id}'
 - **Description:** Handler: updatePatientAilment Route File: patient.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": "",
+  "aliments": "",
+  "changeBy": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -3996,6 +4518,14 @@ curl -X PUT '{{base_url}}/api/patient/updateAilments'
 - **Description:** Handler: updateDryWeight Route File: patient.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": "",
+  "dry_weight": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4015,6 +4545,15 @@ curl -X PUT '{{base_url}}/api/patient/updateDryWeight'
 - **Description:** Handler: updatePatientGFR Route File: patient.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": "",
+  "eGFR": "",
+  "GFR": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4055,6 +4594,20 @@ curl -X PUT '{{base_url}}/api/patient/updateMedical/{id}'
 - **Description:** Handler: updatePatientProfile Route File: patient.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": "",
+  "name": "",
+  "number": "",
+  "dob": "",
+  "address": "",
+  "state": "",
+  "pincode": "",
+  "changeBy": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4074,6 +4627,14 @@ curl -X PUT '{{base_url}}/api/patient/updatePatient'
 - **Description:** Handler: updatePatientProgram Route File: patient.js
 - **Headers:**
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": "",
+  "program_id": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4178,6 +4739,13 @@ curl -X GET '{{base_url}}/api/patientdatarouter/export/{id}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "data": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4253,6 +4821,12 @@ curl -X POST '{{base_url}}/api/patientdatarouter/kfredetails'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - id: `<<id>>`
+- **Request Body:**
+```json
+{
+  "userId": ""
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4418,6 +4992,12 @@ curl -X DELETE '{{base_url}}/api/questions/{id}'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - id: `<<id>>`
+- **Request Body:**
+```json
+{
+  "userId": 2
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4736,6 +5316,28 @@ curl -X POST '{{base_url}}/api/readings_table/postBulkDailyReadings'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": 5,
+  "title": "Blood Pressure",
+  "ailments": [1, 2],
+  "type": "number",
+  "assign_range": 1,
+  "low_range": 80,
+  "high_range": 120,
+  "isGraph": 1,
+  "alertTextDoc": "Alert text for doctor",
+  "unit": "mmHg",
+  "sendAlert": 1,
+  "condition": "optional condition",
+  "readingsTranslations": {
+    "1": "Blood Pressure",
+    "2": "ضغط الدم"
+  }
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4757,6 +5359,27 @@ curl -X PUT '{{base_url}}/api/readings_table/updateDailyReading'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "id": 12,
+  "title": "UF Volume",
+  "ailments": [1],
+  "type": "number",
+  "assign_range": 1,
+  "low_range": 0,
+  "high_range": 5000,
+  "isGraph": 1,
+  "alertTextDoc": "",
+  "unit": "ml",
+  "sendAlert": 1,
+  "condition": "",
+  "readingsTranslations": {
+    "1": "UF Volume"
+  }
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4804,6 +5427,13 @@ curl -X DELETE '{{base_url}}/api/requisition/{id}'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - id: `<<id>>`
+- **Request Body:**
+```json
+{
+  "comment": "",
+  "prescription_id": 12
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4825,6 +5455,16 @@ curl -X PUT '{{base_url}}/api/requisition/{id}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "Requisition": "",
+  "Patient_id": "",
+  "Date": "",
+  "email": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4912,6 +5552,14 @@ curl -X GET '{{base_url}}/api/roles'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "role_name": "Care Coordinator",
+  "auth_arr": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -4979,6 +5627,12 @@ curl -X GET '{{base_url}}/api/roles/byName/{role_name}'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - role_name: `<<role_name>>`
+- **Request Body:**
+```json
+{
+  "auth_arr": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -5130,6 +5784,18 @@ curl -X GET '{{base_url}}/api/SortAlerts/superAdminAlerts/{admin_id}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "patient_id": "",
+  "doctor_id": "",
+  "service_id": "",
+  "appointment_date": "",
+  "appointment_time": "",
+  "vitals": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -5570,6 +6236,17 @@ curl -X DELETE '{{base_url}}/api/users/{email}'
   - Content-Type: `application/json` (required)
 - **Path Variables:**
   - email: `<<email>>`
+- **Request Body:**
+```json
+{
+  "firstname": "John",
+  "lastname": "Doe",
+  "email": "newemail@example.com",
+  "password": "",
+  "role": "Admin",
+  "phoneno": "9876543210"
+}
+```
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.
@@ -5632,6 +6309,13 @@ curl -X GET '{{base_url}}/api/users/assignedToPatient/{id}'
 - **Headers:**
   - Authorization: `Bearer <<token>>` (required)
   - Content-Type: `application/json` (required)
+- **Request Body:**
+```json
+{
+  "email": ""
+}
+```
+
 - **Implementation Notes:**
   1. Register route and method in the module router.
   2. Validate path/query/body input before controller logic.

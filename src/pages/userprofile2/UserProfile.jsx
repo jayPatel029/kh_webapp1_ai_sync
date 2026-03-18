@@ -12,6 +12,11 @@ import PatientProfileCard from "../../components/PatientProfileCard";
 import ParameterSection from "../../components/ParameterSection";
 import ThemeProvider from "../../components/ThemeProvider";
 
+
+import Delete from "../../assets/Delete.svg"
+import Edit from "../../assets/Edit.svg"
+
+
 // Component Library
 import {
   Box,
@@ -128,10 +133,11 @@ function UserProfile() {
     if (!window.confirm("Are you sure you want to delete this reading?")) return;
     try {
       await deleteLabreportDeleteLabReadingByid(readingId);
-      window.location.reload();
+
     } catch (e) {
       console.error("Error deleting lab reading:", e);
     }
+    // window.location.reload();
   };
 
   async function fetchQuestionsForAilment(ailment) {
@@ -371,7 +377,7 @@ function UserProfile() {
           />
         )}
 
-        {/* <Flex className={`py-4 flex-col gap-6 ${isSmall ? "px-4 pb-20" : "px-6"}`}> */}
+        <Flex className={`py-4 flex-col gap-6 ${isSmall ? "px-4 pb-20" : "px-0"}`}>
         {/* Profile Card */}
         <PatientProfileCard
           userData={userData}
@@ -382,7 +388,7 @@ function UserProfile() {
 
         {/* Medical & Admin Team */}
         {/* Team Management Section */}
-        <Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* <Box className="grid grid-cols-1 md:grid-cols-2 gap-4"> */}
           {/* Medical Team */}
           {/* <Box className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
               <Flex justify="space-between" align="center" className="mb-3">
@@ -488,7 +494,7 @@ function UserProfile() {
                 ))}
               </Box>
             </Box> */}
-        </Box>
+        {/* </Box> */}
 
         {/* Modals */}
         {editModalOpen && (
@@ -498,18 +504,17 @@ function UserProfile() {
             initialData={userData}
             updateData={updateUserData}
             user_id={userData.id}
-            
+
           />
         )}
         {editalimentsModalOpen && (
-          // <AilmentModal
-          //   closeEditalimentsModal={closeEditalimentsModal}
-          //   initialAilments={userData.ailments}
-          //   updateData={updateUserData}
-          //   user_id={userData.id}
-          //   onSuccess={handleUpdateSuccess}
-          // />
-          <>hi</>
+          <AilmentModal
+            closeEditalimentsModal={closeEditalimentsModal}
+            initialAilments={userData.ailments}
+            updateData={updateUserData}
+            user_id={userData.id}
+            onSuccess={handleUpdateSuccess}
+          />
         )}
 
 
@@ -517,7 +522,7 @@ function UserProfile() {
         {/* Ailment details are now shown inside the PatientProfileCard component */}
 
         {/* General Parameters */}
-        {/* {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
+        {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
           <Box className="space-y-6">
             <Box className="flex items-center gap-4">
               <Box as="h2" className={`${isSmall ? "text-md" : "text-xl"} font-bold mt-8`}>General Parameters</Box>
@@ -571,7 +576,7 @@ function UserProfile() {
                 );
               })}
           </Box>
-        )} */}
+        )}
 
         {/* Dialysis Parameters */}
         {userData.program !== "Basic" && dialysisParameters.length > 0 && (
@@ -631,13 +636,13 @@ function UserProfile() {
                         className="text-[#4164df] text-xl"
                         onClick={() => openLabReadingModal(reading.title, reading.id)}
                       >
-                        ✎
+                        <img src={Edit} alt="Edit" className="w-5 h-5" />
                       </button>
                       <button
                         className="text-[#de425b] text-xl"
                         onClick={() => deleteLabReading(reading.id)}
                       >
-                        🗑
+                        <img src={Delete} alt="Delete" className="w-5 h-5" />
                       </button>
                     </Flex>
                   )}
@@ -654,15 +659,15 @@ function UserProfile() {
 
             {selectedReading && (
               <LabRedingUpdateModal
-                closeEditModal={closeLabReadingModal}
-                initialData={selectedReading.title}
-                id={selectedReading.id}
+                closeModal={closeLabReadingModal}
+                question={selectedReading.title}
+                question_id={selectedReading.id}
                 onSuccess={handleUpdateSuccess}
               />
             )}
           </Box>
         )}
-        {/* </Flex> */}
+        </Flex>
         {/* </Box> */}
       </Box>
     </WrapperComponent>

@@ -6,7 +6,7 @@ export async function getPrescription() {
     const response = await axiosInstance.get(server_url + "/prescription");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -17,7 +17,7 @@ export async function getPrescriptionByPatient(patientid) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -29,7 +29,7 @@ export async function addPrescription(prescriptionData) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -40,7 +40,7 @@ export async function deletePrescription(id) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -53,7 +53,7 @@ export async function addPrescriptionById(prescriptionData) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -64,7 +64,7 @@ export async function getPrescriptionsById(id) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 

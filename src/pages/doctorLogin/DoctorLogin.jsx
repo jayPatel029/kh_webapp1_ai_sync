@@ -52,65 +52,74 @@ function DoctorLogin() {
         email,
       });
       setIsLoading(false);
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
       setIsLoading(false);
-      console.error("Error sending OTP:", error?.response?.data || error.message);
-      throw new Error("Failed to send OTP.");
+      const errorMessage = error?.response?.data?.error || error.message || "Failed to send OTP.";
+      console.error("Error sending OTP:", errorMessage);
+      return { success: false, error: errorMessage };
     }
   };
 
   const verifyOTP = async (email, otp) => {
     try {
       const response = await axiosInstance.post(`${server_url}/mail/verifyOtp`, { email, otp });
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
-      console.error("Error verifying OTP:", error);
-      throw new Error("Failed to verify OTP. Please try again later.");
+      const errorMessage = error?.response?.data?.error || error.message || "Failed to verify OTP.";
+      console.error("Error verifying OTP:", errorMessage);
+      return { success: false, error: errorMessage };
     }
   };
 
   const handleSubmit = async () => {
     const error = validateUserData({ email });
-
-    if (error.length === 0) {
-      try {
-        if (!isOtpSent) {
-          await sendOTP(email);
-          setIsOtpSent(true);
-          setOtpSentTime(new Date().getTime());
-          setErrMsg("");
-          notifySuccess("OTP sent to your email");
-        } else {
-          const res = await verifyOTP(email, otp);
-          if (res.status === "true") {
-            setErrMsg("");
-            clearAllCaches();
-            const userResponse = await getUserByEmail(email);
-            localStorage.setItem("firstname", userResponse.data.data[0].firstname);
-            localStorage.setItem("email", userResponse.data.data[0].email);
-            localStorage.setItem("token", res.token);
-
-            try {
-              const role = await identifyRole();
-              if (role.success) {
-                dispatch(setPermissions(role.data.data));
-              }
-            } catch (err) {
-              console.error(err.message);
-            }
-
-            notifySuccess(`Welcome back, ${userResponse.data.data[0].firstname}!`);
-            theNavigate("/");
-          } else {
-            setErrMsg("Invalid OTP. Please try again.");
-          }
-        }
-      } catch (error) {
-        setErrMsg("Error: " + error.message);
-      }
-    } else {
+    if (error.length > 0) {
       setErrMsg(error.join ? error.join(" ") : error);
+      return;
+    }
+
+    if (!isOtpSent) {
+      const result = await sendOTP(email);
+      if (!result.success) {
+        setErrMsg(result.error);
+        return;
+      }
+      setIsOtpSent(true);
+      setOtpSentTime(new Date().getTime());
+      setErrMsg("");
+      notifySuccess("OTP sent to your email");
+    } else {
+      const result = await verifyOTP(email, otp);
+      if (!result.success) {
+        setErrMsg(result.error);
+        return;
+      }
+      const res = result.data;
+      if (res.status === "true") {
+        setErrMsg("");
+        clearAllCaches();
+        const userResult = await getUserByEmail(email);
+        if (!userResult.success) {
+          setErrMsg(userResult.error);
+          return;
+        }
+        localStorage.setItem("firstname", userResult.data.data[0].firstname);
+        localStorage.setItem("email", userResult.data.data[0].email);
+        localStorage.setItem("token", res.token);
+
+        const roleResult = await identifyRole();
+        if (roleResult.success) {
+          dispatch(setPermissions(roleResult.data.data));
+        } else {
+          console.error(roleResult.error);
+        }
+
+        notifySuccess(`Welcome back, ${userResult.data.data[0].firstname}!`);
+        theNavigate("/");
+      } else {
+        setErrMsg("Invalid OTP. Please try again.");
+      }
     }
   };
 
@@ -136,13 +145,13 @@ function DoctorLogin() {
   }, [otpSentTime]);
 
   const handleResend = async () => {
-    try {
-      await sendOTP(email);
+    const result = await sendOTP(email);
+    if (result.success) {
       setOtpSentTime(new Date().getTime());
       setErrMsg("");
       notifyInfo("OTP resent");
-    } catch (error) {
-      setErrMsg("Failed to resend OTP.");
+    } else {
+      setErrMsg(result.error);
     }
   };
 
@@ -186,6 +195,7 @@ function DoctorLogin() {
                     id="email"
                     name="email"
                     type="email"
+                    disabled={isOtpSent}
                     placeholder="Enter your email address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

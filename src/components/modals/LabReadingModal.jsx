@@ -28,16 +28,14 @@ const LabReadingModal = ({
     }
     setFieldErrors({});
     const postData = {
-      question_id: question_id,
-      user_id: user_id,
-      response: selectedResponse,
+      newTitle: selectedResponse,
     };
 
-    const url = `${server_url}/labReadings/save`;
+    const url = `${server_url}/labreport/updateLabReadingTitle/${question_id}`;
     setIsLoading(true);
 
     axiosInstance
-      .post(url, postData)
+      .put(url, postData)
       .then((response) => {
         console.log("Response:", response.data);
         if (onSuccess) onSuccess();
@@ -57,6 +55,7 @@ const LabReadingModal = ({
       onClose={closeModal}
       onSubmit={handleSubmit}
       title={question}
+      // title="Edit Lab Reading"
       submitText="Submit"
       isLoading={isLoading}
       fieldErrors={fieldErrors}
@@ -64,10 +63,10 @@ const LabReadingModal = ({
       size="sm"
     >
       <FormControl isRequired isInvalid={Boolean(fieldErrors.value)}>
-        <FormLabel>Enter Value</FormLabel>
+        <FormLabel>Lab Reading</FormLabel>
         <Input
           isInvalid={Boolean(fieldErrors.value)}
-          type="number"
+          type="text"
           value={selectedResponse}
           onChange={(e) => {
             setSelectedResponse(e.target.value);

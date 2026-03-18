@@ -7,7 +7,7 @@ export const getContactUsById = async (id) => {
     return { success: true, data: response.data };
   } catch (error) {
     console.log(error);
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -17,21 +17,22 @@ export const getAllContactUs = async () => {
     return { success: true, data: response.data };
   } catch (error) {
     console.log(error);
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
-export const insertContactUs = async (phoneno, email, message) => {
+export const insertContactUs = async (phoneno, email, message, patientId = "") => {
   try {
     const response = await axiosInstance.post(`${server_url}/contactus`, {
-      phoneno,
-      email,
-      message,
+      phoneno: phoneno,
+      email: email,
+      message: message,
+      patientId: patientId,
     });
     return { success: true, data: response.data };
   } catch (error) {
     console.log(error);
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };
 
@@ -45,6 +46,6 @@ export const deleteContactUs = async (id) => {
     }
   } catch (error) {
     console.log(error);
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 };

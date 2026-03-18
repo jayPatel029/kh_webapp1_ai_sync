@@ -15,7 +15,7 @@ export async function getChatId(receiver, pid) {
         });
         return { success: true, data: response.data };
     } catch (error) {
-        return { success: false, data: error.message };
+        return { success: false, error: error?.response?.data?.error || error.message };
     }
 }
 
@@ -31,7 +31,7 @@ export async function getAllChats(pid) {
         return { success: true, data: response.data };
     } catch (error) {
         console.log("Error fetching all chats:", error.message);
-        return { success: false, data: error.message };
+        return { success: false, error: error?.response?.data?.error || error.message };
     }
 }
 
@@ -45,7 +45,7 @@ export async function sendMessage(messageData) {
         });
         return { success: true, data: response.data };
     } catch (error) {
-        return { success: false, data: error.message };
+        return { success: false, error: error?.response?.data?.error || error.message };
     }
 }
 
@@ -59,7 +59,7 @@ export async function getMessages(chatId) {
         });
         return { success: true, data: response.data };
     } catch (error) {
-        return { success: false, data: error.message };
+        return { success: false, error: error?.response?.data?.error || error.message };
     }
 }
 
@@ -77,7 +77,7 @@ export async function getAllChatsAdmin(pid) {
         return { success: true, data: response.data };
     } catch (error) {
         console.log("Error fetching all chats:", error.message);
-        return { success: false, data: error.message };
+        return { success: false, error: error?.response?.data?.error || error.message };
     }
 }
 
@@ -95,7 +95,7 @@ export async function getAllSWChats(pid, sender) {
         return { success: true, data: response.data };
     } catch (error) {
         console.log("Error fetching all chats:", error.message);
-        return { success: false, data: error.message };
+        return { success: false, error: error?.response?.data?.error || error.message };
     }
 }
 
@@ -110,7 +110,7 @@ export async function getSWMessages(chatId) {
         });
         return { success: true, data: response.data };
     } catch (error) {
-        return { success: false, data: error.message };
+        return { success: false, error: error?.response?.data?.error || error.message };
     }
 }
 

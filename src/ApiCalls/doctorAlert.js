@@ -6,7 +6,7 @@ import { server_url } from "../constants/constants";
 export async function getDoctorSortAlerts(doctorId, config = {}) {
   try {
     const response = await axiosInstance.get(
-      `${server_url}/SortAlerts/doctor/${doctorId}`,
+      `${server_url}/sortAlerts/doctor/${doctorId}`,
       config
     );
     return { success: true, data: response.data };

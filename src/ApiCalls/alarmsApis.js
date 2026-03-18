@@ -20,12 +20,12 @@ export async function insertAlarm(alarmData) {
         return { success: true, data: response.data };
       } catch (error) {
         console.log(error);
-        return { success: false, data: error.message };
+        return { success: false, error: error?.response?.data?.error || error.message };
       }
     }
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -34,7 +34,7 @@ export async function getAllAlarms() {
     const response = await axiosInstance.get(server_url + "/alarms");
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -56,12 +56,12 @@ export async function updateAlarm(alarmId, alarmData) {
         return { success: true, data: response.data };
       } catch (error) {
         console.log(error);
-        return { success: false, data: error.message };
+        return { success: false, error: error?.response?.data?.error || error.message };
       }
     }
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -80,7 +80,7 @@ export async function updateReason(alarmId, status, reason, patientId) {
       return { success: true, data: response.data };
     } catch (error) {
       console.log(error);
-      return { success: false, data: error.message };
+      return { success: false, error: error?.response?.data?.error || error.message };
     }
   } else {
     const alarmData = {
@@ -107,7 +107,7 @@ export async function updateReason(alarmId, status, reason, patientId) {
       return { success: true, data: response.data };
     } catch (error) {
       console.log(error);
-      return { success: false, data: error.message };
+      return { success: false, error: error?.response?.data?.error || error.message };
     }
   }
 }
@@ -119,7 +119,7 @@ export async function deleteAlarm(alarmId) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -131,7 +131,7 @@ export async function answerAlarm(data) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -140,7 +140,7 @@ export async function getAlarmById(id) {
     const response = await axiosInstance.get(server_url + "/alarms/byId/" + id);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -151,6 +151,6 @@ export async function getAlarmByPatientId(id) {
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }

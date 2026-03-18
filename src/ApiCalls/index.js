@@ -3,6 +3,7 @@ export * from './adminDashApis';
 export * from './ailmentApis';
 export * from './alarmsApis';
 export * from './alertsApis';
+export * from './analyticsApis';
 export * from './appAlerts';
 export * from './appApis';
 export * from './authapis';

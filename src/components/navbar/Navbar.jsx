@@ -6,8 +6,9 @@
  */
 
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import dummyadmin from "../../assets/dummyadmin.png";
+import kifayti_logo from "../../assets/kifayti_logo.png";
 import { Flex, Button, IconButton, Box, Card,  Text } from "../../component-library";
 import '../../design-system/styles/index.css';
 import { ArrowBack } from "@mui/icons-material";
@@ -77,11 +78,13 @@ const Navbar = () => {
     return (
         <>
             <Box className="sticky top-0 left-0 right-0  pr-8 pt-4  z-[50]">
-                <Flex align="center" justify="between" className="bg-white h-14 navbar-container">
+                <Flex align="center" justify="between" className="bg-white h-14 navbar-container px-4">
                     <Flex align="center" gap={4}>
-
-                        {/* sidebar toggle could be added here if needed */}
-
+                        {/* Left: logo + app name (full left) */}
+                        <Link to="/dashboard" className="flex items-center gap-3">
+                            <img src={kifayti_logo} alt="Kifayti logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                            <span className="text-lg font-semibold text-[#004c6d]">Kifayti Health</span>
+                        </Link>
                     </Flex>
 
                     <Flex align="center" gap={4}>

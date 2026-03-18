@@ -1,23 +1,27 @@
 import React, { useState, useEffect, useMemo, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAssignedDoctorData } from '../../../ApiCalls/doctorPatientApis';
-import { getAssignedAdminData } from '../../../ApiCalls/adminPatientApis';
+import {
+  getAssignedDoctorData,
+  addDoctorToPatient,
+  deleteAssignedDoctor,
+} from '../../../ApiCalls/doctorPatientApis';
+import {
+  getAssignedAdminData,
+  addAdminToPatient,
+  deleteAssignedAdmin,
+} from '../../../ApiCalls/adminPatientApis';
 import { exportPatientDataById, exportPatientData, deletePatient } from '../../../ApiCalls/patientAPis';
+import { getDoctors } from '../../../ApiCalls/doctorApis';
+import { getAdmins } from '../../../ApiCalls/authapis';
 import { ROUTES } from '../../../routes/routeConstants';
 import {
-  Box,
   Flex,
-  VStack,
-  Container,
 } from '../../../component-library/layout/Layout';
 import {
   Button
 } from '../../../component-library/primitives/Button';
-import {
-  Text,
-  Heading
-} from '../../../component-library/primitives/Typography';
 import { Spinner } from '../../../component-library/feedback/Spinner';
+import { BaseModal } from '../../../component-library/modals';
 import { PageHeader } from '../../../components/PageHeader';
 import { SearchBar } from '../../../components';
 import { useIsMobile } from '../../../components/mobile/useIsMobile';
@@ -39,49 +43,124 @@ const PatientList = ({ data, onAddClick }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [medicalTeamNames, setMedicalTeamNames] = useState({});
-  const [adminNames, setAdminNames] = useState({});
+  const [teamModal, setTeamModal] = useState({
+    isOpen: false,
+    type: null,
+    patient: null,
+  });
+  const [currentTeamMembers, setCurrentTeamMembers] = useState([]);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamActionLoading, setTeamActionLoading] = useState(false);
 
   // Sync with prop data
   useEffect(() => {
     if (data) {
       setPatients(data);
-      if (data.length > 0) {
-        fetchAssociatedData(data);
-      }
     }
   }, [data]);
 
-  const fetchAssociatedData = async (patientData) => {
-    // For each patient, fetch medical team and admin names
-    // This follows the logic in the original DeletePatientList.js
-    const promises = patientData.map(async (row) => {
-      if (!row?.id) return;
+  const getCollection = (res) => {
+    if (Array.isArray(res?.data?.data)) return res.data.data;
+    if (Array.isArray(res?.data)) return res.data;
+    return [];
+  };
 
-      // Fetch Medical Team
-      try {
-        const docResponse = await getAssignedDoctorData(row.id);
-        if (docResponse.success && docResponse.data?.data) {
-          const names = docResponse.data.data.map((doc) => doc.name).join(', ');
-          setMedicalTeamNames((prev) => ({ ...prev, [row.id]: names }));
-        }
-      } catch (err) {
-        console.error(`Error fetching medical team for patient ${row.id}:`, err);
+  const getDisplayName = (member) => {
+    return member?.name || member?.firstname || member?.email || `#${member?.id || '-'}`;
+  };
+
+  const getEntityId = (member, type) => {
+    if (type === 'doctor') return member?.doctor_id || member?.id;
+    return member?.admin_id || member?.id;
+  };
+
+  const getAssignmentId = (member) => {
+    return member?.assignment_id || member?.assigned_id || member?.id;
+  };
+
+  const loadTeamModalData = async (patientId, type) => {
+    setTeamLoading(true);
+    try {
+      if (type === 'doctor') {
+        const [assignedRes, allDoctorsRes] = await Promise.all([
+          getAssignedDoctorData(patientId),
+          getDoctors(),
+        ]);
+        setCurrentTeamMembers(getCollection(assignedRes));
+        setAvailableUsers(getCollection(allDoctorsRes));
+      } else {
+        const [assignedRes, allAdminsRes] = await Promise.all([
+          getAssignedAdminData(patientId),
+          getAdmins(),
+        ]);
+        setCurrentTeamMembers(getCollection(assignedRes));
+        setAvailableUsers(getCollection(allAdminsRes));
       }
+      setError(null);
+    } catch (err) {
+      console.error('Error loading team data:', err);
+      setError('Failed to load team details.');
+    } finally {
+      setTeamLoading(false);
+    }
+  };
 
-      // Fetch Assigned Admin
-      try {
-        const adminResponse = await getAssignedAdminData(row.id);
-        if (adminResponse.success && adminResponse.data?.data) {
-          const names = adminResponse.data.data.map((admin) => admin.firstname).join(', ');
-          setAdminNames((prev) => ({ ...prev, [row.id]: names }));
-        }
-      } catch (err) {
-        console.error(`Error fetching assigned admin for patient ${row.id}:`, err);
+  const openTeamModal = async (patient, type, event) => {
+    event?.stopPropagation?.();
+    setSelectedUserId('');
+    setTeamModal({ isOpen: true, type, patient });
+    await loadTeamModalData(patient.id, type);
+  };
+
+  const closeTeamModal = () => {
+    setTeamModal({ isOpen: false, type: null, patient: null });
+    setSelectedUserId('');
+    setCurrentTeamMembers([]);
+    setAvailableUsers([]);
+  };
+
+  const handleAssignMember = async () => {
+    if (!teamModal?.patient?.id || !selectedUserId) return;
+
+    setTeamActionLoading(true);
+    try {
+      if (teamModal.type === 'doctor') {
+        await addDoctorToPatient(teamModal.patient.id, { doctor_id: selectedUserId });
+      } else {
+        await addAdminToPatient(teamModal.patient.id, { admin_id: selectedUserId });
       }
-    });
+      setSelectedUserId('');
+      await loadTeamModalData(teamModal.patient.id, teamModal.type);
+      setError(null);
+    } catch (err) {
+      console.error('Error assigning team member:', err);
+      setError('Failed to assign user.');
+    } finally {
+      setTeamActionLoading(false);
+    }
+  };
 
-    await Promise.all(promises);
+  const handleRemoveMember = async (member) => {
+    const userId = getEntityId(member, teamModal.type);
+    if (!userId) return;
+
+    setTeamActionLoading(true);
+    try {
+      if (teamModal.type === 'doctor') {
+        await deleteAssignedDoctor(teamModal.patient.id, userId);
+      } else {
+        await deleteAssignedAdmin(teamModal.patient.id, userId);
+      }
+      await loadTeamModalData(teamModal.patient.id, teamModal.type);
+      setError(null);
+    } catch (err) {
+      console.error('Error removing team member:', err);
+      setError('Failed to remove user.');
+    } finally {
+      setTeamActionLoading(false);
+    }
   };
 
   // Filter patients based on search term
@@ -118,30 +197,44 @@ const PatientList = ({ data, onAddClick }) => {
     { key: 'program', label: 'Program', type: 'text', width: '129px' },
     {
       key: 'medical_team',
-      label: 'Medical team',
+      label: 'Medical Team',
       type: 'custom',
-      width: '170px',
-      render: (row) =>
-        medicalTeamNames[row.id]
-          ? medicalTeamNames[row.id].split(',').map((name, i) => (
-            <div key={i}>{name.trim()}</div>
-          ))
-          : '-',
+      width: '210px',
+      render: (row) => (
+        <Button
+          variant="outline"
+          onClick={(e) => openTeamModal(row, 'doctor', e)}
+          style={{
+            borderRadius: '8px',
+            fontSize: '12px',
+            padding: '6px 10px',
+          }}
+        >
+          Manage Doctors
+        </Button>
+      ),
     },
     {
       key: 'admin',
-      label: 'Assigned to',
+      label: 'Assigned To',
       type: 'custom',
-      width: '157px',
-      render: (row) =>
-        adminNames[row.id]
-          ? adminNames[row.id].split(',').map((name, i) => (
-            <div key={i}>{name.trim()}</div>
-          ))
-          : '-',
+      width: '210px',
+      render: (row) => (
+        <Button
+          variant="outline"
+          onClick={(e) => openTeamModal(row, 'admin', e)}
+          style={{
+            borderRadius: '8px',
+            fontSize: '12px',
+            padding: '6px 10px',
+          }}
+        >
+          Manage Admins
+        </Button>
+      ),
     },
     { key: 'actions', label: 'Actions', type: 'actions', width: '90px' },
-  ], [medicalTeamNames, adminNames]);
+  ], []);
 
   // Profile Image or default with gender-based avatar fallback
   const getProfileImageUrl = (photoUrl, gender) => {
@@ -367,6 +460,104 @@ const PatientList = ({ data, onAddClick }) => {
           cardFieldKeys={['program', 'registered_date']}
           cardStatusKey="condition"
         />
+
+        <BaseModal
+          isOpen={teamModal.isOpen}
+          onClose={closeTeamModal}
+          title={`${teamModal.type === 'doctor' ? 'Medical Team' : 'Assigned To'}`}
+          size="lg"
+          footer={
+            <Flex justify="end" gap={3}>
+              <Button variant="outline" onClick={closeTeamModal} isDisabled={teamActionLoading}>
+                Close
+              </Button>
+              <Button
+                variant="solid"
+                onClick={handleAssignMember}
+                isDisabled={!selectedUserId || teamActionLoading || teamLoading}
+                isLoading={teamActionLoading}
+              >
+                Add Selected
+              </Button>
+            </Flex>
+          }
+        >
+          {teamLoading ? (
+            <Flex justify="center" align="center" style={{ minHeight: '180px' }}>
+              <Spinner size="md" color="primary" />
+            </Flex>
+          ) : (
+            <div>
+              <div className="mb-4">
+                <label htmlFor="team-member-select" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+                  Select {teamModal.type === 'doctor' ? 'Doctor' : 'Admin'}
+                </label>
+                <select
+                  id="team-member-select"
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">Select...</option>
+                  {availableUsers
+                    .filter((candidate) => {
+                      const candidateId = String(getEntityId(candidate, teamModal.type));
+                      return !currentTeamMembers.some((member) => String(getEntityId(member, teamModal.type)) === candidateId);
+                    })
+                    .map((candidate) => {
+                      const candidateId = getEntityId(candidate, teamModal.type);
+                      return (
+                        <option key={candidateId} value={candidateId}>
+                          {getDisplayName(candidate)}
+                        </option>
+                      );
+                    })}
+                </select>
+              </div>
+
+              <div>
+                <h4 style={{ fontWeight: 700, marginBottom: '10px' }}>
+                  Current {teamModal.type === 'doctor' ? 'Doctors' : 'Admins'}
+                </h4>
+
+                {currentTeamMembers.length === 0 ? (
+                  <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No users assigned yet.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {currentTeamMembers.map((member, idx) => (
+                      <Flex
+                        key={`${getAssignmentId(member) || idx}`}
+                        justify="between"
+                        align="center"
+                        style={{
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          padding: '8px 10px',
+                        }}
+                      >
+                        <span>{getDisplayName(member)}</span>
+                        <Button
+                          variant="danger"
+                          onClick={() => handleRemoveMember(member)}
+                          isDisabled={teamActionLoading}
+                          style={{ padding: '4px 10px', fontSize: '12px' }}
+                        >
+                          Remove
+                        </Button>
+                      </Flex>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </BaseModal>
       </div>
     </div>
   );

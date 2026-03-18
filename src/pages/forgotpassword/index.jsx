@@ -31,17 +31,22 @@ export default function ForgotPassword() {
   }
 
   const sendOTP = async (email) => {
+    let response
     try {
       setErrMsg([]);
       setMsg("Sending OTP...");
-      const response = await postMailSentotp({ email });
+      response = await postMailSentotp({ email });
       if (response.success) {
         setMsg("OTP sent successfully");
         console.log("OTP sent successfully:", response.data);
         return response.data;
       }
+      if (response.data?.error) {
+        setErrMsg(response.data.error);
+      }
     } catch (error) {
-      console.error("Error sending OTP:", error);
+     
+      console.error("Error sending OTP:", response.data?.error);
       throw new Error("Failed to send OTP. Please try again later.");
     }
   };

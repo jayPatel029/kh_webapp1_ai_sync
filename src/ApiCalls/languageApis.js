@@ -6,7 +6,7 @@ export async function createLanguage(languageData) {
     const response = await axiosInstance.post(server_url + "/languages", languageData);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -17,7 +17,7 @@ export async function getLanguages() {
     return { success: true, data: response.data };
   } catch (error) {
     console.log("error fetching langs:",error);
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -26,7 +26,7 @@ export async function updateLanguage(languageId, languageData) {
     const response = await axiosInstance.put(server_url + "/languages/" + languageId, languageData);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
 
@@ -35,6 +35,6 @@ export async function deleteLanguage(languageId) {
     const response = await axiosInstance.delete(server_url + "/languages/" + languageId);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.message };
+    return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
