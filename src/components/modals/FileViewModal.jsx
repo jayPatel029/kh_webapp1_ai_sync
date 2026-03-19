@@ -357,9 +357,9 @@ export const FileViewModal = ({
               ) : (
                 <Box className="p-4 bg-warning/10 border border-warning/20 rounded-lg text-center">
                   <Text size="sm" weight="semibold" className="text-warning-dark mb-1">
-                    🔒 Premium Feature
+                    🔒
                   </Text>
-                  <Text size="xs" className="text-warning/80">
+                  <Text size="xs" className="text-warning">
                     Available for Advanced & Standard programs
                   </Text>
                 </Box>

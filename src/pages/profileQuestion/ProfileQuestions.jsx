@@ -273,10 +273,7 @@ function ProfileQuestions() {
       type: "all",
       payload: {
         id: q.id,
-        ailment: q.ailments?.map((x) => ({
-          value: x.id,
-          label: x.name,
-        })) || [],
+        ailment: q.ailments || [],
         type: q.type,
         name: q.name,
         options: q.options,
@@ -387,7 +384,7 @@ function ProfileQuestions() {
                 ).map((q) => ({
                   ...q,
                   ailmentsDisplay: q.ailments?.map((x) => x.name).join(", ") || "Generic Profile",
-                  actions: q
+                  actions: q.id
                 }))}
                 enableSearch={true}
                 renderSearchUI={false}

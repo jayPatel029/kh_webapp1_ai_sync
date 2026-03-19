@@ -115,6 +115,13 @@ function UserProfile() {
   const fetchPatientData = async () => {
     setLoading(true);
     try {
+      // If we are rendered inside a patient profile shell, prefer using that pre-fetched data
+      if (isInPatientProfileShell && shellContext?.userData) {
+        setUserData(shellContext.userData || { ailments: [] });
+        setAilments(shellContext.userData?.ailments || []);
+        return shellContext.userData;
+      }
+
       const response = await getPatientGetPatientByid(id);
       if (response.success) {
         setUserData(response?.data?.data || { ailments: [] });
@@ -169,6 +176,12 @@ function UserProfile() {
   useEffect(() => {
     const getUnreadMessagesFromAdmin = async () => {
       try {
+        // If shell context provides unread count, use it to avoid duplicate API call
+        if (isInPatientProfileShell && typeof shellContext?.unreadAdminCount === "number") {
+          settotalUnreadCount(shellContext.unreadAdminCount);
+          return;
+        }
+
         const chatResult = await getAllChatsAdmin(id);
         if (chatResult.success) {
           const unreadMsgs = chatResult.data.filter((chat) => chat.unreadCount > 0);
@@ -238,6 +251,26 @@ function UserProfile() {
   useEffect(() => {
     const fetchChatData = async () => {
       try {
+        // If we are inside the profile shell, reuse its data to avoid duplicate network requests
+        if (isInPatientProfileShell && shellContext) {
+          if (shellContext.userData) setPatient1(shellContext.userData);
+          // shellContext may expose unread counts/role — use them when available
+          if (shellContext.role) {
+            // if admin, fetch teams once (teams are less commonly available in shell layout)
+            if (shellContext.role?.role_name === "Admin") {
+              const [chatResult, medicalResult, adminResult] = await Promise.all([
+                getAllChatsAdmin(id),
+                getPatientMedicalTeam(id),
+                getPatientAdminTeam(id),
+              ]);
+              if (chatResult.success) setChats(chatResult.data.filter(c => c.role === "Doctor" || c.role === "Medical Staff"));
+              if (medicalResult.success) setMedicalTeam(medicalResult.data.data);
+              if (adminResult.success) setAdminTeam(adminResult.data?.data || []);
+            }
+          }
+          return;
+        }
+
         const roleResult = await identifyRole();
         const patientRes = await getPatientById(id);
         setPatient1(patientRes.data.data);

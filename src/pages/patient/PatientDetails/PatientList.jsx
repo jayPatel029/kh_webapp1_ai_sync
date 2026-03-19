@@ -448,7 +448,7 @@ const PatientList = ({ data, onAddClick }) => {
           columns={columns}
           data={tableData}
           onRowClick={handlePatientClick}
-          onEdit={handlePatientClick}
+          // onEdit={handlePatientClick}
           onDelete={(row) => handleDelete(row.id)}
           onDownload={(row) => handleDownload(row.id)}
           enableSearch={false}
