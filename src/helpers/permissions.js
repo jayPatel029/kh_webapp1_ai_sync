@@ -11,13 +11,15 @@ export const PERMISSION_FIELDS = [
   { key: "createAdmin", apiKey: "can_vud_ca", label: "Create Admin" },
   { key: "createDoctor", apiKey: "can_vud_cd", label: "Create Doctor" },
   { key: "profileQuestions", apiKey: "can_vud_pq", label: "Profile Questions" },
+  {key: "languageMaster", apiKey: "can_vud_la", label: "Language Master"},
   { key: "patients", apiKey: "can_vud_p", label: "Patients" },
   { key: "dailyReadings", apiKey: "can_vud_dr", label: "Daily Readings" },
   { key: "dialysisReadings", apiKey: "can_vud_dir", label: "Dialysis Readings" },
-  { key: "changePassword", apiKey: "can_vud_cp", label: "Change Password" },
-  { key: "userProgramSelection", apiKey: "can_vud_ups", label: "User Program Selection" },
-  { key: "doctorReports", apiKey: "can_vud_docr", label: "Doctor Reports" },
-  { key: "feedback", apiKey: "can_vud_fb", label: "Feedback" },
+  { key: "changePassword", apiKey: "can_vud_cp", label: "Change Password", visiblePermissions: ['edit'] },
+  { key: "userProgramSelection", apiKey: "can_vud_ups", label: "User Program Selection", visiblePermissions: ['view', 'edit'] },
+  { key: "logs", apiKey: "can_vud_lo", label: "Logs" },
+  // { key: "doctorReports", apiKey: "can_vud_docr", label: "Doctor Reports" },
+  { key: "feedback", apiKey: "can_vud_fb", label: "Feedback", visiblePermissions: ['view','edit'] },
 ];
 
 export const ROUTE_PERMISSION_MAP = {
@@ -27,6 +29,7 @@ export const ROUTE_PERMISSION_MAP = {
   DailyReadings: "dailyReadings",
   DialysisReadings: "dialysisReadings",
   ProfileQuestions: "profileQuestions",
+  LanguageMaster: "languageMaster",
   UserProgramSelection: "userProgramSelection",
   Patient: "patients",
   UserRoles: "manageRoles",
@@ -40,9 +43,8 @@ export const ROUTE_PERMISSION_MAP = {
   UserRequisition: "patients",
   AdminChat: "patients",
   DoctorChat: "patients",
-  LanguageMaster: "createAdmin",
   ContactUsPage: "feedback",
-  logs: "changePassword",
+  logs: "logs",
 };
 
 const toPascalCase = (value = "") =>

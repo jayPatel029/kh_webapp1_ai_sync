@@ -80,28 +80,26 @@ export const FormModal = ({
   };
 
   const footer = (
-    <Stack spacing={3}>
-      <Flex justify="end" align="center" gap={4}>
-        {errorMessage && (
-          <Text color="danger" size="sm">{errorMessage}</Text>
-        )}
-        <Button
-          variant={cancelVariant}
-          onClick={onClose}
-          isDisabled={isLoading}
-        >
-          {cancelText}
-        </Button>
-        <Button
-          variant={submitVariant}
-          onClick={handleSubmit}
-          isLoading={isLoading}
-          isDisabled={isSubmitDisabled}
-        >
-          {submitText}
-        </Button>
-      </Flex>
-    </Stack>
+    <Flex justify="end" align="center" gap={4} wrap="wrap">
+      {errorMessage && (
+        <Text color="danger" size="sm">{errorMessage}</Text>
+      )}
+      <Button
+        variant={cancelVariant}
+        onClick={onClose}
+        isDisabled={isLoading}
+      >
+        {cancelText}
+      </Button>
+      <Button
+        variant={submitVariant}
+        onClick={handleSubmit}
+        isLoading={isLoading}
+        isDisabled={isSubmitDisabled}
+      >
+        {submitText}
+      </Button>
+    </Flex>
   );
 
   return (

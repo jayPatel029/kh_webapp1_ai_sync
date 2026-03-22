@@ -124,29 +124,25 @@ function UserProgramSelection() {
       label: 'Program',
       type: 'custom',
       renderCell: (item) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <button
-            className={`admin-btn ${item.program === "Basic" ? "admin-btn--teal" : "admin-btn--outline"}`}
-            style={{ minWidth: '100px' }}
-            onClick={() => handleSubmit("Basic", item.id)}
-          >
-            Basic
-          </button>
-          <button
-            className={`admin-btn ${item.program === "Standard" ? "admin-btn--teal" : "admin-btn--outline"}`}
-            style={{ minWidth: '100px' }}
-            onClick={() => handleSubmit("Standard", item.id)}
-          >
-            Standard
-          </button>
-          <button
-            className={`admin-btn ${item.program === "Advanced" ? "admin-btn--teal" : "admin-btn--outline"}`}
-            style={{ minWidth: '100px' }}
-            onClick={() => handleSubmit("Advanced", item.id)}
-          >
-            Advanced
-          </button>
-        </div>
+        <select
+          value={item.program || ''}
+          onChange={(e) => handleSubmit(e.target.value, item.id)}
+          style={{
+            padding: '0.5rem',
+            borderRadius: '0.375rem',
+            border: '1px solid #D1D5DB',
+            backgroundColor: '#FFFFFF',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            color: '#1A9A9A',
+            minWidth: '120px'
+          }}
+        >
+          <option value="Basic">Basic</option>
+          <option value="Standard">Standard</option>
+          <option value="Advanced">Advanced</option>
+        </select>
       ),
       width: '150px'
     }

@@ -14,6 +14,7 @@
  * @file src/cache/pageCache.js
  */
 
+const CACHE_ENABLED = false; // Set to true to enable localStorage caching
 const CACHE_PREFIX = 'cache::';
 const CACHE_VERSION = 1;
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes default
@@ -106,6 +107,7 @@ function evictOldest() {
  * @returns {{ data: any, timestamp: number } | null}
  */
 export function getCachedData(pageName, apiKey) {
+  if (!CACHE_ENABLED) return null;
   const bucket = getPageBucket(pageName);
   if (!bucket) return null;
 
@@ -134,6 +136,7 @@ export function getCachedData(pageName, apiKey) {
  * @param {number} [ttl]     - Time-to-live in ms (defaults to DEFAULT_TTL)
  */
 export function setCachedData(pageName, apiKey, data, ttl = DEFAULT_TTL) {
+  if (!CACHE_ENABLED) return;
   let bucket = getPageBucket(pageName) || createEmptyBucket();
   bucket[apiKey] = { data, timestamp: Date.now(), ttl };
   savePageBucket(pageName, bucket);

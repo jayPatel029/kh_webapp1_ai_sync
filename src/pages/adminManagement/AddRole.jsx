@@ -313,7 +313,7 @@ const AddRole = () => {
           </FormControl>
 
           {/* Permissions Table */}
-          <div>
+          <div className="-mb-4 text-xl font-small">
             <PermissionsTable
               permissions={permissions}
               onChange={setPermissions}

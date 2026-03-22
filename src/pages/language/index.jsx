@@ -220,18 +220,19 @@ function LanguageMaster() {
                 enableSearch={true}
                 renderSearchUI={false}
                 searchKeys={['language_name']}
-                onEdit={(lang) => {
+                onEdit={role.canEditLanguages ? (lang) => {
                   setEditID(lang.id);
                   setNewLanguage(lang.language_name);
                   setEditMode(true);
                   setIsFormModalOpen(true);
-                }}
-                onDelete={(lang) => {
+                } : null}
+                onDelete={role.canDeleteLanguages ? (lang) => {
                   if (window.confirm(`Delete language "${lang.language_name}"?`)) {
                     removeLang(lang.id);
                   }
-                }}
+                } : null}
                 emptyMessage="No languages found"
+                actionButtons={role.canEditLanguages || role.canDeleteLanguages}
               />
             </div>
           </div>

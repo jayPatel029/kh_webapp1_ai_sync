@@ -119,18 +119,24 @@ function UserProfile() {
       if (isInPatientProfileShell && shellContext?.userData) {
         setUserData(shellContext.userData || { ailments: [] });
         setAilments(shellContext.userData?.ailments || []);
+        setLoading(false);
         return shellContext.userData;
       }
 
-      const response = await getPatientGetPatientByid(id);
-      if (response.success) {
-        setUserData(response?.data?.data || { ailments: [] });
-        setAilments(response?.data?.data?.ailments || []);
+      // Use getPatientById for reliable patient data fetching
+      const response = await getPatientById(id);
+      if (response?.success && response?.data) {
+        const patientData = response.data.data || response.data;
+        setUserData(patientData || { ailments: [] });
+        setAilments(patientData?.ailments || []);
+      } else {
+        setError('Failed to load patient data');
       }
       return response?.data || [];
     } catch (error) {
       console.error("Error fetching patient data:", error);
-      return [];
+      setError('Error loading patient data');
+      setUserData({ ailments: [] });
     } finally {
       setLoading(false);
     }
@@ -149,7 +155,7 @@ function UserProfile() {
 
   async function fetchQuestionsForAilment(ailment) {
     try {
-      const response = await getGeneralParameterQuestions();
+      const response = await getGeneralParameterQuestions(id);
       if (response.success) {
         return response.data || [];
       }
@@ -162,7 +168,7 @@ function UserProfile() {
 
   async function fetchQuestionsForAilmentDialysis(ailment) {
     try {
-      const response = await getDialysisParameterQuestions(ailment);
+      const response = await getDialysisParameterQuestions(ailment,id );
       if (response.success) {
         return response.data || [];
       }

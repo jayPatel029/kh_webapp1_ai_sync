@@ -56,20 +56,28 @@ export const BaseModal = ({
       {...props}
     >
       <ModalOverlay />
-      <ModalContent>
+      <ModalContent style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
         {title && (
-          <ModalHeader>
+          <ModalHeader flexShrink={0}>
             <Flex justify="between" align="center">
               <Heading as="h3" size="lg">{title}</Heading>
               {/* {showCloseButton && <ModalCloseButton />} */}
             </Flex>
           </ModalHeader>
         )}
-        <ModalBody>
+        <ModalBody 
+          style={{ 
+            flex: 1, 
+            overflowY: 'auto', 
+            overflowX: 'hidden',
+            minHeight: 0,
+          }}
+          className="scrollbar-subtle"
+        >
           {children}
         </ModalBody>
         {footer && (
-          <ModalFooter>
+          <ModalFooter flexShrink={0}>
             {footer}
           </ModalFooter>
         )}

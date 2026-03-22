@@ -194,9 +194,15 @@ function ProfileQuestions() {
             ])
           );
 
+          // Convert ailment IDs back to ailment objects
+          const ailmentObjects = newQuestion.ailment.map(ailmentId => {
+            const ailmentObj = ailments.find(a => a.id === ailmentId || a.name === ailmentId);
+            return ailmentObj || { id: ailmentId, name: ailmentId };
+          });
+
           console.log("after format: ", formattedTranslations);
           const payload = {
-            ailment: newQuestion.ailment,
+            ailment: ailmentObjects,
             type: newQuestion.type,
             name: newQuestion.name,
             options: newQuestion.options,
@@ -218,9 +224,15 @@ function ProfileQuestions() {
           }
         } else {
 
+          // Convert ailment IDs back to ailment objects
+          const ailmentObjects = newQuestion.ailment.map(ailmentId => {
+            const ailmentObj = ailments.find(a => a.id === ailmentId || a.name === ailmentId);
+            return ailmentObj || { id: ailmentId, name: ailmentId };
+          });
+
           const payload = {
             id: newQuestion.id,
-            ailment: newQuestion.ailment,
+            ailment: ailmentObjects,
             type: newQuestion.type,
             name: newQuestion.name,
             options: newQuestion.options,
@@ -273,7 +285,7 @@ function ProfileQuestions() {
       type: "all",
       payload: {
         id: q.id,
-        ailment: q.ailments || [],
+        ailment: q.ailments?.map(a => a.id || a.name) || [],
         type: q.type,
         name: q.name,
         options: q.options,
@@ -425,15 +437,15 @@ function ProfileQuestions() {
             <FormLabel>Ailment</FormLabel>
             <MultiSelect
               value={newQuestion.ailment}
-              onChange={(ailments) => {
+              onChange={(ailmentIds) => {
                 newQuestionDispatch({
                   type: "ailment",
-                  payload: ailments,
+                  payload: ailmentIds,
                 });
               }}
             >
               {ailments.map((ailment) => (
-                <option key={ailment.id} value={ailment}>
+                <option key={ailment.id || ailment.name} value={ailment.id || ailment.name}>
                   {ailment.name}
                 </option>
               ))}

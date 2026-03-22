@@ -67,7 +67,6 @@ function ChangePassword() {
           <div className="admin-page-content">
             <div className="admin-card max-w-xl">
               <div className="admin-card__header">
-                <h3 className="admin-card__title">Change Password</h3>
               </div>
               <div className="admin-card__body">
                 <div className="flex flex-col gap-6">

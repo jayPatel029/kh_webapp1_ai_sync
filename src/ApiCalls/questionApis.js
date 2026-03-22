@@ -77,11 +77,11 @@ export async function getQuestionsByType(type) {
   }
 }
 
-export async function getDialysisParameterQuestions(type) {
+export async function getDialysisParameterQuestions(type, id) {
   try {
     const token = localStorage.getItem("token");
     const response = await axiosInstance.get(
-      server_url + "/questions/dialysisParameter/" + type,
+      server_url + "/questions/dialysisParameter/" + type + (id ? `?user=${id}` : ""),
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -94,11 +94,11 @@ export async function getDialysisParameterQuestions(type) {
   }
 }
 
-export async function getGeneralParameterQuestions() {
+export async function getGeneralParameterQuestions(id) {
   try {
     const token = localStorage.getItem("token");
     const response = await axiosInstance.get(
-      server_url + "/questions/generalParameter/fetchQuestions",
+      server_url + "/questions/generalParameter/fetchQuestions"+ (id ? `?user=${id}` : ""),
       {
         headers: {
           Authorization: `Bearer ${token}`,

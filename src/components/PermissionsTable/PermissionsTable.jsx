@@ -1,4 +1,5 @@
 import React from 'react';
+import { PERMISSION_FIELDS } from '../../helpers/permissions';
 
 /**
  * PermissionsTable
@@ -27,9 +28,20 @@ const PermissionsTable = ({ permissions = {}, onChange = () => {}, disabled = fa
     onChange(next);
   };
 
+  // Build a map of field keys to visible permissions
+  const fieldVisibilityMap = PERMISSION_FIELDS.reduce((acc, field) => {
+    acc[field.key] = field.visiblePermissions || ['view', 'edit', 'delete'];
+    return acc;
+  }, {});
+
+  const shouldShowPermission = (fieldKey, permissionType) => {
+    const visiblePermissions = fieldVisibilityMap[fieldKey];
+    return visiblePermissions.includes(permissionType);
+  };
+
   return (
     <div className="admin-table-container">
-      <table className="admin-table">
+      <table className="admin-table w-full border-collapse">
         <thead>
           <tr>
             <th>Page Name</th>
@@ -42,7 +54,7 @@ const PermissionsTable = ({ permissions = {}, onChange = () => {}, disabled = fa
           {Object.keys(permissions || {}).map((pageName) => (
             <tr key={pageName}>
               <td>{permissions[pageName]?.name || pageName}</td>
-              <td className="text-center">
+              <td className="text-center" style={{ visibility: shouldShowPermission(pageName, 'view') ? 'visible' : 'hidden' }}>
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-teal-600 rounded cursor-pointer"
@@ -51,7 +63,7 @@ const PermissionsTable = ({ permissions = {}, onChange = () => {}, disabled = fa
                   disabled={disabled}
                 />
               </td>
-              <td className="text-center">
+              <td className="text-center" style={{ visibility: shouldShowPermission(pageName, 'edit') ? 'visible' : 'hidden' }}>
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-teal-600 rounded cursor-pointer"
@@ -60,7 +72,7 @@ const PermissionsTable = ({ permissions = {}, onChange = () => {}, disabled = fa
                   disabled={disabled}
                 />
               </td>
-              <td className="text-center">
+              <td className="text-center" style={{ visibility: shouldShowPermission(pageName, 'delete') ? 'visible' : 'hidden' }}>
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-teal-600 rounded cursor-pointer"
