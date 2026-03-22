@@ -133,13 +133,13 @@ const BaseAlarmModal = ({
   const FETCH_THROTTLE_MS = 1000; // Wait at least 1 second between fetches
   // Form state
   const [selectedAlarmType, setSelectedAlarmType] = useState(
-    alarmData?.type || "Dialysis"
+    alarmData?.type || null
   );
   const [selectedHealthParameter, setSelectedHealthParameter] = useState(
     alarmData?.parameter || ""
   );
   const [selectTimings, setSelectTimings] = useState(
-    alarmData?.frequency || "Daily/Weekly"
+    alarmData?.frequency || ""
   );
   const [description, setDescription] = useState(alarmData?.description || "");
   const [weekdays, setWeekdays] = useState(
@@ -514,55 +514,62 @@ const BaseAlarmModal = ({
           </FormControl>
         )}
 
-        <FormControl isRequired flex="1">
-          <FormLabel>Time</FormLabel>
-          <Input
-            type="time"
-            value={timings[index] || ""}
-            onChange={(e) => {
-              const temp = [...timings];
-              temp[index] = e.target.value;
-              setTimings(temp);
-            }}
-          />
-        </FormControl>
+        {/* Grid container for Time, Dose, and Unit in one row */}
+        <Grid 
+          gap={4} 
+          templateColumns={selectedAlarmType === "Prescription" ? "1fr 1fr 1fr" : "1fr"}
+          w="100%"
+        >
+          <FormControl isRequired>
+            <FormLabel>Time</FormLabel>
+            <Input
+              type="time"
+              value={timings[index] || ""}
+              onChange={(e) => {
+                const temp = [...timings];
+                temp[index] = e.target.value;
+                setTimings(temp);
+              }}
+            />
+          </FormControl>
 
-        {selectedAlarmType === "Prescription" && (
-          <>
-            <FormControl isRequired>
-              <FormLabel>Dose</FormLabel>
-              <Input
-                type="number"
-                placeholder="Enter dose"
-                value={doses[index] || ""}
-                onChange={(e) => {
-                  const temp = [...doses];
-                  temp[index] = e.target.value;
-                  setDoses(temp);
-                }}
-              />
-            </FormControl>
+          {selectedAlarmType === "Prescription" && (
+            <>
+              <FormControl isRequired>
+                <FormLabel>Dose</FormLabel>
+                <Input
+                  type="number"
+                  placeholder="Enter dose"
+                  value={doses[index] || ""}
+                  onChange={(e) => {
+                    const temp = [...doses];
+                    temp[index] = e.target.value;
+                    setDoses(temp);
+                  }}
+                />
+              </FormControl>
 
-            <FormControl isRequired>
-              <FormLabel>Unit</FormLabel>
-              <Select
-                value={doseUnit[index] || ""}
-                onChange={(e) => {
-                  const temp = [...doseUnit];
-                  temp[index] = e.target.value;
-                  setDoseUnit(temp);
-                }}
-              >
-                <option value="">Select unit</option>
-                {dosesOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-          </>
-        )}
+              <FormControl isRequired>
+                <FormLabel>Unit</FormLabel>
+                <Select
+                  value={doseUnit[index] || ""}
+                  onChange={(e) => {
+                    const temp = [...doseUnit];
+                    temp[index] = e.target.value;
+                    setDoseUnit(temp);
+                  }}
+                >
+                  <option value="">Select unit</option>
+                  {dosesOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </>
+          )}
+        </Grid>
       </React.Fragment>
     ));
   };

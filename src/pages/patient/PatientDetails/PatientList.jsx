@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import {
   getAssignedDoctorData,
   addDoctorToPatient,
@@ -37,6 +38,7 @@ import DefaultAvatar from '../../../assets/default-avatar.png';
 const PatientList = ({ data, onAddClick }) => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
+  const role = useSelector((state) => state.permission);
 
   // State management
   const [patients, setPatients] = useState([]);
@@ -402,42 +404,46 @@ const PatientList = ({ data, onAddClick }) => {
             <div className={`admin-toolbar__right ${isMobile ? 'w-full justify-between' : ''}`}>
               <span className={`admin-toolbar__count ${isMobile ? 'text-xs' : ''}`}>Total patients: <span className='font-bold'>{filteredPatients.length}</span></span>
               <Flex gap={4} className={isMobile ? '' : ''}>
-                <Button
-                  variant="solid"
-                  // size="lg"
-                  onClick={() => {
-                    if (onAddClick) onAddClick();
-                    else navigate("/patients/new");
-                  }}
-                  style={{
-                    backgroundColor: '#4164df',
-                    borderRadius: '10px',
-                    fontFamily: 'Sora, sans-serif',
-                    fontSize: isMobile ? '13px' : '16px',
-                    fontWeight: '600',
-                    padding: isMobile ? '6px 12px' : '9px 15px',
-                  }}
-                >
-                  <Flex gap={isMobile ? 1 : 2} justify="start" align="start">
-                    <img src={PlusIcon} alt="Add" style={{ width: isMobile ? '14px' : '18px' }} />
-                    <span style={{ color: 'white', fontWeight: 600 }}>{isMobile ? 'Add' : 'Add Patient'}</span>
-                  </Flex>
-                </Button>
-                <Button
-                  variant="solid"
-                  // size="lg"
-                  onClick={handleExportAll}
-                  style={{
-                    backgroundColor: '#4164df',
-                    borderRadius: '10px',
-                    fontFamily: 'Sora, sans-serif',
-                    fontSize: isMobile ? '13px' : '16px',
-                    fontWeight: '600',
-                    padding: isMobile ? '6px 12px' : '9px 15px',
-                  }}
-                >
-                  Export all
-                </Button>
+                {role.canEditPatients && (
+                  <>
+                    <Button
+                      variant="solid"
+                      // size="lg"
+                      onClick={() => {
+                        if (onAddClick) onAddClick();
+                        else navigate("/patients/new");
+                      }}
+                      style={{
+                        backgroundColor: '#4164df',
+                        borderRadius: '10px',
+                        fontFamily: 'Sora, sans-serif',
+                        fontSize: isMobile ? '13px' : '16px',
+                        fontWeight: '600',
+                        padding: isMobile ? '6px 12px' : '9px 15px',
+                      }}
+                    >
+                      <Flex gap={isMobile ? 1 : 2} justify="start" align="start">
+                        <img src={PlusIcon} alt="Add" style={{ width: isMobile ? '14px' : '18px' }} />
+                        <span style={{ color: 'white', fontWeight: 600 }}>{isMobile ? 'Add' : 'Add Patient'}</span>
+                      </Flex>
+                    </Button>
+                    <Button
+                      variant="solid"
+                      // size="lg"
+                      onClick={handleExportAll}
+                      style={{
+                        backgroundColor: '#4164df',
+                        borderRadius: '10px',
+                        fontFamily: 'Sora, sans-serif',
+                        fontSize: isMobile ? '13px' : '16px',
+                        fontWeight: '600',
+                        padding: isMobile ? '6px 12px' : '9px 15px',
+                      }}
+                    >
+                      Export all
+                    </Button>
+                  </>
+                )}
               </Flex>
             </div>
           </div>

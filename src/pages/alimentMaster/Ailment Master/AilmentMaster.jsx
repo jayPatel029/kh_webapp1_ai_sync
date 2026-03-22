@@ -224,13 +224,16 @@ export default function AilmentMasterComponent() {
                   ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
                 ).length} Records Found
               </span>
-              <Button
-                varient="primary"
-                className="admin-btn admin-btn--primary"
-                onClick={() => setIsFormModalOpen(true)}
-              >
-                Add Ailment
-              </Button>
+              {
+                role.canEditAilmentMaster &&
+                <Button
+                  varient="primary"
+                  className="admin-btn admin-btn--primary"
+                  onClick={() => setIsFormModalOpen(true)}
+                >
+                  Add Ailment
+                </Button>
+              }
             </div>
           </div>
         </div>

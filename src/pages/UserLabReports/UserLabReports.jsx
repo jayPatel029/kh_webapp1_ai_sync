@@ -342,7 +342,7 @@ const UserLabReports = () => {
           fileUrl={uploadedFile.imageUrl}
           fileId={uploadedFile.id}
           patientId={id}
-          // fileType="Lab Report"
+          fileType="Lab Report"
           title="Lab Report View"
         />
       )}

@@ -8,8 +8,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSelector } from "react-redux";
-// import jsPDF from "jspdf";
-
+import jsPDF from "jspdf";
+import { pdfjs } from "react-pdf";
 // Component Library
 import {
   Modal,
@@ -45,6 +45,7 @@ export const FileViewModal = ({
   onClose,
   fileUrl,
   patientId,
+  fileType,
   fileId,
   title = "File View"
 }) => {
@@ -89,6 +90,7 @@ export const FileViewModal = ({
       // Fetch comments
       const commentData = {
         fileId: fileId,
+        fileType: fileType, // using fileType prop for simplicity
       };
       const commentsRes = await getComments(commentData);
       setPrevComments(commentsRes?.data || []);
@@ -111,9 +113,14 @@ export const FileViewModal = ({
     try {
       const isDoctor = localStorage.getItem("isDoctor") === "true" ? 1 : 0;
 
+
+
+      // { "content": "hey", "fileId": 26, "fileType": "Diet Details", "userId": 10, "iSDoctor": 0, "docId": "" }
+
       const response = await addComment(
         trimmedComment,
         fileId,
+        fileType, // using fileType prop for simplicity
         patientId,
         isDoctor
       );
@@ -160,78 +167,78 @@ export const FileViewModal = ({
     }
   };
 
-  // const handleDownloadPDF = async () => {
-  //   setIsDownloading(true);
-  //   const pdf = new jsPDF("p", "mm", "a4");
-  //   const pageWidth = pdf.internal.pageSize.getWidth();
+  const handleDownloadPDF = async () => {
+    setIsDownloading(true);
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageWidth = pdf.internal.pageSize.getWidth();
 
-  //   try {
-  //     if (isPdf) {
-  //       const loadingTask = pdfjs.getDocument(fileUrl);
-  //       const pdfDocument = await loadingTask.promise;
-  //       const numPages = pdfDocument.numPages;
+    try {
+      if (isPdf) {
+        const loadingTask = pdfjs.getDocument(fileUrl);
+        const pdfDocument = await loadingTask.promise;
+        const numPages = pdfDocument.numPages;
 
-  //       for (let i = 1; i <= numPages; i++) {
-  //         const page = await pdfDocument.getPage(i);
-  //         const viewport = page.getViewport({ scale: 2 });
-  //         const canvas = document.createElement("canvas");
-  //         const context = canvas.getContext("2d");
-  //         canvas.width = viewport.width;
-  //         canvas.height = viewport.height;
+        for (let i = 1; i <= numPages; i++) {
+          const page = await pdfDocument.getPage(i);
+          const viewport = page.getViewport({ scale: 2 });
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
 
-  //         await page.render({ canvasContext: context, viewport: viewport }).promise;
-  //         const imgData = canvas.toDataURL("image/png");
-  //         const imgHeight = (canvas.height * pageWidth) / canvas.width;
+          await page.render({ canvasContext: context, viewport: viewport }).promise;
+          const imgData = canvas.toDataURL("image/png");
+          const imgHeight = (canvas.height * pageWidth) / canvas.width;
 
-  //         pdf.addImage(imgData, "PNG", 0, 10, pageWidth, imgHeight);
-  //         if (i < numPages) pdf.addPage();
-  //       }
-  //     } else {
-  //       const fetchImg = await fetch(fileUrl);
-  //       const blob = await fetchImg.blob();
-  //       const dataUrl = await new Promise((resolve) => {
-  //         const reader = new FileReader();
-  //         reader.onloadend = () => resolve(reader.result);
-  //         reader.readAsDataURL(blob);
-  //       });
+          pdf.addImage(imgData, "PNG", 0, 10, pageWidth, imgHeight);
+          if (i < numPages) pdf.addPage();
+        }
+      } else {
+        const fetchImg = await fetch(fileUrl);
+        const blob = await fetchImg.blob();
+        const dataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
 
-  //       const img = new Image();
-  //       img.src = dataUrl;
-  //       await new Promise((resolve) => { img.onload = resolve; });
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise((resolve) => { img.onload = resolve; });
 
-  //       const imgWidth = pageWidth;
-  //       const imgHeight = (img.height * imgWidth) / img.width;
-  //       pdf.addImage(dataUrl, "JPEG", 0, 10, imgWidth, imgHeight);
-  //     }
+        const imgWidth = pageWidth;
+        const imgHeight = (img.height * imgWidth) / img.width;
+        pdf.addImage(dataUrl, "JPEG", 0, 10, imgWidth, imgHeight);
+      }
 
-  //     // Add Comments Page
-  //     pdf.addPage();
-  //     pdf.setFontSize(16);
-  //     pdf.text("Comments", 10, 20);
-  //     pdf.setFontSize(10);
-  //     let y = 30;
+      // Add Comments Page
+      pdf.addPage();
+      pdf.setFontSize(16);
+      pdf.text("Comments", 10, 20);
+      pdf.setFontSize(10);
+      let y = 30;
 
-  //     prevComments.forEach((comment) => {
-  //       const author = comment.isDoctor ? `Dr. ${comment.doctorName}` : "Patient";
-  //       const text = `${author}: ${comment.content} (${formatDate(comment.date)})`;
-  //       const lines = pdf.splitTextToSize(text, pageWidth - 20);
+      prevComments.forEach((comment) => {
+        const author = comment.isDoctor ? `Dr. ${comment.doctorName}` : "Patient";
+        const text = `${author}: ${comment.content} (${formatDate(comment.date)})`;
+        const lines = pdf.splitTextToSize(text, pageWidth - 20);
 
-  //       lines.forEach((line) => {
-  //         if (y > 280) { pdf.addPage(); y = 20; }
-  //         pdf.text(line, 10, y);
-  //         y += 7;
-  //       });
-  //       y += 5;
-  //     });
+        lines.forEach((line) => {
+          if (y > 280) { pdf.addPage(); y = 20; }
+          pdf.text(line, 10, y);
+          y += 7;
+        });
+        y += 5;
+      });
 
-  //     pdf.save(`${ .replace(" ", "_")}_Summary.pdf`);
-  //   } catch (error) {
-  //     console.error("Error generating PDF:", error);
-  //     alert("Failed to download PDF. Please try again.");
-  //   } finally {
-  //     setIsDownloading(false);
-  //   }
-  // };
+      pdf.save(`${title.replace(" ", "_")}_Summary.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to download PDF. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="full" isCentered>
@@ -239,7 +246,7 @@ export const FileViewModal = ({
       <ModalContent
         className="rounded-2xl overflow-hidden flex flex-col bg-white file-view-modal"
         style={{ height: '95vh', width: '85vw' }}
-        
+
       >
         <ModalHeader className="border-b bg-surface/50 flex-none py-4 px-6">
           <HStack justify="between" align="center" className="w-full">
@@ -252,7 +259,7 @@ export const FileViewModal = ({
               <Button
                 variant="outline"
                 size="md"
-                // onClick={handleDownloadPDF}
+                onClick={handleDownloadPDF}
                 isLoading={isDownloading}
                 className="rounded-xl btn-outline-secondary"
               >
@@ -321,33 +328,53 @@ export const FileViewModal = ({
             <Box className="flex-1 overflow-y-auto p-4 space-y-4 noscrollbar">
               {patientProgram ? (
                 prevComments.length > 0 ? (
-                  prevComments.map((comment) => (
-                    <Box key={comment.id}>
-                      <HStack spacing={2} align="start">
-                        <Box className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${comment.isDoctor ? 'bg-primary-dark' : 'bg-primary'}`}>
-                          {comment.isDoctor ? 'D' : 'P'}
-                        </Box>
-                        <VStack spacing={1} align="start" className="flex-1 min-w-0">
-                          <HStack justify="between" className="w-full gap-1">
-                            <Text size="sm" weight="bold" className="text-dark truncate">
-                              {comment.isDoctor ? `Dr. ${comment.doctorName}` : "Patient"}
-                            </Text>
-                            <Text size="xs" className="text-muted flex-shrink-0">
-                              {formatDate(comment.date).split(',')[1]}
-                            </Text>
-                          </HStack>
-                          <Box className={`p-2 rounded-lg text-sm ${comment.isDoctor ? 'bg-gray-100' : 'bg-primary/5 border border-primary/10'}`}>
-                            <Text size="sm" className="text-dark break-words">
-                              {comment.content}
-                            </Text>
-                          </Box>
-                          <Text size="xs" className="text-muted-foreground">
-                            {formatDate(comment.date).split(',')[0]}
-                          </Text>
+                  (() => {
+                    // Group comments by date
+                    const groupedComments = prevComments.reduce((groups, comment) => {
+                      const dateStr = formatDate(comment.date).split(',')[0];
+                      if (!groups[dateStr]) {
+                        groups[dateStr] = [];
+                      }
+                      groups[dateStr].push(comment);
+                      return groups;
+                    }, {});
+
+                    return Object.entries(groupedComments).map(([date, comments]) => (
+                      <Box key={date} align="start">
+                        <Text size="xs" weight="bold" className="text-muted mb-2 px-2">
+                          {date}
+                        </Text>
+                        <VStack spacing={2} align="start" className="px-2">
+                          {comments.map((comment) => (
+                            <Box key={comment.id}>
+                              <HStack spacing={2} align="start">
+                                <Box className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${comment.isDoctor ? 'bg-accent' : 'bg-primary'}`}>
+                                  {comment.isDoctor ? 'D' : 'P'}
+                                </Box>
+                                <VStack spacing={1} align="start" className="flex-1 min-w-0">
+                                  <HStack justify="between" className="w-full gap-1">
+                                    <Text size="sm" weight="bold" className="text-dark truncate">
+                                      {comment.isDoctor ? `Dr. ${comment.doctorName}` : "Patient"}
+                                    </Text>
+                                    <Text size="xs" className="text-muted flex-shrink-0">
+                                      {formatDate(comment.date).split(',')[1]?.trim() || ''}
+                                    </Text>
+                                  </HStack>
+                                  <Box className={`p-2  bg-primary/5 rounded-lg text-sm $
+                                  `}>
+                                    {/* {comment.isDoctor ? 'bg-gray-100' : 'bg-primary/5'} */}
+                                    <Text size="sm" className="text-dark break-words">
+                                      {comment.content}
+                                    </Text>
+                                  </Box>
+                                </VStack>
+                              </HStack>
+                            </Box>
+                          ))}
                         </VStack>
-                      </HStack>
-                    </Box>
-                  ))
+                      </Box>
+                    ));
+                  })()
                 ) : (
                   <Flex direction="column" align="center" justify="center" className="h-full py-8 text-center">
                     <Text size="3xl" className="mb-2">💬</Text>

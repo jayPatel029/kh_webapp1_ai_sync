@@ -183,69 +183,69 @@ function ProfileQuestions() {
   async function handleSubmit() {
     if (validateForm()) {
       try {
-      if (!editMode) {
+        if (!editMode) {
 
-        console.log("translations are: ", translations);
-        // format translation beofre submitting
-        const formattedTranslations = Object.fromEntries(
-          Object.entries(translations).map(([langId, value]) => [
-            langId,
-            typeof value === "string" ? { text: value, options: "" } : value,
-          ])
-        );
+          console.log("translations are: ", translations);
+          // format translation beofre submitting
+          const formattedTranslations = Object.fromEntries(
+            Object.entries(translations).map(([langId, value]) => [
+              langId,
+              typeof value === "string" ? { text: value, options: "" } : value,
+            ])
+          );
 
-        console.log("after format: ", formattedTranslations);
-        const payload = {
-          ailment: newQuestion.ailment,
-          type: newQuestion.type,
-          name: newQuestion.name,
-          options: newQuestion.options,
-          translations: formattedTranslations,
-        };
-        const response = await mutate(() => createQuestion(payload));
-        if (response.success) {
-          setErrMsg("");
-          setSuccessful("Question Created Successful!");
-          showToast("Question created successfully!", "success");
-          setIsFormModalOpen(false);
-          newQuestionDispatch({
-            type: "all",
-            payload: {},
-          });
+          console.log("after format: ", formattedTranslations);
+          const payload = {
+            ailment: newQuestion.ailment,
+            type: newQuestion.type,
+            name: newQuestion.name,
+            options: newQuestion.options,
+            translations: formattedTranslations,
+          };
+          const response = await mutate(() => createQuestion(payload));
+          if (response.success) {
+            setErrMsg("");
+            setSuccessful("Question Created Successful!");
+            showToast("Question created successfully!", "success");
+            setIsFormModalOpen(false);
+            newQuestionDispatch({
+              type: "all",
+              payload: {},
+            });
+          } else {
+            setErrMsg("Error Creating Question:" + response.data);
+            setSuccessful("");
+          }
         } else {
-          setErrMsg("Error Creating Question:" + response.data);
-          setSuccessful("");
-        }
-      } else {
 
-        const payload = {
-          id: newQuestion.id,
-          ailment: newQuestion.ailment,
-          type: newQuestion.type,
-          name: newQuestion.name,
-          options: newQuestion.options,
-          translations: translations,
-        };
-        console.log("updating with: ", payload);
-        console.log("translations here: ", translations);
-        console.log("options: ", newQuestion.options);
-        console.log(newQuestion.id);
-        const response = await mutate(() => updateQuestion(newQuestion.id, payload));
-        if (response.success) {
-          setErrMsg("");
-          setEditMode(false);
-          setSuccessful("Question Updated Successful!");
-          showToast("Question updated successfully!", "success");
-          setIsFormModalOpen(false);
-          newQuestionDispatch({
-            type: "all",
-            payload: {},
-          });
-        } else {
-          setErrMsg("Error Updating Question:" + response.data);
-          setSuccessful("");
+          const payload = {
+            id: newQuestion.id,
+            ailment: newQuestion.ailment,
+            type: newQuestion.type,
+            name: newQuestion.name,
+            options: newQuestion.options,
+            translations: translations,
+          };
+          console.log("updating with: ", payload);
+          console.log("translations here: ", translations);
+          console.log("options: ", newQuestion.options);
+          console.log(newQuestion.id);
+          const response = await mutate(() => updateQuestion(newQuestion.id, payload));
+          if (response.success) {
+            setErrMsg("");
+            setEditMode(false);
+            setSuccessful("Question Updated Successful!");
+            showToast("Question updated successfully!", "success");
+            setIsFormModalOpen(false);
+            newQuestionDispatch({
+              type: "all",
+              payload: {},
+            });
+          } else {
+            setErrMsg("Error Updating Question:" + response.data);
+            setSuccessful("");
+          }
         }
-      }
       } catch (error) {
         console.error("Error in question submit:", error);
         const msg = error?.message || "An unexpected error occurred. Please try again.";
@@ -342,25 +342,29 @@ function ProfileQuestions() {
                       q.type.toLowerCase().includes(searchTerm.toLowerCase())
                     ).length} Records Found
                   </span>
-                  <Button
-                    variant="primary"
-                    // className="admin-btn admin-btn--primary"
-                    onClick={() => {
-                      setEditMode(false);
-                      setErrMsg("");
-                      newQuestionDispatch({ type: "all", payload: {} });
-                      setIsFormModalOpen(true);
-                    }}
-                  >
-                    Add Question
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => setIsBulkUploadModalOpen(true)}
-                    className="admin-btn admin-btn--secondary"
-                  >
-                    Bulk Upload Questions
-                  </Button>
+                  {role.canEditProfileQuestions && (
+                      <>
+                        <Button
+                          variant="primary"
+                          // className="admin-btn admin-btn--primary"
+                          onClick={() => {
+                            setEditMode(false);
+                            setErrMsg("");
+                            newQuestionDispatch({ type: "all", payload: {} });
+                            setIsFormModalOpen(true);
+                          }}
+                        >
+                          Add Question
+                        </Button>
+                        <Button
+                          variant="primary"
+                          onClick={() => setIsBulkUploadModalOpen(true)}
+                          className="admin-btn admin-btn--secondary"
+                        >
+                          Bulk Upload Questions
+                        </Button>
+                      </>
+                    )}
                 </div>
               </div>
             </div>

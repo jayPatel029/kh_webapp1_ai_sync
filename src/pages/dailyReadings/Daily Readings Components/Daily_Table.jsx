@@ -112,23 +112,27 @@ export default function DailyTable({
                 (item.condition && item.condition.toLowerCase().includes(searchTerm.toLowerCase()))
               ).length} Records Found
             </span>
-            <Button
-              variant="primary"
-              // className="admin-btn admin-btn--primary"
-              onClick={() => {
-                resetFormState();
-                setIsFormModalOpen(true);
-              }}
-            >
-              Add Daily Reading
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => setIsBulkUploadModalOpen(true)}
-              // className="admin-btn admin-btn--secondary"
-            >
-              Bulk Upload Readings
-            </Button>
+            {role.canEditDailyReadings && (
+              <>
+                <Button
+                  variant="primary"
+                  // className="admin-btn admin-btn--primary"
+                  onClick={() => {
+                    resetFormState();
+                    setIsFormModalOpen(true);
+                  }}
+                >
+                  Add Daily Reading
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => setIsBulkUploadModalOpen(true)}
+                  // className="admin-btn admin-btn--secondary"
+                >
+                  Bulk Upload Readings
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

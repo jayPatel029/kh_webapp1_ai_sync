@@ -336,13 +336,15 @@ function AdminManagement() {
                     style={isMobile ? { width: "100%" } : { width: "250px" }}
                   />
                 </div>
-                <Button
+                {canEditAdmins &&
+                  <Button
                   variant="primary"
                   className="admin-btn admin-btn--primary"
                   onClick={openAddModal}
-                >
+                  >
                   Add Admin
                 </Button>
+                }
               </div>
               {/* </div> */}
             </div>

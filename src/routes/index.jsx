@@ -73,6 +73,7 @@ const getLegacyRedirectRoutes = () => [
     path: "edit-role/:id",
     element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.roleDetail(id)} />,
   },
+  { path: "ailments", element: <Navigate to={ROUTES.SETTINGS_AILMENTS} replace /> },
   { path: "userProgramSelection", element: <Navigate to={ROUTES.PROGRAMS} replace /> },
   {
     path: "userProgramSelection/:id",

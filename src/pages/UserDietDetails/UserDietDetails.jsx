@@ -231,7 +231,7 @@ const UserDietDetails = () => {
           fileUrl={uploadedFile.fileUrl}
           fileId={uploadedFile.fileId}
           patientId={id}
-          // fileType="Diet Details"
+          fileType="Diet Details"
           title="Diet Details View"
         />
       )}

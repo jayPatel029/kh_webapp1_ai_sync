@@ -583,9 +583,11 @@ function AdminManagement() {
                     style={isMobile ? {} : {}}
                   />
                 </div>
-                <Button variant="primary" onClick={openCreateForm} className="whitespace-nowrap">
-                  Add Doctor
-                </Button>
+                { canEditDoctors && (
+                  <Button variant="primary" onClick={openCreateForm} className="whitespace-nowrap">
+                    Add Doctor
+                  </Button>
+                )}
               </div>
             </div>
 

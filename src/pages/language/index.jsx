@@ -24,6 +24,7 @@ import {
 import { Button } from "../../component-library";
 import { useAdminToast } from "../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import { useSelector } from "react-redux";
 
 function LanguageMaster() {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ function LanguageMaster() {
   const [searchTerm, setSearchTerm] = useState("");
   const { showToast, ToastContainer } = useAdminToast();
   const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.LANGUAGE);
+  const role = useSelector((state) => state.permission);
 
   const [languages, setLanguages] = useState([]);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -182,15 +184,17 @@ function LanguageMaster() {
                       lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
                     ).length} Records Found
                   </span>
-                  <Button
-                    variant="solid"
-                    onClick={() => {
-                      resetForm();
-                      setIsFormModalOpen(true);
-                    }}
-                  >
-                    Add Language
-                  </Button>
+                  {role.canEditLanguages && (
+                    <Button
+                      variant="solid"
+                      onClick={() => {
+                        resetForm();
+                        setIsFormModalOpen(true);
+                      }}
+                    >
+                      Add Language
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

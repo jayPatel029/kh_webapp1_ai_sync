@@ -26,6 +26,18 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  /* Inline controls should size to content instead of full-width */
+  width: auto;
+}
+
+/* Adjust label layout for inline form controls so labels sit above their field */
+.form-control--inline .form-label {
+  position: relative;
+  top: 0;
+  left: 0;
+  background: transparent;
+  padding: 0;
+  margin-bottom: var(--space-2);
 }
 
 /* ==================== FORM LABEL ==================== */

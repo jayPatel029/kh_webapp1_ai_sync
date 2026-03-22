@@ -286,7 +286,7 @@ const UserRequisition = () => {
           fileUrl={uploadedFile.fileUrl}
           fileId={uploadedFile.fileId}
           patientId={id}
-          // fileType="Requisition"
+          fileType="Requisition"
           title="Requisition View"
         />
       )}

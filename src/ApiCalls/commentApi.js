@@ -15,6 +15,11 @@ export const addComment = async (content, fileId, fileType, userId, iSDoctor) =>
         iSDoctor,
         docId,
     };
+
+    // { "content": "hey", "fileId": 26, "fileType": "Diet Details", "userId": 10, "iSDoctor": 0, "docId": "" }
+
+    // { "content": "hey", "fileId": 27, "fileType": "10", "userId": 0, "docId": "" }
+
     try {
         console.log("adding pres commmetn with data:", data);  
         const response = await axiosInstance.post(`${server_url}/comments/addComment`, data);

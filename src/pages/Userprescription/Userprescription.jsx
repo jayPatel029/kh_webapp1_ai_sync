@@ -333,7 +333,7 @@ const Userprescription = () => {
           fileUrl={uploadedFile.fileUrl}
           fileId={uploadedFile.fileId}
           patientId={id}
-          // fileType="Prescription"
+          fileType="Prescription"
           title="Prescription View"
         />
       )}

@@ -112,23 +112,27 @@ export default function DialysisTableComponent({
                 (item.condition && item.condition.toLowerCase().includes(searchTerm.toLowerCase()))
               ).length} Records Found
             </span>
-            <Button
-              variant="primary"
-              className="admin-btn admin-btn--primary"
-              onClick={() => {
-                resetFormState();
-                setIsFormModalOpen(true);
-              }}
-            >
-              Add Dialysis Reading
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => setIsBulkUploadModalOpen(true)}
-              className="admin-btn"
-            >
-              Bulk Upload Question
-            </Button>
+            {role.canEditDialysisReadings && (
+              <>
+                <Button
+                  variant="primary"
+                  className="admin-btn admin-btn--primary"
+                  onClick={() => {
+                    resetFormState();
+                    setIsFormModalOpen(true);
+                  }}
+                >
+                  Add Dialysis Reading
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => setIsBulkUploadModalOpen(true)}
+                  className="admin-btn"
+                >
+                  Bulk Upload Question
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

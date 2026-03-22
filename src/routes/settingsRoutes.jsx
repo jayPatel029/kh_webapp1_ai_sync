@@ -19,7 +19,7 @@ export const getSettingsRoutes = ({ guard, ROUTE_NAMES }) => [
       { path: "logs", element: guard(<Logs />, ROUTE_NAMES.SETTINGS_LOGS) },
       { path: "logs/patient", element: guard(<LogsPage />, ROUTE_NAMES.PATIENT_LOGS) },
       { path: "logs/doctor", element: guard(<DocLogPage />, ROUTE_NAMES.SETTINGS_LOGS) },
-      { path: "ailments", element: guard(<AlimentMaster />, ROUTE_NAMES.CHANGE_PASSWORD) },
+      { path: "ailments", element: guard(<AlimentMaster />, ROUTE_NAMES.AILMENTS) },
     ],
   },
 ];
