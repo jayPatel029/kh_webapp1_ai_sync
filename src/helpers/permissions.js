@@ -5,6 +5,25 @@ const DELETE_PERMISSION_BIT = 4;
 export const ADMIN_ROLE_NAMES = ["Admin", "PSadmin"];
 export const DASHBOARD_ROLE_NAMES = ["Admin", "PSadmin", "Doctor"];
 
+// Backend auth_arr order contract.
+// Keep this list stable even if PERMISSION_FIELDS UI order changes.
+export const AUTH_ARRAY_API_ORDER = [
+  "can_vud_mr",
+  "can_vud_am",
+  "can_vud_ca",
+  "can_vud_cd",
+  "can_vud_pq",
+  "can_vud_p",
+  "can_vud_dr",
+  "can_vud_dir",
+  "can_vud_cp",
+  "can_vud_ups",
+  "can_vud_docr",
+  "can_vud_fb",
+  "can_vud_la",
+  "can_vud_lo",
+];
+
 export const PERMISSION_FIELDS = [
   { key: "manageRoles", apiKey: "can_vud_mr", label: "Manage Roles" },
   { key: "ailmentMaster", apiKey: "can_vud_am", label: "Ailment Master" },
@@ -89,13 +108,19 @@ export const encodePermissionValue = ({ view, edit, delete: canDelete }) =>
   (edit ? EDIT_PERMISSION_BIT : 0) +
   (canDelete ? DELETE_PERMISSION_BIT : 0);
 
-export const getRoleAuthArray = (roleData = {}) => {
+const getRoleAuthValueByApiKey = (roleData = {}, apiKey) => {
   if (Array.isArray(roleData?.auth_arr)) {
-    return roleData.auth_arr;
+    const index = AUTH_ARRAY_API_ORDER.indexOf(apiKey);
+    if (index >= 0) {
+      return roleData.auth_arr?.[index] ?? roleData?.[apiKey] ?? 0;
+    }
   }
 
-  return PERMISSION_FIELDS.map(({ apiKey }) => roleData?.[apiKey] ?? 0);
+  return roleData?.[apiKey] ?? 0;
 };
+
+export const getRoleAuthArray = (roleData = {}) =>
+  PERMISSION_FIELDS.map(({ apiKey }) => getRoleAuthValueByApiKey(roleData, apiKey));
 
 export const getInitialRolePermissions = () =>
   PERMISSION_FIELDS.reduce((acc, { key, label }) => {
@@ -117,10 +142,14 @@ export const mapRoleDataToFormPermissions = (roleData = {}) => {
   return initial;
 };
 
-export const mapFormPermissionsToAuthArray = (permissions = {}) =>
-  PERMISSION_FIELDS.map(({ key }) =>
-    encodePermissionValue(permissions?.[key] || {})
-  );
+export const mapFormPermissionsToAuthArray = (permissions = {}) => {
+  const valuesByApiKey = PERMISSION_FIELDS.reduce((acc, { key, apiKey }) => {
+    acc[apiKey] = encodePermissionValue(permissions?.[key] || {});
+    return acc;
+  }, {});
+
+  return AUTH_ARRAY_API_ORDER.map((apiKey) => valuesByApiKey?.[apiKey] ?? 0);
+};
 
 export const getEmptyPermissionPayload = () =>
   PERMISSION_FIELDS.reduce((acc, { apiKey }) => {
