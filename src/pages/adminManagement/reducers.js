@@ -172,6 +172,12 @@ export function newDoctorReducer(state, action) {
         Dialysis_updates: action.payload,
       };
     }
+    case "reports": {
+      return {
+        ...state,
+        reports: action.payload,
+      };
+    }
     case "all": {
       return {
         id: null,
@@ -196,6 +202,7 @@ export function newDoctorReducer(state, action) {
         email_notification: "yes",
         Dialysis_updates: "yes",
         can_export: "no",
+        reports: [],
         ...action.payload,
       };
     }

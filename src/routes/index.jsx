@@ -23,6 +23,7 @@ const KfreSingle = lazy(() => import("../pages/kfre/KfreSingle"));
 const DoctorReport = lazy(() => import("../pages/doctorReport/DoctorReport"));
 const UserListManage = lazy(() => import("../components/UserListAdmin/UserListManage"));
 const UserMedicalTeam = lazy(() => import("../components/UserListAdmin/UserMedicalTeam"));
+const PatientAlertsByType = lazy(() => import("../pages/PatientAlertsByType"));
 
 const RouteFallback = () => <div className="p-6">Loading...</div>;
 
@@ -252,6 +253,8 @@ function AppRoutes() {
         },
 
         { path: "ai-chat", element: guard(<AiChat />, ROUTE_NAMES.AI_CHAT) },
+
+        { path: "alerts", element: guard(<PatientAlertsByType />, "PatientAlertsByType") },
 
         { path: "patients/:id/medical-team", element: guard(<UserMedicalTeam />, "UserMedicalTeam") },
         { path: "patients/:id/user-management", element: guard(<UserListManage />, "UserListManage") },

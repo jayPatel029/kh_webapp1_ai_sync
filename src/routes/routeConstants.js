@@ -69,6 +69,8 @@ export const ROUTES = {
   SUPPORT: "/support",
   supportTicket: (id) => (id ? `/support?id=${id}` : "/support"),
 
+  ALERTS: "/alerts",
+
   AI_CHAT: "/ai-chat",
 
   LOGIN: "/login",
@@ -102,6 +104,7 @@ export const ROUTE_NAMES = {
   REPORTS_KFRE: "kfre",
   REPORTS_DOCTOR: "doctorReport",
   AI_CHAT: "aiChat",
+  ALERTS: "PatientAlertsByType",
   SUPPORT: "ContactUsPage",
   SETTINGS_LOGS: "logs",
 };

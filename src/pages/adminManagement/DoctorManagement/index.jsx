@@ -2,6 +2,7 @@ import React, { useEffect, useState, useReducer, useMemo } from "react";
 // import Select from 'react-select';
 import { practicingAtList, doctorSpeciality, staffSpeciality } from "../consts";
 import { newDoctorReducer } from "../reducers";
+import { REPORT_OPTIONS } from "./reportOptions";
 import {
   registerDoctor,
   getDoctors,
@@ -28,7 +29,8 @@ import {
   Checkbox,
   Grid,
   GridItem,
-  MultiSelect
+  MultiSelect,
+  CheckboxMultiSelect
 } from "../../../component-library";
 import UnifiedListTable from "../../../components/table/UnifiedListTable";
 import { useAdminToast } from "../../../components/AdminToast";
@@ -142,6 +144,7 @@ function AdminManagement() {
     Dialysis_updates: "yes",
     dailyReadingsAlerts: "no",
     can_export: "no",
+    reports: [],
   });
 
   const specialitiesOptions = useMemo(() => {
@@ -295,6 +298,7 @@ function AdminManagement() {
           specialities: newDoctor.specialities,
           dailyReadings: newDoctor.dailyReadings,
           dialysisReadings: newDoctor.dialysisReadings,
+          reports: newDoctor.reports,
           changeby: localStorage.getItem("email"),
           doctorid: newDoctor.id,
         };
@@ -346,6 +350,7 @@ function AdminManagement() {
           email_notification: newDoctor.email_notification,
           can_export: newDoctor.can_export,
           specialities: newDoctor.specialities,
+          reports: newDoctor.reports,
           changeby: localStorage.getItem("email"),
           doctorid: newDoctor.id,
         };
@@ -396,6 +401,7 @@ function AdminManagement() {
           can_export: newDoctor.can_export,
           dailyReadings: newDoctor.dailyReadings,
           dialysisReadings: newDoctor.dialysisReadings,
+          reports: newDoctor.reports,
           changeby: localStorage.getItem("email"),
           doctorid: newDoctor.id,
         };
@@ -508,6 +514,7 @@ function AdminManagement() {
         dailyReadingsAlerts: doctor.daily_update,
         Dialysis_updates: doctor.Dialysis_updates,
         can_export: doctor.can_export,
+        reports: Array.isArray(doctor.reports) ? doctor.reports : [],
       },
     });
     setEditMode(true);
@@ -1056,6 +1063,25 @@ function AdminManagement() {
               </Box>
             )}
             {/* </Box> */}
+          </Box>
+
+          {/* Reports Section */}
+          <Box className="mt-6">
+            <FormControl>
+              <FormLabel>Reports Access</FormLabel>
+              <CheckboxMultiSelect
+                value={newDoctor.reports}
+                onChange={(reports) => {
+                  newDoctorDispatch({
+                    type: "reports",
+                    payload: reports,
+                  });
+                }}
+                options={REPORT_OPTIONS}
+                maxHeight="150px"
+                showSelected={true}
+              />
+            </FormControl>
           </Box>
 
           <Box className="mt-6">

@@ -14,6 +14,9 @@ export * from './primitives';
 // ==================== LAYOUT ====================
 export * from './layout';
 
+// ==================== INPUTS ====================
+export { CheckboxMultiSelect } from './inputs/CheckboxMultiSelect';
+
 // ==================== MODALS ====================
 export * from './modals';
 
