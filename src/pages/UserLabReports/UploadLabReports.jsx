@@ -257,7 +257,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
               loadingText="Extracting Data..."
               onClick={handleExtract}
             >
-              Extract Data
+                { selectedReportType === "Lab" ? "Extract Data" : "Upload" }
             </Button>
           )}
           {extractedValues && (
