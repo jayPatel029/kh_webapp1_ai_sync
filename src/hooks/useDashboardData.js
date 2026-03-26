@@ -268,7 +268,14 @@ export function useDoctorDashboardData() {
   const fetchAlerts = useCallback(async (doctorId) => {
     try {
       const res = await getDoctorSortAlerts(doctorId);
-      const alerts = res.success ? safeArray(res.data) : [];
+      let alerts = res.success ? safeArray(res.data) : [];
+
+      // Fallback to /api/alerts when doctor endpoint is empty/unavailable
+      if (!alerts.length) {
+        const allAlertsRes = await getAlerts();
+        alerts = safeArray(allAlertsRes?.data ?? allAlertsRes);
+      }
+
       setData((prev) => ({ ...prev, alerts }));
     } catch (err) {
       console.error('Doctor alert refetch error:', err);
@@ -302,13 +309,17 @@ export function useDoctorDashboardData() {
       }
 
       // Parallel fetch
-      const [alertsRes, patientsRes] = await Promise.allSettled([
+      const [alertsRes, allAlertsRes, patientsRes] = await Promise.allSettled([
         getDoctorSortAlerts(doctorId),
+        getAlerts(),
         getPatients(),
       ]);
 
       const alertsRaw = settled(alertsRes);
-      const alerts = alertsRaw?.success ? safeArray(alertsRaw.data) : [];
+      const doctorAlerts = alertsRaw?.success ? safeArray(alertsRaw.data) : [];
+      const allAlertsRaw = settled(allAlertsRes);
+      const fallbackAlerts = safeArray(allAlertsRaw?.data ?? allAlertsRaw);
+      const alerts = doctorAlerts.length ? doctorAlerts : fallbackAlerts;
 
       const patientsRaw = settled(patientsRes);
       const patients = patientsRaw?.success ? safeArray(patientsRaw.data) : [];

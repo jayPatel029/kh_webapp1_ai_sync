@@ -42,6 +42,7 @@ const AlertsPanel = ({
   onAlertClick,
   showSendEmails = false,
   showRoleTabs = false,
+  showGridView = false,
   maxHeight = '420px',
   className = '',
 }) => {
@@ -51,6 +52,19 @@ const AlertsPanel = ({
   const [dateFilter, setDateFilter] = useState('');
   // Send emails loading state
   const [sending, setSending] = useState(false);
+
+  const classifyAlertType = (alert) => {
+    const text = `${alert?.category || ''} ${alert?.type || ''} ${alert?.message || ''}`.toLowerCase();
+
+    if (text.includes('prescription')) return 'prescription';
+    if (text.includes('comment') || text.includes('message')) return 'comment';
+    if (
+      text.includes('technician') ||
+      text.includes('dialysis technician')
+    ) return 'technician';
+
+    return 'alert';
+  };
 
   // Filter alerts by role tab
   const tabFilteredAlerts = useMemo(() => {
@@ -76,6 +90,40 @@ const AlertsPanel = ({
       return d.startsWith(dateFilter);
     });
   }, [tabFilteredAlerts, dateFilter]);
+
+  const patientAlertCounts = useMemo(() => {
+    const map = new Map();
+
+    filteredAlerts.forEach((alert) => {
+      const patientId = alert.patientId ?? alert.pid ?? alert?.patient?.id ?? 'unknown';
+      const patientName =
+        alert.name ||
+        alert.patientName ||
+        alert?.patient?.name ||
+        (patientId === 'unknown' ? 'Unknown Patient' : `Patient ${patientId}`);
+      const avatar = alert.patientProfilePhoto || alert.avatar || null;
+
+      if (!map.has(patientId)) {
+        map.set(patientId, {
+          patientId,
+          name: patientName,
+          avatar,
+          prescription: 0,
+          comment: 0,
+          alert: 0,
+          technician: 0,
+          total: 0,
+        });
+      }
+
+      const bucket = classifyAlertType(alert);
+      const entry = map.get(patientId);
+      entry[bucket] += 1;
+      entry.total += 1;
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [filteredAlerts]);
 
   // Send alert emails handler
   const handleSendEmails = async () => {
@@ -181,24 +229,122 @@ const AlertsPanel = ({
 
       {/* Alert list */}
       <CardBody className="alerts-panel__body" style={{ maxHeight, overflowY: 'auto' }}>
-        {filteredAlerts.length === 0 ? (
-          <div className="alerts-panel__empty">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.35">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <Text color="muted" size="sm">No alerts to show</Text>
+        {showGridView ? (
+          // Counts-only per patient view
+          <div>
+            {patientAlertCounts.length === 0 ? (
+              <div className="alerts-panel__empty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.35">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <Text color="muted" size="sm">No alerts to show</Text>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {patientAlertCounts.map((row, index) => {
+                  const initials = (row.name || 'U')
+                    .split(' ')
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((x) => x[0]?.toUpperCase())
+                    .join('');
+
+                  return (
+                    <div
+                      key={`${row.patientId}-${index}`}
+                      className={`py-4 ${index !== patientAlertCounts.length - 1 ? 'border-b border-gray-200' : ''}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        {row.avatar ? (
+                          <img
+                            src={row.avatar}
+                            alt={row.name}
+                            className="w-12 h-12 rounded-full object-cover border border-gray-200"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-[#3f6b85] text-white flex items-center justify-center font-semibold text-sm">
+                            {initials || 'U'}
+                          </div>
+                        )}
+
+                        <div className="min-w-0">
+                          <Text size="md" weight="bold" className="text-gray-900 truncate">
+                            {row.name}
+                          </Text>
+                        </div>
+
+                        <div className="ml-auto flex items-center gap-3 flex-wrap justify-end">
+                          {row.prescription > 0 && (
+                            <button
+                              className="px-3 py-2 rounded text-white text-sm font-semibold bg-cyan-500 hover:bg-cyan-600"
+                              onClick={() => onAlertClick && onAlertClick({ patientId: row.patientId, alertType: 'prescription' })}
+                            >
+                              {row.prescription} Approve Prescription
+                            </button>
+                          )}
+
+                          {row.comment > 0 && (
+                            <button
+                              className="px-3 py-2 rounded text-white text-sm font-semibold bg-green-500 hover:bg-green-600"
+                              onClick={() => onAlertClick && onAlertClick({ patientId: row.patientId, alertType: 'comment' })}
+                            >
+                              {row.comment} Comments
+                            </button>
+                          )}
+
+                          {row.alert > 0 && (
+                            <button
+                              className="px-3 py-2 rounded text-white text-sm font-semibold bg-red-500 hover:bg-red-600"
+                              onClick={() => onAlertClick && onAlertClick({ patientId: row.patientId, alertType: 'alert' })}
+                            >
+                              {row.alert} Alerts
+                            </button>
+                          )}
+
+                          {row.technician > 0 && (
+                            <button
+                              className="px-3 py-2 rounded text-white text-sm font-semibold bg-purple-500 hover:bg-purple-600"
+                              onClick={() => onAlertClick && onAlertClick({ patientId: row.patientId, alertType: 'technician' })}
+                            >
+                              {row.technician} Technician
+                            </button>
+                          )}
+
+                          {row.total === 0 && (
+                            <span className="px-3 py-2 rounded text-white text-sm font-semibold bg-gray-400">
+                              0 alerts
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : (
-          <div className="alerts-panel__list">
-            {filteredAlerts.map((alert, idx) => (
-              <AlertItem
-                key={alert.id || idx}
-                alert={alert}
-                onClick={onAlertClick}
-              />
-            ))}
-          </div>
+          // List View
+          filteredAlerts.length === 0 ? (
+            <div className="alerts-panel__empty">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.35">
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M13.73 21a2 2 0 01-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <Text color="muted" size="sm">No alerts to show</Text>
+            </div>
+          ) : (
+            <div className="alerts-panel__list">
+              {filteredAlerts.map((alert, idx) => (
+                <AlertItem
+                  key={alert.id || idx}
+                  alert={alert}
+                  onClick={onAlertClick}
+                />
+              ))}
+            </div>
+          )
         )}
       </CardBody>
     </Card>
@@ -212,6 +358,7 @@ AlertsPanel.propTypes = {
   onAlertClick: PropTypes.func,
   showSendEmails: PropTypes.bool,
   showRoleTabs: PropTypes.bool,
+  showGridView: PropTypes.bool,
   maxHeight: PropTypes.string,
   className: PropTypes.string,
 };

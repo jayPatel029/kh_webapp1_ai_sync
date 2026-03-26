@@ -83,6 +83,61 @@ const getSuperAdminAlerts = async (adminId) => {
   }
 };
 
+const getAlertsSortedByType = async () => {
+  try {
+    const response = await axiosInstance.get(`${server_url}/alerts`);
+    
+    if (!response.data || !Array.isArray(response.data)) {
+      console.warn("Invalid response format for alerts");
+      return { success: false, data: {}, message: "Invalid response format" };
+    }
+
+    const alerts = response.data;
+    
+    // Group alerts by type
+    const alertsByType = alerts.reduce((acc, alert) => {
+      const alertType = alert.type || "unknown";
+      
+      if (!acc[alertType]) {
+        acc[alertType] = [];
+      }
+      acc[alertType].push(alert);
+      
+      return acc;
+    }, {});
+
+    // Sort alerts within each type by date (newest first)
+    Object.keys(alertsByType).forEach((type) => {
+      alertsByType[type].sort((a, b) => {
+        const dateA = new Date(a.date || 0);
+        const dateB = new Date(b.date || 0);
+        return dateB - dateA;
+      });
+    });
+
+    // Create a summary with counts
+    const summary = Object.entries(alertsByType).map(([type, alerts]) => ({
+      type,
+      count: alerts.length,
+      alerts,
+    }));
+
+    // Sort summary by count (descending)
+    summary.sort((a, b) => b.count - a.count);
+
+    return {
+      success: true,
+      data: alertsByType,
+      summary,
+      totalAlerts: alerts.length,
+      alertTypes: Object.keys(alertsByType),
+    };
+  } catch (error) {
+    console.error("Error fetching alerts by type:", error);
+    return { success: false, error: error.message };
+  }
+};
+
 export {
   getTotalUsers,
   getUsersThisWeek,
@@ -91,4 +146,5 @@ export {
   getUsersThisWeekSub,
   sendAlertEmails,
   getSuperAdminAlerts,
+  getAlertsSortedByType,
 };

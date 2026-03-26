@@ -31,6 +31,7 @@ import {
   getSuperAdminAlerts,
   sendAlertEmails,
 } from '../../ApiCalls/adminDashApis';
+import PatientAlertsByType from '../PatientAlertsByType';
 import { getAlertByType } from '../../ApiCalls/alertsApis';
 import { getDoctorComments } from '../../ApiCalls/GetComments';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
@@ -451,12 +452,13 @@ const AdminDashboard = () => {
               Alerts
             </Heading>
             <div className="alerts-grid">
-              <AlertsPanel
+              {/* <AlertsPanel
                 title="Doctor Alerts"
                 alerts={doctorAlerts}
                 // onAlertClick={handleAlertClick}
                 showRoleTabs={false}
                 showSendEmails={true}
+                showGridView={true}
               />
               <AlertsPanel
                 title="Patients Alerts"
@@ -464,6 +466,11 @@ const AdminDashboard = () => {
                 // onAlertClick={handleAlertClick}
                 showRoleTabs={false}
                 showSendEmails={false}
+                showGridView={true}
+              /> */}
+              <PatientAlertsByType
+                title="Patient Alerts"
+                alerts={adminAlerts}
               />
             </div>
           </section>

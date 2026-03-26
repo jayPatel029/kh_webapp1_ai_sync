@@ -168,6 +168,7 @@ const DoctorDashboard = () => {
             onAlertClick={handleAlertClick}
             showSendEmails={false}
             showRoleTabs={false}
+            showGridView={true}
             maxHeight="480px"
           />
         </section>
