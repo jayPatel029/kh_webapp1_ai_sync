@@ -13,10 +13,14 @@ import { Button } from "../../component-library/primitives/Button";
 import { Input } from "../../component-library/primitives/Input";
 import { FormControl, FormLabel } from "../../component-library/primitives/FormControl";
 
+import getPatients from "../../ApiCalls/patientAPis";
+
+
 const NameModal = ({
   closeEditModal,
   onSuccess,
   initialData,
+  user_id,
   name: initialName,
   number: initialNumber,
   dob: initialDob,
@@ -32,9 +36,13 @@ const NameModal = ({
   const [patientState, setPatientState] = useState(initialState ?? initialData?.state ?? "");
   const [pincode, setPincode] = useState(initialPincode ?? initialData?.pincode ?? "");
 
+
+  // useEffect(() => {
+
+
   const handleUpdate = async () => {
     const updatedUserData = {
-      id: initialData.id,
+      id: user_id,
       name: name,
       number: number,
       dob: dob,

@@ -339,7 +339,7 @@ const Sidebar = ({ mobile = false }) => {
         {!isCollapsed && !mobile && (
           <IconButton variant="outline" size="sm" icon={<ArrowBack className="fill-white hover:fill-primaryDark" style={{ fill: "white" }} />} onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="hover:bg-primaryDark !hover:float-none  border-white  absolute right-0 mt-2  mr-2 " />
         )}
-        <SidebarHeader className={clsx('pt-6', isCollapsed && !mobile ? 'flex justify-center' : 'flex items-center gap-3')}>
+        <SidebarHeader className={clsx('pt-3', isCollapsed && !mobile ? 'flex justify-center' : 'flex items-center gap-3')}>
           <Link to={ROUTES.DASHBOARD} className={clsx('flex items-center transition-all', isCollapsed && !mobile ? 'justify-center' : 'gap-3')}>
 
             {/* <img
@@ -364,36 +364,34 @@ const Sidebar = ({ mobile = false }) => {
               'rounded-2xl flex flex-cols items-center transition-all',
               isCollapsed && !mobile
                 ? 'flex-col gap-1 px-1 py-1 justify-center'
-                : 'flex-col gap-4 px-3 py-3'
+                : 'flex-col gap-4 px-3'
             )}
           >
-            <div className={clsx(
+            {/* <div className={clsx(
               'rounded-full bg-transparent flex  items-center justify-center flex-shrink-0 transition-all ',
               isCollapsed && !mobile ? 'w-12 h-12' : 'w-14 h-14'
             )}>
-              {/* Figma-style silhouette: circle + rounded-rect torso */}
-              {/* <svg className={clsx('text-[#004c6d]', isCollapsed && !mobile ? 'w-7 h-7' : 'w-8 h-8')} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <g fill="currentColor">
-                  <circle cx="12" cy="7" r="3" />
-                  <path d="M7 18c0-2.8 3.1-5 5-5s5 2.2 5 5v1H7v-1z" />
-                </g>
-              </svg> */}
               <img
                 width={isCollapsed && !mobile ? 36 : 56}
                 height={isCollapsed && !mobile ? 36 : 56}
                 src={user?.profilePicture || Account}
                 alt="User Profile" />
-            </div>
-            {!isCollapsed && !mobile && (
+            </div> */}
+            {/* {!isCollapsed && !mobile && (
               <div className="flex flex-col justify-center min-w-0">
                 <span className="text-sm font-semibold truncate text-white">{user?.name || 'User'}</span>
               </div>
-            )}
-            {isCollapsed && !mobile && (
+            )} */}
+            {/* {isCollapsed && !mobile && (
               <div className="mt-1">
                 <span className="text-[11px] text-white text-center block">{user?.name || 'User'}</span>
               </div>
-            )}
+            )} */}
+
+              <img src={kifayti_logo} alt="kifayti health" className={clsx(
+                'object-cover transition-all rounded',
+                isCollapsed && !mobile ? 'w-10 h-10' : 'w-16 h-16'
+              )} />
           </div>
 
           <nav aria-label="Primary" className="flex-1">

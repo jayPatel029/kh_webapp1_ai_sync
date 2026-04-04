@@ -104,6 +104,15 @@ export const PatientProfileCard = ({
     }
   };
 
+  const hasAilment = (ailment) =>
+    mergedUserData?.ailments?.some((item) => String(item || '').toLowerCase() === String(ailment || '').toLowerCase());
+
+  const hasDialysisAilment = () =>
+    hasAilment('Hemo Dialysis') || hasAilment('Peritoneal Dialysis') || hasAilment('Dialysis');
+
+  const shouldShowGfrMetrics = () =>
+    hasAilment('CKD') && hasAilment('Diabetes') && hasAilment('BP');
+
   const infoItems = [
     { label: 'Name:', value: mergedUserData?.name },
     { label: 'Number:', value: mergedUserData?.number },
@@ -113,14 +122,14 @@ export const PatientProfileCard = ({
     { label: 'Address:', value: mergedUserData?.address },
     { label: 'State:', value: mergedUserData?.state },
     { label: 'Pincode:', value: mergedUserData?.pincode },
-    ...(mergedUserData?.ailments?.includes('CKD') ? [
+    ...(shouldShowGfrMetrics() ? [
       { label: 'eGFR:', value: mergedUserData?.eGFR || '-' },
       { label: 'GFR:', value: mergedUserData?.GFR || '-' }
     ] : []),
-    ...(mergedUserData?.ailments?.includes('Hemo Dialysis') ? [
+    ...(hasDialysisAilment() ? [
       { label: 'Dry Weight:', value: mergedUserData?.dry_weight || '-' }
     ] : []),
-    ...(mergedUserData?.ailments?.includes('CKD') ? [
+    ...(hasAilment('CKD') ? [
       { label: 'KFRE:', value: mergedUserData?.kfre ? `${(parseFloat(mergedUserData.kfre) * 100).toFixed(2)}%` : '-' }
     ] : [])
   ];

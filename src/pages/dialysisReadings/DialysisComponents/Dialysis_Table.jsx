@@ -57,7 +57,9 @@ export default function DialysisTableComponent({
       type: "all",
       payload: {
         id: item.id,
-        ailment: item.ailments?.map((x) => ({ value: x.id, label: x.name })) || [],
+        // MultiSelect expects an array of option values (strings), not objects.
+        // Pass the ailment ids as strings to match the MultiSelect value shape.
+        ailment: item.ailments?.map((x) => String(x.id)) || [],
         title: item.title,
         type: item.type,
         assign_range: item.assign_range,
@@ -65,7 +67,8 @@ export default function DialysisTableComponent({
         upper_assign_range: item.high_range,
         sendAlert: item.sendAlert ? 1 : 0,
         unit: item.unit,
-        isGraph: item.isGraph ? 1 : 0,
+        // support both backend field names: isGraph (camelCase) and is_graph (snake_case)
+        isGraph: item.isGraph !== undefined ? Number(item.isGraph) : (item.is_graph !== undefined ? Number(item.is_graph) : 0),
         alertTextDoc: item.alertTextDoc,
         condition: item.condition
       },
@@ -76,7 +79,8 @@ export default function DialysisTableComponent({
       item.dialysis_readings_translations.forEach((element) => {
         translationDict[element.language_id] = element.title;
       });
-      setTranslations(translationDict);
+      // Merge into parent translations so blank language entries are preserved
+      setTranslations((prev) => ({ ...prev, ...translationDict }));
     }
     setEditMode(true);
     setIsFormModalOpen?.(true);

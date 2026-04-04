@@ -81,7 +81,7 @@ export const PageHeader = ({
     if (hasAnyPermission(role, 'feedback')) {
       items.push({ id: 'patient-feedback', label: 'Patient Feedback', href: ROUTES.SUPPORT, icon: RateReviewIcon });
     }
-    items.push({ id: 'logs', label: 'Audit Logs', href: ROUTES.SETTINGS_LOGS, icon: HistoryIcon });
+    // items.push({ id: 'logs', label: 'Audit Logs', href: ROUTES.SETTINGS_LOGS, icon: HistoryIcon });
     return items;
   }, [role]);
 

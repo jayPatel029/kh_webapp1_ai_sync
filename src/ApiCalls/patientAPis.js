@@ -51,8 +51,9 @@ export async function getPatientByIdad(patientId) {
 
 export async function getPatientById(patientId) {
   try {
+    // Use the full patient endpoint to fetch complete patient data (name + details)
     const response = await axiosInstance.get(
-      server_url + "/patient" + "/getName/" + patientId
+      server_url + "/patient" + "/getPatient/" + patientId
     );
     return { success: true, data: response.data };
   } catch (error) {

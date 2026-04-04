@@ -184,7 +184,7 @@ function LanguageMaster() {
                       lang.language_name.toLowerCase().includes(searchTerm.toLowerCase())
                     ).length} Records Found
                   </span>
-                  {role.canEditLanguages && (
+                  {/* {role.canEditLanguages && ( */}
                     <Button
                       variant="solid"
                       onClick={() => {
@@ -194,7 +194,7 @@ function LanguageMaster() {
                     >
                       Add Language
                     </Button>
-                  )}
+                  {/* )} */}
                 </div>
               </div>
             </div>
@@ -220,17 +220,28 @@ function LanguageMaster() {
                 enableSearch={true}
                 renderSearchUI={false}
                 searchKeys={['language_name']}
-                onEdit={role.canEditLanguages ? (lang) => {
+                // onEdit={role.canEditLanguages ? (lang) => {
+                //   setEditID(lang.id);
+                //   setNewLanguage(lang.language_name);
+                //   setEditMode(true);
+                //   setIsFormModalOpen(true);
+                // } : null}
+                // onDelete={role.canDeleteLanguages ? (lang) => {
+                //   if (window.confirm(`Delete language "${lang.language_name}"?`)) {
+                //     removeLang(lang.id);
+                //   }
+                // } : null}
+                onEdit={(lang) => {
                   setEditID(lang.id);
                   setNewLanguage(lang.language_name);
                   setEditMode(true);
                   setIsFormModalOpen(true);
-                } : null}
-                onDelete={role.canDeleteLanguages ? (lang) => {
+                }}
+                onDelete={(lang) => {
                   if (window.confirm(`Delete language "${lang.language_name}"?`)) {
                     removeLang(lang.id);
                   }
-                } : null}
+                }}
                 emptyMessage="No languages found"
                 actionButtons={role.canEditLanguages || role.canDeleteLanguages}
               />

@@ -16,6 +16,8 @@ import { useIsMobile } from "../mobile/useIsMobile";
 import MobileTopBar from "../mobile/MobileTopBar";
 
 const Navbar = () => {
+    const role = localStorage.getItem("role");
+    const isDoctor = localStorage.getItem("isDoctor");
     const [uname, setUname] = useState("");
     const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
     const [dropdownVisible, setDDVisible] = useState(false);
@@ -78,16 +80,17 @@ const Navbar = () => {
     return (
         <>
             <Box className="sticky top-0 left-0 right-0  pr-8 pt-4  z-[50]">
-                <Flex align="center" justify="between" className="bg-white h-14 navbar-container px-4">
-                    <Flex align="center" gap={4}>
+                <Flex align="center" justify="between" className="bg-white h-14 navbar-container pl-4 ">
+                    <Flex align="center" className={isDoctor && role != "Admin" ? "pl-6" : "pl-2"} gap={4}>
                         {/* Left: logo + app name (full left) */}
                         <Link to="/dashboard" className="flex items-center gap-3">
-                            <img src={kifayti_logo} alt="Kifayti logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-                            <span className="text-lg font-semibold text-[#004c6d]">Kifayti Health</span>
+                            {isDoctor && role != "Admin" ? <img src={kifayti_logo} alt="Kifayti logo" style={{ width: 36, height: 36, objectFit: 'contain' }} /> : null}
+                            {/* <img src={kifayti_logo} alt="Kifayti logo" style={{ width: 36, height: 36, objectFit: 'contain' }} /> */}
+                            <span className="text-lg font-semibold text-[#004c6d]">Welcome to Kifayti Health</span>
                         </Link>
                     </Flex>
 
-                    <Flex align="center" gap={4}>
+                    <Flex align="center" justify="end" gap={4}>
                         {isCollapsed && (<IconButton variant="outline" icon={<ArrowBack className="rotate-180" />} onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} />)}
                         <Text className="text-base text-dark hidden md:inline">{uname || 'User'}</Text>
                         <Box className="relative" ref={ddRef}>

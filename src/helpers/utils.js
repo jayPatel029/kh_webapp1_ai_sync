@@ -58,3 +58,5 @@ export const calculateAge = (dob) => {
 
   return age;
 };
+
+export const sleep = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms));

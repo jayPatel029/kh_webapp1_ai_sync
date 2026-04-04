@@ -19,6 +19,7 @@ import { useMobileNavItems } from '../hooks/useMobileNavItems';
 import { useSelector } from 'react-redux';
 
 const MainLayout = () => {
+    
     const location = useLocation();
     const { isMobile } = useIsMobile();
     const mobileNavItems = useMobileNavItems();
@@ -94,7 +95,7 @@ const MainLayout = () => {
                 {showSidebar && isMobile && <MobileTopBar />}
 
                 {/* Page content - rendered by nested routes */}
-                <Box className={showSidebar ? (isMobile ? "p-0 pt-0 pb-20" : "p-4 md:p-6") : ""}>
+                <Box className={showSidebar ? (isMobile ? "p-0 pt-0 pb-20" : `md:p-6 ${isDoctor ? 'md:pr-4' : 'md:pr-8'}`) : "p-0"}>
                     <Outlet />
                 </Box>
             </Box>

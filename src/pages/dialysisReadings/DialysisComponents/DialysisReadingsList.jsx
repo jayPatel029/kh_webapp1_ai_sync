@@ -123,7 +123,7 @@ function DialysisReadingsList() {
       assign_range: newReading.assign_range,
       low_range: newReading.lower_assign_range,
       high_range: newReading.upper_assign_range,
-      isGraph: newReading.isGraph,
+      isGraph: Number(newReading.isGraph),
       readingsTranslations: translations,
       alertTextDoc: newReading.alertTextDoc,
       unit: newReading.unit,
@@ -250,7 +250,8 @@ function DialysisReadingsList() {
           >
             {ailments.map((ailment, index) => {
               return (
-                <option key={index} value={ailment.id}>
+                // Ensure option values are strings so they match the MultiSelect value array
+                <option key={index} value={String(ailment.id)}>
                   {ailment.name}
                 </option>
               );
@@ -357,20 +358,21 @@ function DialysisReadingsList() {
         </FormControl>
 
         {["Int", "Decimal"].includes(newReading.type) && (
-          <FormControl>
-            <FormLabel>Has Range</FormLabel>
-            <Select
-              onChange={(event) => {
-                newReadingDsipatch({
-                  type: "assign_range",
-                  payload: event.target.value,
-                });
-              }}
-            >
-              <option value="no">No</option>
-              <option value="yes">Yes</option>
-            </Select>
-          </FormControl>
+            <FormControl>
+              <FormLabel>Has Range</FormLabel>
+              <Select
+                value={newReading.assign_range}
+                onChange={(event) => {
+                  newReadingDsipatch({
+                    type: "assign_range",
+                    payload: event.target.value,
+                  });
+                }}
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </Select>
+            </FormControl>
         )}
 
         {["Int", "Decimal"].includes(newReading.type) &&
@@ -409,10 +411,12 @@ function DialysisReadingsList() {
             <FormControl>
               <FormLabel>Is Graph</FormLabel>
               <Select
+                value={newReading.isGraph}
                 onChange={(event) => {
+                  // store numeric 0/1 for isGraph
                   newReadingDsipatch({
                     type: "isGraph",
-                    payload: event.target.value,
+                    payload: Number(event.target.value),
                   });
                 }}
               >

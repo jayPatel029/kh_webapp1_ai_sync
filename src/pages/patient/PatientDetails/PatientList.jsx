@@ -18,6 +18,7 @@ import { ROUTES } from '../../../routes/routeConstants';
 import {
   Flex,
 } from '../../../component-library/layout/Layout';
+import { isAdminRole } from '../../../helpers/permissions';
 import {
   Button
 } from '../../../component-library/primitives/Button';
@@ -33,6 +34,7 @@ import PlusIcon from '../../../assets/icons/plus.svg';
 import DefaultAvatarFemale from '../../../assets/default-avatar-female.png';
 import DefaultAvatarMale from '../../../assets/default-avatar-male.png';
 import DefaultAvatar from '../../../assets/default-avatar.png';
+import Edit  from "../../../assets/Edit.svg"; // Assuming you have an Edit icon in your assets
 
 
 const PatientList = ({ data, onAddClick }) => {
@@ -53,6 +55,8 @@ const PatientList = ({ data, onAddClick }) => {
   const [currentTeamMembers, setCurrentTeamMembers] = useState([]);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedHospital, setSelectedHospital] = useState('');
+  const [hospitalOptions, setHospitalOptions] = useState([]);
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamActionLoading, setTeamActionLoading] = useState(false);
   const [assignedDoctorsByPatient, setAssignedDoctorsByPatient] = useState({});
@@ -105,6 +109,17 @@ const PatientList = ({ data, onAddClick }) => {
     return member?.name || member?.firstname || member?.email || `#${member?.id || '-'}`;
   };
 
+  const getMemberRole = (member) => {
+    // Try common fields that may contain a role/designation
+    return (
+      member?.role || member?.designation || member?.role_name || member?.user_role || member?.speciality || member?.specialization || null
+    );
+  };
+
+  const getMemberHospital = (member) => {
+    return member?.practicingAt || member?.institute || member?.hospital || member?.facility || '';
+  };
+
   const getEntityId = (member, type) => {
     if (type === 'doctor') return member?.doctor_id || member?.id;
     return member?.admin_id || member?.id;
@@ -122,8 +137,18 @@ const PatientList = ({ data, onAddClick }) => {
           getAssignedDoctorData(patientId),
           getDoctors(),
         ]);
+        const doctors = getCollection(allDoctorsRes);
+        const hospitals = Array.from(
+          new Set(
+            doctors
+              .map((doc) => doc?.practicingAt || doc?.institute || doc?.hospital || '')
+              .filter(Boolean)
+          )
+        );
         setCurrentTeamMembers(getCollection(assignedRes));
-        setAvailableUsers(getCollection(allDoctorsRes));
+        setAvailableUsers(doctors);
+        setHospitalOptions(hospitals);
+        setSelectedHospital('');
       } else {
         const [assignedRes, allAdminsRes] = await Promise.all([
           getAssignedAdminData(patientId),
@@ -131,6 +156,8 @@ const PatientList = ({ data, onAddClick }) => {
         ]);
         setCurrentTeamMembers(getCollection(assignedRes));
         setAvailableUsers(getCollection(allAdminsRes));
+        setHospitalOptions([]);
+        setSelectedHospital('');
       }
       setError(null);
     } catch (err) {
@@ -144,6 +171,7 @@ const PatientList = ({ data, onAddClick }) => {
   const openTeamModal = async (patient, type, event) => {
     event?.stopPropagation?.();
     setSelectedUserId('');
+    setSelectedHospital('');
     setTeamModal({ isOpen: true, type, patient });
     await loadTeamModalData(patient.id, type);
   };
@@ -151,8 +179,10 @@ const PatientList = ({ data, onAddClick }) => {
   const closeTeamModal = () => {
     setTeamModal({ isOpen: false, type: null, patient: null });
     setSelectedUserId('');
+    setSelectedHospital('');
     setCurrentTeamMembers([]);
     setAvailableUsers([]);
+    setHospitalOptions([]);
   };
 
   const handleAssignMember = async () => {
@@ -247,7 +277,10 @@ const PatientList = ({ data, onAddClick }) => {
   }, [patients, searchTerm]);
 
   // prepare columns for unified table (desktop + mobile card support)
-  const columns = useMemo(() => [
+  const columns = useMemo(() => {
+    const isAdmin = isAdminRole(role?.role_name);
+
+    const cols = [
     { key: 'profile', label: 'Profile', type: 'image', width: '111px', justifyContent: 'start' },
     { key: 'name', label: 'Name', type: 'text', width: '107px' },
     { key: 'gender', label: 'Gender', type: 'text', width: '90px' },
@@ -272,61 +305,104 @@ const PatientList = ({ data, onAddClick }) => {
       width: '210px',
       render: (row) => {
         const doctors = assignedDoctorsByPatient[row.id] || [];
-        const doctorNames = doctors.map(doc => getDisplayName(doc)).join(', ');
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {doctors.length > 0 && (
-              <div style={{ fontSize: '12px', color: '#4b5563' }}>
-                {doctorNames}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center' }}>
+            <div style={{ fontSize: '12px', color: '#4b5563' }}>
+              {doctors.length > 0 ? (
+                doctors.map((doc, i) => {
+                  const roleLabel = getMemberRole(doc);
+                  return (
+                    <div key={getEntityId(doc, 'doctor') || i}>
+                      {getDisplayName(doc)}{roleLabel ? ` (${roleLabel})` : ''}
+                    </div>
+                  );
+                })
+              ) : (
+                <span className="text-gray-500">-</span>
+              )}
+            </div>
+
+            {isAdmin && (
+              <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                <Button
+                  variant="outline"
+                  onClick={(e) => openTeamModal(row, 'doctor', e)}
+                  style={{
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    padding: '6px 8px',
+                    border: '0px',
+                    minWidth: '34px',
+                    height: '34px',
+                    alignSelf: 'center',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0)',
+                  }}
+                  aria-label="Manage Doctors"
+                >
+                  <img src={Edit} alt="Manage" style={{ width: '22px', height: '22px' }} />
+                </Button>
               </div>
             )}
-            <Button
-              variant="outline"
-              onClick={(e) => openTeamModal(row, 'doctor', e)}
-              style={{
-                borderRadius: '8px',
-                fontSize: '12px',
-                padding: '6px 10px',
-              }}
-            >
-              Manage Doctors
-            </Button>
           </div>
         );
       },
     },
-    {
-      key: 'admin',
-      label: 'Assigned To',
-      type: 'custom',
-      width: '210px',
-      render: (row) => {
-        const admins = assignedAdminsByPatient[row.id] || [];
-        const adminNames = admins.map(admin => getDisplayName(admin)).join(', ');
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {admins.length > 0 && (
+
+    // Only show assigned admins column to admin users
+    ...(isAdmin ? [
+      {
+        key: 'admin',
+        label: 'Assigned To',
+        type: 'custom',
+        width: '210px',
+        render: (row) => {
+          const admins = assignedAdminsByPatient[row.id] || [];
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center' }}>
               <div style={{ fontSize: '12px', color: '#4b5563' }}>
-                {adminNames}
+                {admins.length > 0 ? (
+                  admins.map((admin, i) => {
+                    const roleLabel = getMemberRole(admin);
+                    return (
+                      <div key={getEntityId(admin, 'admin') || i}>
+                        {getDisplayName(admin)}{roleLabel ? ` (${roleLabel})` : ''}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <span className="text-gray-500">-</span>
+                )}
               </div>
-            )}
-            <Button
-              variant="outline"
-              onClick={(e) => openTeamModal(row, 'admin', e)}
-              style={{
-                borderRadius: '8px',
-                fontSize: '12px',
-                padding: '6px 10px',
-              }}
-            >
-              Manage Admins
-            </Button>
-          </div>
-        );
-      },
-    },
+
+              <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                <Button
+                  variant="outline"
+                  onClick={(e) => openTeamModal(row, 'admin', e)}
+                  style={{
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    padding: '6px 8px',
+                    border: '0px',
+                    minWidth: '34px',
+                    height: '34px',
+                    alignSelf: 'center',
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0)',
+                  }}
+                  aria-label="Manage Admins"
+                >
+                  <img src={Edit} alt="Manage" style={{ width: '22px', height: '22px' }} />
+                </Button>
+              </div>
+            </div>
+          );
+        },
+      }
+    ] : []),
     { key: 'actions', label: 'Actions', type: 'actions', width: '90px' },
-  ], [assignedDoctorsByPatient, assignedAdminsByPatient]);
+    ];
+
+    return cols;
+  }, [assignedDoctorsByPatient, assignedAdminsByPatient, role?.role_name]);
 
   // Profile Image or default with gender-based avatar fallback
   const getProfileImageUrl = (photoUrl, gender) => {
@@ -585,36 +661,108 @@ const PatientList = ({ data, onAddClick }) => {
           ) : (
             <div>
               <div className="mb-4">
-                <label htmlFor="team-member-select" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
-                  Select {teamModal.type === 'doctor' ? 'Doctor' : 'Admin'}
-                </label>
-                <select
-                  id="team-member-select"
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  style={{
-                    width: '100%',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    padding: '10px 12px',
-                    outline: 'none',
-                  }}
-                >
-                  <option value="">Select...</option>
-                  {availableUsers
-                    .filter((candidate) => {
-                      const candidateId = String(getEntityId(candidate, teamModal.type));
-                      return !currentTeamMembers.some((member) => String(getEntityId(member, teamModal.type)) === candidateId);
-                    })
-                    .map((candidate) => {
-                      const candidateId = getEntityId(candidate, teamModal.type);
-                      return (
-                        <option key={candidateId} value={candidateId}>
-                          {getDisplayName(candidate)}
+                {teamModal.type === 'doctor' ? (
+                  <>
+                    <label htmlFor="hospital-select" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+                      Select Hospital
+                    </label>
+                    <select
+                      id="hospital-select"
+                      value={selectedHospital}
+                      onChange={(e) => {
+                        setSelectedHospital(e.target.value);
+                        setSelectedUserId('');
+                      }}
+                      style={{
+                        width: '100%',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        outline: 'none',
+                        marginBottom: '12px',
+                      }}
+                    >
+                      <option value="">Select hospital...</option>
+                      {hospitalOptions.map((hospital) => (
+                        <option key={hospital} value={hospital}>
+                          {hospital}
                         </option>
-                      );
-                    })}
-                </select>
+                      ))}
+                    </select>
+
+                    <label htmlFor="team-member-select" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+                      Select Medical Staff
+                    </label>
+                    <select
+                      id="team-member-select"
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      disabled={!selectedHospital}
+                      style={{
+                        width: '100%',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        outline: 'none',
+                      }}
+                    >
+                      <option value="">Select...</option>
+                      {availableUsers
+                        .filter((candidate) => {
+                          const candidateId = String(getEntityId(candidate, teamModal.type));
+                          const candidateHospital = getMemberHospital(candidate);
+                          return (
+                            candidateHospital === selectedHospital &&
+                            !currentTeamMembers.some((member) => String(getEntityId(member, teamModal.type)) === candidateId)
+                          );
+                        })
+                        .map((candidate) => {
+                          const candidateId = getEntityId(candidate, teamModal.type);
+                          const hospitalLabel = getMemberHospital(candidate);
+                          const roleLabel = getMemberRole(candidate);
+                          return (
+                            <option key={candidateId} value={candidateId}>
+                              {getDisplayName(candidate)}{hospitalLabel ? ` — ${hospitalLabel}` : ''}{roleLabel ? ` (${roleLabel})` : ''}
+                            </option>
+                          );
+                        })}
+                    </select>
+                  </>
+                ) : (
+                  <>
+                    <label htmlFor="team-member-select" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+                      Select Admin
+                    </label>
+                    <select
+                      id="team-member-select"
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      style={{
+                        width: '100%',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        outline: 'none',
+                      }}
+                    >
+                      <option value="">Select...</option>
+                      {availableUsers
+                        .filter((candidate) => {
+                          const candidateId = String(getEntityId(candidate, teamModal.type));
+                          return !currentTeamMembers.some((member) => String(getEntityId(member, teamModal.type)) === candidateId);
+                        })
+                        .map((candidate) => {
+                          const candidateId = getEntityId(candidate, teamModal.type);
+                          const roleLabel = getMemberRole(candidate);
+                          return (
+                            <option key={candidateId} value={candidateId}>
+                              {getDisplayName(candidate)}{roleLabel ? ` (${roleLabel})` : ''}
+                            </option>
+                          );
+                        })}
+                    </select>
+                  </>
+                )}
               </div>
 
               <div>
@@ -626,28 +774,41 @@ const PatientList = ({ data, onAddClick }) => {
                   <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No users assigned yet.</p>
                 ) : (
                   <div style={{ display: 'grid', gap: '8px' }}>
-                    {currentTeamMembers.map((member, idx) => (
-                      <Flex
-                        key={`${getAssignmentId(member) || idx}`}
-                        justify="between"
-                        align="center"
-                        style={{
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          padding: '8px 10px',
-                        }}
-                      >
-                        <span>{getDisplayName(member)}</span>
-                        <Button
-                          variant="danger"
-                          onClick={() => handleRemoveMember(member)}
-                          isDisabled={teamActionLoading}
-                          style={{ padding: '4px 10px', fontSize: '12px' }}
+                    {currentTeamMembers.map((member, idx) => {
+                      const roleLabel = getMemberRole(member);
+                      const hospitalLabel = getMemberHospital(member);
+                      return (
+                        <Flex
+                          key={`${getAssignmentId(member) || idx}`}
+                          justify="between"
+                          align="center"
+                          style={{
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            padding: '8px 10px',
+                          }}
                         >
-                          Remove
-                        </Button>
-                      </Flex>
-                    ))}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span>{getDisplayName(member)}</span>
+                            {(hospitalLabel || roleLabel) && (
+                              <span style={{ fontSize: '12px', color: '#6b7280' }}>
+                                {hospitalLabel ? `${hospitalLabel}` : ''}
+                                {hospitalLabel && roleLabel ? ' • ' : ''}
+                                {roleLabel ? `${roleLabel}` : ''}
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            variant="danger"
+                            onClick={() => handleRemoveMember(member)}
+                            isDisabled={teamActionLoading}
+                            style={{ padding: '4px 10px', fontSize: '12px' }}
+                          >
+                            Remove
+                          </Button>
+                        </Flex>
+                      );
+                    })}
                   </div>
                 )}
               </div>

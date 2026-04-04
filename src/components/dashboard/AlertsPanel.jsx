@@ -16,7 +16,7 @@ import { Spinner } from '../../component-library/feedback/Spinner';
 import { Skeleton } from '../../component-library/feedback/Skeleton';
 
 import AlertItem from './AlertItem';
-import PatientAlertsModal from './PatientAlertsModal';
+// import PatientAlertsModal from './PatientAlertsModal';
 import { sendAlertEmails } from '../../hooks/useDashboardData';import ApprovePrescriptionModal from '../modals/ApprovePrescriptionModal';
 // ─── Icons ──────────────────────────────────────────────────
 
@@ -302,14 +302,14 @@ const AlertsPanel = ({
                             </button>
                           )}
 
-                          {/* {row.alert > 0 && ( */}
+                          {row.alert > 0 && (
                             <button
                               className="px-3 py-2 rounded text-white text-sm font-semibold bg-red-500 hover:bg-red-600"
                               onClick={() => onAlertClick && onAlertClick({ patientId: row.patientId, alertType: 'alert' })}
                             >
                               {row.alert} Alerts
                             </button>
-                          {/* )} */}
+                          )} 
 
                           {row.technician > 0 && (
                             <button
@@ -368,7 +368,7 @@ const AlertsPanel = ({
       </CardBody>
 
       {/* Patient Alerts Modal */}
-      {selectedModalPatient && (
+      {/* {selectedModalPatient && (
         <PatientAlertsModal
           patient={selectedModalPatient}
           alerts={filteredAlerts.filter(a => (a.patientId ?? a.pid ?? a?.patient?.id ?? 'unknown') === selectedModalPatient.patientId)}
@@ -386,7 +386,7 @@ const AlertsPanel = ({
             setSelectedModalPatient(null);
           }}
         />
-      )}
+      )} */}
     </Card>
 
     <ApprovePrescriptionModal 

@@ -94,6 +94,16 @@ function DailyForm() {
     fetchData();
   }, [refreshKey]);
 
+  useEffect(() => {
+    if (!editMode && ailments.length > 0 && (!newReading.ailment || newReading.ailment.length === 0)) {
+      newReadingDsipatch({
+        type: "ailment",
+        // ensure we set string ids to match MultiSelect value shape
+        payload: [String(ailments[0].id)],
+      });
+    }
+  }, [ailments, editMode, newReading.ailment]);
+
   function validateForm() {
     const errors = {};
     if (newReading.title.trim() === "") errors.title = true;
@@ -121,7 +131,7 @@ function DailyForm() {
       assign_range: newReading.assign_range,
       low_range: newReading.lower_assign_range,
       high_range: newReading.upper_assign_range,
-      isGraph: newReading.isGraph,
+      isGraph: Number(newReading.isGraph),
       unit: newReading.unit,
       readingsTranslations: translations,
       alertTextDoc: newReading.alertTextDoc,
@@ -252,7 +262,8 @@ function DailyForm() {
             }}
           >
             {ailments.map((ailment) => (
-              <option key={ailment.id} value={ailment.id}>
+              // Ensure option values are strings so they match the MultiSelect value array
+              <option key={ailment.id} value={String(ailment.id)}>
                 {ailment.name}
               </option>
             ))}
@@ -359,20 +370,21 @@ function DailyForm() {
         </FormControl>
 
         {["Int", "Decimal"].includes(newReading.type) && (
-          <FormControl>
-            <FormLabel>Has Range</FormLabel>
-            <Select
-              onChange={(event) => {
-                newReadingDsipatch({
-                  type: "assign_range",
-                  payload: event.target.value,
-                });
-              }}
-            >
-              <option value="no">No</option>
-              <option value="yes">Yes</option>
-            </Select>
-          </FormControl>
+            <FormControl>
+              <FormLabel>Has Range</FormLabel>
+              <Select
+                value={newReading.assign_range}
+                onChange={(event) => {
+                  newReadingDsipatch({
+                    type: "assign_range",
+                    payload: event.target.value,
+                  });
+                }}
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </Select>
+            </FormControl>
         )}
         {["Int", "Decimal"].includes(newReading.type) &&
           newReading.assign_range === "yes" ? (
@@ -410,10 +422,12 @@ function DailyForm() {
             <FormControl>
               <FormLabel>Is Graph</FormLabel>
               <Select
+                value={newReading.isGraph}
                 onChange={(event) => {
+                  // store numeric 0/1 for isGraph
                   newReadingDsipatch({
                     type: "isGraph",
-                    payload: event.target.value,
+                    payload: Number(event.target.value),
                   });
                 }}
               >

@@ -210,7 +210,7 @@ const AlertModal = ({ closeModal }) => {
                   View Profile
                 </div>
                 <div
-                  className="rounded-lg text-white bg-red-900 border-red-900 w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-red-600 hover:text-white transition duration-300 ease-in-out transform hover:scale-105"
+                  className="rounded-lg text-white bg-red-600 border-red-900 w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-red-600 hover:text-white transition duration-300 ease-in-out transform hover:scale-105"
                   onClick={consultDoctor}
                 >
                   Consult Doctor

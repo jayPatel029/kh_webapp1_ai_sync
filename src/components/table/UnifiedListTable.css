@@ -139,7 +139,7 @@
 /* ===================== TABLE CELLS ===================== */
 .list-table__cell {
   padding: 15px 20px;
-  vertical-align: center;
+  vertical-align: middle;
   text-align: left;
   /* height: 60px; */
   overflow: hidden;
@@ -213,7 +213,7 @@
 /* ===================== ACTIONS CELL ===================== */
 .list-table__actions-cell {
   display: flex;
-  align-items: start;
+  align-items: center;
   justify-content: flex-start;
   gap: 8px;
 }
@@ -221,13 +221,13 @@
 .list-table__actions-group {
   display: flex;
   gap: 8px;
-  align-items: start;
+  align-items: center;
 }
 
 .list-table__action-btn {
   display: inline-flex;
-  align-items: start;
-  justify-content: start;
+  align-items: center;
+  justify-content: center;
   width: 36px;
   height: 36px;
   padding: 0;

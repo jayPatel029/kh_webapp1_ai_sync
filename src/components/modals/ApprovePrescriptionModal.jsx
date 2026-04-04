@@ -148,7 +148,7 @@ const ApprovePrescriptionModal = ({ isOpen, onClose, patientName, patientId }) =
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="md" isCentered>
+    <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
       <ModalOverlay />
       <ModalContent className="bg-white rounded-xl shadow-xl">
         
@@ -172,232 +172,7 @@ const ApprovePrescriptionModal = ({ isOpen, onClose, patientName, patientId }) =
               <Spinner size="md" />
             </div>
           ) : (prescriptions && prescriptions.length > 0) || (alarms && alarms.some(a => a.type === 'Dialysis')) ? (
-            <div className="space-y-6">
-              {/* Medications/Prescriptions Section */}
-              {prescriptions && prescriptions.length > 0 && (
-                <div className="space-y-4">
-                  {prescriptions.map((prescription, idx) => {
-                // Handle both object and nested medications array
-                const medications = prescription.medications ? (Array.isArray(prescription.medications) ? prescription.medications : [prescription.medications]) : [prescription];
-                
-                return (
-                  <div key={prescription._id || prescription.id || idx} className="border border-gray-200 rounded-lg p-5 bg-white shadow-sm">
-                    
-                    {/* Prescription Header with Date and Doctor */}
-                    <div className="grid grid-cols-[130px_1fr] gap-4 items-start mb-4 pb-4 border-b border-gray-300">
-                      <Text as="label" size="sm" className="font-medium text-gray-400">
-                        Prescription date
-                      </Text>
-                      <div>
-                        <Text size="sm" weight="semibold" className="text-gray-800">
-                          {prescription.date ? new Date(prescription.date).toLocaleDateString() : 'N/A'}
-                        </Text>
-                        {prescription.doctorName && (
-                          <Text size="xs" className="text-gray-600 mt-1">
-                            by {prescription.doctorName}
-                          </Text>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* All Medications */}
-                    {/* <div className="space-y-4">
-                      {medications.map((med, medIdx) => (
-                        <div key={`${idx}-${medIdx}`} className="border-l-4 border-blue-400 pl-4">
-                          {/* Medication Name */}
-                          <div className="grid grid-cols-[130px_1fr] gap-4 items-center mb-3">
-                            <Text as="label" size="sm" className="font-medium text-gray-400">
-                              Medication
-                            </Text>
-                            <div className="flex justify-between items-center">
-                              <Text size="sm" weight="semibold" className="text-gray-800">
-                                {med.medication || med.medicineName || 'Unknown Medication'}
-                              </Text>
-                              <button 
-                                className="text-red-500 hover:text-red-600 transition p-1"
-                                onClick={() => handleOpenDisapprovalModal(med, med._id || med.id)}
-                                disabled={disapprovingLoading}
-                                title="Reject medication"
-                              >
-                                {disapprovingLoading && medicationBeingDisapproved?.id === (med._id || med.id) ? (
-                                  <Spinner size="xs" />
-                                ) : (
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zm2.46-7.12l1.41-1.41L12 12.59l2.12-2.12 1.41 1.41L13.41 14l2.12 2.12-1.41 1.41L12 15.41l-2.12 2.12-1.41-1.41L10.59 14l-2.12-2.12zM15.5 4l-1-1h-5l-1 1H5v2h14V4z"/>
-                                  </svg>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Strength/Dosage */}
-                          {(med.strength || med.dosage) && (
-                            <div className="grid grid-cols-[130px_1fr] gap-4 items-start mb-3">
-                              <Text as="label" size="sm" className="font-medium text-gray-400">
-                                Strength
-                              </Text>
-                              <Text size="sm" className="text-gray-800">
-                                {med.strength || med.dosage}
-                              </Text>
-                            </div>
-                          )}
-
-                          {/* Frequency */}
-                          {(med.frequency || med.frequencyText) && (
-                            <div className="grid grid-cols-[130px_1fr] gap-4 items-start mb-3">
-                              <Text as="label" size="sm" className="font-medium text-gray-400">
-                                Frequency
-                              </Text>
-                              <Text size="sm" weight="semibold" className="text-gray-800">
-                                {med.frequency || med.frequencyText}
-                              </Text>
-                            </div>
-                          )}
-
-                          {/* Timings */}
-                          {med.timings && med.timings.length > 0 && (
-                            <div className="grid grid-cols-[130px_1fr] gap-4 items-start mb-3">
-                              <Text as="label" size="sm" className="font-medium text-gray-400">
-                                Timings
-                              </Text>
-                              <div className="text-sm text-gray-600 space-y-1">
-                                {med.timings.map((timing, tIdx) => (
-                                  <Text key={tIdx} size="sm" className="text-gray-600">
-                                    {timing.time || timing.timeOfDay} - {timing.dosage || '1'} {timing.unit || 'Tablet'}
-                                  </Text>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Days/Duration */}
-                          {(med.days || med.duration) && (
-                            <div className="grid grid-cols-[130px_1fr] gap-4 items-start mb-3">
-                              <Text as="label" size="sm" className="font-medium text-gray-400">
-                                {med.dayType || 'Duration'}
-                              </Text>
-                              <Text size="sm" className="text-gray-600">
-                                {med.days || med.duration}
-                              </Text>
-                            </div>
-                          )}
-
-                          {/* Instructions */}
-                          {(med.instructions || med.notes) && (
-                            <div className="grid grid-cols-[130px_1fr] gap-4 items-start mb-3">
-                              <Text as="label" size="sm" className="font-medium text-gray-400">
-                                Instructions
-                              </Text>
-                              <Text size="sm" className="text-gray-600 italic">
-                                {med.instructions || med.notes}
-                              </Text>
-                            </div>
-                          )}
-
-                          {/* Reactions/Warnings */}
-                          {(med.sideEffects || med.warnings) && (
-                            <div className="grid grid-cols-[130px_1fr] gap-4 items-start">
-                              <Text as="label" size="sm" className="font-medium text-orange-400">
-                                Warnings
-                              </Text>
-                              <Text size="sm" className="text-orange-600">
-                                {med.sideEffects || med.warnings}
-                              </Text>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div> */}
-
-                    {/* Related Alarms Section */}
-                    {(() => {
-                      const relatedAlarms = getAlarmsByPrescriptionId(prescription._id || prescription.id);
-                      return relatedAlarms && relatedAlarms.length > 0 ? (
-                        <div className="mt-4 pt-4 border-t border-orange-200 bg-orange-50 rounded-lg p-4">
-                          {/* <Heading as="h4" size="sm" className="text-orange-800 mb-3 flex items-center gap-2">
-                            <span className="text-lg">⚠️</span>
-                            Related Alarms ({relatedAlarms.length})
-                          </Heading> */}
-                          <div className="space-y-2">
-                            {relatedAlarms.map((alarm, alarmIdx) => (
-                              <div key={alarmIdx} className="bg-white rounded p-3 border border-orange-200">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <Text size="sm" weight="semibold" className="text-orange-900">
-                                      {alarm.type || alarm.alarmType || 'Alarm'}
-                                    </Text>
-                                    {alarm.message && (
-                                      <Text size="xs" className="text-orange-700 mt-1">
-                                        {alarm.message}
-                                      </Text>
-                                    )}
-                                    {alarm.description && (
-                                      <Text size="xs" className="text-orange-600 mt-1">
-                                        {alarm.description}
-                                      </Text>
-                                    )}
-                                    {alarm.createdAt && (
-                                      <Text size="xs" className="text-orange-500 mt-2">
-                                        {new Date(alarm.createdAt).toLocaleDateString()} {new Date(alarm.createdAt).toLocaleTimeString()}
-                                      </Text>
-                                    )}
-                                  </div>
-                                  <div className={`px-3 py-1 rounded text-xs font-semibold text-white flex-shrink-0 ${
-                                    alarm.status === 'Active' || alarm.status === 'Pending' ? 'bg-red-500' : 
-                                    alarm.status === 'Resolved' ? 'bg-green-500' : 'bg-gray-500'
-                                  }`}>
-                                    {alarm.status || 'Pending'}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null;
-                    })()}
-
-                    {/* Action Buttons */}
-                    <div className="pt-4 mt-4 border-t border-gray-200 flex items-center justify-between">
-                      <a href="#" className="text-blue-600 hover:underline text-sm font-medium decoration-2">
-                        View Prescription
-                      </a>
-                      <div className="flex gap-3">
-                        <button 
-                          className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center text-white transition disabled:opacity-50"
-                          onClick={() => handleOpenDisapprovalModal(prescription, prescription._id || prescription.id, true)}
-                          disabled={disapprovingLoading}
-                          title="Reject entire prescription"
-                        >
-                          {disapprovingLoading && medicationBeingDisapproved?.isFullPrescription ? (
-                            <Spinner size="xs" />
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          )}
-                        </button>
-                        <button 
-                          className="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center text-white transition disabled:opacity-50"
-                          onClick={() => handleApprovePrescription(prescription._id || prescription.id)}
-                          disabled={approving === prescription._id}
-                          title="Approve prescription"
-                        >
-                          {approving === prescription._id ? (
-                            <Spinner size="xs" />
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-                </div>
-              )}
-
+            <div className="space-y-2">
               {/* Alarms & Schedules Section */}
               {alarms && alarms.length > 0 && (
                 <div className="space-y-4 mt-6">
@@ -558,39 +333,43 @@ const ApprovePrescriptionModal = ({ isOpen, onClose, patientName, patientId }) =
 
                         {/* Action Buttons */}
                         <div className="pt-4 mt-4 border-t border-gray-200 flex items-center justify-between">
-                          <a href="#" className="text-blue-600 hover:underline text-sm font-medium decoration-2">
-                            View prescription
-                          </a>
-                          <div className="flex gap-3">
-                            <button 
-                              className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center text-white transition disabled:opacity-50"
-                              onClick={() => handleOpenDisapprovalModal(alarm, alarm.id, true)}
-                              disabled={disapprovingLoading}
-                              title="Reject schedule"
-                            >
-                              {disapprovingLoading && medicationBeingDisapproved?.id === alarm.id ? (
-                                <Spinner size="xs" />
-                              ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              )}
-                            </button>
-                            <button 
-                              className="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center text-white transition disabled:opacity-50"
-                              onClick={() => handleApprovePrescription(alarm.id)}
-                              disabled={approving === alarm.id}
-                              title="Approve schedule"
-                            >
-                              {approving === alarm.id ? (
-                                <Spinner size="xs" />
-                              ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </button>
-                          </div>
+                          {alarm.prescriptionId && (
+                            <a href="#" className="text-blue-600 hover:underline text-sm font-medium decoration-2">
+                              View prescription
+                            </a>
+                          )}
+                          {alarm.status !== 'Approved' && (
+                            <div className="flex gap-3">
+                              <button 
+                                className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center text-white transition disabled:opacity-50"
+                                onClick={() => handleOpenDisapprovalModal(alarm, alarm.id, true)}
+                                disabled={disapprovingLoading}
+                                title="Reject schedule"
+                              >
+                                {disapprovingLoading && medicationBeingDisapproved?.id === alarm.id ? (
+                                  <Spinner size="xs" />
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                )}
+                              </button>
+                              <button 
+                                className="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center text-white transition disabled:opacity-50"
+                                onClick={() => handleApprovePrescription(alarm.id)}
+                                disabled={approving === alarm.id}
+                                title="Approve schedule"
+                              >
+                                {approving === alarm.id ? (
+                                  <Spinner size="xs" />
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
