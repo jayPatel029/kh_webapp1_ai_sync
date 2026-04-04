@@ -722,6 +722,7 @@ function UserProfile() {
                   closeModal={closeLabReadingModal}
                   question={selectedReading.title}
                   question_id={selectedReading.id}
+                  user_id={userData.id}
                   onSuccess={handleUpdateSuccess}
                 />
               )}

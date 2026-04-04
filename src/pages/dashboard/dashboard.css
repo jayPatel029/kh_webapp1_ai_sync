@@ -373,7 +373,7 @@
 
 .alert-item:hover {
   background-color: rgba(50, 97, 125, 0.07);
-  margin: 0 calc(-1 * var(--space-3, 0.75rem));
+  margin: 0 calc(-1  var(--space-3, 0.75rem));
   padding-left: var(--space-3, 0.75rem);
   padding-right: var(--space-3, 0.75rem);
   border-radius: var(--radius-md, 8px);
@@ -381,7 +381,7 @@
 
 .alert-item--unread {
   background-color: var(--color-primary-50, #EEF2FF);
-  margin: 0 calc(-1 * var(--space-3, 0.75rem));
+  margin: 0 calc(-1  var(--space-3, 0.75rem));
   padding-left: var(--space-3, 0.75rem);
   padding-right: var(--space-3, 0.75rem);
   border-radius: var(--radius-md, 8px);

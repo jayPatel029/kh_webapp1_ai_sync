@@ -98,7 +98,7 @@ const UpdateRangeModel = ({
           </Heading>
           <VStack gap={3} align="stretch">
             <FormControl isRequired isInvalid={Boolean(fieldErrors.highRangeSys1)}>
-              <FormLabel className="text-orange-400">High Range 1 *</FormLabel>
+              <FormLabel className="text-orange-400">High Range 1 </FormLabel>
               <Input
                 isInvalid={Boolean(fieldErrors.highRangeSys1)}
                 type="text"
@@ -111,7 +111,7 @@ const UpdateRangeModel = ({
               />
             </FormControl>
             <FormControl isRequired isInvalid={Boolean(fieldErrors.lowRangeSys1)}>
-              <FormLabel className="text-orange-400">Low Range 1 *</FormLabel>
+              <FormLabel className="text-orange-400">Low Range 1 </FormLabel>
               <Input
                 isInvalid={Boolean(fieldErrors.lowRangeSys1)}
                 type="text"
@@ -124,7 +124,7 @@ const UpdateRangeModel = ({
               />
             </FormControl>
             <FormControl isRequired isInvalid={Boolean(fieldErrors.highRangeSys2)}>
-              <FormLabel className="text-red-600">High Range 2 *</FormLabel>
+              <FormLabel className="text-red-600">High Range 2 </FormLabel>
               <Input
                 isInvalid={Boolean(fieldErrors.highRangeSys2)}
                 type="text"
@@ -137,7 +137,7 @@ const UpdateRangeModel = ({
               />
             </FormControl>
             <FormControl isRequired isInvalid={Boolean(fieldErrors.lowRangeSys2)}>
-              <FormLabel className="text-red-600">Low Range 2 *</FormLabel>
+              <FormLabel className="text-red-600">Low Range 2 </FormLabel>
               <Input
                 isInvalid={Boolean(fieldErrors.lowRangeSys2)}
                 type="text"
@@ -158,7 +158,7 @@ const UpdateRangeModel = ({
           </Heading>
           <VStack gap={3} align="stretch">
             <FormControl isRequired isInvalid={Boolean(fieldErrors.highRangeDia1)}>
-              <FormLabel className="text-orange-400">High Range 1 *</FormLabel>
+              <FormLabel className="text-orange-400">High Range 1 </FormLabel>
               <Input
                 isInvalid={Boolean(fieldErrors.highRangeDia1)}
                 type="text"
@@ -171,7 +171,7 @@ const UpdateRangeModel = ({
               />
             </FormControl>
             <FormControl isRequired isInvalid={Boolean(fieldErrors.lowRangeDia1)}>
-              <FormLabel className="text-orange-400">Low Range 1 *</FormLabel>
+              <FormLabel className="text-orange-400">Low Range 1 </FormLabel>
               <Input
                 isInvalid={Boolean(fieldErrors.lowRangeDia1)}
                 type="text"
@@ -184,7 +184,7 @@ const UpdateRangeModel = ({
               />
             </FormControl>
             <FormControl isRequired isInvalid={Boolean(fieldErrors.highRangeDia2)}>
-              <FormLabel className="text-red-600">High Range 2 *</FormLabel>
+              <FormLabel className="text-red-600">High Range 2 </FormLabel>
               <Input
                 isInvalid={Boolean(fieldErrors.highRangeDia2)}
                 type="text"
@@ -197,7 +197,7 @@ const UpdateRangeModel = ({
               />
             </FormControl>
             <FormControl isRequired isInvalid={Boolean(fieldErrors.lowRangeDia2)}>
-              <FormLabel className="text-red-600">Low Range 2 *</FormLabel>
+              <FormLabel className="text-red-600">Low Range 2 </FormLabel>
               <Input
                 isInvalid={Boolean(fieldErrors.lowRangeDia2)}
                 type="text"

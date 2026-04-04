@@ -132,7 +132,8 @@ const ShowAlarms = () => {
 
   const fetchData = async (forceRefresh = false) => {
     try {
-      const result = await fetchWithCache(`alarms_${patientId}`, () => getAlarmByPatientId(patientId), { forceRefresh });
+      // const result = await fetchWithCache(`alarms_${patientId}`, () => getAlarmByPatientId(patientId), { forceRefresh });
+      const result = await getAlarmByPatientId(patientId);
       if (result.success) {
         setUserAlarmData(result.data.data || result.data || []);
         setDosesData(result.data.doses);

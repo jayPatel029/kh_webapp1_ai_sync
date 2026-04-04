@@ -151,7 +151,7 @@ function DialysisReadingsList() {
             payload: {},
           });
         } else {
-          setErrMsg("Error Creating Reading:" + response.data);
+          setErrMsg("Error Creating Reading:" + response.data.data);
           setSuccessful("");
         }
       } else {

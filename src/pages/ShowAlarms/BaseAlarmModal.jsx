@@ -436,7 +436,7 @@ const BaseAlarmModal = ({
         clearTimeout(fetchTimeoutRef.current);
       }
     };
-  }, [pid, isEdit, alarmData?.id, alarmData?.type, dosesData]);
+  }, [pid, alarmData?.id, alarmData?.type]);
   // When Prescription type is selected, ensure prescriptions are loaded and a selection is made
   useEffect(() => {
     if (selectedAlarmType !== "Prescription" || !pid) return;
@@ -494,7 +494,7 @@ const BaseAlarmModal = ({
     return Array.from(Array(parseInt(timesaday))).map((_, index) => (
       <React.Fragment key={index}>
         {selectTimings === "Monthly" && (
-          <FormControl isRequired>
+          <FormControl  className={selectedAlarmType === "Prescription" ? "mb-6" : ""} isRequired>
             <FormLabel>Date</FormLabel>
             <Select
               value={dateOfMonth[index] || ""}
@@ -519,8 +519,9 @@ const BaseAlarmModal = ({
           gap={4} 
           templateColumns={selectedAlarmType === "Prescription" ? "1fr 1fr 1fr" : "1fr"}
           w="100%"
+          className="mb-6"
         >
-          <FormControl isRequired>
+          <FormControl  className="mt-6" isRequired>
             <FormLabel>Time</FormLabel>
             <Input
               type="time"

@@ -76,7 +76,7 @@ const UpdateRangeModelDialysis = ({
     >
       <VStack gap={4} align="stretch">
         <FormControl isRequired isInvalid={Boolean(fieldErrors.highRange1)}>
-          <FormLabel className="text-orange-400">High Range 1 *</FormLabel>
+          <FormLabel className="text-orange-400">High Range 1 </FormLabel>
           <Input
             isInvalid={Boolean(fieldErrors.highRange1)}
             type="text"
@@ -89,7 +89,7 @@ const UpdateRangeModelDialysis = ({
           />
         </FormControl>
         <FormControl isRequired isInvalid={Boolean(fieldErrors.lowRange1)}>
-          <FormLabel className="text-red-600">Low Range 1 *</FormLabel>
+          <FormLabel className="text-red-600">Low Range 1 </FormLabel>
           <Input
             isInvalid={Boolean(fieldErrors.lowRange1)}
             type="text"
@@ -102,7 +102,7 @@ const UpdateRangeModelDialysis = ({
           />
         </FormControl>
         <FormControl isRequired isInvalid={Boolean(fieldErrors.highRange2)}>
-          <FormLabel className="text-red-600">High Range 2 *</FormLabel>
+          <FormLabel className="text-red-600">High Range 2 </FormLabel>
           <Input
             isInvalid={Boolean(fieldErrors.highRange2)}
             type="text"
@@ -115,7 +115,7 @@ const UpdateRangeModelDialysis = ({
           />
         </FormControl>
         <FormControl isRequired isInvalid={Boolean(fieldErrors.lowRange2)}>
-          <FormLabel className="text-orange-400">Low Range 2 *</FormLabel>
+          <FormLabel className="text-orange-400">Low Range 2 </FormLabel>
           <Input
             isInvalid={Boolean(fieldErrors.lowRange2)}
             type="text"
