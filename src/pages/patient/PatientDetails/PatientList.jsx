@@ -55,13 +55,45 @@ const PatientList = ({ data, onAddClick }) => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamActionLoading, setTeamActionLoading] = useState(false);
+  const [assignedDoctorsByPatient, setAssignedDoctorsByPatient] = useState({});
+  const [assignedAdminsByPatient, setAssignedAdminsByPatient] = useState({});
 
-  // Sync with prop data
+  // Sync with prop data and load assigned users for all patients
   useEffect(() => {
     if (data) {
       setPatients(data);
+      loadAssignedUsersForAllPatients(data);
     }
   }, [data]);
+
+  const loadAssignedUsersForAllPatients = async (patientList) => {
+    try {
+      const doctorsMap = {};
+      const adminsMap = {};
+
+      // Load assigned doctors and admins for all patients in parallel
+      const promises = patientList.map(async (patient) => {
+        try {
+          const [doctorsRes, adminsRes] = await Promise.all([
+            getAssignedDoctorData(patient.id),
+            getAssignedAdminData(patient.id),
+          ]);
+          doctorsMap[patient.id] = getCollection(doctorsRes);
+          adminsMap[patient.id] = getCollection(adminsRes);
+        } catch (err) {
+          console.error(`Error loading assigned users for patient ${patient.id}:`, err);
+          doctorsMap[patient.id] = [];
+          adminsMap[patient.id] = [];
+        }
+      });
+
+      await Promise.all(promises);
+      setAssignedDoctorsByPatient(doctorsMap);
+      setAssignedAdminsByPatient(adminsMap);
+    } catch (err) {
+      console.error('Error loading assigned users:', err);
+    }
+  };
 
   const getCollection = (res) => {
     if (Array.isArray(res?.data?.data)) return res.data.data;
@@ -135,6 +167,24 @@ const PatientList = ({ data, onAddClick }) => {
       }
       setSelectedUserId('');
       await loadTeamModalData(teamModal.patient.id, teamModal.type);
+      // Reload assigned users cache for this patient
+      try {
+        if (teamModal.type === 'doctor') {
+          const doctorsRes = await getAssignedDoctorData(teamModal.patient.id);
+          setAssignedDoctorsByPatient(prev => ({
+            ...prev,
+            [teamModal.patient.id]: getCollection(doctorsRes)
+          }));
+        } else {
+          const adminsRes = await getAssignedAdminData(teamModal.patient.id);
+          setAssignedAdminsByPatient(prev => ({
+            ...prev,
+            [teamModal.patient.id]: getCollection(adminsRes)
+          }));
+        }
+      } catch (cacheErr) {
+        console.error('Error updating cache:', cacheErr);
+      }
       setError(null);
     } catch (err) {
       console.error('Error assigning team member:', err);
@@ -156,6 +206,24 @@ const PatientList = ({ data, onAddClick }) => {
         await deleteAssignedAdmin(teamModal.patient.id, userId);
       }
       await loadTeamModalData(teamModal.patient.id, teamModal.type);
+      // Reload assigned users cache for this patient
+      try {
+        if (teamModal.type === 'doctor') {
+          const doctorsRes = await getAssignedDoctorData(teamModal.patient.id);
+          setAssignedDoctorsByPatient(prev => ({
+            ...prev,
+            [teamModal.patient.id]: getCollection(doctorsRes)
+          }));
+        } else {
+          const adminsRes = await getAssignedAdminData(teamModal.patient.id);
+          setAssignedAdminsByPatient(prev => ({
+            ...prev,
+            [teamModal.patient.id]: getCollection(adminsRes)
+          }));
+        }
+      } catch (cacheErr) {
+        console.error('Error updating cache:', cacheErr);
+      }
       setError(null);
     } catch (err) {
       console.error('Error removing team member:', err);
@@ -202,41 +270,63 @@ const PatientList = ({ data, onAddClick }) => {
       label: 'Medical Team',
       type: 'custom',
       width: '210px',
-      render: (row) => (
-        <Button
-          variant="outline"
-          onClick={(e) => openTeamModal(row, 'doctor', e)}
-          style={{
-            borderRadius: '8px',
-            fontSize: '12px',
-            padding: '6px 10px',
-          }}
-        >
-          Manage Doctors
-        </Button>
-      ),
+      render: (row) => {
+        const doctors = assignedDoctorsByPatient[row.id] || [];
+        const doctorNames = doctors.map(doc => getDisplayName(doc)).join(', ');
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {doctors.length > 0 && (
+              <div style={{ fontSize: '12px', color: '#4b5563' }}>
+                {doctorNames}
+              </div>
+            )}
+            <Button
+              variant="outline"
+              onClick={(e) => openTeamModal(row, 'doctor', e)}
+              style={{
+                borderRadius: '8px',
+                fontSize: '12px',
+                padding: '6px 10px',
+              }}
+            >
+              Manage Doctors
+            </Button>
+          </div>
+        );
+      },
     },
     {
       key: 'admin',
       label: 'Assigned To',
       type: 'custom',
       width: '210px',
-      render: (row) => (
-        <Button
-          variant="outline"
-          onClick={(e) => openTeamModal(row, 'admin', e)}
-          style={{
-            borderRadius: '8px',
-            fontSize: '12px',
-            padding: '6px 10px',
-          }}
-        >
-          Manage Admins
-        </Button>
-      ),
+      render: (row) => {
+        const admins = assignedAdminsByPatient[row.id] || [];
+        const adminNames = admins.map(admin => getDisplayName(admin)).join(', ');
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {admins.length > 0 && (
+              <div style={{ fontSize: '12px', color: '#4b5563' }}>
+                {adminNames}
+              </div>
+            )}
+            <Button
+              variant="outline"
+              onClick={(e) => openTeamModal(row, 'admin', e)}
+              style={{
+                borderRadius: '8px',
+                fontSize: '12px',
+                padding: '6px 10px',
+              }}
+            >
+              Manage Admins
+            </Button>
+          </div>
+        );
+      },
     },
     { key: 'actions', label: 'Actions', type: 'actions', width: '90px' },
-  ], []);
+  ], [assignedDoctorsByPatient, assignedAdminsByPatient]);
 
   // Profile Image or default with gender-based avatar fallback
   const getProfileImageUrl = (photoUrl, gender) => {

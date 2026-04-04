@@ -16,8 +16,8 @@ import { Spinner } from '../../component-library/feedback/Spinner';
 import { Skeleton } from '../../component-library/feedback/Skeleton';
 
 import AlertItem from './AlertItem';
-import { sendAlertEmails } from '../../hooks/useDashboardData';
-
+import PatientAlertsModal from './PatientAlertsModal';
+import { sendAlertEmails } from '../../hooks/useDashboardData';import ApprovePrescriptionModal from '../modals/ApprovePrescriptionModal';
 // ─── Icons ──────────────────────────────────────────────────
 
 const MailIcon = () => (
@@ -52,6 +52,10 @@ const AlertsPanel = ({
   const [dateFilter, setDateFilter] = useState('');
   // Send emails loading state
   const [sending, setSending] = useState(false);
+  // Modal state for alerts overlay
+  const [selectedModalPatient, setSelectedModalPatient] = useState(null);
+  // Prescription modal state
+  const [prescriptionModal, setPrescriptionModal] = useState({ isOpen: false, patient: null });
 
   const classifyAlertType = (alert) => {
     const text = `${alert?.category || ''} ${alert?.type || ''} ${alert?.message || ''}`.toLowerCase();
@@ -169,6 +173,7 @@ const AlertsPanel = ({
   }
 
   return (
+    <>
     <Card variant="outline" className={`alerts-panel ${className}`}>
       <CardHeader className="alerts-panel__header">
         <div className="alerts-panel__title-row">
@@ -278,7 +283,11 @@ const AlertsPanel = ({
                           {row.prescription > 0 && (
                             <button
                               className="px-3 py-2 rounded text-white text-sm font-semibold bg-cyan-500 hover:bg-cyan-600"
-                              onClick={() => onAlertClick && onAlertClick({ patientId: row.patientId, alertType: 'prescription' })}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                console.log('Opening prescription modal for', row);
+                                setPrescriptionModal({ isOpen: true, patient: row });
+                              }}
                             >
                               {row.prescription} Approve Prescription
                             </button>
@@ -293,14 +302,14 @@ const AlertsPanel = ({
                             </button>
                           )}
 
-                          {row.alert > 0 && (
+                          {/* {row.alert > 0 && ( */}
                             <button
                               className="px-3 py-2 rounded text-white text-sm font-semibold bg-red-500 hover:bg-red-600"
                               onClick={() => onAlertClick && onAlertClick({ patientId: row.patientId, alertType: 'alert' })}
                             >
                               {row.alert} Alerts
                             </button>
-                          )}
+                          {/* )} */}
 
                           {row.technician > 0 && (
                             <button
@@ -340,14 +349,53 @@ const AlertsPanel = ({
                 <AlertItem
                   key={alert.id || idx}
                   alert={alert}
-                  onClick={onAlertClick}
+                  onClick={(alertData) => {
+                    const text = `${alertData?.category || ''} ${alertData?.type || ''} ${alertData?.message || ''}`.toLowerCase();
+                    if (text.includes('prescription')) {
+                      setPrescriptionModal({ 
+                        isOpen: true, 
+                        patient: { name: alertData.name || alertData.patientName || 'Unknown Patient' } 
+                      });
+                    } else if (onAlertClick) {
+                      onAlertClick(alertData);
+                    }
+                  }}
                 />
               ))}
             </div>
           )
         )}
       </CardBody>
+
+      {/* Patient Alerts Modal */}
+      {selectedModalPatient && (
+        <PatientAlertsModal
+          patient={selectedModalPatient}
+          alerts={filteredAlerts.filter(a => (a.patientId ?? a.pid ?? a?.patient?.id ?? 'unknown') === selectedModalPatient.patientId)}
+          onClose={() => setSelectedModalPatient(null)}
+          onViewProfile={() => {
+            console.log('View profile for', selectedModalPatient.patientId);
+            setSelectedModalPatient(null);
+          }}
+          onConsultDoctor={() => {
+            console.log('Consult doctor for', selectedModalPatient.patientId);
+            setSelectedModalPatient(null);
+          }}
+          onMessage={() => {
+            console.log('Message', selectedModalPatient.patientId);
+            setSelectedModalPatient(null);
+          }}
+        />
+      )}
     </Card>
+
+    <ApprovePrescriptionModal 
+      isOpen={prescriptionModal.isOpen} 
+      onClose={() => setPrescriptionModal({ isOpen: false, patient: null })} 
+      patientName={prescriptionModal.patient?.name}
+      patientId={prescriptionModal.patient?.patientId}
+    />
+    </>
   );
 };
 

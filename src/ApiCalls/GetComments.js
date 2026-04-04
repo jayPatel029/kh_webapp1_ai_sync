@@ -1,8 +1,6 @@
 import axiosInstance from "../helpers/axios/axiosInstance"; 
 import { server_url } from '../constants/constants';
 
-
-
 const getDoctorComments = async (email,name) => {
     try {
         const res = await axiosInstance.post(`${server_url}/comments/getDoctorComments`,{email:email});
@@ -19,10 +17,19 @@ const getDoctorComments = async (email,name) => {
     } catch (error) {
         console.error("Error getting doctor comments:", error);
     }
+}
 
-
+const GetComments = async (patientId) => {
+    try {
+        const res = await axiosInstance.get(`${server_url}/comments/getPatientComments/${patientId}`);
+        return { success: true, data: res.data.data || res.data };
+    } catch (error) {
+        console.error("Error getting patient comments:", error);
+        return { success: false, error: error?.response?.data?.error || error.message };
+    }
 }
 
 export {
-    getDoctorComments
+    getDoctorComments,
+    GetComments
 }

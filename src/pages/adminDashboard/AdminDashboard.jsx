@@ -19,7 +19,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Flex, Heading, SortDropdown, Text } from '../../component-library';
+import { Box,Button, Flex, Heading, SortDropdown, Text } from '../../component-library';
 import { getIdByEmail, isDoctorRole } from '../../ApiCalls/authapis';
 import { getDoctorIdByEmail } from '../../ApiCalls/doctorApis';
 import { getDoctorSortAlerts } from '../../ApiCalls/doctorAlert';
@@ -208,7 +208,7 @@ const AdminDashboard = () => {
         });
       }
 
-      // Fetch Alerts (cached)
+      // Fetch Alerts (cached) - Only for doctors and super admins
       const alertsResult = await fetchWithCache('dashboardAlerts', async () => {
         let alerts = [];
         if (isDoc) {
@@ -226,10 +226,8 @@ const AdminDashboard = () => {
             const alertsRes = await getAlerts();
             alerts = (alertsRes.data || []).reverse();
           }
-        } else {
-          const alertsRes = await getAlerts();
-          alerts = (alertsRes.data || []).reverse();
         }
+        // Regular admins do not receive alerts
         return { success: true, data: alerts };
       });
       let alerts = alertsResult.success ? alertsResult.data : [];
@@ -425,9 +423,14 @@ const AdminDashboard = () => {
         <div className="dashboard__content">
           <PageHeader title="Admin Dashboard" variant="onlyheader" />
           <section className="dashboard__section">
-            <Heading as="h4" className="dashboard__section-title">
-              Overview
-            </Heading>
+            <Flex justify="between" align="center" className="mb-4">
+              <Heading as="h4" className="dashboard__section-title">
+                Overview
+              </Heading>
+              <Button onClick={() => window.open('https://eprescription.kifaytihealth.com/', '_blank')}>
+                Eprescription
+              </Button>
+            </Flex>
             <div className="stat-grid">
               <StatCard
                 icon={<UsersIcon />}
@@ -447,33 +450,19 @@ const AdminDashboard = () => {
               />
             </div>
           </section>
+          {localStorage.getItem('isDoctor') === 'true' && (
           <section className="dashboard__section">
             <Heading as="h2" className="dashboard__section-title">
               Alerts
             </Heading>
             <div className="alerts-grid">
-              {/* <AlertsPanel
-                title="Doctor Alerts"
-                alerts={doctorAlerts}
-                // onAlertClick={handleAlertClick}
-                showRoleTabs={false}
-                showSendEmails={true}
-                showGridView={true}
-              />
-              <AlertsPanel
-                title="Patients Alerts"
-                alerts={adminAlerts}
-                // onAlertClick={handleAlertClick}
-                showRoleTabs={false}
-                showSendEmails={false}
-                showGridView={true}
-              /> */}
               <PatientAlertsByType
                 title="Patient Alerts"
-                alerts={adminAlerts}
+                alerts={allAlerts}
               />
             </div>
           </section>
+          )}
         </div>
       </div>
     );

@@ -126,7 +126,19 @@ function UserProfile() {
       // Use getPatientById for reliable patient data fetching
       const response = await getPatientById(id);
       if (response?.success && response?.data) {
-        const patientData = response.data.data || response.data;
+        let patientData = response.data.data || response.data;
+
+        // Normalize inconsistent API shapes: some responses use 'aliments' (string) or 'ailments' (array)
+        const normalizedAilments = Array.isArray(patientData?.ailments)
+          ? patientData.ailments
+          : (typeof patientData?.ailments === 'string' && patientData.ailments.trim() !== '')
+            ? patientData.ailments.split(',').map(a => a.trim())
+            : (typeof patientData?.aliments === 'string' && patientData.aliments.trim() !== '')
+              ? patientData.aliments.split(',').map(a => a.trim())
+              : [];
+
+        patientData = { ...patientData, ailments: normalizedAilments };
+
         setUserData(patientData || { ailments: [] });
         setAilments(patientData?.ailments || []);
       } else {
@@ -705,7 +717,9 @@ function UserProfile() {
               />
             )}
           </Box>
-        )}
+          )}
+          
+          
         </Flex>
         {/* </Box> */}
       </Box>

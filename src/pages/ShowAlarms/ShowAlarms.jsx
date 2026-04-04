@@ -215,7 +215,7 @@ const ShowAlarms = () => {
       loading={loading}
       onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
-      {/* Add Alarm Button */}
+      {/* Add Alarm Button - Only visible for non-doctors */}
       <Flex justify="between" align="center" className={isMobile ? "mb-3" : "mb-6"}>
 
         <SortDropdown
@@ -248,14 +248,16 @@ const ShowAlarms = () => {
           className="mr-4"
         />
 
-        <ButtonPrimitive
-          variant="solid"
-          rightIcon={<div className="text-md">+</div>}
-          onClick={openModal}
-          className={`${isMobile ? 'h-[38px] px-4 rounded-[8px] text-[13px]' : 'h-[50px] px-6 rounded-[10px] text-[16px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3451c9] flex items-center gap-8`}
-        >
-          Add alarm
-        </ButtonPrimitive>
+        {!isDoctor && (
+          <ButtonPrimitive
+            variant="solid"
+            rightIcon={<div className="text-md">+</div>}
+            onClick={openModal}
+            className={`${isMobile ? 'h-[38px] px-4 rounded-[8px] text-[13px]' : 'h-[50px] px-6 rounded-[10px] text-[16px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3451c9] flex items-center gap-8`}
+          >
+            Add alarm
+          </ButtonPrimitive>
+        )}
       </Flex>
 
       {/* Unified Table - handles both mobile and desktop */}

@@ -172,9 +172,9 @@ function Login() {
                 </Button>
 
                 <div className="mt-4 text-center">
-                  <Link to="/doctorLogin" className="text-sm text-primary hover:underline">
+                  {/* <Link to="/doctorLogin" className="text-sm text-primary hover:underline">
                     Resend OTP
-                  </Link>
+                  </Link> */}
                 </div>
               </form>
             </CardBody>
