@@ -510,7 +510,10 @@ export async function getPatientGetNameByid(id, config = {}) {
 
 export async function getPatientGetPatientByid(id, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/patient/getPatient/${id}`, config);
+    const response = await axiosInstance.get(`${server_url}/patient/getPatient/${id}`, {
+      ...config,
+      requestDelayMs: config.requestDelayMs ?? 50,
+    });
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

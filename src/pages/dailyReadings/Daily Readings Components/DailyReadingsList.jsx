@@ -20,6 +20,7 @@ import {
   MultiSelect,
   Button
 } from "../../../component-library";
+import RefreshButton from "../../../components/RefreshButton/RefreshButton";
 import { BulkUploadProof } from '../../../components';
 import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton } from "../../../component-library/primitives/Modal";
 import { set } from "date-fns";
@@ -76,9 +77,7 @@ function DailyForm() {
             setLanguages(resultLanguage.data);
             let transaltiondict = {};
             resultLanguage.data.forEach((lang) => {
-              if (lang.id !== 1) {
-                transaltiondict[lang.id] = "";
-              }
+              transaltiondict[lang.id] = "";
             });
             console.log("translation dict: ", transaltiondict);
             setTranslations(transaltiondict);
@@ -141,15 +140,22 @@ function DailyForm() {
 
     // console.log(payload)
     if (validateForm()) {
+      const finalTranslations = {
+        ...translations,
+        1: translations[1] || newReading.title,
+      };
+      const payloadWithTranslations = {
+        ...payload,
+        readingsTranslations: finalTranslations,
+      };
+
       if (!editMode) {
-        console.log("Payload:", payload);
-        const response = await mutate(() => addDailyReading(payload));
+        console.log("Payload:", payloadWithTranslations);
+        const response = await mutate(() => addDailyReading(payloadWithTranslations));
         if (response.success) {
           let transaltiondict = {};
           languages.forEach((lang) => {
-            if (lang.id !== 1) {
-              transaltiondict[lang.id] = "";
-            }
+            transaltiondict[lang.id] = "";
           });
           setTranslations(transaltiondict);
           setErrMsg("");
@@ -165,14 +171,12 @@ function DailyForm() {
           setSuccessful("");
         }
       } else {
-        console.log("Payload:", payload);
-        const response = await mutate(() => updateDailyReading(payload));
+        console.log("Payload:", payloadWithTranslations);
+        const response = await mutate(() => updateDailyReading(payloadWithTranslations));
         if (response.success) {
           let transaltiondict = {};
           languages.forEach((lang) => {
-            if (lang.id !== 1) {
-              transaltiondict[lang.id] = "";
-            }
+            transaltiondict[lang.id] = "";
           });
           setTranslations(transaltiondict);
           setErrMsg("");
@@ -205,9 +209,7 @@ function DailyForm() {
     newReadingDsipatch({ type: "all", payload: {} });
     let transaltiondict = {};
     languages.forEach((lang) => {
-      if (lang.id !== 1) {
-        transaltiondict[lang.id] = "";
-      }
+      transaltiondict[lang.id] = "";
     });
     setTranslations(transaltiondict);
     setErrMsg("");
@@ -216,6 +218,9 @@ function DailyForm() {
 
   return (
     <div className="admin-page-content">
+      <div className="flex justify-end mb-4">
+        <RefreshButton pageName={PAGE_CACHE.DAILY_READINGS.name} />
+      </div>
       {/* <div className="admin-card">
         <div className="admin-card__body">
           <div style={{ marginBottom: '1rem' }}>
@@ -249,6 +254,7 @@ function DailyForm() {
             setTranslations={setTranslations}
             setLanguages={setLanguages}
             languages={languages}
+            defaultText={newReading.title}
           />
         )}
 

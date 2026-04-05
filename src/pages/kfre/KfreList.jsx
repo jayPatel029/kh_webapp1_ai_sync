@@ -20,6 +20,7 @@ import {
 import { Flex, VStack, HStack, SimpleGrid, Box, Divider, GridItem } from "../../component-library/layout/Layout";
 import { Heading, Text } from "../../component-library/primitives/Typography";
 import { PageHeader } from "../../components";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import { Grid } from "../../component-library/layout";
 import MyPDFViewer from "../../components/pdf/MyPDFViewer";
 import { usePageCache, PAGE_CACHE } from "../../cache";
@@ -264,7 +265,9 @@ function KfreList() {
       {!isMobile && (
         <PageHeader
           title="KFRE Calculator"
-          variant="onlyheader" />
+          variant="onlyheader"
+          rightAction={<RefreshButton pageName={PAGE_CACHE.KFRE.name} />}
+        />
       )}
 
       <Flex justify="center" align="start" gap={4} >

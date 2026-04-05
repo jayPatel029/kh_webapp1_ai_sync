@@ -24,6 +24,7 @@ import {
 import { Button } from "../../component-library";
 import { useAdminToast } from "../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import { useSelector } from "react-redux";
 
 function LanguageMaster() {
@@ -195,6 +196,7 @@ function LanguageMaster() {
                       Add Language
                     </Button>
                   {/* )} */}
+                  <RefreshButton pageName={PAGE_CACHE.LANGUAGE.name} />
                 </div>
               </div>
             </div>

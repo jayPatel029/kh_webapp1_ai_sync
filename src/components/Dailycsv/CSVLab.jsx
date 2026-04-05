@@ -386,9 +386,8 @@ export default function CSVReader({ setData, setSuccess, languages }) {
         <div className="flex flex-col space-y-6">
           <div
             {...getRootProps()}
-            className={`flex justify-center items-center p-6 border-2 ${
-              zoneHover ? "border-gray-500" : "border-gray-300"
-            } rounded-lg`}
+            className={`flex justify-center items-center p-6 border-2 ${zoneHover ? "border-gray-500" : "border-gray-300"
+              } rounded-lg`}
           >
             {acceptedFile ? (
               <div className="relative flex flex-col items-center justify-center w-32 h-32 bg-gradient-to-b from-gray-100 to-gray-200 rounded-lg">
@@ -477,9 +476,17 @@ export default function CSVReader({ setData, setSuccess, languages }) {
                   </li>
                 ))}
               </ul>
+              <hr className="my-6" />
               <p className="text-sm text-gray-600">
                 Columns are mapped automatically and updated instantly when you change selections.
+                {/* {Object.values(columnMappings).filter(Boolean).length} columns mapped. */}
+
               </p>
+              <hr className="my-4" />
+              <p className="text-black font-bold">
+                Make Sure to Map the Columns Correctly to Ensure Accurate Data Processing
+              </p>
+
             </div>
           )}
         </div>

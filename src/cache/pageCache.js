@@ -14,7 +14,7 @@
  * @file src/cache/pageCache.js
  */
 
-const CACHE_ENABLED = false; // Set to true to enable localStorage caching
+const CACHE_ENABLED = true; // Enable localStorage caching
 const CACHE_PREFIX = 'cache::';
 const CACHE_VERSION = 1;
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes default

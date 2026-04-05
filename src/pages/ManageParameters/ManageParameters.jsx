@@ -52,6 +52,7 @@ import { useIsMobile } from "../../components/mobile/useIsMobile";
 
 // Cache
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 
 // Import design system styles
 import "../../design-system/styles/index.css";
@@ -343,6 +344,7 @@ function ManageParameters() {
           </button>
         </Flex>
 
+        <RefreshButton pageName={PAGE_CACHE.MANAGE_PARAMETERS.name} />
 
         <Button
           variant="solid"

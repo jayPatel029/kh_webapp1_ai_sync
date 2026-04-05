@@ -36,6 +36,7 @@ import { getAlertByType } from '../../ApiCalls/alertsApis';
 import { getDoctorComments } from '../../ApiCalls/GetComments';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { usePageCache, PAGE_CACHE } from '../../cache';
+import RefreshButton from '../../components/RefreshButton/RefreshButton';
 import PageSkeleton from '../../components/PageSkeleton';
 
 // Dashboard components (desktop layout)
@@ -420,7 +421,7 @@ const AdminDashboard = () => {
 
     return (
       <div className="dashboard">
-        <PageHeader title="Admin Dashboard" />
+        <PageHeader title="Admin Dashboard" rightAction={<RefreshButton pageName={PAGE_CACHE.DASHBOARD.name} />} />
         <section className="dashboard__section">
           <Flex justify="between" align="center" className="mb-4">
             <Heading as="h4" className="dashboard__section-title">

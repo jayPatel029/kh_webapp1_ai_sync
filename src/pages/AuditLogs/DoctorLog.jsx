@@ -20,6 +20,7 @@ import { Card, CardBody } from "../../component-library/primitives/Card";
 
 // Components
 import PageHeader from "../../components/PageHeader";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 
@@ -106,6 +107,7 @@ const DocLogPage = () => {
                   { label: "Audit Logs", path: "/logs" },
                   { label: "Doctor Logs", active: true }
                 ]}
+                rightAction={<RefreshButton pageName={PAGE_CACHE.AUDIT_LOGS.name} />}
                 onBack={() => navigate(ROUTES.LOGS)}
               />
              

@@ -2,14 +2,17 @@ import React, { useContext, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { ROUTES } from "../../routes/routeConstants";
+import { PAGE_CACHE } from "../../cache";
 
 // Redesigned components
 import NameModal from "./NameModal";
 import AilmentModal from "./AilmentModal";
 import PageHeader from "../../components/PageHeader";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import PatientNavTabs from "../../components/PatientNavTabs";
 import PatientProfileCard from "../../components/PatientProfileCard";
 import ParameterSection from "../../components/ParameterSection";
+import PageSkeleton from "../../components/PageSkeleton";
 import ThemeProvider from "../../components/ThemeProvider";
 
 
@@ -28,6 +31,8 @@ import {
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 
 // Original Layout Components (containing actual logic/content)
+
+// import { PAGE_CACHE } from "../../cache";
 
 // APIs and Helpers
 import {
@@ -124,7 +129,6 @@ function UserProfile() {
       }
 
       // Use getPatientById for reliable patient data fetching
-      await sleep(120);
       const response = await getPatientById(id);
       if (response?.success && response?.data) {
         let patientData = response.data.data || response.data;
@@ -200,7 +204,6 @@ function UserProfile() {
           return;
         }
 
-        await sleep(120);
         const chatResult = await getAllChatsAdmin(id);
         if (chatResult.success) {
           const unreadMsgs = chatResult.data.filter((chat) => chat.unreadCount > 0);
@@ -225,7 +228,6 @@ function UserProfile() {
       }
 
       try {
-        await sleep(120);
         const response = await getGeneralParameterQuestions(id);
         if (response.success) {
           const questions = response.data || [];
@@ -248,7 +250,6 @@ function UserProfile() {
   useEffect(() => {
     const fetchDialysis = async () => {
       if (userData.ailments?.includes("Hemo dialysis") || userData.ailments?.includes("Hemo Dialysis")) {
-        await sleep(120);
         const questions = await fetchQuestionsForAilmentDialysis("Hemo dialysis");
         setDialysisParameters(questions);
       } else {
@@ -280,30 +281,20 @@ function UserProfile() {
           if (shellContext.userData) setPatient1(shellContext.userData);
           if (shellContext.role) {
             if (shellContext.role?.role_name === "Admin") {
-              await sleep(120);
-              const chatResult = await getAllChatsAdmin(id);
-              await sleep(120);
-              const medicalResult = await getPatientMedicalTeam(id);
-              await sleep(120);
-              const adminResult = await getPatientAdminTeam(id);
-              if (chatResult.success) setChats(chatResult.data.filter(c => c.role === "Doctor" || c.role === "Medical Staff"));
-              if (medicalResult.success) setMedicalTeam(medicalResult.data.data);
-              if (adminResult.success) setAdminTeam(adminResult.data?.data || []);
+                const chatResult = await getAllChatsAdmin(id);
+                const medicalResult = await getPatientMedicalTeam(id);
             }
           }
           return;
         }
 
         const roleResult = await identifyRole();
-        await sleep(120);
         const patientRes = await getPatientById(id);
         setPatient1(patientRes.data.data);
 
         if (roleResult?.data?.data?.role_name === "Admin") {
           const chatResult = await getAllChatsAdmin(id);
-          await sleep(120);
           const medicalResult = await getPatientMedicalTeam(id);
-          await sleep(120);
           const adminResult = await getPatientAdminTeam(id);
           if (chatResult.success && medicalResult.success) {
             setChats(chatResult.data.filter(c => c.role === "Doctor" || c.role === "Medical Staff"));
@@ -398,7 +389,7 @@ function UserProfile() {
     setShowAdminPicker(true);
   };
 
-  if (loading) return <Box className="p-20 text-center">Loading...</Box>;
+  if (loading) return <PageSkeleton variant="detail" />;
 
   return (
     <WrapperComponent>

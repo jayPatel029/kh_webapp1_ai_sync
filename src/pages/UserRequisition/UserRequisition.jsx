@@ -38,8 +38,11 @@ import sortIcon from "../../assets/Sort_Amount_Up.svg";
 // Import design system styles
 import "../../design-system/styles/index.css";
 
+import { useIsMobile } from "../../components/mobile/useIsMobile";
+
 // Cache
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import PageSkeleton from "../../components/PageSkeleton";
 
 const REQUISITION_SORT_OPTIONS = [
@@ -48,6 +51,7 @@ const REQUISITION_SORT_OPTIONS = [
 ];
 
 const UserRequisition = () => {
+  const isMobile = useIsMobile();
   const [showModal, setShowModal] = useState(false);
   const [userRequisitionData, setUserRequisitionData] = useState([]);
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -212,7 +216,7 @@ const UserRequisition = () => {
 
   return (
     <PatientDetailLayout
-             title={"Requisitions"}
+      title={"Requisitions"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
@@ -220,6 +224,9 @@ const UserRequisition = () => {
       loading={loading}
       onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
+      <Flex justify="end" className={isMobile ? 'mb-4' : 'mb-6'}>
+        <RefreshButton pageName={PAGE_CACHE.USER_REQUISITION.name} />
+      </Flex>
       {/* Sort Controls + Upload (single row) */}
       <Flex align="center" justify="between" className="mb-5 gap-4 flex-wrap">
         <Flex align="center" gap={3} className="flex-wrap items-center">

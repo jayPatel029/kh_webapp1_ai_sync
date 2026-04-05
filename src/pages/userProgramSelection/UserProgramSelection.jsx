@@ -12,6 +12,7 @@ import { UnifiedListTable, SearchBar } from "../../components";
 // Component Library
 import { Box, Container } from "../../component-library";
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 
 function UserProgramSelection() {
   const navigate = useNavigate();
@@ -167,6 +168,7 @@ function UserProgramSelection() {
                 { label: "User Program Selection", active: true }
               ]}
               onBack={() => navigate(ROUTES.HOME)}
+              rightAction={<RefreshButton pageName={PAGE_CACHE.USER_PROGRAM.name} />}
             />
            
         </Box>

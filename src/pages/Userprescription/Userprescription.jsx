@@ -40,6 +40,7 @@ import "../../design-system/styles/index.css";
 
 // Cache
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import PageSkeleton from "../../components/PageSkeleton";
 
 const Userprescription = () => {
@@ -293,6 +294,7 @@ const Userprescription = () => {
             Clear filters
           </button>
         </Flex>
+        <RefreshButton pageName={PAGE_CACHE.USER_PRESCRIPTION.name} />
         <ButtonPrimitive
           variant="solid"
           onClick={openModal}

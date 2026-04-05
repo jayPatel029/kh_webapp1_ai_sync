@@ -36,6 +36,8 @@ import UnifiedListTable from "../../../components/table/UnifiedListTable";
 import { useAdminToast } from "../../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../../cache";
 import { hasEditPermission, hasDeletePermission } from "../../../helpers/permissions";
+import RefreshButton from "../../../components/RefreshButton/RefreshButton";
+
 
 function AdminManagement() {
   const navigate = useNavigate();
@@ -567,6 +569,7 @@ function AdminManagement() {
               { label: "Doctor Management", active: true }
             ]}
             onBack={() => navigate(ROUTES.USERS_DOCTORS)}
+            rightAction={<RefreshButton pageName={PAGE_CACHE.DOCTOR_MANAGEMENT.name} />}
           />
         </Box>
 

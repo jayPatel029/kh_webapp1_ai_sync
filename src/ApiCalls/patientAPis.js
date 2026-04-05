@@ -41,7 +41,8 @@ export async function updatePatientProgram(patientId, programData) {
 export async function getPatientByIdad(patientId) {
   try {
     const response = await axiosInstance.get(
-      server_url + "/patient" + "/getPatient/" + patientId
+      server_url + "/patient" + "/getPatient/" + patientId,
+      { requestDelayMs: 50 }
     );
     return { success: true, data: response.data };
   } catch (error) {
@@ -53,7 +54,8 @@ export async function getPatientById(patientId) {
   try {
     // Use the full patient endpoint to fetch complete patient data (name + details)
     const response = await axiosInstance.get(
-      server_url + "/patient" + "/getPatient/" + patientId
+      server_url + "/patient" + "/getPatient/" + patientId,
+      { requestDelayMs: 50 }
     );
     return { success: true, data: response.data };
   } catch (error) {
@@ -65,7 +67,8 @@ export async function getPatientById(patientId) {
 export async function getPatientMedicalTeam(id) {
   try {
     const response = await axiosInstance.get(
-      server_url + "/patient" + "/getMedicalTeam/" + id
+      server_url + "/patient" + "/getMedicalTeam/" + id,
+      { requestDelayMs: 50 }
     );
     return { success: true, data: response.data };
   } catch (error) {
@@ -76,7 +79,8 @@ export async function getPatientMedicalTeam(id) {
 export async function getPatientAdminTeam(id) {
   try {
     const response = await axiosInstance.get(
-      server_url + "/patient" + "/getAdminTeam/" + id
+      server_url + "/patient" + "/getAdminTeam/" + id,
+      { requestDelayMs: 50 }
     );
     console.log("response from getPatientAdminTeam : ", response.data);
     return { success: true, data: response.data };

@@ -12,6 +12,8 @@ import PatientList from "./PatientDetails/PatientList";
 import AddPatientForm from "./AddPatientForm";
 import { AddPatient, deletePatient, getPatients } from "../../ApiCalls/patientAPis";
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import { Flex } from "../../component-library";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 
 function Patient() {
   const [patientData, setPatientData] = useState([]);
@@ -55,8 +57,7 @@ function Patient() {
 
   const handleAddPatient = async (formDataToSend) => {
     const response = await mutate(() => AddPatient(formDataToSend), {
-      waitForRefetch: true,
-      refetchKeys: ['getPatients'],
+      autoRefetch: false,
     });
 
     if (response.success) {
@@ -68,8 +69,7 @@ function Patient() {
 
   const handleDeletePatient = async (patientId) => {
     const response = await mutate(() => deletePatient(patientId), {
-      waitForRefetch: true,
-      refetchKeys: ['getPatients'],
+      autoRefetch: false,
     });
 
     if (response.success) {
@@ -81,6 +81,9 @@ function Patient() {
 
   return (
     <>
+      <Flex justify="end" className="mb-5">
+        <RefreshButton pageName={PAGE_CACHE.PATIENTS.name} />
+      </Flex>
       <PatientList
         data={patientData}
         patientId={id}

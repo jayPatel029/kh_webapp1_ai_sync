@@ -9,6 +9,44 @@ import { emitCacheInvalidation } from '../../cache/cacheEventBus';
 /** HTTP methods that represent data mutations */
 const MUTATION_METHODS = new Set(['post', 'put', 'delete', 'patch']);
 
+/** Global request pacing to protect backend */
+const REQUEST_DELAY_MS = 500;
+const PROFILE_REQUEST_DELAY_MS = 50;
+let lastRequestAt = 0;
+let requestQueue = Promise.resolve();
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const getRequestDelayMs = (config) => {
+  if (config?.requestDelayMs != null) {
+    return config.requestDelayMs;
+  }
+
+  const url = String(config?.url || "").toLowerCase();
+  if (
+    url.includes("/patient/getpatient/") ||
+    url.includes("/patient/getmedicalteam/") ||
+    url.includes("/patient/getadminteam/") ||
+    url.includes("/chat/admin/")
+  ) {
+    return PROFILE_REQUEST_DELAY_MS;
+  }
+
+  return REQUEST_DELAY_MS;
+};
+
+const queueRequestDelay = (delayMs) => {
+  requestQueue = requestQueue.then(async () => {
+    const now = Date.now();
+    const waitMs = Math.max(0, delayMs - (now - lastRequestAt));
+    if (waitMs > 0) {
+      await delay(waitMs);
+    }
+    lastRequestAt = Date.now();
+  });
+  return requestQueue;
+};
+
 const axiosInstance = axios.create({
   baseURL: server_url,
   timeout: 30000, // 30 s – prevents requests hanging silently
@@ -20,11 +58,16 @@ const axiosInstance = axios.create({
 
 // ── Request interceptor ─────────────────────────────────────────────
 axiosInstance.interceptors.request.use(
-  (config) => {
+  async (config) => {
     const token = localStorage.getItem('token');
     if (token) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    const delayMs = getRequestDelayMs(config);
+    await queueRequestDelay(delayMs);
+
     return config;
   },
   (error) => Promise.reject(error),

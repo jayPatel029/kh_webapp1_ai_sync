@@ -20,13 +20,14 @@ import { Card, CardBody } from "../../component-library/primitives/Card";
 
 // Components
 import PageHeader from "../../components/PageHeader";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 
 // APIs and Helpers
 import { getPatientLog } from "../../ApiCalls/patientAPis";
-import { usePageCache, PAGE_CACHE } from "../../cache";
-
+import { PAGE_CACHE } from "../../cache";
+import { usePageCache } from "../../cache";
 // Design System
 import "../../design-system/styles/index.css";
 
@@ -106,6 +107,7 @@ const LogsPage = () => {
                   { label: "Audit Logs", path: "/logs" },
                   { label: "Patient Logs", active: true }
                 ]}
+                rightAction={<RefreshButton pageName={PAGE_CACHE.AUDIT_LOGS.name} />}
                 onBack={() => navigate(ROUTES.LOGS)}
               />
              

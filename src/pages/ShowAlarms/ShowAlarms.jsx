@@ -13,6 +13,7 @@ import { ROUTES } from "../../routes/routeConstants";
 // Component Library
 import { Box, Flex, Button, SortDropdown } from "../../component-library";
 import { Button as ButtonPrimitive } from "../../component-library/primitives/Button";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 
 // Layout Components
 import PatientDetailLayout from "../common/PatientDetailLayout";
@@ -218,7 +219,6 @@ const ShowAlarms = () => {
     >
       {/* Add Alarm Button - Only visible for non-doctors */}
       <Flex justify="between" align="center" className={isMobile ? "mb-3" : "mb-6"}>
-
         <SortDropdown
           options={[
             { label: "Date Added (Newest)", value: "date_desc" },
@@ -249,16 +249,19 @@ const ShowAlarms = () => {
           className="mr-4"
         />
 
-        {!isDoctor && (
-          <ButtonPrimitive
-            variant="solid"
-            rightIcon={<div className="text-md">+</div>}
-            onClick={openModal}
-            className={`${isMobile ? 'h-[38px] px-4 rounded-[8px] text-[13px]' : 'h-[50px] px-6 rounded-[10px] text-[16px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3451c9] flex items-center gap-8`}
-          >
-            Add alarm
-          </ButtonPrimitive>
-        )}
+        <Flex align="center" gap={2}>
+          {!isDoctor && (
+            <ButtonPrimitive
+              variant="solid"
+              rightIcon={<div className="text-md">+</div>}
+              onClick={openModal}
+              className={`${isMobile ? 'h-[38px] px-4 rounded-[8px] text-[13px]' : 'h-[50px] px-6 rounded-[10px] text-[16px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3451c9] flex items-center gap-8`}
+            >
+              Add alarm
+            </ButtonPrimitive>
+          )}
+          <RefreshButton pageName={PAGE_CACHE.SHOW_ALARMS.name} />
+        </Flex>
       </Flex>
 
       {/* Unified Table - handles both mobile and desktop */}

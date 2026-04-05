@@ -8,6 +8,8 @@ import { UnifiedListTable, SearchBar } from "../../../components";
 import { useSelector } from "react-redux";
 import { Button } from "../../../component-library";
 import { useAdminToast } from "../../../components/AdminToast";
+import RefreshButton from "../../../components/RefreshButton/RefreshButton";
+import { PAGE_CACHE } from "../../../cache";
 
 export default function DailyTable({
   setEditMode,
@@ -79,8 +81,13 @@ export default function DailyTable({
       item.daily_readings_translations.forEach((element) => {
         translationDict[element.language_id] = element.title;
       });
+      if (!translationDict[1]) {
+        translationDict[1] = item.title;
+      }
       // Merge into parent translations so blank language entries are preserved
       setTranslations((prev) => ({ ...prev, ...translationDict }));
+    } else {
+      setTranslations((prev) => ({ ...prev, 1: item.title }));
     }
     setEditMode(true);
     setIsFormModalOpen?.(true);
@@ -116,6 +123,7 @@ export default function DailyTable({
                 (item.condition && item.condition.toLowerCase().includes(searchTerm.toLowerCase()))
               ).length} Records Found
             </span>
+            <RefreshButton pageName={PAGE_CACHE.DAILY_READINGS.name} />
             {role.canEditDailyReadings && (
               <>
                 <Button

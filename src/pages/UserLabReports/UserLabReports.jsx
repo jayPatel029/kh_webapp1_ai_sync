@@ -47,6 +47,7 @@ import CSVLab2 from "../../components/csvLab2/CSVLab2";
 
 // Cache
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import PageSkeleton from "../../components/PageSkeleton";
 
 const LAB_REPORT_SORT_OPTIONS = [
@@ -276,6 +277,8 @@ const UserLabReports = () => {
             Clear filters
           </button>
         </Flex>
+
+        <RefreshButton pageName={PAGE_CACHE.USER_LAB_REPORTS.name} />
 
         {role?.role_name !== "Dialysis Technician" && (
           <Button

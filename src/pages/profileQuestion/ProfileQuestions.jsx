@@ -36,6 +36,7 @@ import {
 } from "../../component-library";
 import { useAdminToast } from "../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 
 function ProfileQuestions() {
   const navigate = useNavigate();
@@ -375,6 +376,7 @@ function ProfileQuestions() {
                         >
                           Bulk Upload Questions
                         </Button>
+                        <RefreshButton pageName={PAGE_CACHE.PROFILE_QUESTION.name} />
                       </>
                     )}
                 </div>
@@ -459,6 +461,7 @@ function ProfileQuestions() {
               translations={translations}
               setTranslations={setTranslations}
               languages={languages}
+              defaultText={newQuestion.name}
             />
           )}
 
@@ -469,6 +472,7 @@ function ProfileQuestions() {
               translations={optTranslations}
               setTranslations={setOptTranslations}
               languages={languages}
+              defaultText={newQuestion.options}
             />
           )}
 
@@ -507,11 +511,11 @@ function ProfileQuestions() {
                 style={{ flex: 1, minWidth: '200px' }}
               />
               <Button
-                variant="secondary"
+                variant="primary"
                 onClick={(e) => { e.preventDefault(); setModelOpen(true); }}
                 className="admin-btn admin-btn"
               >
-                Translations
+                Set Translations
               </Button>
             </div>
           </FormControl>
@@ -537,7 +541,7 @@ function ProfileQuestions() {
                   style={{ flex: 1, minWidth: '200px' }}
                 />
                 <Button
-                  variant="secondary"
+                  variant="primary"
                   onClick={(e) => {
                     e.preventDefault();
                     const optTrans = {};

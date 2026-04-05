@@ -26,12 +26,36 @@ const OptionTranslationModal = ({
   setTranslations: setParentTranslations,
   languages = [],
   optionName = "",
+  defaultText = "",
 }) => {
   const [localTranslations, setLocalTranslations] = useState({});
 
+  const getTranslationText = (value) => {
+    if (value == null) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") return value.text ?? value.title ?? "";
+    return String(value);
+  };
+
+  const mergeTranslationValue = (prevValue, textValue) => {
+    if (prevValue && typeof prevValue === "object" && !Array.isArray(prevValue)) {
+      return { ...prevValue, text: textValue };
+    }
+    return textValue;
+  };
+
   useEffect(() => {
-    setLocalTranslations(initialTranslations || {});
-  }, [initialTranslations, isOpen]);
+    const normalized = Object.entries(initialTranslations || {}).reduce((acc, [langId, value]) => {
+      acc[langId] = getTranslationText(value);
+      return acc;
+    }, {});
+
+    if (defaultText && (!normalized["1"] || normalized["1"].trim() === "")) {
+      normalized["1"] = defaultText;
+    }
+
+    setLocalTranslations(normalized);
+  }, [initialTranslations, isOpen, defaultText]);
 
   const handleTranslationChange = (langId, value) => {
     setLocalTranslations((prev) => ({
@@ -41,12 +65,30 @@ const OptionTranslationModal = ({
   };
 
   const handleSubmit = () => {
+    const updatedTranslations = Object.entries(localTranslations).reduce((acc, [langId, value]) => {
+      acc[langId] = mergeTranslationValue(initialTranslations?.[langId], value);
+      return acc;
+    }, { ...(initialTranslations || {}) });
+
+    if (defaultText && (!updatedTranslations["1"] || updatedTranslations["1"].trim?.() === "")) {
+      updatedTranslations["1"] = mergeTranslationValue(initialTranslations?.["1"], defaultText);
+    }
+
     if (typeof setParentTranslations === "function") {
-      setParentTranslations((prev) => ({ ...prev, ...localTranslations }));
+      setParentTranslations((prev) => {
+        const merged = { ...prev };
+        Object.entries(localTranslations).forEach(([langId, value]) => {
+          merged[langId] = mergeTranslationValue(prev?.[langId], value);
+        });
+        if (defaultText && (!merged["1"] || merged["1"].trim?.() === "")) {
+          merged["1"] = mergeTranslationValue(prev?.["1"], defaultText);
+        }
+        return merged;
+      });
     }
 
     if (typeof onSave === "function") {
-      onSave(localTranslations);
+      onSave(updatedTranslations);
     }
 
     if (typeof onClose === "function") onClose();

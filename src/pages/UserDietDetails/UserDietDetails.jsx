@@ -38,6 +38,7 @@ import { FaFilePdf } from "react-icons/fa6";
 
 // Cache
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import PageSkeleton from "../../components/PageSkeleton";
 
 const UserDietDetails = () => {
@@ -188,7 +189,8 @@ const UserDietDetails = () => {
       onBackClick={() => navigate(ROUTES.PATIENTS)}
     >
       {/* Upload Section */}
-      <Flex justify="end" className={isMobile ? 'mb-3' : 'mb-6'}>
+      <Flex justify="between" className={isMobile ? 'mb-3 flex-col gap-3' : 'mb-6'}>
+        <RefreshButton pageName={PAGE_CACHE.USER_DIET.name} />
         {role?.role_name !== "Doctor" && (
           <ButtonPrimitive
             variant="solid"

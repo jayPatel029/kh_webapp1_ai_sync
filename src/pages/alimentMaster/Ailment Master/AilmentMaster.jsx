@@ -13,6 +13,7 @@ import { UnifiedListTable, SearchBar } from "../../../components";
 import { Input, FormControl, FormLabel, Button } from "../../../component-library";
 import { useIsMobile } from "../../../components/mobile/useIsMobile";
 import { useAdminToast } from "../../../components/AdminToast";
+import RefreshButton from "../../../components/RefreshButton/RefreshButton";
 import { usePageCache, PAGE_CACHE } from "../../../cache";
 import { useSelector } from "react-redux";
 
@@ -224,6 +225,7 @@ export default function AilmentMasterComponent() {
                   ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
                 ).length} Records Found
               </span>
+              <RefreshButton pageName={PAGE_CACHE.AILMENT_MASTER.name} />
               {
                 role.canEditAilmentMaster &&
                 <Button

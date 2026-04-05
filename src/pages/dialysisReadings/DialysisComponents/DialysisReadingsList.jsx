@@ -21,6 +21,7 @@ import {
   MultiSelect,
   Button
 } from "../../../component-library";
+import RefreshButton from "../../../components/RefreshButton/RefreshButton";
 import { useAdminToast } from "../../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../../cache";
 
@@ -205,6 +206,9 @@ function DialysisReadingsList() {
 
   return (
     <div className="admin-page-content">
+      <div className="flex justify-end mb-4">
+        <RefreshButton pageName={PAGE_CACHE.DIALYSIS_READINGS.name} />
+      </div>
       <div className="admin-card__body">
         <div style={{ marginBottom: '1rem' }}>
           {errMsg && <div className="admin-message admin-message--error">{errMsg}</div>}
@@ -235,6 +239,7 @@ function DialysisReadingsList() {
             setTranslations={setTranslations}
             setLanguages={setLanguages}
             languages={languages}
+            defaultText={newReading.title}
           />
         )}
 

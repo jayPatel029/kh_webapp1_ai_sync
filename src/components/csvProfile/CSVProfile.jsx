@@ -582,9 +582,17 @@ export default function CSVReader({ setData, setSuccess, languages }) {
                   </li>
                 ))}
               </ul>
+              <hr className="my-6" />
               <p className="text-sm text-gray-600">
                 Columns are mapped automatically and updated instantly when you change selections.
+                {/* {Object.values(columnMappings).filter(Boolean).length} columns mapped. */}
+
               </p>
+              <hr className="my-4" />
+              <p className="text-black font-bold">
+                Make Sure to Map the Columns Correctly to Ensure Accurate Data Processing
+              </p>
+
             </div>
           )}
         </div>

@@ -25,6 +25,7 @@ import {
 } from "../../component-library";
 import UnifiedListTable from "../../components/table/UnifiedListTable";
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import { hasEditPermission, hasDeletePermission } from "../../helpers/permissions";
 
 function AdminManagement() {
@@ -169,7 +170,9 @@ function AdminManagement() {
           role: newUser.role,
           phoneno: newUser.phone,
         };
-        const response = await mutate(() => registerUser(payload));
+        const response = await mutate(() => registerUser(payload), {
+          autoRefetch: false,
+        });
         if (response.success) {
           setErrMsg([]);
           setSuccessMessage("Admin added successfully!");
@@ -201,7 +204,9 @@ function AdminManagement() {
             phoneno: newUser.phone,
           };
         }
-        const response = await mutate(() => updateUserByEmail(editMail, payload));
+        const response = await mutate(() => updateUserByEmail(editMail, payload), {
+          autoRefetch: false,
+        });
         if (response.success) {
           setErrMsg([]);
           setSuccessMessage("Admin updated successfully!");
@@ -231,7 +236,9 @@ function AdminManagement() {
       return;
     }
 
-    const response = await mutate(() => deleteUserByEmail(email));
+    const response = await mutate(() => deleteUserByEmail(email), {
+      autoRefetch: false,
+    });
     if (response.success) {
       setErrMsg([]);
       setSuccessMessage("User deleted successfully!");
@@ -300,6 +307,7 @@ function AdminManagement() {
               { label: "Admin Management", active: true }
             ]}
             onBack={() => navigate(ROUTES.USERS_ADMINS)}
+            rightAction={<RefreshButton pageName={PAGE_CACHE.ADMIN_MANAGEMENT.name} />}
           />
         </Box>
 

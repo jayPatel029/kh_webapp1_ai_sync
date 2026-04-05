@@ -7,6 +7,7 @@ import BarChartComponentPercentageReturn from '../../components/barChartPercenta
 import BarChartComponentAdh from '../../components/horizontalBarChartAdherance/BarChart';
 import { getDoctorReportLogs } from '../../ApiCalls/doctorApis';
 import { usePageCache, PAGE_CACHE } from '../../cache';
+import RefreshButton from '../../components/RefreshButton/RefreshButton';
 import PageSkeleton from '../../components/PageSkeleton';
 
 function DoctorReport() {
@@ -33,6 +34,9 @@ function DoctorReport() {
 
     return (
       <div className="flex-1 block w-full">
+          <div className="flex justify-end mb-4">
+            <RefreshButton pageName={PAGE_CACHE.DOCTOR_REPORT.name} />
+          </div>
           <div className="flex flex-col lg:flex-row flex-1">
                     <BarChart title="Patient by Age Group"/>
                     <PieChartComponent title="Patient by Gender"/>
