@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import CSVReader from "../../components/Dailycsv/CSVLab";
 import { Link } from "react-router-dom";
-import { addDailyReading } from "../../ApiCalls/readingsApis";
+import { addDailyReading, postBulkDailyReadings } from "../../ApiCalls/readingsApis";
 import { getLanguages } from "../../ApiCalls/languageApis";
 import { FormModal } from "../../component-library/modals/FormModal";
 
@@ -13,20 +13,51 @@ function DailyquestionCsv() {
   const [translations, setTranslations] = useState({});
   const [languages, setLanguages] = useState([]);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const calculate = async () => {
-    for (const data of patientData) {
-      if (data.title && data.type) {
-        console.log("typeof", typeof data.ailments);
-        console.log("adding this to daily param", data);
+    if (isSubmitting) return;
 
-        const response = await addDailyReading(data);
-        console.log("response", response);
-      } else {
-        console.error("All fields are required for calculation.");
-      }
+    if (!patientData || patientData.length === 0) {
+      alert("No mapped data found. Please click 'Submit Edited' inside the CSV section first.");
+      return;
     }
-    alert("Data Added Successfully");
+
+    const validRows = patientData.filter((row) => row.title && row.type);
+    if (validRows.length === 0) {
+      alert("No valid rows to submit. Please ensure title and type are mapped.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const bulkResponse = await postBulkDailyReadings(validRows);
+      if (bulkResponse?.success) {
+        alert(`Data Added Successfully (${validRows.length} rows)`);
+        return;
+      }
+
+      // Fallback to per-row submission
+      let successCount = 0;
+      let failedCount = 0;
+      for (const row of validRows) {
+        const response = await addDailyReading(row);
+        if (response?.success) {
+          successCount += 1;
+        } else {
+          failedCount += 1;
+          console.error("Failed to submit row", row, response?.error);
+        }
+      }
+
+      if (failedCount === 0) {
+        alert(`Data Added Successfully (${successCount} rows)`);
+      } else {
+        alert(`Submitted ${successCount} rows, failed ${failedCount} rows. Check console for details.`);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -67,7 +98,7 @@ function DailyquestionCsv() {
       setPatientData(formattedData);
       console.log("Formatted Data with Ailments Array:", formattedData);
     }
-  }, [success]);
+  }, [csvData]);
 
   return (
     <div className="admin-page-content">
@@ -111,6 +142,7 @@ function DailyquestionCsv() {
         onSubmit={calculate}
         title="Bulk Upload Daily Readings"
         submitText="Submit"
+        isLoading={isSubmitting}
         size="xl"
       >
         <CSVReader

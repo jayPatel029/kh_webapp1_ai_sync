@@ -10,20 +10,46 @@ function ProfileQuestionsBulkUploadModal({ isOpen, onClose }) {
   const [success, setSuccess] = useState(false);
   const [translations, setTranslations] = useState({});
   const [languages, setLanguages] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    for (const data of patientData) {
-      console.log("trying to submit: ", data);
-      if (data.type && data.name && data.ailment) {
-        console.log("submitting data", data);
-        const response = await createQuestion(data);
-        console.log("response", response);
-      } else {
-        console.error("All fields are required for submission.");
-      }
+    if (isSubmitting) return;
+
+    if (!patientData || patientData.length === 0) {
+      alert("No mapped data found. Please click 'Submit Edited' inside the CSV section first.");
+      return;
     }
-    alert("Data Added Successfully");
-    onClose();
+
+    const validRows = patientData.filter((row) => row.type && row.name && row.ailment);
+    if (validRows.length === 0) {
+      alert("No valid rows to submit. Please ensure required columns are mapped.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      let successCount = 0;
+      let failedCount = 0;
+
+      for (const data of validRows) {
+        const response = await createQuestion(data);
+        if (response?.success) {
+          successCount += 1;
+        } else {
+          failedCount += 1;
+          console.error("Failed to submit question row:", data, response?.error);
+        }
+      }
+
+      if (failedCount === 0) {
+        alert(`Data Added Successfully (${successCount} rows)`);
+        handleClose();
+      } else {
+        alert(`Submitted ${successCount} rows, failed ${failedCount} rows. Check console for details.`);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -39,7 +65,7 @@ function ProfileQuestionsBulkUploadModal({ isOpen, onClose }) {
       setPatientData(formattedData);
       console.log("Formatted Data with Ailments Array:", formattedData);
     }
-  }, [success]);
+  }, [csvData]);
 
   useEffect(() => {
     getLanguages().then((resultLanguage) => {
@@ -75,6 +101,7 @@ function ProfileQuestionsBulkUploadModal({ isOpen, onClose }) {
       onSubmit={handleSubmit}
       title="Bulk Upload Profile Questions"
       submitText="Submit"
+      isLoading={isSubmitting}
       size="xl"
     >
       <CSVReader

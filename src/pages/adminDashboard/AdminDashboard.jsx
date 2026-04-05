@@ -19,7 +19,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box,Button, Flex, Heading, SortDropdown, Text } from '../../component-library';
+import { Box, Button, Flex, Heading, SortDropdown, Text } from '../../component-library';
 import { getIdByEmail, isDoctorRole } from '../../ApiCalls/authapis';
 import { getDoctorIdByEmail } from '../../ApiCalls/doctorApis';
 import { getDoctorSortAlerts } from '../../ApiCalls/doctorAlert';
@@ -420,37 +420,36 @@ const AdminDashboard = () => {
 
     return (
       <div className="dashboard">
-        <div className="dashboard__content">
-          <PageHeader title="Admin Dashboard" variant="onlyheader" />
-          <section className="dashboard__section">
-            <Flex justify="between" align="center" className="mb-4">
-              <Heading as="h4" className="dashboard__section-title">
-                Overview
-              </Heading>
-              <Button onClick={() => window.open('https://eprescription.kifaytihealth.com/', '_blank')}>
-                Eprescription
-              </Button>
-            </Flex>
-            <div className="stat-grid">
-              <StatCard
-                icon={<UsersIcon />}
-                label="Total Users"
-                value={stats.totalUsers}
-                color="primary"
-              />
-              <StatCard
-                icon={<WeeklyIcon />}
-                label="Users Joined This Week"
-                value={stats.newUsersThisWeek}
-              />
-              <StatCard
-                icon={<SubscriptionsIcon />}
-                label="Weekly Subscriptions"
-                value={stats.weeklySubscriptions}
-              />
-            </div>
-          </section>
-          {localStorage.getItem('isDoctor') === 'true' && (
+        <PageHeader title="Admin Dashboard" />
+        <section className="dashboard__section">
+          <Flex justify="between" align="center" className="mb-4">
+            <Heading as="h4" className="dashboard__section-title">
+              Overview
+            </Heading>
+            <Button onClick={() => window.open('https://eprescription.kifaytihealth.com/', '_blank')}>
+              Eprescription
+            </Button>
+          </Flex>
+          <div className="stat-grid">
+            <StatCard
+              icon={<UsersIcon />}
+              label="Total Users"
+              value={stats.totalUsers}
+              color="primary"
+            />
+            <StatCard
+              icon={<WeeklyIcon />}
+              label="Users Joined This Week"
+              value={stats.newUsersThisWeek}
+            />
+            <StatCard
+              icon={<SubscriptionsIcon />}
+              label="Weekly Subscriptions"
+              value={stats.weeklySubscriptions}
+            />
+          </div>
+        </section>
+        {localStorage.getItem('isDoctor') === 'true' && (
           <section className="dashboard__section">
             <Heading as="h2" className="dashboard__section-title">
               Alerts
@@ -462,8 +461,7 @@ const AdminDashboard = () => {
               />
             </div>
           </section>
-          )}
-        </div>
+        )}
       </div>
     );
   }
@@ -474,61 +472,61 @@ const AdminDashboard = () => {
       {/* Main Content Scrollable Area */}
       <Box className="flex-1 overflow-y-auto">
 
-          {/* Header */}
-          <Flex
-            align="center"
-            justify="between"
-            className={`border-b-2 border-[#00cccc] ${isMobile ? 'pb-3 mb-4' : 'pb-6 mb-8'}`}
-          >
-            <Heading as="h1" size={isMobile ? 'lg' : '2xl'} className="text-[#3F6B85] mt-3">
-              My Dashboard
-            </Heading>
-            <Flex align="center" gap={3}>
-              {isMobile && (
-                <Flex gap={2} align="center">
-                  <Box
-                    className="flex items-center gap-1 px-3 py-1 rounded-full"
-                    style={{ background: 'var(--color-primary-light, #dbeafe)' }}
-                  >
-                    <Text size="xs" weight="bold" className="text-primary">{stats.totalUsers}</Text>
-                    <Text size="xs" className="text-primary">Total</Text>
-                  </Box>
-                  <Box
-                    className="flex items-center gap-1 px-3 py-1 rounded-full"
-                    style={{ background: 'var(--color-success-light, #d1fae5)' }}
-                  >
-                    <Text size="xs" weight="bold" className="text-success">{stats.newUsers}</Text>
-                    <Text size="xs" className="text-success">New</Text>
-                  </Box>
-                </Flex>
-              )}
-            </Flex>
-          </Flex>
-
-          {/* Desktop stats summary */}
-          {!isMobile && (
-            <Flex gap={4} className="mb-6">
-              <Box className="flex-1 p-4 rounded-xl  ">
-                <Text size="sm" className="text-muted">Total Patients</Text>
-                <Text size="2xl" weight="bold" className="text-accent">{stats.totalUsers}</Text>
-              </Box>
-              <Box className="flex-1 p-4 rounded-xl ">
-                <Text size="sm" className="text-muted">New This Week</Text>
-                <Text size="2xl" weight="bold" className="text-success">{stats.newUsers}</Text>
-              </Box>
-            </Flex>
-          )}
-
-          {/* Alerts Section */}
-          <Box className={isMobile ? 'pb-20' : 'pb-8'}>
-            <Flex justify="between" align="center" className={isMobile ? 'mb-3' : 'mb-6'}>
-              <Heading as="h2" size={isMobile ? 'md' : 'xl'} className="text-black font-bold">
-                Important Alerts
-              </Heading>
+        {/* Header */}
+        <Flex
+          align="center"
+          justify="between"
+          className={`border-b-2 border-[#00cccc] ${isMobile ? 'pb-3 mb-4' : 'pb-6 mb-8'}`}
+        >
+          <Heading as="h1" size={isMobile ? 'lg' : '2xl'} className="text-[#3F6B85] mt-3">
+            My Dashboard
+          </Heading>
+          <Flex align="center" gap={3}>
+            {isMobile && (
               <Flex gap={2} align="center">
+                <Box
+                  className="flex items-center gap-1 px-3 py-1 rounded-full"
+                  style={{ background: 'var(--color-primary-light, #dbeafe)' }}
+                >
+                  <Text size="xs" weight="bold" className="text-primary">{stats.totalUsers}</Text>
+                  <Text size="xs" className="text-primary">Total</Text>
+                </Box>
+                <Box
+                  className="flex items-center gap-1 px-3 py-1 rounded-full"
+                  style={{ background: 'var(--color-success-light, #d1fae5)' }}
+                >
+                  <Text size="xs" weight="bold" className="text-success">{stats.newUsers}</Text>
+                  <Text size="xs" className="text-success">New</Text>
+                </Box>
+              </Flex>
+            )}
+          </Flex>
+        </Flex>
+
+        {/* Desktop stats summary */}
+        {!isMobile && (
+          <Flex gap={4} className="mb-6">
+            <Box className="flex-1 p-4 rounded-xl  ">
+              <Text size="sm" className="text-muted">Total Patients</Text>
+              <Text size="2xl" weight="bold" className="text-accent">{stats.totalUsers}</Text>
+            </Box>
+            <Box className="flex-1 p-4 rounded-xl ">
+              <Text size="sm" className="text-muted">New This Week</Text>
+              <Text size="2xl" weight="bold" className="text-success">{stats.newUsers}</Text>
+            </Box>
+          </Flex>
+        )}
+
+        {/* Alerts Section */}
+        <Box className={isMobile ? 'pb-20' : 'pb-8'}>
+          <Flex justify="between" align="center" className={isMobile ? 'mb-3' : 'mb-6'}>
+            <Heading as="h2" size={isMobile ? 'md' : 'xl'} className="text-black font-bold">
+              Important Alerts
+            </Heading>
+            <Flex gap={2} align="center">
               <SortDropdown
-                  value={alertTypeFilter}
-                  onChange={(e) => handleAlertTypeFilter(e.target.value)}
+                value={alertTypeFilter}
+                onChange={(e) => handleAlertTypeFilter(e.target.value)}
                 options={[
                   { value: '', label: 'All Types' },
                   { value: 'prescription', label: 'Prescription' },
@@ -540,54 +538,54 @@ const AdminDashboard = () => {
                 ]}
                 className={`${isMobile ? 'text-xs px-2 py-1' : 'text-sm px-3 py-2'}  rounded-lg bg-white text-gray-700`}
               />
-                {alertTypeFilter && (
-                  <button
-                    onClick={() => handleAlertTypeFilter('')}
-                    className="text-lg text-[#5886a5] underline hover:text-[#4164df]"
-                  >
-                    Clear
-                  </button>
-                )}
-              </Flex>
+              {alertTypeFilter && (
+                <button
+                  onClick={() => handleAlertTypeFilter('')}
+                  className="text-lg text-[#5886a5] underline hover:text-[#4164df]"
+                >
+                  Clear
+                </button>
+              )}
             </Flex>
+          </Flex>
 
-            {loading && !ready ? (
-              <PageSkeleton variant="dashboard" />
-            ) : patients.length === 0 ? (
-              <Flex justify="center" align="center" className="py-12 text-gray-500">
-                <Text size="md">No alerts at this time</Text>
-              </Flex>
-            ) : (
-              <Flex direction={isMobile ? 'column' : 'row'} gap={6}>
-                <Box className="flex-1">
-                  <Heading as="h3" size={isMobile ? 'sm' : 'lg'} className="mb-3">Admin Alerts</Heading>
-                  <Flex direction="column" gap={0}>
-                    {patients
-                      .filter(p => (p.prescriptionCount === 0 && p.commentCount === 0))
-                      .map((patient) => (
-                        <React.Fragment key={`admin-${patient.id}`}>
-                          <PatientAlertCard patient={patient} onAction={handleAction} />
-                          <Box className={`h-[2px] bg-gray-200 ${isMobile ? 'my-3' : 'my-6'}`} />
-                        </React.Fragment>
-                      ))}
-                  </Flex>
-                </Box>
-                <Box className="flex-1">
-                  <Heading as="h3" size={isMobile ? 'sm' : 'lg'} className="mb-3">Doctor Alerts</Heading>
-                  <Flex direction="column" gap={0}>
-                    {patients
-                      .filter(p => (p.prescriptionCount > 0 || p.commentCount > 0))
-                      .map((patient) => (
-                        <React.Fragment key={`doctor-${patient.id}`}>
-                          <PatientAlertCard patient={patient} onAction={handleAction} />
-                          <Box className={`h-[2px] bg-gray-200 ${isMobile ? 'my-3' : 'my-6'}`} />
-                        </React.Fragment>
-                      ))}
-                  </Flex>
-                </Box>
-              </Flex>
-            )}
-          </Box>
+          {loading && !ready ? (
+            <PageSkeleton variant="dashboard" />
+          ) : patients.length === 0 ? (
+            <Flex justify="center" align="center" className="py-12 text-gray-500">
+              <Text size="md">No alerts at this time</Text>
+            </Flex>
+          ) : (
+            <Flex direction={isMobile ? 'column' : 'row'} gap={6}>
+              <Box className="flex-1">
+                <Heading as="h3" size={isMobile ? 'sm' : 'lg'} className="mb-3">Admin Alerts</Heading>
+                <Flex direction="column" gap={0}>
+                  {patients
+                    .filter(p => (p.prescriptionCount === 0 && p.commentCount === 0))
+                    .map((patient) => (
+                      <React.Fragment key={`admin-${patient.id}`}>
+                        <PatientAlertCard patient={patient} onAction={handleAction} />
+                        <Box className={`h-[2px] bg-gray-200 ${isMobile ? 'my-3' : 'my-6'}`} />
+                      </React.Fragment>
+                    ))}
+                </Flex>
+              </Box>
+              <Box className="flex-1">
+                <Heading as="h3" size={isMobile ? 'sm' : 'lg'} className="mb-3">Doctor Alerts</Heading>
+                <Flex direction="column" gap={0}>
+                  {patients
+                    .filter(p => (p.prescriptionCount > 0 || p.commentCount > 0))
+                    .map((patient) => (
+                      <React.Fragment key={`doctor-${patient.id}`}>
+                        <PatientAlertCard patient={patient} onAction={handleAction} />
+                        <Box className={`h-[2px] bg-gray-200 ${isMobile ? 'my-3' : 'my-6'}`} />
+                      </React.Fragment>
+                    ))}
+                </Flex>
+              </Box>
+            </Flex>
+          )}
+        </Box>
       </Box>
 
       {/* Modals */}

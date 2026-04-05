@@ -115,73 +115,73 @@ function DialysisReadingsList() {
     setErrMsg("");
     try {
 
-    const payload = {
-      id: newReading.id,
-      title: newReading.title,
-      ailments: newReading.ailment,
-      type: newReading.type,
-      assign_range: newReading.assign_range,
-      low_range: newReading.lower_assign_range,
-      high_range: newReading.upper_assign_range,
-      isGraph: Number(newReading.isGraph),
-      readingsTranslations: translations,
-      alertTextDoc: newReading.alertTextDoc,
-      unit: newReading.unit,
-      sendAlert: newReading.sendAlert,
-      condition: newReading.condition || 'stable',
-    };
-    if (validateForm()) {
-      console.log("submiting ailmetns", payload.ailments);
-      if (!editMode) {
-        const response = await mutate(() => addDialysisReading(payload));
-        if (response.success) {
-          let transaltiondict = {};
-          languages.forEach((lang) => {
-            if (lang.id !== 1) {
-              transaltiondict[lang.id] = "";
-            }
-          });
-          setTranslations(transaltiondict);
-          setErrMsg("");
-          setSuccessful("Reading Created Successful!");
-          showToast("Dialysis reading created successfully!", "success");
-          setIsFormModalOpen(false);
-          newReadingDsipatch({
-            type: "all",
-            payload: {},
-          });
+      const payload = {
+        id: newReading.id,
+        title: newReading.title,
+        ailments: newReading.ailment,
+        type: newReading.type,
+        assign_range: newReading.assign_range,
+        low_range: newReading.lower_assign_range,
+        high_range: newReading.upper_assign_range,
+        isGraph: Number(newReading.isGraph),
+        readingsTranslations: translations,
+        alertTextDoc: newReading.alertTextDoc,
+        unit: newReading.unit,
+        sendAlert: newReading.sendAlert,
+        condition: newReading.condition || 'stable',
+      };
+      if (validateForm()) {
+        console.log("submiting ailmetns", payload.ailments);
+        if (!editMode) {
+          const response = await mutate(() => addDialysisReading(payload));
+          if (response.success) {
+            let transaltiondict = {};
+            languages.forEach((lang) => {
+              if (lang.id !== 1) {
+                transaltiondict[lang.id] = "";
+              }
+            });
+            setTranslations(transaltiondict);
+            setErrMsg("");
+            setSuccessful("Reading Created Successful!");
+            showToast("Dialysis reading created successfully!", "success");
+            setIsFormModalOpen(false);
+            newReadingDsipatch({
+              type: "all",
+              payload: {},
+            });
+          } else {
+            setErrMsg("Error Creating Reading:" + response.data.data);
+            setSuccessful("");
+          }
         } else {
-          setErrMsg("Error Creating Reading:" + response.data.data);
-          setSuccessful("");
+          const response = await mutate(() => updateDialysisReading(payload));
+          if (response.success) {
+            let transaltiondict = {};
+            languages.forEach((lang) => {
+              if (lang.id !== 1) {
+                transaltiondict[lang.id] = "";
+              }
+            });
+            setTranslations(transaltiondict);
+            setErrMsg("");
+            setEditMode(false);
+            setSuccessful("Reading Updated Successful!");
+            showToast("Dialysis reading updated successfully!", "success");
+            setIsFormModalOpen(false);
+            newReadingDsipatch({
+              type: "all",
+              payload: {},
+            });
+          } else {
+            setErrMsg("Error Updating Reading:" + response.data);
+            setSuccessful("");
+          }
         }
       } else {
-        const response = await mutate(() => updateDialysisReading(payload));
-        if (response.success) {
-          let transaltiondict = {};
-          languages.forEach((lang) => {
-            if (lang.id !== 1) {
-              transaltiondict[lang.id] = "";
-            }
-          });
-          setTranslations(transaltiondict);
-          setErrMsg("");
-          setEditMode(false);
-          setSuccessful("Reading Updated Successful!");
-          showToast("Dialysis reading updated successfully!", "success");
-          setIsFormModalOpen(false);
-          newReadingDsipatch({
-            type: "all",
-            payload: {},
-          });
-        } else {
-          setErrMsg("Error Updating Reading:" + response.data);
-          setSuccessful("");
-        }
+        setErrMsg("Please fill all the fields!");
+        setSuccessful("");
       }
-    } else {
-      setErrMsg("Please fill all the fields!");
-      setSuccessful("");
-    }
     } catch (error) {
       console.error("Error in dialysis readings submit:", error);
       const msg = error?.message || "An unexpected error occurred. Please try again.";
@@ -229,6 +229,7 @@ function DialysisReadingsList() {
       >
         {modelOpen && (
           <TranslationModal
+            isOpen={modelOpen}
             closeModal={closeModal}
             translations={translations}
             setTranslations={setTranslations}
@@ -358,21 +359,21 @@ function DialysisReadingsList() {
         </FormControl>
 
         {["Int", "Decimal"].includes(newReading.type) && (
-            <FormControl>
-              <FormLabel>Has Range</FormLabel>
-              <Select
-                value={newReading.assign_range}
-                onChange={(event) => {
-                  newReadingDsipatch({
-                    type: "assign_range",
-                    payload: event.target.value,
-                  });
-                }}
-              >
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </Select>
-            </FormControl>
+          <FormControl>
+            <FormLabel>Has Range</FormLabel>
+            <Select
+              value={newReading.assign_range}
+              onChange={(event) => {
+                newReadingDsipatch({
+                  type: "assign_range",
+                  payload: event.target.value,
+                });
+              }}
+            >
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </Select>
+          </FormControl>
         )}
 
         {["Int", "Decimal"].includes(newReading.type) &&

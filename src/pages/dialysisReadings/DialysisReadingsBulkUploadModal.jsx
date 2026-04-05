@@ -10,6 +10,7 @@ function DialysisReadingsBulkUploadModal({ isOpen, onClose }) {
   const [patientData, setPatientData] = useState([]);
   const [csvData, setCsvData] = useState();
   const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     getLanguages().then((resultLanguage) => {
@@ -29,16 +30,46 @@ function DialysisReadingsBulkUploadModal({ isOpen, onClose }) {
   }, []);
 
   const handleSubmit = async () => {
-    for (const data of patientData) {
-      if (data.title && data.type && data.assign_range && data.ailments) {
-        const response = await addDialysisReading(data);
-        console.log("response", response);
-      } else {
-        console.error("All fields are required for submission.");
-      }
+    if (isSubmitting) return;
+
+    if (!patientData || patientData.length === 0) {
+      alert("No mapped data found. Please click 'Submit Edited' inside the CSV section first.");
+      return;
     }
-    alert("Data Added Successfully");
-    onClose();
+
+    const validRows = patientData.filter(
+      (row) => row.title && row.type && row.assign_range && row.ailments
+    );
+
+    if (validRows.length === 0) {
+      alert("No valid rows to submit. Please ensure required columns are mapped.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      let successCount = 0;
+      let failedCount = 0;
+
+      for (const data of validRows) {
+        const response = await addDialysisReading(data);
+        if (response?.success) {
+          successCount += 1;
+        } else {
+          failedCount += 1;
+          console.error("Failed to submit dialysis reading row:", data, response?.error);
+        }
+      }
+
+      if (failedCount === 0) {
+        alert(`Data Added Successfully (${successCount} rows)`);
+        handleClose();
+      } else {
+        alert(`Submitted ${successCount} rows, failed ${failedCount} rows. Check console for details.`);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -61,7 +92,7 @@ function DialysisReadingsBulkUploadModal({ isOpen, onClose }) {
       setPatientData(formattedData);
       console.log("Formatted Data with Ailments Array:", formattedData);
     }
-  }, [success]);
+  }, [csvData]);
 
   const handleClose = () => {
     setCsvData(null);
@@ -77,6 +108,7 @@ function DialysisReadingsBulkUploadModal({ isOpen, onClose }) {
       onSubmit={handleSubmit}
       title="Bulk Upload Dialysis Readings"
       submitText="Submit"
+      isLoading={isSubmitting}
       size="xl"
     >
       <CSVReader

@@ -15,6 +15,7 @@ function DailyquestionCsv() {
   const [success, setSuccess] = useState(false);
   const [kfre, setKfre] = useState();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     getLanguages().then((resultLanguage) => {
@@ -35,18 +36,45 @@ function DailyquestionCsv() {
   }, []);
 
   const calculate = async () => {
-    for (const data of patientData) {
-      if (data.title && data.type && data.assign_range && data.ailments) {
-        console.log("typeof", typeof (data.ailments))
-        console.log("ygwdu", data)
+    if (isSubmitting) return;
 
-        const response = await addDialysisReading(data);
-        console.log("response", response)
-      } else {
-        console.error("All fields are required for calculation.");
-      }
+    if (!patientData || patientData.length === 0) {
+      alert("No mapped data found. Please click 'Submit Edited' inside the CSV section first.");
+      return;
     }
-    alert("Data Added Successfully")
+
+    const validRows = patientData.filter(
+      (row) => row.title && row.type && row.assign_range && row.ailments
+    );
+
+    if (validRows.length === 0) {
+      alert("No valid rows to submit. Please ensure required columns are mapped.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      let successCount = 0;
+      let failedCount = 0;
+
+      for (const data of validRows) {
+        const response = await addDialysisReading(data);
+        if (response?.success) {
+          successCount += 1;
+        } else {
+          failedCount += 1;
+          console.error("Failed to submit dialysis reading row:", data, response?.error);
+        }
+      }
+
+      if (failedCount === 0) {
+        alert(`Data Added Successfully (${successCount} rows)`);
+      } else {
+        alert(`Submitted ${successCount} rows, failed ${failedCount} rows. Check console for details.`);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -69,7 +97,7 @@ function DailyquestionCsv() {
       setPatientData(formattedData);
       console.log("Formatted Data with Ailments Array:", formattedData);
     }
-  }, [success]);
+  }, [csvData]);
 
   return (
     <div className="admin-page-content">
@@ -110,6 +138,7 @@ function DailyquestionCsv() {
         onSubmit={calculate}
         title="Bulk Upload Dialysis Readings"
         submitText="Submit"
+        isLoading={isSubmitting}
         size="xl"
       >
         <CSVReader

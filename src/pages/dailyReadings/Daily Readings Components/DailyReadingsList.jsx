@@ -242,6 +242,8 @@ function DailyForm() {
       >
         {modelOpen && (
           <TranslationModal
+            isOpen={modelOpen}
+            onClose={closeModal}
             closeModal={closeModal}
             translations={translations}
             setTranslations={setTranslations}

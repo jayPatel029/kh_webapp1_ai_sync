@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   useCSVReader,
   lightenDarkenColor,
   formatFileSize,
 } from "react-papaparse";
-import axiosInstance from "../../helpers/axios/axiosInstance";
 
 const GREY = "#CCC";
 const GREY_LIGHT = "rgba(255, 255, 255, 0.4)";
@@ -15,113 +14,271 @@ const REMOVE_HOVER_COLOR_LIGHT = lightenDarkenColor(
 );
 const GREY_DIM = "#686868";
 
-export default function CSVReader({ setData, setSuccess, success, languages }) {
+const INITIAL_COLUMN_MAPPINGS = {
+  type: "",
+  name: "",
+  ailments: "",
+  options: "",
+  Hindi: "",
+  HindiOpt: "",
+  Marathi: "",
+  MarathiOpt: "",
+  Assamese: "",
+  AssameseOpt: "",
+  Kannada: "",
+  KannadaOpt: "",
+  Tamil: "",
+  TamilOpt: "",
+  Malayalam: "",
+  MalayalamOpt: "",
+  Bangali: "",
+  BangaliOpt: "",
+  Punjabi: "",
+  PunjabiOpt: "",
+  Telugu: "",
+  TeluguOpt: "",
+  Gujarati: "",
+  GujaratiOpt: "",
+};
+
+const FIELD_ALIASES = {
+  type: ["type", "question type"],
+  name: ["name", "question", "question name", "title"],
+  ailments: ["ailments", "ailment", "condition", "disease"],
+  options: ["options", "option", "english options", "option list"],
+};
+
+const LANGUAGE_KEYS = [
+  "Hindi",
+  "Marathi",
+  "Assamese",
+  "Kannada",
+  "Tamil",
+  "Malayalam",
+  "Bangali",
+  "Punjabi",
+  "Telugu",
+  "Gujarati",
+];
+
+const LANGUAGE_NAME_TO_KEY = {
+  hindi: "Hindi",
+  marathi: "Marathi",
+  assamese: "Assamese",
+  asamese: "Assamese",
+  kannada: "Kannada",
+  tamil: "Tamil",
+  malayalam: "Malayalam",
+  bangali: "Bangali",
+  bengali: "Bangali",
+  punjabi: "Punjabi",
+  telugu: "Telugu",
+  gujarati: "Gujarati",
+};
+
+const normalizeValue = (value = "") =>
+  String(value).toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const getLanguageCandidates = (languageKey) => {
+  const normalized = normalizeValue(languageKey);
+  if (normalized === "bangali" || normalized === "bengali") {
+    return ["bangali", "bengali"];
+  }
+  if (normalized === "assamese" || normalized === "asamese") {
+    return ["assamese", "asamese"];
+  }
+  return [normalized];
+};
+
+const findBestColumnMatch = (headers, candidates = []) => {
+  if (!Array.isArray(headers) || headers.length === 0) return "";
+
+  const normalizedHeaders = headers.map((header) => ({
+    original: header,
+    normalized: normalizeValue(header),
+  }));
+
+  for (const candidate of candidates) {
+    const normalizedCandidate = normalizeValue(candidate);
+    if (!normalizedCandidate) continue;
+    const exactMatch = normalizedHeaders.find(
+      (header) => header.normalized === normalizedCandidate
+    );
+    if (exactMatch) return exactMatch.original;
+  }
+
+  for (const candidate of candidates) {
+    const normalizedCandidate = normalizeValue(candidate);
+    if (!normalizedCandidate) continue;
+    const relaxedMatch = normalizedHeaders.find(
+      (header) =>
+        header.normalized.includes(normalizedCandidate) ||
+        normalizedCandidate.includes(header.normalized)
+    );
+    if (relaxedMatch) return relaxedMatch.original;
+  }
+
+  return "";
+};
+
+const buildAutoMappings = (headers, languages = [], previousMappings = {}) => {
+  const mappings = { ...INITIAL_COLUMN_MAPPINGS };
+
+  const applyMapping = (key, candidates) => {
+    const previousValue = previousMappings?.[key];
+    if (previousValue && headers.includes(previousValue)) {
+      mappings[key] = previousValue;
+      return;
+    }
+
+    const match = findBestColumnMatch(headers, candidates);
+    mappings[key] = match || "";
+  };
+
+  Object.entries(FIELD_ALIASES).forEach(([key, aliases]) => {
+    applyMapping(key, [key, ...aliases]);
+  });
+
+  LANGUAGE_KEYS.forEach((languageKey) => {
+    const languageCandidates = [
+      languageKey,
+      ...getLanguageCandidates(languageKey),
+      `${languageKey} text`,
+      `${languageKey} translation`,
+    ];
+
+    const optionCandidates = [
+      `${languageKey} opt`,
+      `${languageKey} option`,
+      `${languageKey} options`,
+      ...getLanguageCandidates(languageKey).flatMap((candidate) => [
+        `${candidate}opt`,
+        `${candidate}option`,
+        `${candidate}options`,
+      ]),
+    ];
+
+    applyMapping(languageKey, languageCandidates);
+    applyMapping(`${languageKey}Opt`, optionCandidates);
+  });
+
+  (languages || []).forEach((language) => {
+    const mappedKey = LANGUAGE_NAME_TO_KEY[normalizeValue(language?.language_name)];
+    if (!mappedKey) return;
+
+    applyMapping(mappedKey, [
+      language.language_name,
+      `${language.language_name} text`,
+      `${language.language_name} translation`,
+      mappedKey,
+      ...getLanguageCandidates(mappedKey),
+    ]);
+
+    applyMapping(`${mappedKey}Opt`, [
+      `${language.language_name} opt`,
+      `${language.language_name} option`,
+      `${language.language_name} options`,
+      `${mappedKey} opt`,
+      `${mappedKey} option`,
+      `${mappedKey} options`,
+    ]);
+  });
+
+  return mappings;
+};
+
+export default function CSVReader({ setData, setSuccess, languages }) {
   const { CSVReader } = useCSVReader();
   const [zoneHover, setZoneHover] = useState(false);
   const [removeHoverColor, setRemoveHoverColor] = useState(
     DEFAULT_REMOVE_HOVER_COLOR
   );
   const [headData, setHeadData] = useState([]);
-  const [columnMappings, setColumnMappings] = useState({
-    type: "",
-    name: "",
-    ailments: [],
-    options: "",
-    Hindi: "",
-    HindiOpt: "",
-    Marathi: "",
-    MarathiOpt: "",
-    Assamese: "",
-    AssameseOpt: "",
-    Kannada: "",
-    KannadaOpt: "",
-    Tamil: "",
-    TamilOpt: "",
-    Malayalam: "",
-    MalayalamOpt: "",
-    Bangali: "",
-    BangaliOpt: "",
-    Punjabi: "",
-    PunjabiOpt: "",
-    Telugu: "",
-    TeluguOpt: "",
-    Gujarati: "",
-    GujaratiOpt: "",
-  });
+  const [columnMappings, setColumnMappings] = useState(INITIAL_COLUMN_MAPPINGS);
 
   const [csvData, setCsvData] = useState([]);
   const [columnOptions, setColumnOptions] = useState([]);
 
-  const handleSubmit = () => {
-    console.log("these are the langs again:", languages);
+  useEffect(() => {
+    if (!columnOptions.length) return;
+    setColumnMappings((previousMappings) =>
+      buildAutoMappings(columnOptions, languages, previousMappings)
+    );
+  }, [columnOptions, languages]);
 
-    const mappedData = csvData
+  const buildMappedData = (
+    sourceCsvData = csvData,
+    sourceColumnOptions = columnOptions,
+    sourceMappings = columnMappings,
+    sourceLanguages = languages
+  ) => {
+    const mappedData = sourceCsvData
       .map((row) => {
-        const hindiColumnIndex = columnOptions.indexOf(columnMappings.Hindi);
-        const hindiOptColumnIndex = columnOptions.indexOf(
-          columnMappings.HindiOpt
+        const hindiColumnIndex = sourceColumnOptions.indexOf(sourceMappings.Hindi);
+        const hindiOptColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.HindiOpt
         );
 
-        const marathiColumnIndex = columnOptions.indexOf(
-          columnMappings.Marathi
+        const marathiColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.Marathi
         );
-        const marathiOptColumnIndex = columnOptions.indexOf(
-          columnMappings.MarathiOpt
-        );
-
-        const assameseColumnIndex = columnOptions.indexOf(
-          columnMappings.Assamese
-        );
-        const assameseOptColumnIndex = columnOptions.indexOf(
-          columnMappings.AssameseOpt
+        const marathiOptColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.MarathiOpt
         );
 
-        const gujaratiColumnIndex = columnOptions.indexOf(
-          columnMappings.Gujarati
+        const assameseColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.Assamese
         );
-        const gujaratiOptColumnIndex = columnOptions.indexOf(
-          columnMappings.GujaratiOpt
-        );
-
-        const kannadaColumnIndex = columnOptions.indexOf(
-          columnMappings.Kannada
-        );
-        const kannadaOptColumnIndex = columnOptions.indexOf(
-          columnMappings.KannadaOpt
+        const assameseOptColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.AssameseOpt
         );
 
-        const tamilColumnIndex = columnOptions.indexOf(columnMappings.Tamil);
-        const tamilOptColumnIndex = columnOptions.indexOf(
-          columnMappings.TamilOpt
+        const gujaratiColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.Gujarati
+        );
+        const gujaratiOptColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.GujaratiOpt
         );
 
-        const punjabiColumnIndex = columnOptions.indexOf(
-          columnMappings.Punjabi
+        const kannadaColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.Kannada
         );
-        const punjabiOptColumnIndex = columnOptions.indexOf(
-          columnMappings.PunjabiOpt
-        );
-
-        const malayalamColumnIndex = columnOptions.indexOf(
-          columnMappings.Malayalam
-        );
-        const malayalamOptColumnIndex = columnOptions.indexOf(
-          columnMappings.MalayalamOpt
+        const kannadaOptColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.KannadaOpt
         );
 
-        const teluguColumnIndex = columnOptions.indexOf(columnMappings.Telugu);
-        const teluguOptColumnIndex = columnOptions.indexOf(
-          columnMappings.TeluguOpt
+        const tamilColumnIndex = sourceColumnOptions.indexOf(sourceMappings.Tamil);
+        const tamilOptColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.TamilOpt
         );
 
-        const bangaliColumnIndex = columnOptions.indexOf(
-          columnMappings.Bangali
+        const punjabiColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.Punjabi
         );
-        const bangaliOptColumnIndex = columnOptions.indexOf(
-          columnMappings.BangaliOpt
+        const punjabiOptColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.PunjabiOpt
         );
 
-        const filteredLanguages = (languages || []).filter(
+        const malayalamColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.Malayalam
+        );
+        const malayalamOptColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.MalayalamOpt
+        );
+
+        const teluguColumnIndex = sourceColumnOptions.indexOf(sourceMappings.Telugu);
+        const teluguOptColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.TeluguOpt
+        );
+
+        const bangaliColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.Bangali
+        );
+        const bangaliOptColumnIndex = sourceColumnOptions.indexOf(
+          sourceMappings.BangaliOpt
+        );
+
+        const filteredLanguages = (sourceLanguages || []).filter(
           (language) => language.id !== 1
         );
 
@@ -182,125 +339,109 @@ export default function CSVReader({ setData, setSuccess, success, languages }) {
         });
 
         return {
-          type: columnMappings.type
-            ? row[columnOptions.indexOf(columnMappings.type)]
+          type: sourceMappings.type
+            ? row[sourceColumnOptions.indexOf(sourceMappings.type)]
             : undefined,
-          ailments: columnMappings.ailments
-            ? row[columnOptions.indexOf(columnMappings.ailments)]
+          ailments: sourceMappings.ailments
+            ? row[sourceColumnOptions.indexOf(sourceMappings.ailments)]
             : undefined,
-          name: columnMappings.name
-            ? row[columnOptions.indexOf(columnMappings.name)]
+          name: sourceMappings.name
+            ? row[sourceColumnOptions.indexOf(sourceMappings.name)]
             : undefined,
-          options: columnMappings.options
-            ? row[columnOptions.indexOf(columnMappings.options)]
+          options: sourceMappings.options
+            ? row[sourceColumnOptions.indexOf(sourceMappings.options)]
             : undefined,
-          Hindi: columnMappings.Hindi
-            ? row[columnOptions.indexOf(columnMappings.Hindi)]
+          Hindi: sourceMappings.Hindi
+            ? row[sourceColumnOptions.indexOf(sourceMappings.Hindi)]
             : undefined,
-          HindiOpt: columnMappings.HindiOpt
-            ? row[columnOptions.indexOf(columnMappings.HindiOpt)]
+          HindiOpt: sourceMappings.HindiOpt
+            ? row[sourceColumnOptions.indexOf(sourceMappings.HindiOpt)]
             : undefined,
-          Marathi: columnMappings.Marathi
-            ? row[columnOptions.indexOf(columnMappings.Marathi)]
+          Marathi: sourceMappings.Marathi
+            ? row[sourceColumnOptions.indexOf(sourceMappings.Marathi)]
             : undefined,
-          MarathiOpt: columnMappings.MarathiOpt
-            ? row[columnOptions.indexOf(columnMappings.MarathiOpt)]
-            : undefined,
-
-          Assamese: columnMappings.Assamese
-            ? row[columnOptions.indexOf(columnMappings.Assamese)]
-            : undefined,
-          AssameseOpt: columnMappings.AssameseOpt
-            ? row[columnOptions.indexOf(columnMappings.AssameseOpt)]
+          MarathiOpt: sourceMappings.MarathiOpt
+            ? row[sourceColumnOptions.indexOf(sourceMappings.MarathiOpt)]
             : undefined,
 
-          Gujarati: columnMappings.Gujarati
-            ? row[columnOptions.indexOf(columnMappings.Gujarati)]
+          Assamese: sourceMappings.Assamese
+            ? row[sourceColumnOptions.indexOf(sourceMappings.Assamese)]
             : undefined,
-          GujaratiOpt: columnMappings.GujaratiOpt
-            ? row[columnOptions.indexOf(columnMappings.GujaratiOpt)]
-            : undefined,
-
-          Kannada: columnMappings.Kannada
-            ? row[columnOptions.indexOf(columnMappings.Kannada)]
-            : undefined,
-          KannadaOpt: columnMappings.KannadaOpt
-            ? row[columnOptions.indexOf(columnMappings.KannadaOpt)]
+          AssameseOpt: sourceMappings.AssameseOpt
+            ? row[sourceColumnOptions.indexOf(sourceMappings.AssameseOpt)]
             : undefined,
 
-          Tamil: columnMappings.Tamil
-            ? row[columnOptions.indexOf(columnMappings.Tamil)]
+          Gujarati: sourceMappings.Gujarati
+            ? row[sourceColumnOptions.indexOf(sourceMappings.Gujarati)]
             : undefined,
-          TamilOpt: columnMappings.TamilOpt
-            ? row[columnOptions.indexOf(columnMappings.TamilOpt)]
-            : undefined,
-
-          Punjabi: columnMappings.Punjabi
-            ? row[columnOptions.indexOf(columnMappings.Punjabi)]
-            : undefined,
-          PunjabiOpt: columnMappings.PunjabiOpt
-            ? row[columnOptions.indexOf(columnMappings.PunjabiOpt)]
+          GujaratiOpt: sourceMappings.GujaratiOpt
+            ? row[sourceColumnOptions.indexOf(sourceMappings.GujaratiOpt)]
             : undefined,
 
-          Punjabi: columnMappings.Punjabi
-            ? row[columnOptions.indexOf(columnMappings.Punjabi)]
+          Kannada: sourceMappings.Kannada
+            ? row[sourceColumnOptions.indexOf(sourceMappings.Kannada)]
             : undefined,
-          PunjabiOpt: columnMappings.PunjabiOpt
-            ? row[columnOptions.indexOf(columnMappings.PunjabiOpt)]
+          KannadaOpt: sourceMappings.KannadaOpt
+            ? row[sourceColumnOptions.indexOf(sourceMappings.KannadaOpt)]
             : undefined,
-          Telugu: columnMappings.Telugu
-            ? row[columnOptions.indexOf(columnMappings.Telugu)]
+
+          Tamil: sourceMappings.Tamil
+            ? row[sourceColumnOptions.indexOf(sourceMappings.Tamil)]
             : undefined,
-          TeluguOpt: columnMappings.TeluguOpt
-            ? row[columnOptions.indexOf(columnMappings.TeluguOpt)]
+          TamilOpt: sourceMappings.TamilOpt
+            ? row[sourceColumnOptions.indexOf(sourceMappings.TamilOpt)]
             : undefined,
-          Malayalam: columnMappings.Malayalam
-            ? row[columnOptions.indexOf(columnMappings.Malayalam)]
+
+          Punjabi: sourceMappings.Punjabi
+            ? row[sourceColumnOptions.indexOf(sourceMappings.Punjabi)]
             : undefined,
-          MalayalamOpt: columnMappings.MalayalamOpt
-            ? row[columnOptions.indexOf(columnMappings.MalayalamOpt)]
+          PunjabiOpt: sourceMappings.PunjabiOpt
+            ? row[sourceColumnOptions.indexOf(sourceMappings.PunjabiOpt)]
             : undefined,
-          Bangali: columnMappings.Bangali
-            ? row[columnOptions.indexOf(columnMappings.Bangali)]
+
+          Telugu: sourceMappings.Telugu
+            ? row[sourceColumnOptions.indexOf(sourceMappings.Telugu)]
             : undefined,
-          BangaliOpt: columnMappings.BangaliOpt
-            ? row[columnOptions.indexOf(columnMappings.BangaliOpt)]
+          TeluguOpt: sourceMappings.TeluguOpt
+            ? row[sourceColumnOptions.indexOf(sourceMappings.TeluguOpt)]
+            : undefined,
+          Malayalam: sourceMappings.Malayalam
+            ? row[sourceColumnOptions.indexOf(sourceMappings.Malayalam)]
+            : undefined,
+          MalayalamOpt: sourceMappings.MalayalamOpt
+            ? row[sourceColumnOptions.indexOf(sourceMappings.MalayalamOpt)]
+            : undefined,
+          Bangali: sourceMappings.Bangali
+            ? row[sourceColumnOptions.indexOf(sourceMappings.Bangali)]
+            : undefined,
+          BangaliOpt: sourceMappings.BangaliOpt
+            ? row[sourceColumnOptions.indexOf(sourceMappings.BangaliOpt)]
             : undefined,
           languageTranslation: languageTranslations,
         };
       })
       .filter((i) => Object.values(i).some((val) => val !== undefined));
-    // const mappedData = csvData
-    //   .map((row) => ({
-    //     // Directly using the provided patientId
-    //     type: columnMappings.type
-    //       ? row[columnOptions.indexOf(columnMappings.type)]
-    //       : undefined,
 
-    //     ailments: columnMappings.ailments
-    //       ? row[columnOptions.indexOf(columnMappings.ailments)]
-    //       : undefined,
-    //     Name: columnMappings.name
-    //       ? row[columnOptions.indexOf(columnMappings.name)]
-    //       : undefined,
-    //     Options: columnMappings.options
-    //       ? row[columnOptions.indexOf(columnMappings.options)]
-    //       : undefined,
+    return mappedData.slice(1);
+  };
 
-    //     Hindi: columnMappings.Hindi
-    //       ? row[columnOptions.indexOf(columnMappings.Hindi)]
-    //       : undefined,
-    //     HindiOpt: columnMappings.HindiOpt
-    //       ? row[columnOptions.indexOf(columnMappings.HindiOpt)]
-    //       : undefined,
-    //   }))
-    //   .filter((item) =>
-    //     Object.values(item).some((value) => value !== undefined)
-    //   );
+  const pushMappedData = (
+    sourceCsvData = csvData,
+    sourceColumnOptions = columnOptions,
+    sourceMappings = columnMappings,
+    sourceLanguages = languages
+  ) => {
+    const trimmedMappedData = buildMappedData(
+      sourceCsvData,
+      sourceColumnOptions,
+      sourceMappings,
+      sourceLanguages
+    );
 
-    const trimmedMappedData = mappedData.slice(1);
     setData(trimmedMappedData);
-    setSuccess(!success);
+    if (typeof setSuccess === "function") {
+      setSuccess((previousValue) => !previousValue);
+    }
 
     let data = { data: trimmedMappedData };
     console.log("Data:", data);
@@ -309,6 +450,12 @@ export default function CSVReader({ setData, setSuccess, success, languages }) {
       trimmedMappedData.map((item) => item.languageTranslation)
     );
   };
+
+  useEffect(() => {
+    if (!csvData.length || !columnOptions.length) return;
+    pushMappedData();
+  }, [csvData, columnOptions, columnMappings, languages]);
+
   console.log("these are the langs again:", languages);
 
   return (
@@ -316,9 +463,13 @@ export default function CSVReader({ setData, setSuccess, success, languages }) {
       onUploadAccepted={(results) => {
         setZoneHover(false);
         if (results.data.length > 0) {
+          const headers = results.data[0] || [];
+          const autoMappings = buildAutoMappings(headers, languages);
           setCsvData(results.data);
           setHeadData(results.data.slice(0, 5)); // Get the first five entries
-          setColumnOptions(results.data[0]);
+          setColumnOptions(headers);
+          setColumnMappings(autoMappings);
+          pushMappedData(results.data, headers, autoMappings, languages);
         }
       }}
       onDragOver={(event) => {
@@ -414,10 +565,10 @@ export default function CSVReader({ setData, setSuccess, success, languages }) {
                       id={key}
                       value={value}
                       onChange={(e) =>
-                        setColumnMappings({
-                          ...columnMappings,
+                        setColumnMappings((previousMappings) => ({
+                          ...previousMappings,
                           [key]: e.target.value,
-                        })
+                        }))
                       }
                       className="border px-4 py-2 rounded focus:outline-none focus:border-blue-500"
                     >
@@ -431,14 +582,9 @@ export default function CSVReader({ setData, setSuccess, success, languages }) {
                   </li>
                 ))}
               </ul>
-              <div className="mt-4">
-                <button
-                  onClick={handleSubmit}
-                  className="bg-blue-500 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
-                >
-                  Submit Edited
-                </button>
-              </div>
+              <p className="text-sm text-gray-600">
+                Columns are mapped automatically and updated instantly when you change selections.
+              </p>
             </div>
           )}
         </div>
