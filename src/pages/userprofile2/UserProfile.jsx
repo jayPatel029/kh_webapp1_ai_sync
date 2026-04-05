@@ -57,10 +57,12 @@ import { getAdmins } from "../../ApiCalls/authapis";
 import { getAllChats, getAllChatsAdmin } from "../../ApiCalls/chatApis";
 import { getDoctorsChat } from "../../ApiCalls/doctorApis";
 import { getGeneralParameterQuestions, getDialysisParameterQuestions } from "../../ApiCalls/questionApis";
+import { getSystolicIdByTitle, getDialysisSystolicIdByTitle } from "../../ApiCalls/readingsApis";
 
 // Legacy components (to be replaced or kept if still needed)
 import LineChartComponent from "../../components/Linechart/LineChartComponent";
 import LineChartDialysis from "../../components/Linechart/Linechart_Dialysis/LineChartDialysis";
+import LineChartDialyisisSys from "../../components/Linechart/Linechart_Dialysis/LineChartDialyisisSys";
 import QuestionsContainer from "../../components/questions/QuestionsContainer";
 import Table from "../../components/table/table";
 import DialysisTable from "../../components/table/DialysisTable";
@@ -68,6 +70,96 @@ import LineChartComponentSys from "../../components/linecomponent-sys-dys/LineCh
 import LineChartComponentLab from "../../components/linechartlab/LineChartComponentLab";
 import LabRedingUpdateModal from "../../components/modals/LabReadingModal";
 import { PatientProfileShellContext } from "../common/PatientProfileShellContext";
+
+const buildCombinedTitle = (baseTitle, keyword, insertText) => {
+  if (!baseTitle) return baseTitle;
+  const lower = baseTitle.toLowerCase();
+  const index = lower.indexOf(keyword);
+  if (index === -1) return baseTitle;
+  const endIndex = index + keyword.length;
+  return baseTitle.slice(0, endIndex) + insertText + baseTitle.slice(endIndex);
+};
+
+const SystolicDiastolicGraph = ({
+  question,
+  userId,
+  isDialysis,
+  aspect,
+}) => {
+  const [systolicId, setSystolicId] = useState(question?.id ?? null);
+  const [loading, setLoading] = useState(false);
+
+  const title = question?.title || "";
+  const titleLower = title.toLowerCase();
+  const isSystolic = titleLower.includes("systolic");
+  const isDiastolic = titleLower.includes("diastolic");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSystolicId = async () => {
+      if (!isDiastolic || isSystolic) {
+        setSystolicId(question?.id ?? null);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const response = isDialysis
+          ? await getDialysisSystolicIdByTitle(title)
+          : await getSystolicIdByTitle(title);
+
+        if (isMounted) {
+          setSystolicId(response?.data ?? null);
+        }
+      } catch (error) {
+        console.error("Error fetching systolic ID:", error);
+        if (isMounted) setSystolicId(null);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchSystolicId();
+    return () => {
+      isMounted = false;
+    };
+  }, [isDialysis, isDiastolic, isSystolic, question?.id, title]);
+
+  if (isDiastolic && loading) {
+    return <Box className="text-sm text-muted">Loading...</Box>;
+  }
+
+  if (isDiastolic && !systolicId) {
+    return <Box className="text-sm text-muted">No systolic ID found.</Box>;
+  }
+
+  const chartTitle = isSystolic
+    ? buildCombinedTitle(title, "systolic", " and Diastolic")
+    : buildCombinedTitle(title, "diastolic", " and Systolic");
+
+  if (isDialysis) {
+    return (
+      <LineChartDialyisisSys
+        aspect={aspect}
+        questionId={isSystolic ? question?.id : systolicId}
+        user_id={userId}
+        title={chartTitle}
+        unit={question?.unit}
+      />
+    );
+  }
+
+  return (
+    <LineChartComponentSys
+      aspect={aspect}
+      questionId={isSystolic ? question?.id : systolicId}
+      user_id={userId}
+      title={chartTitle}
+      unit={question?.unit}
+    />
+  );
+};
 
 function UserProfile() {
   const [totalUnreadCount, settotalUnreadCount] = useState(0);
@@ -105,6 +197,10 @@ function UserProfile() {
 
   // Keep isSmall synced with isMobile for backward compat (charts aspect ratio etc.)
   const isSmall = isMobile;
+
+  const normalizeQuestionTitle = (title = "") => title.toLowerCase().replace(/[\s_-]/g, "");
+  const hasGeneralSystolic = generalParameters.some((q) => q.title?.toLowerCase().includes("systolic"));
+  const hasDialysisSystolic = dialysisParameters.some((q) => q.title?.toLowerCase().includes("systolic"));
 
   const openLabReadingModal = (title, id) => setSelectedReading({ title, id });
   const closeLabReadingModal = () => setSelectedReading(null);
@@ -583,49 +679,58 @@ function UserProfile() {
                 <QuestionsContainer aliment="Generic Profile" user_id={id} />
               </ParameterSection>
 
-              {generalParameters
-                .filter(q => !q.title.toLowerCase().includes("diastolic"))
-                .map((question, index) => {
-                  let questionTitle = question.title;
-                  if (question.title.toLowerCase().includes("systolic")) {
-                    questionTitle = questionTitle.replace(/systolic/i, "Systolic and Diastolic");
-                  }
+              {generalParameters.map((question, index) => {
+                const questionTitle = question.title || "";
+                const titleLower = questionTitle.toLowerCase();
+                const isSystolic = titleLower.includes("systolic");
+                const isDiastolic = titleLower.includes("diastolic");
 
+                if (isDiastolic && hasGeneralSystolic) {
+                  return null;
+                }
+
+                if (isSystolic || isDiastolic) {
                   return (
                     <ParameterSection
                       key={index}
                       title={questionTitle}
                       noResponse={question.responseCount === 0}
                     >
-                      {question.isGraph === 1 ? (
-                        question.title.toLowerCase().includes("systolic") ? (
-                          <LineChartComponentSys
-                            aspect={isSmall ? 2 / 1 : 3 / 1}
-                            questionId={question.id}
-                            user_id={userData.id}
-                            title={questionTitle}
-                            unit={question.unit}
-                          />
-                        ) : (
-                          <LineChartComponent
-                            aspect={isSmall ? 2 / 1 : 3 / 1}
-                            questionId={question.id}
-                            user_id={userData.id}
-                            title={questionTitle}
-                            unit={question.unit}
-                          />
-                        )
-                      ) : (
-                        <Table
-                          questionId={question.id}
-                          user_id={userData.id}
-                          title={questionTitle}
-                          question={question}
-                        />
-                      )}
+                      <SystolicDiastolicGraph
+                        question={question}
+                        userId={userData.id}
+                        isDialysis={false}
+                        aspect={isSmall ? 2 / 1 : 3 / 1}
+                      />
                     </ParameterSection>
                   );
-                })}
+                }
+
+                return (
+                  <ParameterSection
+                    key={index}
+                    title={questionTitle}
+                    noResponse={question.responseCount === 0}
+                  >
+                    {question.isGraph === 1 ? (
+                      <LineChartComponent
+                        aspect={isSmall ? 2 / 1 : 3 / 1}
+                        questionId={question.id}
+                        user_id={userData.id}
+                        title={questionTitle}
+                        unit={question.unit}
+                      />
+                    ) : (
+                      <Table
+                        questionId={question.id}
+                        user_id={userData.id}
+                        title={questionTitle}
+                        question={question}
+                      />
+                    )}
+                  </ParameterSection>
+                );
+              })}
             </Box>
           )}
 
@@ -637,35 +742,70 @@ function UserProfile() {
                 <Box as="h2" className={`${isSmall ? "text-md" : "text-xl"} font-bold mt-8`}>Dialysis Parameters</Box>
               </Box>
 
-              {dialysisParameters
-                .filter(q => !q.title.toLowerCase().includes("diastolic"))
-                .map((question, index) => (
-                  <ParameterSection
-                    key={index}
-                    title={question.title}
-                    noResponse={question.responseCount === 0}
-                  >
-                    {question.isGraph === 1 ? (
-                      <LineChartDialysis
-                        aspect={isSmall ? 2 / 1 : 3 / 1}
-                        questionId={question.id}
-                        user_id={userData.id}
-                        title={question.title}
-                        unit={question.unit}
-                      />
-                    ) : (
-                      <DialysisTable
-                        questionId={question.id}
-                        user_id={userData.id}
-                        title={question.title}
-                        question={question}
-                      />
-                    )}
-                  </ParameterSection>
-                ))}
+              {dialysisParameters.map((question, index) => {
+                  const questionTitle = question.title || "";
+                  const normalizedTitle = normalizeQuestionTitle(questionTitle);
+                  const isWeightAfter = normalizedTitle === "weightafter";
+                  const isWeightBefore = normalizedTitle === "weightbefore";
+                  const isInterdialyticWeight = normalizedTitle === "interdialyticweight";
+                  const isSystolic = questionTitle.toLowerCase().includes("systolic");
+                  const isDiastolic = questionTitle.toLowerCase().includes("diastolic");
+
+                  if (isDiastolic && hasDialysisSystolic) {
+                    return null;
+                  }
+
+                  if (isSystolic || isDiastolic) {
+                    return (
+                      <ParameterSection
+                        key={index}
+                        title={questionTitle}
+                        noResponse={question.responseCount === 0}
+                      >
+                        <SystolicDiastolicGraph
+                          question={question}
+                          userId={userData.id}
+                          isDialysis={true}
+                          aspect={isSmall ? 2 / 1 : 3 / 1}
+                        />
+                      </ParameterSection>
+                    );
+                  }
+
+                  const forceTable = isWeightAfter || isWeightBefore;
+                  const forceGraph = isInterdialyticWeight;
+                  const renderAsGraph = forceGraph || (!forceTable && question.isGraph === 1);
+
+                  return (
+                    <ParameterSection
+                      key={index}
+                      title={questionTitle}
+                      noResponse={question.responseCount === 0}
+                    >
+                      {renderAsGraph ? (
+                        <LineChartDialysis
+                          aspect={isSmall ? 2 / 1 : 3 / 1}
+                          questionId={question.id}
+                          user_id={userData.id}
+                          title={question.title}
+                          unit={question.unit}
+                        />
+                      ) : (
+                        <DialysisTable
+                          questionId={question.id}
+                          user_id={userData.id}
+                            title={questionTitle}
+                          question={question}
+                          highlightThreshold={isWeightAfter ? userData?.dry_weight : null}
+                          highlightComparator="gt"
+                        />
+                      )}
+                    </ParameterSection>
+                  );
+                })}
             </Box>
           )}
-
+          
           {/* Lab Reports */}
           {userData.program !== "Basic" && (
             <Box className="space-y-6">

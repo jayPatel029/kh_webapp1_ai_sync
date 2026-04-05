@@ -22,8 +22,8 @@ import {
   Button
 } from "../../../component-library";
 import RefreshButton from "../../../components/RefreshButton/RefreshButton";
-import { useAdminToast } from "../../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../../cache";
+import { useAdminToast } from "../../../components/AdminToast";
 
 function DialysisReadingsList() {
   const [editMode, setEditMode] = useState(false);
@@ -206,9 +206,6 @@ function DialysisReadingsList() {
 
   return (
     <div className="admin-page-content">
-      <div className="flex justify-end mb-4">
-        <RefreshButton pageName={PAGE_CACHE.DIALYSIS_READINGS.name} />
-      </div>
       <div className="admin-card__body">
         <div style={{ marginBottom: '1rem' }}>
           {errMsg && <div className="admin-message admin-message--error">{errMsg}</div>}

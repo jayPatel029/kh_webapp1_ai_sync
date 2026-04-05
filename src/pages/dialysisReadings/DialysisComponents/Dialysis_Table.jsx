@@ -8,6 +8,8 @@ import { UnifiedListTable, SearchBar } from "../../../components";
 import { useSelector } from "react-redux";
 import { Button } from "../../../component-library";
 import { useAdminToast } from "../../../components/AdminToast";
+import RefreshButton from "../../../components/RefreshButton/RefreshButton";
+import { usePageCache, PAGE_CACHE } from "../../../cache";
 
 export default function DialysisTableComponent({
   setEditMode,
@@ -137,6 +139,7 @@ export default function DialysisTableComponent({
                 </Button>
               </>
             )}
+            <RefreshButton pageName={PAGE_CACHE.DIALYSIS_READINGS.name} />
           </div>
         </div>
       </div>

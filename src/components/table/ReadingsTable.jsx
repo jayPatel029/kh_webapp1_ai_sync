@@ -43,6 +43,8 @@ const ReadingsTable = ({
     UpdateModal,
     DeleteModal,
     isPatientProfile = 0,
+    highlightThreshold = null,
+    highlightComparator = 'gt',
 }) => {
     const [showModal, setShowModal] = useState(false);
     const [showModalUpdate, setShowModalUpdate] = useState(false);
@@ -54,6 +56,32 @@ const ReadingsTable = ({
     const role = useSelector((state) => state.permission);
 
     const hasActions = hasEditPermission(role, 'dailyReadings') || hasDeletePermission(role, 'dailyReadings') || hasEditPermission(role, 'dialysisReadings') || hasDeletePermission(role, 'dialysisReadings');
+
+    const normalizedThreshold = Number.isFinite(Number(highlightThreshold))
+        ? Number(highlightThreshold)
+        : null;
+
+    const shouldHighlightReading = (readingValue) => {
+        if (normalizedThreshold === null) return false;
+        if (readingValue === null || readingValue === undefined) return false;
+
+        const numericReading = Number(readingValue);
+        if (!Number.isFinite(numericReading)) return false;
+
+        switch (highlightComparator) {
+            case 'gte':
+                return numericReading >= normalizedThreshold;
+            case 'lt':
+                return numericReading < normalizedThreshold;
+            case 'lte':
+                return numericReading <= normalizedThreshold;
+            case 'eq':
+                return numericReading === normalizedThreshold;
+            case 'gt':
+            default:
+                return numericReading > normalizedThreshold;
+        }
+    };
 
     // Determine API endpoint based on type
     const apiEndpoint = type === 'dialysis' ? 'dialysisReading' : 'readings';
@@ -151,12 +179,14 @@ const ReadingsTable = ({
 
                 {/* Table Body */}
                 {patientData.length > 0 ? (
-                    patientData.map((data, index) => (
-                        <Flex
-                            key={index}
-                            className="px-4 py-3 border-b border-border last:border-b-0 bg-white hover:bg-surface/50 transition-colors"
-                            align="center"
-                        >
+                    patientData.map((data, index) => {
+                        const isHighlighted = shouldHighlightReading(data.readings);
+                        return (
+                            <Flex
+                                key={index}
+                                className={`px-4 py-3 border-b border-border last:border-b-0 bg-white hover:bg-surface/50 transition-colors ${isHighlighted ? 'bg-red-50' : ''}`}
+                                align="center"
+                            >
                             <Box className="flex-1">
                                 <Text size="sm" className="text-dark">{data.date}</Text>
                             </Box>
@@ -175,7 +205,7 @@ const ReadingsTable = ({
                                         onClick={() => openFileModal(data.readings)}
                                     />
                                 ) : (
-                                    <Text size="sm" className="text-muted-foreground">{data.readings}</Text>
+                                    <Text size="sm" className={isHighlighted ? "text-error font-semibold" : "text-muted-foreground"}>{data.readings}</Text>
                                 )}
                             </Box>
                             {hasActions && (
@@ -200,8 +230,9 @@ const ReadingsTable = ({
                                     </Flex>
                                 </Box>
                             )}
-                        </Flex>
-                    ))
+                            </Flex>
+                        );
+                    })
                 ) : (
                     <Box className="px-4 py-8 text-center bg-white">
                         <Text className="text-muted">No Data Found</Text>

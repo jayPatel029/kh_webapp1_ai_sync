@@ -16,7 +16,9 @@ const DialysisTable = ({
   user_id,
   title,
   question,
-  isPatientProfile = 1
+  isPatientProfile = 1,
+  highlightThreshold = null,
+  highlightComparator = 'gt'
 }) => {
   return (
     <ReadingsTable
@@ -26,6 +28,8 @@ const DialysisTable = ({
       title={title}
       question={question}
       isPatientProfile={isPatientProfile}
+      highlightThreshold={highlightThreshold}
+      highlightComparator={highlightComparator}
       AddModal={DialysisTableModal}
       UpdateModal={DialysisTableModalUpdate}
       DeleteModal={DialysisTableModalDelete}

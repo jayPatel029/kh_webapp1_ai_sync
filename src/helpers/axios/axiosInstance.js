@@ -10,8 +10,8 @@ import { emitCacheInvalidation } from '../../cache/cacheEventBus';
 const MUTATION_METHODS = new Set(['post', 'put', 'delete', 'patch']);
 
 /** Global request pacing to protect backend */
-const REQUEST_DELAY_MS = 500;
-const PROFILE_REQUEST_DELAY_MS = 50;
+const REQUEST_DELAY_MS = 100; // 100 ms between requests by default, can be overridden per-request via config.requestDelayMs
+const PROFILE_REQUEST_DELAY_MS = 50; // Shorter delay for profile-related requests to improve perceived performance, as they are usually made sequentially on page load
 let lastRequestAt = 0;
 let requestQueue = Promise.resolve();
 

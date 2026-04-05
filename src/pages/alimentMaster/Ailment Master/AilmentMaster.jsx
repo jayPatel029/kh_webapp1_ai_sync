@@ -225,17 +225,17 @@ export default function AilmentMasterComponent() {
                   ailment.name.toLowerCase().includes(searchTerm.toLowerCase())
                 ).length} Records Found
               </span>
-              <RefreshButton pageName={PAGE_CACHE.AILMENT_MASTER.name} />
               {
                 role.canEditAilmentMaster &&
                 <Button
-                  varient="primary"
-                  className="admin-btn admin-btn--primary"
-                  onClick={() => setIsFormModalOpen(true)}
+                varient="primary"
+                className="admin-btn admin-btn--primary"
+                onClick={() => setIsFormModalOpen(true)}
                 >
                   Add Ailment
                 </Button>
               }
+              <RefreshButton pageName={PAGE_CACHE.AILMENT_MASTER.name} />
             </div>
           </div>
         </div>

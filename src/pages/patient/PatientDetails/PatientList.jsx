@@ -34,7 +34,10 @@ import PlusIcon from '../../../assets/icons/plus.svg';
 import DefaultAvatarFemale from '../../../assets/default-avatar-female.png';
 import DefaultAvatarMale from '../../../assets/default-avatar-male.png';
 import DefaultAvatar from '../../../assets/default-avatar.png';
-import Edit  from "../../../assets/Edit.svg"; // Assuming you have an Edit icon in your assets
+import Edit from "../../../assets/Edit.svg"; // Assuming you have an Edit icon in your assets
+
+import RefreshButton from "../../../components/RefreshButton/RefreshButton";
+import { usePageCache, PAGE_CACHE } from "../../../cache";
 
 
 const PatientList = ({ data, onAddClick }) => {
@@ -281,91 +284,39 @@ const PatientList = ({ data, onAddClick }) => {
     const isAdmin = isAdminRole(role?.role_name);
 
     const cols = [
-    { key: 'profile', label: 'Profile', type: 'image', width: '111px', justifyContent: 'start' },
-    { key: 'name', label: 'Name', type: 'text', width: '107px' },
-    { key: 'gender', label: 'Gender', type: 'text', width: '90px' },
-    {
-      key: 'condition', label: 'Condition', type: 'custom', width: '120px', render: (row) => (
-        <span className={getConditionStyles(row.condition)}>{row.condition || '-'}</span>
-      )
-    },
-    { key: 'number', label: 'Number', type: 'text', width: '125px' },
-    {
-      key: 'registered_date',
-      label: 'Registration Date',
-      type: 'custom',
-      width: '202px',
-      render: (row) => formatDateString(row.registered_date),
-    },
-    { key: 'program', label: 'Program', type: 'text', width: '129px' },
-    {
-      key: 'medical_team',
-      label: 'Medical Team',
-      type: 'custom',
-      width: '210px',
-      render: (row) => {
-        const doctors = assignedDoctorsByPatient[row.id] || [];
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#4b5563' }}>
-              {doctors.length > 0 ? (
-                doctors.map((doc, i) => {
-                  const roleLabel = getMemberRole(doc);
-                  return (
-                    <div key={getEntityId(doc, 'doctor') || i}>
-                      {getDisplayName(doc)}{roleLabel ? ` (${roleLabel})` : ''}
-                    </div>
-                  );
-                })
-              ) : (
-                <span className="text-gray-500">-</span>
-              )}
-            </div>
-
-            {isAdmin && (
-              <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                <Button
-                  variant="outline"
-                  onClick={(e) => openTeamModal(row, 'doctor', e)}
-                  style={{
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    padding: '6px 8px',
-                    border: '0px',
-                    minWidth: '34px',
-                    height: '34px',
-                    alignSelf: 'center',
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0)',
-                  }}
-                  aria-label="Manage Doctors"
-                >
-                  <img src={Edit} alt="Manage" style={{ width: '22px', height: '22px' }} />
-                </Button>
-              </div>
-            )}
-          </div>
-        );
-      },
-    },
-
-    // Only show assigned admins column to admin users
-    ...(isAdmin ? [
+      { key: 'profile', label: 'Profile', type: 'image', width: '111px', justifyContent: 'start' },
+      { key: 'name', label: 'Name', type: 'text', width: '107px' },
+      { key: 'gender', label: 'Gender', type: 'text', width: '90px' },
       {
-        key: 'admin',
-        label: 'Assigned To',
+        key: 'condition', label: 'Condition', type: 'custom', width: '120px', render: (row) => (
+          <span className={getConditionStyles(row.condition)}>{row.condition || '-'}</span>
+        )
+      },
+      { key: 'number', label: 'Number', type: 'text', width: '125px' },
+      {
+        key: 'registered_date',
+        label: 'Registration Date',
+        type: 'custom',
+        width: '202px',
+        render: (row) => formatDateString(row.registered_date),
+      },
+      { key: 'program', label: 'Program', type: 'text', width: '129px' },
+      {
+        key: 'medical_team',
+        label: 'Medical Team',
         type: 'custom',
         width: '210px',
         render: (row) => {
-          const admins = assignedAdminsByPatient[row.id] || [];
+          const doctors = assignedDoctorsByPatient[row.id] || [];
           return (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center' }}>
               <div style={{ fontSize: '12px', color: '#4b5563' }}>
-                {admins.length > 0 ? (
-                  admins.map((admin, i) => {
-                    const roleLabel = getMemberRole(admin);
+                {doctors.length > 0 ? (
+                  doctors.map((doc, i) => {
+                    const roleLabel = getMemberRole(doc);
                     return (
-                      <div key={getEntityId(admin, 'admin') || i}>
-                        {getDisplayName(admin)}{roleLabel ? ` (${roleLabel})` : ''}
+                      <div key={getEntityId(doc, 'doctor') || i}>
+                        {getDisplayName(doc)}{roleLabel ? ` (${roleLabel})` : ''}
                       </div>
                     );
                   })
@@ -374,31 +325,83 @@ const PatientList = ({ data, onAddClick }) => {
                 )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                <Button
-                  variant="outline"
-                  onClick={(e) => openTeamModal(row, 'admin', e)}
-                  style={{
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    padding: '6px 8px',
-                    border: '0px',
-                    minWidth: '34px',
-                    height: '34px',
-                    alignSelf: 'center',
-                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0)',
-                  }}
-                  aria-label="Manage Admins"
-                >
-                  <img src={Edit} alt="Manage" style={{ width: '22px', height: '22px' }} />
-                </Button>
-              </div>
+              {isAdmin && (
+                <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                  <Button
+                    variant="outline"
+                    onClick={(e) => openTeamModal(row, 'doctor', e)}
+                    style={{
+                      justifyContent: 'center',
+                      fontSize: '12px',
+                      padding: '6px 8px',
+                      border: '0px',
+                      minWidth: '34px',
+                      height: '34px',
+                      alignSelf: 'center',
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0)',
+                    }}
+                    aria-label="Manage Doctors"
+                  >
+                    <img src={Edit} alt="Manage" style={{ width: '22px', height: '22px' }} />
+                  </Button>
+                </div>
+              )}
             </div>
           );
         },
-      }
-    ] : []),
-    { key: 'actions', label: 'Actions', type: 'actions', width: '90px' },
+      },
+
+      // Only show assigned admins column to admin users
+      ...(isAdmin ? [
+        {
+          key: 'admin',
+          label: 'Assigned To',
+          type: 'custom',
+          width: '210px',
+          render: (row) => {
+            const admins = assignedAdminsByPatient[row.id] || [];
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center' }}>
+                <div style={{ fontSize: '12px', color: '#4b5563' }}>
+                  {admins.length > 0 ? (
+                    admins.map((admin, i) => {
+                      const roleLabel = getMemberRole(admin);
+                      return (
+                        <div key={getEntityId(admin, 'admin') || i}>
+                          {getDisplayName(admin)}{roleLabel ? ` (${roleLabel})` : ''}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <span className="text-gray-500">-</span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                  <Button
+                    variant="outline"
+                    onClick={(e) => openTeamModal(row, 'admin', e)}
+                    style={{
+                      justifyContent: 'center',
+                      fontSize: '12px',
+                      padding: '6px 8px',
+                      border: '0px',
+                      minWidth: '34px',
+                      height: '34px',
+                      alignSelf: 'center',
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0)',
+                    }}
+                    aria-label="Manage Admins"
+                  >
+                    <img src={Edit} alt="Manage" style={{ width: '22px', height: '22px' }} />
+                  </Button>
+                </div>
+              </div>
+            );
+          },
+        }
+      ] : []),
+      { key: 'actions', label: 'Actions', type: 'actions', width: '90px' },
     ];
 
     return cols;
@@ -610,6 +613,7 @@ const PatientList = ({ data, onAddClick }) => {
                     </Button>
                   </>
                 )}
+                <RefreshButton pageName={PAGE_CACHE.PATIENTS.name} />
               </Flex>
             </div>
           </div>

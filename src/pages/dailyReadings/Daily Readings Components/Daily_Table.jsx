@@ -123,7 +123,6 @@ export default function DailyTable({
                 (item.condition && item.condition.toLowerCase().includes(searchTerm.toLowerCase()))
               ).length} Records Found
             </span>
-            <RefreshButton pageName={PAGE_CACHE.DAILY_READINGS.name} />
             {role.canEditDailyReadings && (
               <>
                 <Button
@@ -145,6 +144,7 @@ export default function DailyTable({
                 </Button>
               </>
             )}
+            <RefreshButton pageName={PAGE_CACHE.DAILY_READINGS.name} />
           </div>
         </div>
       </div>

@@ -81,9 +81,6 @@ function Patient() {
 
   return (
     <>
-      <Flex justify="end" className="mb-5">
-        <RefreshButton pageName={PAGE_CACHE.PATIENTS.name} />
-      </Flex>
       <PatientList
         data={patientData}
         patientId={id}

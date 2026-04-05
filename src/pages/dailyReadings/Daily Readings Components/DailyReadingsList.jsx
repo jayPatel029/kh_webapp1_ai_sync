@@ -218,9 +218,6 @@ function DailyForm() {
 
   return (
     <div className="admin-page-content">
-      <div className="flex justify-end mb-4">
-        <RefreshButton pageName={PAGE_CACHE.DAILY_READINGS.name} />
-      </div>
       {/* <div className="admin-card">
         <div className="admin-card__body">
           <div style={{ marginBottom: '1rem' }}>
