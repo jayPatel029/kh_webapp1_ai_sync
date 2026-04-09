@@ -180,6 +180,7 @@ function UserProfile() {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editalimentsModalOpen, setEditalimentsModalOpen] = useState(false);
+  const [editSnapshot, setEditSnapshot] = useState(null);
   const [generalParameters, setGeneralParameters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialysisParameters, setDialysisParameters] = useState([]);
@@ -206,28 +207,47 @@ function UserProfile() {
   const closeLabReadingModal = () => setSelectedReading(null);
   const openEditalimentsModal = () => setEditalimentsModalOpen(true);
   const closeEditalimentsModal = () => setEditalimentsModalOpen(false);
-  const openEditModal = () => setEditModalOpen(true);
-  const closeEditModal = () => setEditModalOpen(false);
+  const openEditModal = async () => {
+    // refresh before opening
+    const beforeOpen = await fetchPatientData({ showLoader: false });
+    setEditSnapshot({ ...(beforeOpen || userData || {}) });
+    setEditModalOpen(true);
+
+    // refresh again after opening
+    const afterOpen = await fetchPatientData({ showLoader: false });
+    setEditSnapshot((prev) => ({ ...(prev || {}), ...(afterOpen || {}) }));
+  };
+  const closeEditModal = async () => {
+    // refresh before closing
+    await fetchPatientData({ showLoader: false });
+    setEditModalOpen(false);
+
+    // refresh after closing
+    await fetchPatientData({ showLoader: false });
+  };
 
   const updateUserData = (updatedData) => {
     setUserData((prevData) => ({ ...prevData, ...updatedData }));
   };
 
-  const fetchPatientData = async () => {
-    setLoading(true);
+  const fetchPatientData = async (options = {}) => {
+    const { showLoader = true } = options;
+    if (showLoader) setLoading(true);
+    let patientData = null;
     try {
       // If we are rendered inside a patient profile shell, prefer using that pre-fetched data
       if (isInPatientProfileShell && shellContext?.userData) {
-        setUserData(shellContext.userData || { ailments: [] });
-        setAilments(shellContext.userData?.ailments || []);
-        setLoading(false);
-        return shellContext.userData;
+        patientData = shellContext.userData || { ailments: [] };
+        setUserData(patientData);
+        setAilments(patientData?.ailments || []);
+        if (showLoader) setLoading(false);
+        return patientData;
       }
 
       // Use getPatientById for reliable patient data fetching
       const response = await getPatientById(id);
       if (response?.success && response?.data) {
-        let patientData = response.data.data || response.data;
+        patientData = response.data.data || response.data;
 
         // Normalize inconsistent API shapes: some responses use 'aliments' (string) or 'ailments' (array)
         const normalizedAilments = Array.isArray(patientData?.ailments)
@@ -242,16 +262,19 @@ function UserProfile() {
 
         setUserData(patientData || { ailments: [] });
         setAilments(patientData?.ailments || []);
+        if (showLoader) setLoading(false);
+        return patientData;
       } else {
         setError('Failed to load patient data');
+        if (showLoader) setLoading(false);
+        return null;
       }
-      return response?.data || [];
     } catch (error) {
       console.error("Error fetching patient data:", error);
       setError('Error loading patient data');
       setUserData({ ailments: [] });
-    } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
+      return null;
     }
   };
 
@@ -413,7 +436,28 @@ function UserProfile() {
     }
   }, [chats1]);
 
-  const handleUpdateSuccess = () => fetchPatientData();
+  const handleUpdateSuccess = async (latestPatientData) => {
+    if (latestPatientData) {
+      const normalizedAilments = Array.isArray(latestPatientData?.ailments)
+        ? latestPatientData.ailments
+        : (typeof latestPatientData?.ailments === 'string' && latestPatientData.ailments.trim() !== '')
+          ? latestPatientData.ailments.split(',').map(a => a.trim())
+          : (typeof latestPatientData?.aliments === 'string' && latestPatientData.aliments.trim() !== '')
+            ? latestPatientData.aliments.split(',').map(a => a.trim())
+            : [];
+
+      const normalizedLatest = {
+        ...latestPatientData,
+        ailments: normalizedAilments,
+      };
+
+      setUserData(normalizedLatest);
+      setAilments(normalizedLatest.ailments || []);
+    }
+
+    // Keep canonical sync with API in background (without full-page loader flicker)
+    await fetchPatientData({ showLoader: false });
+  };
 
   // Team Management
   const fetchTeams = async () => {
@@ -647,7 +691,7 @@ function UserProfile() {
             <NameModal
               closeEditModal={closeEditModal}
               onSuccess={handleUpdateSuccess}
-              initialData={userData}
+              initialData={editSnapshot || userData}
               updateData={updateUserData}
               user_id={userData.id}
 
