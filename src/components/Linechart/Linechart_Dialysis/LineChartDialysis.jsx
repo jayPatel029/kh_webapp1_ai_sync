@@ -12,7 +12,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import EnterReadingsModel from "../EnterReadingsModel";
-import UpdateRangeModel from "../UpdateRangeModel";
+import UpdateRangeModelDialysis from "./UpdateRangeModelDialysis";
 import axiosInstance from "../../../helpers/axios/axiosInstance";
 import { server_url } from "../../../constants/constants";
 import { useSelector } from "react-redux";
@@ -50,6 +50,7 @@ const LineChartDialysis = ({
   const [isUpdate, setIsUpdate] = useState(false);
   const [numberOfAbnormalReadings, setNumberOfAbnormalReadings] = useState(0);
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
+  const [isDateFilterApplied, setIsDateFilterApplied] = useState(false);
   const userRole = localStorage.getItem("role");
   const [selectionRange, setSelectionRange] = useState({
     startDate: new Date(),
@@ -68,10 +69,8 @@ const LineChartDialysis = ({
   };
 
   useEffect(() => {
-    const filterBasedOnColorAndTime = () => {
-      let filteredDataColor = originalData.slice();
-
-      filteredDataColor = filteredDataColor.filter((item) => {
+    const filterBasedOnColor = (data) =>
+      data.filter((item) => {
         const color = getAlertColor(
           item.readings,
           lowRange,
@@ -86,13 +85,14 @@ const LineChartDialysis = ({
         } else if (isCheckedRed) {
           return color === "red";
         }
-        return true; // Return true if no checkboxes are selected
+        return true;
       });
-      const filteredDataTime = filterDataByTimeRange(filteredDataColor);
-      return filteredDataColor;
-    };
 
-    const filteredData = filterBasedOnColorAndTime();
+    let filteredData = filterBasedOnColor(originalData.slice());
+    if (isDateFilterApplied) {
+      filteredData = filterDataByTimeRange(filteredData);
+    }
+
     if (isCheckedRed || isCheckedOrange) {
       setNumberOfAbnormalReadings(filteredData.length);
     } else {
@@ -100,41 +100,17 @@ const LineChartDialysis = ({
     }
 
     setPatientData(filteredData);
-  }, [isCheckedOrange, isCheckedRed]);
-  useEffect(() => {
-    const filterBasedOnColorAndTime = () => {
-      let filteredDataColor = originalData.slice();
-
-      filteredDataColor = filteredDataColor.filter((item) => {
-        const color = getAlertColor(
-          item.readings,
-          lowRange,
-          highRange,
-          lowRange2,
-          highRange2
-        );
-        if (isCheckedRed && isCheckedOrange) {
-          return color === "red" || color === "yellow";
-        } else if (isCheckedOrange) {
-          return color === "yellow";
-        } else if (isCheckedRed) {
-          return color === "red";
-        }
-        return true; // Return true if no checkboxes are selected
-      });
-      const filteredDataTime = filterDataByTimeRange(filteredDataColor);
-      return filteredDataTime;
-    };
-
-    const filteredData = filterBasedOnColorAndTime();
-    if (isCheckedRed || isCheckedOrange) {
-      setNumberOfAbnormalReadings(filteredData.length);
-    } else {
-      setNumberOfAbnormalReadings(0);
-    }
-
-    setPatientData(filteredData);
-  }, [selectionRange]);
+  }, [
+    originalData,
+    isCheckedOrange,
+    isCheckedRed,
+    isDateFilterApplied,
+    selectionRange,
+    lowRange,
+    highRange,
+    lowRange2,
+    highRange2,
+  ]);
   const CustomizedDotOld2 = (props) => {
     const { cx, cy, value } = props;
     // 16 combinations
@@ -844,18 +820,53 @@ const LineChartDialysis = ({
     };
   }, []);
 
+  const coerceRangeValue = (value) => {
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? numberValue : 0;
+  };
+
+  const normalizeRangeData = (raw) => {
+    const rangeData = Array.isArray(raw) ? raw[0] : raw || {};
+
+    const hr1Raw =
+      rangeData.high_range_1 ??
+      rangeData.high_range ??
+      rangeData.high_range1 ??
+      rangeData.highRange1 ??
+      0;
+    const lr1Raw =
+      rangeData.low_range_1 ??
+      rangeData.low_range ??
+      rangeData.low_range1 ??
+      rangeData.lowRange1 ??
+      0;
+    const hr2Raw =
+      rangeData.high_range_2 ??
+      rangeData.high_range2 ??
+      rangeData.highRange2 ??
+      0;
+    const lr2Raw =
+      rangeData.low_range_2 ??
+      rangeData.low_range2 ??
+      rangeData.lowRange2 ??
+      0;
+
+    return {
+      hr1: coerceRangeValue(hr1Raw),
+      lr1: coerceRangeValue(lr1Raw),
+      hr2: coerceRangeValue(hr2Raw),
+      lr2: coerceRangeValue(lr2Raw),
+    };
+  };
+
   const fetchRange = async () => {
     try {
       const response = await axiosInstance.get(
-        `${server_url}/range/getRange?question_id=${questionId}&user_id=${user_id}`
+        `${server_url}/rangeDialysis/getRange?question_id=${questionId}&user_id=${user_id}`
       );
-      // console.log("RangeData", response.data.data);
-      if (response.data) {
-        const hr1 = response?.data?.data?.high_range_1 ?? 0;
-        const lr1 = response?.data?.data?.low_range_1 ?? 0;
-
-        const lr2 = response?.data?.data?.low_range_2 ?? 0;
-        const hr2 = response?.data?.data?.high_range_2 ?? 0;
+      const rawRangeData = response?.data?.data ?? response?.data?.range ?? response?.data;
+      if (rawRangeData) {
+        const { hr1, lr1, hr2, lr2 } = normalizeRangeData(rawRangeData);
 
         setHighRange(hr1);
         setLowRange(lr1);
@@ -1001,7 +1012,7 @@ const LineChartDialysis = ({
                     size="sm"
                     onClick={() => {
                       setShowDateRangePicker(false);
-                      filterDataByTimeRange(patientData);
+                      setIsDateFilterApplied(true);
                     }}
                   >
                     Apply Filter
@@ -1014,6 +1025,7 @@ const LineChartDialysis = ({
                       setShowDateRangePicker(false);
                       setIsCheckedOrange(false);
                       setIsCheckedRed(false);
+                      setIsDateFilterApplied(false);
                       setPatientData(originalData);
                     }}
                   >
@@ -1061,6 +1073,7 @@ const LineChartDialysis = ({
               e.preventDefault();
               setIsCheckedOrange(false);
               setIsCheckedRed(false);
+              setIsDateFilterApplied(false);
               setSelectionRange({ startDate: new Date(), endDate: new Date(), key: 'selection' });
               setPatientData(originalData);
             }}
@@ -1082,6 +1095,20 @@ const LineChartDialysis = ({
             >
               Update range
             </Link>
+          )}
+
+          {showModalUpdateRange && (
+            <UpdateRangeModelDialysis
+              closeModal={closeModalUpdateRange}
+              title={title}
+              question_id={questionId}
+              user_id={user_id}
+              onSuccess={handleUpdateRangeSuccess}
+              hr1={highRange}
+              hr2={highRange2}
+              lr1={lowRange}
+              lr2={lowRange2}
+            />
           )}
 
           {/* {role?.canEditPatients && (

@@ -50,6 +50,7 @@ const LineChartComponentLab = ({
   const [isUpdate, setIsUpdate] = useState(false);
   const [numberOfAbnormalReadings, setNumberOfAbnormalReadings] = useState(0);
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
+  const [isDateFilterApplied, setIsDateFilterApplied] = useState(false);
 
   const [selectionRange, setSelectionRange] = useState({
     startDate: new Date(),
@@ -68,10 +69,8 @@ const LineChartComponentLab = ({
   };
 
   useEffect(() => {
-    const filterBasedOnColorAndTime = () => {
-      let filteredDataColor = originalData.slice();
-
-      filteredDataColor = filteredDataColor.filter((item) => {
+    const filterBasedOnColor = (data) =>
+      data.filter((item) => {
         const color = getAlertColor(
           item.readings,
           lowRange,
@@ -86,13 +85,14 @@ const LineChartComponentLab = ({
         } else if (isCheckedRed) {
           return color === "red";
         }
-        return true; // Return true if no checkboxes are selected
+        return true;
       });
-      const filteredDataTime = filterDataByTimeRange(filteredDataColor);
-      return filteredDataTime;
-    };
 
-    const filteredData = filterBasedOnColorAndTime();
+    let filteredData = filterBasedOnColor(originalData.slice());
+    if (isDateFilterApplied) {
+      filteredData = filterDataByTimeRange(filteredData);
+    }
+
     if (isCheckedRed || isCheckedOrange) {
       setNumberOfAbnormalReadings(filteredData.length);
     } else {
@@ -100,7 +100,17 @@ const LineChartComponentLab = ({
     }
 
     setPatientData(filteredData);
-  }, [isCheckedOrange, isCheckedRed, selectionRange]);
+  }, [
+    originalData,
+    isCheckedOrange,
+    isCheckedRed,
+    isDateFilterApplied,
+    selectionRange,
+    lowRange,
+    highRange,
+    lowRange2,
+    highRange2,
+  ]);
 
   const CustomizedDotOld2 = (props) => {
     const { cx, cy, value } = props;
@@ -937,7 +947,7 @@ const LineChartComponentLab = ({
                     size="sm"
                     onClick={() => {
                       setShowDateRangePicker(false);
-                      filterDataByTimeRange(patientData);
+                      setIsDateFilterApplied(true);
                     }}
                   >
                     Apply Filter
@@ -950,6 +960,7 @@ const LineChartComponentLab = ({
                       setShowDateRangePicker(false);
                       setIsCheckedOrange(false);
                       setIsCheckedRed(false);
+                      setIsDateFilterApplied(false);
                       setPatientData(originalData);
                     }}
                   >
@@ -995,6 +1006,7 @@ const LineChartComponentLab = ({
               e.preventDefault();
               setIsCheckedOrange(false);
               setIsCheckedRed(false);
+              setIsDateFilterApplied(false);
               setSelectionRange({ startDate: new Date(), endDate: new Date(), key: 'selection' });
               setPatientData(originalData);
             }}

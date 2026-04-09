@@ -46,6 +46,7 @@ const LineChartComponent = ({
   const [isUpdate, setIsUpdate] = useState(false);
   const [numberOfAbnormalReadings, setNumberOfAbnormalReadings] = useState(0);
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
+  const [isDateFilterApplied, setIsDateFilterApplied] = useState(false);
   const userRole = localStorage.getItem("role");
 
   const [selectionRange, setSelectionRange] = useState({
@@ -65,10 +66,8 @@ const LineChartComponent = ({
   };
 
   useEffect(() => {
-    const filterBasedOnColorAndTime = () => {
-      let filteredDataColor = originalData.slice();
-
-      filteredDataColor = filteredDataColor.filter((item) => {
+    const filterBasedOnColor = (data) =>
+      data.filter((item) => {
         const color = getAlertColor(
           item.readings,
           lowRange,
@@ -84,15 +83,14 @@ const LineChartComponent = ({
         } else if (isCheckedRed) {
           return color === "red";
         }
-        return true; // Return true if no checkboxes are selected
+        return true;
       });
-      console.log("filteredDataColor", filteredDataColor);
-      const filteredDataTime = filterDataByTimeRange(filteredDataColor);
-      return filteredDataColor;
-    };
 
-    const filteredData = filterBasedOnColorAndTime();
-    console.log("filteredData", filteredData);
+    let filteredData = filterBasedOnColor(originalData.slice());
+    if (isDateFilterApplied) {
+      filteredData = filterDataByTimeRange(filteredData);
+    }
+
     if (isCheckedRed || isCheckedOrange) {
       setNumberOfAbnormalReadings(filteredData.length);
     } else {
@@ -100,45 +98,17 @@ const LineChartComponent = ({
     }
 
     setPatientData(filteredData);
-  }, [isCheckedOrange, isCheckedRed]);
-
-  useEffect(() => {
-    const filterBasedOnColorAndTime = () => {
-      let filteredDataColor = originalData.slice();
-
-      filteredDataColor = filteredDataColor.filter((item) => {
-        const color = getAlertColor(
-          item.readings,
-          lowRange,
-          highRange,
-          lowRange2,
-          highRange2
-        );
-
-        if (isCheckedRed && isCheckedOrange) {
-          return color === "red" || color === "yellow";
-        } else if (isCheckedOrange) {
-          return color === "yellow";
-        } else if (isCheckedRed) {
-          return color === "red";
-        }
-        return true; // Return true if no checkboxes are selected
-      });
-      console.log("filteredDataColor", filteredDataColor);
-      const filteredDataTime = filterDataByTimeRange(filteredDataColor);
-      return filteredDataTime;
-    };
-
-    const filteredData = filterBasedOnColorAndTime();
-    console.log("filteredData", filteredData);
-    if (isCheckedRed || isCheckedOrange) {
-      setNumberOfAbnormalReadings(filteredData.length);
-    } else {
-      setNumberOfAbnormalReadings(0);
-    }
-
-    setPatientData(filteredData);
-  }, [selectionRange]);
+  }, [
+    originalData,
+    isCheckedOrange,
+    isCheckedRed,
+    isDateFilterApplied,
+    selectionRange,
+    lowRange,
+    highRange,
+    lowRange2,
+    highRange2,
+  ]);
 
   const CustomizedDotOld2 = (props) => {
     const { cx, cy, value } = props;
@@ -1055,7 +1025,7 @@ const LineChartComponent = ({
                   className="bg-blue-500 text-white px-4 py-2 rounded-md mr-2 cursor-pointer hover:bg-blue-600"
                   onClick={() => {
                     setShowDateRangePicker(false);
-                    filterDataByTimeRange(patientData);
+                    setIsDateFilterApplied(true);
                   }}
                 >
                   Apply Filter
@@ -1066,6 +1036,7 @@ const LineChartComponent = ({
                     setShowDateRangePicker(false);
                     setIsCheckedOrange(false);
                     setIsCheckedRed(false);
+                    setIsDateFilterApplied(false);
                     setPatientData(originalData);
                   }}
                 >
@@ -1102,6 +1073,7 @@ const LineChartComponent = ({
             onClick={() => {
               setIsCheckedOrange(false);
               setIsCheckedRed(false);
+              setIsDateFilterApplied(false);
               setPatientData(originalData);
             }}
           >

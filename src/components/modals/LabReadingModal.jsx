@@ -19,6 +19,7 @@ import {
 import UnifiedListTable from "../table/UnifiedListTable";
 import {
   deleteLabreportDeleteLabReadingByid,
+  getLabreportRange,
   getLabreportResponses,
   putLabreportUpdateLabReadingTitleByreadingId,
 } from "../../ApiCalls/remainingApis";
@@ -28,6 +29,12 @@ const formatDate = (value) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
   return d.toISOString().split("T")[0];
+};
+
+const normalizeRangeValue = (value) => {
+  if (value === "" || value === null || value === undefined) return undefined;
+  const numeric = Number(value);
+  return Number.isNaN(numeric) ? value : numeric;
 };
 
 const LabReadingModal = ({
@@ -45,6 +52,10 @@ const LabReadingModal = ({
   const [editValue, setEditValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState(null);
+  const [highRange1, setHighRange1] = useState("");
+  const [highRange2, setHighRange2] = useState("");
+  const [lowRange1, setLowRange1] = useState("");
+  const [lowRange2, setLowRange2] = useState("");
 
   const fetchReadings = useCallback(async () => {
     if (!question_id || !user_id) {
@@ -88,9 +99,37 @@ const LabReadingModal = ({
     }
   }, [question_id, user_id]);
 
+  const fetchRange = useCallback(async () => {
+    if (!question_id || !user_id) return;
+    try {
+      const response = await getLabreportRange({
+        params: {
+          question_id,
+          user_id,
+        },
+      });
+
+      if (!response?.success) return;
+
+      const data = response?.data?.data || {};
+      const resolvedHighRange1 = data.high_range_1 ?? data.high_range ?? "";
+      const resolvedHighRange2 = data.high_range_2 ?? "";
+      const resolvedLowRange1 = data.low_range_1 ?? "";
+      const resolvedLowRange2 = data.low_range_2 ?? data.low_range ?? "";
+
+      setHighRange1(resolvedHighRange1);
+      setHighRange2(resolvedHighRange2);
+      setLowRange1(resolvedLowRange1);
+      setLowRange2(resolvedLowRange2);
+    } catch (error) {
+      console.error("Error fetching lab range:", error);
+    }
+  }, [question_id, user_id]);
+
   useEffect(() => {
     fetchReadings();
-  }, [fetchReadings]);
+    fetchRange();
+  }, [fetchReadings, fetchRange]);
 
   const tableColumns = useMemo(
     () => [
@@ -119,23 +158,46 @@ const LabReadingModal = ({
       return;
     }
 
+    const rangePayload = {};
+    const parsedHighRange1 = normalizeRangeValue(highRange1);
+    const parsedHighRange2 = normalizeRangeValue(highRange2);
+    const parsedLowRange1 = normalizeRangeValue(lowRange1);
+    const parsedLowRange2 = normalizeRangeValue(lowRange2);
+
+    if (parsedHighRange1 !== undefined) rangePayload.high_range_1 = parsedHighRange1;
+    if (parsedHighRange2 !== undefined) rangePayload.high_range_2 = parsedHighRange2;
+    if (parsedLowRange1 !== undefined) rangePayload.low_range_1 = parsedLowRange1;
+    if (parsedLowRange2 !== undefined) rangePayload.low_range_2 = parsedLowRange2;
+
+    // Optimistic UI update: update local state immediately so the table shows
+    // the new value while the network request is in-flight. Revert if it fails.
+    const previousReadings = readings;
     setIsSaving(true);
     setErrorMessage("");
+    setReadings((prev) =>
+      prev.map((r) => (r.id === editingRow.id ? { ...r, readings: trimmedValue } : r))
+    );
+
     try {
       const updateResponse = await putLabreportUpdateLabReadingTitleByreadingId(editingRow.id, {
         newTitle: trimmedValue,
+        ...rangePayload,
       });
 
       if (!updateResponse?.success) {
+        // Revert optimistic update
+        setReadings(previousReadings);
         setErrorMessage("Failed to update reading.");
         return;
       }
 
+      // Refresh from server to ensure canonical data (timestamps, parsed numbers, etc.)
       handleCancelEdit();
       await fetchReadings();
       onSuccess?.();
     } catch (error) {
       console.error("Error updating lab reading:", error);
+      setReadings(previousReadings);
       setErrorMessage("Failed to update reading.");
     } finally {
       setIsSaving(false);
@@ -212,6 +274,44 @@ const LabReadingModal = ({
                 Cancel
               </Button>
             </Flex>
+            {/* <Box className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+              <FormControl>
+                <FormLabel>High Range 1</FormLabel>
+                <Input
+                  type="text"
+                  value={highRange1}
+                  onChange={(e) => setHighRange1(e.target.value)}
+                  placeholder="Optional"
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>High Range 2</FormLabel>
+                <Input
+                  type="text"
+                  value={highRange2}
+                  onChange={(e) => setHighRange2(e.target.value)}
+                  placeholder="Optional"
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Low Range 1</FormLabel>
+                <Input
+                  type="text"
+                  value={lowRange1}
+                  onChange={(e) => setLowRange1(e.target.value)}
+                  placeholder="Optional"
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Low Range 2</FormLabel>
+                <Input
+                  type="text"
+                  value={lowRange2}
+                  onChange={(e) => setLowRange2(e.target.value)}
+                  placeholder="Optional"
+                />
+              </FormControl>
+            </Box> */}
           </Box>
         )}
 

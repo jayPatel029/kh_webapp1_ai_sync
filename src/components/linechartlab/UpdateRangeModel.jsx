@@ -7,10 +7,10 @@ import { Input } from "../../component-library/primitives/Input";
 import { VStack } from "../../component-library/layout/Layout";
 
 const UpdateRangeModel = ({ closeModal, title, question_id, user_id, onSuccess, hr1, hr2, lr1, lr2 }) => {
-  const [highRange1, setHighRange1] = useState(hr1);
-  const [highRange2, setHighRange2] = useState(hr2);
-  const [lowRange1, setLowRange1] = useState(lr1);
-  const [lowRange2, setLowRange2] = useState(lr2);
+  const [highRange1, setHighRange1] = useState(hr1 ?? "");
+  const [highRange2, setHighRange2] = useState(hr2 ?? "");
+  const [lowRange1, setLowRange1] = useState(lr1 ?? "");
+  const [lowRange2, setLowRange2] = useState(lr2 ?? "");
   const [isLoading, setIsLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -22,21 +22,23 @@ const UpdateRangeModel = ({ closeModal, title, question_id, user_id, onSuccess, 
     if (!lowRange2 && lowRange2 !== 0) errors.lowRange2 = true;
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
+
     const data = {
-      question_id: question_id,
-      user_id: user_id,
+      newTitle: title || "",
+      high_range: highRange1,
+      low_range: lowRange1,
       high_range_1: highRange1,
-      high_range_2: highRange2,
       low_range_1: lowRange1,
+      high_range_2: highRange2,
       low_range_2: lowRange2,
     };
 
     setIsLoading(true);
     axiosInstance
-      .post(`${server_url}/range/setRange`, data)
+      .put(`${server_url}/labreport/updateLabReadingTitle/${question_id}`, data)
       .then((response) => {
-        onSuccess();
-        closeModal();
+        onSuccess?.(response.data);
+        closeModal?.();
       })
       .catch((error) => {
         console.error(error);
@@ -47,8 +49,8 @@ const UpdateRangeModel = ({ closeModal, title, question_id, user_id, onSuccess, 
   };
 
   const handleClose = () => {
-    onSuccess();
-    closeModal();
+    onSuccess?.();
+    closeModal?.();
   };
 
   return (
