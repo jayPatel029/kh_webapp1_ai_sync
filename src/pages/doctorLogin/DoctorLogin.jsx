@@ -12,6 +12,7 @@ import { useDispatch } from "react-redux";
 import { setPermissions } from "../../redux/permissionSlice";
 import { clearAllCaches } from "../../cache";
 import { server_url } from "../../constants/constants";
+import { parseJwt } from "../../helpers/utils";
 import { notifySuccess, notifyInfo, notifyError } from "../../helpers/notify";
 import SendIcon from "@mui/icons-material/Send";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
@@ -99,13 +100,9 @@ function DoctorLogin() {
       if (res.status === "true") {
         setErrMsg("");
         clearAllCaches();
-        const userResult = await getUserByEmail(email);
-        if (!userResult.success) {
-          setErrMsg(userResult.error);
-          return;
-        }
-        localStorage.setItem("firstname", userResult.data.data[0].firstname);
-        localStorage.setItem("email", userResult.data.data[0].email);
+        const decoded = parseJwt(res.token);
+        localStorage.setItem("firstname", decoded?.firstname || "");
+        localStorage.setItem("email", decoded?.email || email);
         localStorage.setItem("token", res.token);
 
         const roleResult = await identifyRole();
@@ -115,7 +112,7 @@ function DoctorLogin() {
           console.error(roleResult.error);
         }
 
-        notifySuccess(`Welcome back, ${userResult.data.data[0].firstname}!`);
+        notifySuccess(`Welcome back, ${decoded?.firstname || "User"}!`);
         theNavigate("/");
       } else {
         setErrMsg("Invalid OTP. Please try again.");

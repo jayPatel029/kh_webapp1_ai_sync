@@ -15,6 +15,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SubdirectoryArrowRightIcon from "@mui/icons-material/SubdirectoryArrowRight";
 import { AdminPanelSettings, ArrowBack, Assessment } from "@mui/icons-material";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import TranslateIcon from "@mui/icons-material/Translate";
 import { useSelector } from "react-redux";
 import { useLocation } from 'react-router-dom';
@@ -26,6 +27,7 @@ import { hasAnyPermission, hasDashboardAccess } from "../../helpers/permissions"
 
 const Sidebar = ({ mobile = false }) => {
   const [dropdown, setDropdown] = useState(false);
+  const [chatDropdown, setChatDropdown] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebarCollapsed') === 'true';
@@ -72,6 +74,7 @@ const Sidebar = ({ mobile = false }) => {
   useEffect(() => {
     if (isCollapsed) {
       setDropdown(false);
+      setChatDropdown(false);
     }
   }, [isCollapsed]);
 
@@ -227,6 +230,9 @@ const Sidebar = ({ mobile = false }) => {
     hasAnyPermission(role, "manageRoles")
   );
 
+  // Show Chats group only for admin-type roles
+  const chatsGroupVisible = !!(role?.role_name === "Admin" || role?.role_name === "PSadmin");
+
   const renderDesktopNavItem = (item) => {
     const Icon = item.icon;
     return (
@@ -324,6 +330,57 @@ const Sidebar = ({ mobile = false }) => {
     );
   };
 
+  const renderChatsGroup = () => {
+    if (!chatsGroupVisible) return null;
+
+    const shouldShowChildren = chatDropdown && !isCollapsed;
+    const isChatsActive =
+      pathname.toLowerCase().includes('/chats/');
+
+    return (
+      <li key="chats-group" className={isIconOnly ? 'w-full flex justify-center' : ''}>
+        <button
+          type="button"
+          aria-expanded={chatDropdown}
+          onClick={() => {
+            if (isIconOnly) {
+              toggleCollapse();
+              setChatDropdown((prev) => !prev);
+              return;
+            }
+            setChatDropdown((prev) => !prev);
+          }}
+          className={clsx(
+            'text-white transition-colors duration-200',
+            isIconOnly
+              ? clsx(
+                'flex flex-col items-center justify-center px-2 py-2.5 rounded-lg',
+                isChatsActive ? 'bg-white/10 text-white' : 'text-white hover:text-white hover:bg-white/10'
+              )
+              : 'w-full flex items-center gap-3 px-3 py-3 text-sm font-semibold justify-between rounded-2xl'
+          )}
+        >
+          <ChatBubbleOutlineIcon className="text-2xl text-white" />
+          {!isIconOnly && (
+            <>
+              <span className="text-sm font-semibold break-words">Chats</span>
+              <span className={clsx('text-lg transition-transform duration-200', chatDropdown ? 'rotate-180' : 'rotate-0')}>
+                ▾
+              </span>
+            </>
+          )}
+          {isIconOnly && (<span className="text-[8px] font-semibold break-words">Chats</span>)}
+        </button>
+        {shouldShowChildren && (
+          <div className="mt-2 flex flex-col gap-1 pl-4">
+            {renderAdminChild('Admin Chats', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_ADMIN)}
+            {renderAdminChild('Doctor Chats', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_DOCTOR)}
+          </div>
+        )}
+      </li>
+    );
+  };
+
   const desktopSidebarClasses = clsx(
     'flex flex-col justify-between text-white transition-all duration-300 shadow-2xl !z-[200]',
     isCollapsed && !mobile ? 'w-20 px-0.5' : 'w-[250px] px-3',
@@ -401,16 +458,22 @@ const Sidebar = ({ mobile = false }) => {
                 (() => {
                   const nodes = [];
                   let inserted = false;
+                  let chatsInserted = false;
                   navItems.forEach((it) => {
                     nodes.push(renderDesktopNavItem(it));
                     if (it.id === 'admin-dashboard') {
                       nodes.push(renderAdminGroup());
+                      nodes.push(renderChatsGroup());
                       inserted = true;
+                      chatsInserted = true;
                     }
                   });
 
                   if (!inserted && adminGroupVisible) {
                     nodes.unshift(renderAdminGroup());
+                  }
+                  if (!chatsInserted && chatsGroupVisible) {
+                    nodes.unshift(renderChatsGroup());
                   }
 
                   return nodes;

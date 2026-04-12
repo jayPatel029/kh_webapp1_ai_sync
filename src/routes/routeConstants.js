@@ -50,6 +50,9 @@ export const ROUTES = {
   chatDoctor: (patientId) =>
     patientId ? `/userProfile/${patientId}/doctor-chat` : "/chat/doctor",
 
+  GLOBAL_CHATS_ADMIN: "/chats/admin",
+  GLOBAL_CHATS_DOCTOR: "/chats/doctor",
+
   SETTINGS: "/settings",
   SETTINGS_LANGUAGE: "/settings/language",
   SETTINGS_PASSWORD: "/settings/password",
@@ -101,6 +104,8 @@ export const ROUTE_NAMES = {
   PARAMETERS: "ManageParameters",
   ADMIN_CHAT: "AdminChat",
   DOCTOR_CHAT: "DoctorChat",
+  GLOBAL_ADMIN_CHATS: "GlobalAdminChats",
+  GLOBAL_DOCTOR_CHATS: "GlobalDoctorChats",
   REPORTS_KFRE: "kfre",
   REPORTS_DOCTOR: "doctorReport",
   AI_CHAT: "aiChat",

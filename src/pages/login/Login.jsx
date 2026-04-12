@@ -6,6 +6,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setPermissions } from "../../redux/permissionSlice";
 import { clearAllCaches } from "../../cache";
+import { parseJwt } from "../../helpers/utils";
 
 // Design primitives
 import { Button } from "../../component-library/primitives/Button";
@@ -52,14 +53,11 @@ function Login() {
         setErrMsg([]);
         clearAllCaches();
 
-        const userResponse = await getUserByEmail(email);
-        localStorage.setItem(
-          "firstname",
-          userResponse?.data?.data[0]?.firstname
-        );
-        localStorage.setItem("email", userResponse?.data?.data[0]?.email);
+        const decoded = parseJwt(response?.data?.token);
+        localStorage.setItem("firstname", decoded?.firstname || "");
+        localStorage.setItem("email", decoded?.email || email);
         localStorage.setItem("token", response?.data?.token);
-        localStorage.setItem("role", userResponse?.data?.data[0]?.role);
+        localStorage.setItem("role", decoded?.role || "");
         try {
           const role = await identifyRole();
           if (role.success) {

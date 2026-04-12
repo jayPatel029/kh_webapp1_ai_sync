@@ -25,6 +25,7 @@ const UserListManage = lazy(() => import("../components/UserListAdmin/UserListMa
 const UserMedicalTeam = lazy(() => import("../components/UserListAdmin/UserMedicalTeam"));
 const PatientAlertsByType = lazy(() => import("../pages/PatientAlertsByType"));
 const CommentsDemoPage = lazy(() => import("../pages/CommentsDemoPage"));
+const GlobalChatsPage = lazy(() => import("../pages/chats/GlobalChatsPage"));
 
 const RouteFallback = () => <div className="p-6">Loading...</div>;
 
@@ -258,6 +259,29 @@ function AppRoutes() {
         { path: "alerts", element: guard(<PatientAlertsByType />, "PatientAlertsByType") },
 
         { path: "commentsdemo", element: withSuspense(<CommentsDemoPage />) },
+
+        {
+          path: "chats",
+          children: [
+            { index: true, element: <Navigate to={ROUTES.GLOBAL_CHATS_ADMIN} replace /> },
+            {
+              path: "admin",
+              element: guard(
+                <GlobalChatsPage chatType="admin" />,
+                ROUTE_NAMES.GLOBAL_ADMIN_CHATS,
+                ["Admin", "PSadmin"]
+              ),
+            },
+            {
+              path: "doctor",
+              element: guard(
+                <GlobalChatsPage chatType="doctor" />,
+                ROUTE_NAMES.GLOBAL_DOCTOR_CHATS,
+                ["Admin", "PSadmin"]
+              ),
+            },
+          ],
+        },
 
         { path: "patients/:id/medical-team", element: guard(<UserMedicalTeam />, "UserMedicalTeam") },
         { path: "patients/:id/user-management", element: guard(<UserListManage />, "UserListManage") },

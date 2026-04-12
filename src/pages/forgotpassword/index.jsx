@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { postMailSentotp, postMailVerifyOtp } from "../../ApiCalls/remainingApis";
 import { useDispatch } from "react-redux";
 import { setPermissions } from "../../redux/permissionSlice";
+import { parseJwt } from "../../helpers/utils";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -83,14 +84,9 @@ export default function ForgotPassword() {
           if (res.status === "true") {
             console.log("Res", res);
             console.log("OTP verified");
-            const response = await getUserByEmail(email);
-            setErrMsg([]);
-            const userResponse = await getUserByEmail(email);
-            localStorage.setItem(
-              "firstname",
-              userResponse.data.data[0].firstname
-            );
-            localStorage.setItem("email", userResponse.data.data[0].email);
+            const decoded = parseJwt(res.token);
+            localStorage.setItem("firstname", decoded?.firstname || "");
+            localStorage.setItem("email", decoded?.email || email);
             localStorage.setItem("token", res.token);
             try {
               const role = await identifyRole();
