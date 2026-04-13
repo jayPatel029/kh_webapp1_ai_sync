@@ -223,10 +223,8 @@ const UserRequisition = () => {
       totalUnreadCountDoc={totalUnreadCountDoc}
       loading={loading}
       onBackClick={() => navigate(ROUTES.PATIENTS)}
+      rightAction={<RefreshButton pageName={PAGE_CACHE.USER_REQUISITION.name} />}
     >
-      <Flex justify="end" className={isMobile ? 'mb-4' : 'mb-6'}>
-        <RefreshButton pageName={PAGE_CACHE.USER_REQUISITION.name} />
-      </Flex>
       {/* Sort Controls + Upload (single row) */}
       <Flex align="center" justify="between" className="mb-5 gap-4 flex-wrap">
         <Flex align="center" gap={3} className="flex-wrap items-center">

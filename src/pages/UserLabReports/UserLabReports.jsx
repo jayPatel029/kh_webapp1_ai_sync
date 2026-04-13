@@ -254,6 +254,7 @@ const UserLabReports = ({ patientId: propPatientId }) => {
       totalUnreadCountDoc={totalUnreadCountDoc}
       loading={loading}
       onBackClick={() => navigate(ROUTES.PATIENTS)}
+      rightAction={<RefreshButton pageName={PAGE_CACHE.USER_LAB_REPORTS.name} />}
       showNavTabs={!propPatientId}
       showHeader={!propPatientId}
     >
@@ -280,8 +281,6 @@ const UserLabReports = ({ patientId: propPatientId }) => {
             Clear filters
           </button>
         </Flex>
-
-        <RefreshButton pageName={PAGE_CACHE.USER_LAB_REPORTS.name} />
 
         {role?.role_name !== "Dialysis Technician" && (
           <Button

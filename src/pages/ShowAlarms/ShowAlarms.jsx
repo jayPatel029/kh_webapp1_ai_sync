@@ -216,6 +216,7 @@ const ShowAlarms = () => {
       totalUnreadCountDoc={totalUnreadCountDoc}
       loading={loading}
       onBackClick={() => navigate(ROUTES.PATIENTS)}
+      rightAction={<RefreshButton pageName={PAGE_CACHE.SHOW_ALARMS.name} />}
     >
       {/* Add Alarm Button - Only visible for non-doctors */}
       <Flex justify="between" align="center" className={isMobile ? "mb-3" : "mb-6"}>
@@ -260,7 +261,6 @@ const ShowAlarms = () => {
               Add alarm
             </ButtonPrimitive>
           )}
-          <RefreshButton pageName={PAGE_CACHE.SHOW_ALARMS.name} />
         </Flex>
       </Flex>
 

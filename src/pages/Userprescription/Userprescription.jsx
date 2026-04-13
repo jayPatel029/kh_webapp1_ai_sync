@@ -270,6 +270,7 @@ const Userprescription = () => {
       totalUnreadCountDoc={totalUnreadCountDoc}
       loading={loading}
       onBackClick={() => navigate(ROUTES.PATIENTS)}
+      rightAction={<RefreshButton pageName={PAGE_CACHE.USER_PRESCRIPTION.name} />}
     >
       {/* Filter and Upload Section */}
       <Flex
@@ -294,7 +295,6 @@ const Userprescription = () => {
             Clear filters
           </button>
         </Flex>
-        <RefreshButton pageName={PAGE_CACHE.USER_PRESCRIPTION.name} />
         <ButtonPrimitive
           variant="solid"
           onClick={openModal}

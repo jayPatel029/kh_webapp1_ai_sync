@@ -56,6 +56,7 @@ const  PatientDetailLayout = ({
   loading = false,
   onBackClick,
   additionalProps = {},
+  rightAction, // optional element to render in the header (e.g. RefreshButton)
   showNavTabs = true, // set to false when rendering inside a modal
   showHeader = true, // set to false when rendering inside a modal
 }) => {
@@ -119,6 +120,7 @@ const  PatientDetailLayout = ({
                   { label: title, active: true },
                 ]}
                 onBack={handleBackClick}
+                rightAction={rightAction}
               />
             )}
             {/* Navigation Tabs - compact horizontal scroll */}
@@ -149,20 +151,25 @@ const  PatientDetailLayout = ({
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         {/* Sticky Header Section */}
-        {showNavTabs | showHeader ?
-          (<Box className="sticky top-[56px] z-20 bg-white">
-            <Flex justify="start" align="center" className="py-4 px-6">
-              {showHeader && (
-                <PageHeader
-                  title={title}
-                  breadcrumbs={[
-                    { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
-                    { label: title, active: true },
-                  ]}
-                  onBack={handleBackClick}
-                />
-              )}
-            </Flex>
+        {showNavTabs | showHeader ? (
+          <Box className="sticky top-[56px] z-20 bg-white">
+            <div className="py-4 px-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  {showHeader && (
+                    <PageHeader
+                      title={title}
+                      breadcrumbs={[
+                        { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
+                        { label: title, active: true },
+                      ]}
+                      onBack={handleBackClick}
+                    />
+                  )}
+                </div>
+                {rightAction && <div className="ml-4">{rightAction}</div>}
+              </div>
+            </div>
             {showNavTabs && (
               <PatientNavTabs
                 patientId={patientId}
@@ -172,11 +179,12 @@ const  PatientDetailLayout = ({
                 role={resolvedRole}
               />
             )}
-          </Box>) : null 
-} 
+          </Box>
+        ) : null}
+
         {/* Main Content */}
         <Box className="flex-1 ">
-          <PatientSectionCard title={title} userName={userData?.name} noheaderline={!(showNavTabs | showHeader)}  >
+          <PatientSectionCard title={title} userName={userData?.name} noheaderline={!(showNavTabs | showHeader)}>
             {children}
           </PatientSectionCard>
         </Box>
