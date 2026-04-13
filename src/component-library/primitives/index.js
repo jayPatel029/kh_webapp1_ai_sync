@@ -82,3 +82,9 @@ export {
   ModalCloseButton, 
   useModalContext 
 } from './Modal';
+
+// ==================== ACCORDION ====================
+export { 
+  Accordion, 
+  AccordionItem 
+} from './Accordion';

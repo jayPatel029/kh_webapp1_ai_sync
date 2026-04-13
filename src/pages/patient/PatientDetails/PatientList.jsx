@@ -29,6 +29,9 @@ import { SearchBar } from '../../../components';
 import { useIsMobile } from '../../../components/mobile/useIsMobile';
 import UnifiedListTable from '../../../components/table/UnifiedListTable';
 
+import PatientAppointmentTimeline from '../../../components/PatientAppointmentTimeline';
+import { getAllAppointmentsById } from '../../../ApiCalls';
+
 // Import icons and default avatars
 import PlusIcon from '../../../assets/icons/plus.svg';
 import DefaultAvatarFemale from '../../../assets/default-avatar-female.png';
@@ -64,6 +67,12 @@ const PatientList = ({ data, onAddClick }) => {
   const [teamActionLoading, setTeamActionLoading] = useState(false);
   const [assignedDoctorsByPatient, setAssignedDoctorsByPatient] = useState({});
   const [assignedAdminsByPatient, setAssignedAdminsByPatient] = useState({});
+  // Appointment modal / timeline state (for dialysis technician view)
+  const [appointmentModal, setAppointmentModal] = useState({ isOpen: false, patient: null });
+  const [patientAppointments, setPatientAppointments] = useState([]);
+  const [appointmentLoading, setAppointmentLoading] = useState(false);
+  const [appointmentError, setAppointmentError] = useState(null);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
 
   // Sync with prop data and load assigned users for all patients
   useEffect(() => {
@@ -186,6 +195,41 @@ const PatientList = ({ data, onAddClick }) => {
     setCurrentTeamMembers([]);
     setAvailableUsers([]);
     setHospitalOptions([]);
+  };
+
+  // Load appointments for a patient (uses existing ApiCalls helper)
+  const loadAppointmentsForPatient = async (patientId) => {
+    setAppointmentLoading(true);
+    setAppointmentError(null);
+    try {
+      const res = await getAllAppointmentsById();
+      if (res && res.success) {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        const filtered = list.filter((apt) => String(apt.patient_id) === String(patientId) || String(apt.patientId) === String(patientId));
+        setPatientAppointments(filtered);
+      } else {
+        setAppointmentError(res?.data?.message || 'Failed to fetch appointments');
+      }
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
+      setAppointmentError('Failed to fetch appointments');
+    } finally {
+      setAppointmentLoading(false);
+    }
+  };
+
+  const openAppointmentModal = async (patient, event) => {
+    event?.stopPropagation?.();
+    setAppointmentModal({ isOpen: true, patient });
+    setPatientAppointments([]);
+    await loadAppointmentsForPatient(patient.id);
+  };
+
+  const closeAppointmentModal = () => {
+    setAppointmentModal({ isOpen: false, patient: null });
+    setPatientAppointments([]);
+    setAppointmentError(null);
+    setSelectedAppointment(null);
   };
 
   const handleAssignMember = async () => {

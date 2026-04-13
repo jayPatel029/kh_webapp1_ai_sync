@@ -19,6 +19,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Box, Button, Flex, Heading, SortDropdown, Text } from '../../component-library';
 import { getIdByEmail, isDoctorRole } from '../../ApiCalls/authapis';
 import { getDoctorIdByEmail } from '../../ApiCalls/doctorApis';
@@ -43,6 +44,9 @@ import PageSkeleton from '../../components/PageSkeleton';
 import StatCard from '../../components/dashboard/StatCard';
 import AlertsPanel from '../../components/dashboard/AlertsPanel';
 import PageHeader from '../../components/PageHeader';
+import DialysisAppointmentsDashboard from './components/DialysisAppointmentsDashboard';
+import BedManagemnetDashboard from './components/BedManagementDashboard';
+
 
 // Design system primitives
 import { Heading as DSHeading, Text as DSText } from '../../component-library/primitives/Typography';
@@ -131,6 +135,8 @@ const DashboardError = ({ message, onRetry }) => (
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
+  const roleName = useSelector((state) => state.permission?.role_name);
+  const isDialysisTechnician = roleName === 'Dialysis Technician' || localStorage.getItem('role') === 'Dialysis Technician';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [patients, setPatients] = useState([]);
@@ -305,9 +311,9 @@ const AdminDashboard = () => {
         navigate('/login');
         return;
       }
-      const role = localStorage.getItem('role');
-      if (role === 'Dialysis Technician') {
-        navigate('/patients');
+      if (isDialysisTechnician) {
+        setLoading(false);
+        setReady(true);
         return;
       }
       const email = localStorage.getItem('email');
@@ -330,7 +336,7 @@ const AdminDashboard = () => {
       fetchDashboardData();
     };
     init();
-  }, [navigate, fetchDashboardData, refreshKey]);
+  }, [navigate, fetchDashboardData, refreshKey, isDialysisTechnician]);
 
   const handleAction = (patient, type) => {
     setSelectedPatient(patient);
@@ -400,6 +406,10 @@ const AdminDashboard = () => {
     }
     return { doctorAlerts: d, adminAlerts: a };
   }, [allAlerts]);
+
+  if (true) {
+    return <BedManagemnetDashboard />;
+  }
 
   // render
   if (error) {

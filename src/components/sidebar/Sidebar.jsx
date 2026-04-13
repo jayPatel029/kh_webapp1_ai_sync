@@ -310,7 +310,7 @@ const Sidebar = ({ mobile = false }) => {
           <AdminPanelSettings className="text-2xl text-white" />
           {!isIconOnly && (
             <>
-              <span className="text-sm font-semibold break-words">User Management</span>
+              <span className="text-sm font-semibold break-words flex-1 text-left">User Management</span>
               <span className={clsx('text-lg transition-transform duration-200', dropdown ? 'rotate-180' : 'rotate-0')}>
                 ▾
               </span>
@@ -363,7 +363,7 @@ const Sidebar = ({ mobile = false }) => {
           <ChatBubbleOutlineIcon className="text-2xl text-white" />
           {!isIconOnly && (
             <>
-              <span className="text-sm font-semibold break-words">Chats</span>
+              <span className="text-sm font-semibold break-words flex-1 text-left">Chats</span>
               <span className={clsx('text-lg transition-transform duration-200', chatDropdown ? 'rotate-180' : 'rotate-0')}>
                 ▾
               </span>
@@ -373,8 +373,8 @@ const Sidebar = ({ mobile = false }) => {
         </button>
         {shouldShowChildren && (
           <div className="mt-2 flex flex-col gap-1 pl-4">
-            {renderAdminChild('Admin Chats', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_ADMIN)}
-            {renderAdminChild('Doctor Chats', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_DOCTOR)}
+            {renderAdminChild('Admin Team', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_ADMIN)}
+            {renderAdminChild('Medical Team', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_DOCTOR)}
           </div>
         )}
       </li>

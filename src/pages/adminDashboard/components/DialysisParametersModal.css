@@ -1,0 +1,162 @@
+/**
+ * Dialysis Parameters Modal Styles
+ * @file src/pages/adminDashboard/components/DialysisParametersModal.css
+ */
+
+.dialysis-modal__content {
+  overflow: hidden;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
+}
+
+.dialysis-modal__header {
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(79, 70, 229, 0.08), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.dialysis-modal__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dialysis-modal__title {
+  letter-spacing: -0.02em;
+}
+
+.dialysis-modal__header-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.dialysis-modal__summary-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+.dialysis-modal__summary-pill--stage {
+  align-items: flex-start;
+}
+
+.dialysis-modal__summary-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #64748b);
+}
+
+.dialysis-modal__summary-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+
+.dialysis-modal__body {
+  padding: 0;
+  background: #f7fafc;
+}
+
+.dialysis-modal__workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px 18px;
+}
+
+.dialysis-modal__workspace-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(241,245,249,0.92));
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+}
+
+.dialysis-modal__accordion-item {
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+}
+
+.dialysis-modal__panel-card {
+  border-radius: 18px;
+  border-color: rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.dialysis-modal__textarea {
+  width: 100%;
+  min-height: 112px;
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dialysis-modal__textarea:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.dialysis-modal__footer {
+  padding: 18px 28px 24px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+}
+
+@media (max-width: 1280px) {
+  .dialysis-modal__content {
+    width: 92vw !important;
+    max-width: 92vw !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dialysis-modal__content {
+    width: 96vw !important;
+    max-width: 96vw !important;
+  }
+
+  .dialysis-modal__header {
+    padding: 20px 18px 16px;
+  }
+
+  .dialysis-modal__header-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .dialysis-modal__workspace {
+    padding: 16px;
+  }
+
+  .dialysis-modal__workspace-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dialysis-modal__footer {
+    padding: 16px 18px 20px;
+  }
+}

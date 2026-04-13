@@ -2,10 +2,38 @@
 export * from './adminDashApis';
 export * from './ailmentApis';
 export * from './alarmsApis';
-export * from './alertsApis';
+export { 
+  getAlerts as getAlertsNotifications,
+  approveAlert,
+  approveAllAlerts,
+  dissapproveAlert,
+  dissapproveAllAlerts,
+  createMessageAlert,
+  approveOrDisapprovePrescription,
+  getAlertByCategory,
+  getAlertById,
+  getAlertByType,
+  createChangeInProgramAlert,
+  createContactUsAlert,
+  canReceiveDailyAlerts,
+  deleteAlertById,
+  createDeleteAccountAlert,
+  deletePatientAlert,
+  createNewEnrollmentAlert,
+  createNewLabReportAlert,
+  createNewPrescriptionAlert,
+  createNewPrescriptionAlarmAlert,
+  createNewProgramEnrollmentAlert,
+  createNewRequisitionAlert,
+  createPrescriptionDisapprovedAlarmAlert,
+  createPrescriptionNotViewedAlert,
+  updateIsReadAlert
+} from './alertsApis';
 export * from './analyticsApis';
 export * from './appAlerts';
 export * from './appApis';
+export * from './bedManagementApis';
+export * from './dialysisTechnicianApis';
 export * from './authapis';
 export * from './chatApis';
 export * from './commentApi';

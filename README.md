@@ -1,2 +1,3 @@
 cread:hima@test.com
 pass:hima1234
+token:eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImhpbWFAdGVzdC5jb20iLCJpYXQiOjE3NzYwMTQ5MjEsImV4cCI6MTc3NjE4NzcyMX0.Z-r3FGQt-gZtCySiA537yr1Paav5NOE9QAwvLaNTOUM

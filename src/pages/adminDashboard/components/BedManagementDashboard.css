@@ -1,0 +1,449 @@
+/**
+ * Bed Management Dashboard Styles
+ * Professional, modern styling for bed management interface
+ * 
+ * @file src/pages/adminDashboard/components/BedManagementDashboard.css
+ */
+
+/* ==================== MAIN CONTAINER ==================== */
+
+.bed-management-dashboard {
+  padding: 1rem;
+  background-color: var(--color-white, #ffffff);
+  min-height: 100%;
+}
+
+/* ==================== STAT CARDS ==================== */
+
+.stat-card {
+  border-color: var(--color-border-light, #d9d9d9) !important;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.stat-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: var(--color-primary, #4164df) !important;
+}
+
+.stat-card--available {
+  border-left: 4px solid var(--color-success, #00c008);
+}
+
+.stat-card--occupied {
+  border-left: 4px solid var(--color-danger, #de425b);
+}
+
+.stat-card--quarantine {
+  border-left: 4px solid var(--color-warning, #ff9800);
+}
+
+/* ==================== MAIN LAYOUT ==================== */
+
+.main-layout {
+  display: grid !important;
+  grid-template-columns: 1fr 1.5fr !important;
+  gap: 24px !important;
+  width: 100% !important;
+  align-items: start;
+}
+
+.main-layout > div {
+  width: 100%;
+  min-height: 600px;
+}
+
+@media (max-width: 1024px) {
+  .main-layout {
+    grid-template-columns: 1fr 1.5fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .main-layout > div {
+    min-height: auto;
+  }
+}
+
+/* ==================== BED CARDS ==================== */
+
+.bed-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  border-radius: 8px;
+  border-color: var(--color-border-light, #d9d9d9) !important;
+  min-height: 140px;
+}
+
+.bed-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-primary, #4164df) !important;
+  transform: translateY(-2px);
+}
+
+.bed-card--drag-over {
+  background: linear-gradient(135deg, rgba(65, 100, 223, 0.05), rgba(88, 134, 165, 0.05));
+  border-color: var(--color-primary, #4164df) !important;
+  box-shadow: 0 0 0 2px rgba(65, 100, 223, 0.2);
+}
+
+.bed-card__patient-info {
+  width: 100%;
+  border-radius: 6px;
+  background-color: var(--color-surface-alt, #efefef);
+}
+
+.bed-card__quarantine {
+  width: 100%;
+  border-radius: 6px;
+  background-color: rgba(255, 152, 0, 0.05);
+}
+
+/* ==================== HORIZONTAL BEDS LAYOUT ==================== */
+
+.beds-horizontal-container {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(65, 100, 223, 0.3) transparent;
+}
+
+.beds-horizontal-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.beds-horizontal-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.beds-horizontal-container::-webkit-scrollbar-thumb {
+  background: rgba(65, 100, 223, 0.3);
+  border-radius: 3px;
+}
+
+.beds-horizontal-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(65, 100, 223, 0.5);
+}
+
+.beds-horizontal-empty {
+  padding: 1rem;
+  text-align: center;
+}
+
+/* ==================== BEDS SECTION ==================== */
+
+.beds-section {
+  border-color: var(--color-border-light, #d9d9d9) !important;
+  border-radius: 8px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.quarantine-section {
+  border-color: var(--color-border-light, #d9d9d9) !important;
+  border-radius: 8px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .main-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .main-layout > div {
+    min-height: auto;
+  }
+}
+
+/* ==================== BED GRID LAYOUT ==================== */
+
+.beds-empty-state {
+  border-color: var(--color-border-light, #d9d9d9) !important;
+  background: var(--color-surface, #fafafa);
+  border-radius: 8px;
+}
+
+/* ==================== APPOINTMENTS ==================== */
+
+.appointments-empty {
+  border-color: var(--color-border-light, #d9d9d9) !important;
+  background: var(--color-surface, #fafafa);
+}
+
+.appointments-table {
+  border-color: var(--color-border-light, #d9d9d9) !important;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.appointments-table__body {
+  padding: 0;
+  border-top: 1px solid var(--color-border-light, #d9d9d9);
+}
+
+/* Appointments empty state */
+.list-table__empty {
+  padding: 15px 10px;
+  text-align: center;
+  color: var(--color-text-muted, #989898);
+  font-size: 14px;
+  background-color: var(--color-surface, #fafafa);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-light, #d9d9d9);
+}
+
+.appointments-draggable-wrapper {
+  width: 100%;
+}
+
+.appointments-draggable-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Draggable appointments table header uses UnifiedListTable styles */
+.appointments-draggable-table .list-table__header-row {
+  background-color: var(--color-accent, #5886a5);
+  color: var(--color-text-inverse, #ffffff);
+  font-weight: 600;
+  padding: 20px 10px;
+}
+
+.appointments-draggable-table .list-table__header-cell {
+  padding: 10px 15px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-inverse, #ffffff);
+  text-align: left;
+}
+
+/* Draggable rows */
+.draggable-row {
+  cursor: grab;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid var(--color-border-light, #d9d9d9);
+}
+
+.draggable-row:hover {
+  background-color: var(--color-surface-alt, #efefef);
+}
+
+.draggable-row:active {
+  cursor: grabbing;
+}
+
+.appointments-draggable-table .list-table__cell {
+  padding: 10px 15px;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.appointments-draggable-table .list-table__text-cell {
+  color: var(--color-text-muted, #989898);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.appointments-draggable-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+/* Fix misplaced row: override top offset applied by unified table styles */
+.appointments-draggable-table .list-table__row {
+  position: relative;
+  top: 0 !important;
+}
+
+.appointments-draggable-table .list-table__header-row {
+  padding: 0 !important;
+}
+
+.appointments-draggable-table thead {
+  display: table-header-group;
+}
+
+/* ==================== APPOINTMENTS CARD ==================== */
+
+.appointments-card {
+  border-color: var(--color-border-light, #d9d9d9) !important;
+  border-radius: 8px;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.appointments-card > div:first-child {
+  border-bottom: 1px solid var(--color-border-light, #d9d9d9);
+}
+
+.appointments-card > div:last-child {
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.appointments-draggable-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.list-table__wrapper {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+
+/* ==================== LOADING STATE ==================== */
+
+.loading-card {
+  border-color: var(--color-border-light, #d9d9d9) !important;
+  background: white;
+  border-radius: 8px;
+}
+
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(65, 100, 223, 0.2);
+  border-top-color: var(--color-primary, #4164df);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==================== NOTIFICATIONS ==================== */
+
+.notification {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
+  z-index: 9999;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notification--success {
+  background-color: var(--color-success, #00c008);
+  color: white;
+  border: 1px solid rgba(0, 192, 8, 0.3);
+}
+
+.notification--error {
+  background-color: var(--color-danger, #de425b);
+  color: white;
+  border: 1px solid rgba(222, 66, 91, 0.3);
+}
+
+.notification--warning {
+  background-color: var(--color-warning, #ff9800);
+  color: white;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+/* ==================== MODAL STYLES ==================== */
+
+.modal-warning {
+  background-color: rgba(255, 152, 0, 0.05) !important;
+  border: 1px solid var(--color-warning, #ff9800);
+  border-radius: 6px;
+}
+
+/* ==================== COMPACT BED GRID ==================== */
+
+.beds-compact-container {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--color-surface, #fafafa);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-light, #d9d9d9);
+}
+
+.beds-compact-empty {
+  padding: 24px;
+  text-align: center;
+  background-color: var(--color-surface, #fafafa);
+  border-radius: 8px;
+  border: 1px solid var(--color-border-light, #d9d9d9);
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+@media (max-width: 1024px) {
+  .main-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .bed-management-dashboard {
+    padding: 1rem;
+  }
+
+  .notification {
+    bottom: 1rem;
+    right: 1rem;
+    left: 1rem;
+    max-width: none;
+  }
+
+  .beds-section,
+  .quarantine-section {
+    border-radius: 6px;
+  }
+
+  .bed-card {
+    min-height: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bed-management-dashboard {
+    padding: 0.75rem;
+  }
+
+  .bed-card {
+    border-radius: 6px;
+    min-height: 100px;
+  }
+
+  .notification {
+    font-size: 0.875rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .main-layout {
+    gap: 1rem !important;
+  }
+}

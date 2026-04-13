@@ -1,0 +1,342 @@
+/**
+ * DialysisBedSeat Component Styles
+ * @file src/components/DialysisBedSeat/DialysisBedSeat.css
+ *
+ * Compact theater-seat-like dialysis bed visualization.
+ * Optimized for dense grid layouts and instant scanability.
+ */
+
+/* ===================== MAIN CONTAINER ===================== */
+.dialysis-bed-seat {
+  /* Dimensions (increased to avoid label overlap) */
+  width: 96px;
+  height: 96px;
+
+  /* Layout */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 4px;
+
+  /* Styling */
+  background-color: var(--bg-color, #e5e7eb);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+
+  /* Interaction */
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Typography - for ID label */
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-color, #1f2937);
+
+  /* Position relative for badge overlays */
+  position: relative;
+
+  /* Accessibility */
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ===================== HOVER STATE ===================== */
+.dialysis-bed-seat:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+/* ===================== ACTIVE STATE ===================== */
+.dialysis-bed-seat:active {
+  transform: scale(0.95);
+}
+
+/* ===================== FOCUS STATE (Keyboard Navigation) ===================== */
+.dialysis-bed-seat:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+
+/* ===================== TOP INDICATOR ROW ===================== */
+.dialysis-bed-seat__top-row {
+  width: 100%;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 2px 4px 0 0;
+  position: relative;
+}
+
+/* ===================== STATUS DOT ===================== */
+.dialysis-bed-seat__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--text-color, #1f2937);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+/* ===================== ICON CONTAINER ===================== */
+.dialysis-bed-seat__icon-container {
+  /* Size and alignment (bumped for larger card) */
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Styling */
+  flex-shrink: 0;
+}
+
+.dialysis-bed-seat__icon-container svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ===================== LABEL (BED ID) ===================== */
+.dialysis-bed-seat__label {
+  /* Size and spacing */
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+
+  /* Alignment */
+  text-align: center;
+  line-height: 1;
+
+  /* Constraint */
+  max-width: 78px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  /* Styling */
+  color: inherit;
+}
+
+/* ===================== BADGE INDICATORS ===================== */
+
+/* Alert Badge (Top-Left: "!") */
+.dialysis-bed-seat__alert-badge {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+
+  width: 18px;
+  height: 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background-color: #EF4444;
+  color: #FFFFFF;
+
+  border-radius: 50%;
+  border: 2px solid white;
+
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+
+  /* Animation */
+  animation: pulse-alert 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Running Badge (Bottom-Right: animated dot) */
+.dialysis-bed-seat__running-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+
+  width: 12px;
+  height: 12px;
+
+  background-color: #34D399;
+  border: 2px solid white;
+  border-radius: 50%;
+
+  box-shadow: 0 2px 6px rgba(52, 211, 153, 0.4);
+
+  /* Pulsing animation */
+  animation: pulse-running 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Patient initials badge shown when bed is occupied */
+.dialysis-bed-seat__initials-badge {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -14%);
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 10px;
+  min-width: 28px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Slight visual cue for occupied beds */
+.dialysis-bed-seat--occupied {
+  box-shadow: inset 0 -6px 14px rgba(0,0,0,0.03);
+}
+
+/* Small status pill under icon */
+.dialysis-bed-seat__status-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, 6px);
+  background: rgba(0,0,0,0.06);
+  color: var(--text-color, #1f2937);
+  padding: 4px 8px;
+  font-size: 11px;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: capitalize;
+  pointer-events: none;
+}
+
+/* Ailment text below bed id */
+.dialysis-bed-seat__ailment {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 92%;
+  text-align: center;
+  font-size: 10px;
+  color: rgba(31,41,55,0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* ===================== ANIMATIONS ===================== */
+
+@keyframes pulse-alert {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 2px 12px rgba(239, 68, 68, 0.6);
+  }
+}
+
+@keyframes pulse-running {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 2px 6px rgba(52, 211, 153, 0.4);
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+    box-shadow: 0 2px 12px rgba(52, 211, 153, 0.6);
+  }
+}
+
+/* ===================== STATUS-SPECIFIC ADJUSTMENTS ===================== */
+
+/* ALERT status gets special treatment - always highest priority */
+.dialysis-bed-seat[aria-label*="ALERT"] {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ===================== RESPONSIVE ADJUSTMENTS ===================== */
+
+@media (max-width: 480px) {
+  .dialysis-bed-seat {
+    width: 84px;
+    height: 84px;
+    border-radius: 8px;
+    gap: 3px;
+  }
+
+  .dialysis-bed-seat__icon-container {
+    width: 22px;
+    height: 22px;
+  }
+
+  .dialysis-bed-seat__label {
+    font-size: 10px;
+  }
+
+  .dialysis-bed-seat__alert-badge {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+  }
+
+  .dialysis-bed-seat__running-badge {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+/* ===================== ACCESSIBILITY ===================== */
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+  .dialysis-bed-seat {
+    border-width: 2px;
+    border-color: rgba(0, 0, 0, 0.3);
+  }
+
+  .dialysis-bed-seat__status-dot {
+    opacity: 1;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .dialysis-bed-seat {
+    transition: none;
+  }
+
+  .dialysis-bed-seat__alert-badge,
+  .dialysis-bed-seat__running-badge {
+    animation: none;
+  }
+
+  .dialysis-bed-seat:hover {
+    transform: none;
+  }
+}
+
+/* Dark mode support (optional - can be extended based on app theme) */
+@media (prefers-color-scheme: dark) {
+  .dialysis-bed-seat {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* ===================== DISABLED STATE (Optional) ===================== */
+
+.dialysis-bed-seat:disabled,
+.dialysis-bed-seat[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dialysis-bed-seat:disabled:hover,
+.dialysis-bed-seat[aria-disabled="true"]:hover {
+  transform: none;
+  box-shadow: none;
+}

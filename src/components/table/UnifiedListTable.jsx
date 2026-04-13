@@ -97,7 +97,7 @@ const UnifiedListTable = ({
         if (!columnToSort && columns.length > 0) {
             const dateCol = columns.find(col => 
                 (col.key === 'date' || col.key === 'createdAt' || col.key === 'created_at' || col.label?.toLowerCase().includes('date')) &&
-                col.type !== 'image' && col.type !== 'actions'
+                col.type !== 'image' && col.type !== 'actions' && col.sortable !== false
             );
             if (dateCol) {
                 columnToSort = dateCol.key;
@@ -392,7 +392,7 @@ const UnifiedListTable = ({
                     <thead className="list-table__header">
                         <tr className="list-table__header-row">
                             {visibleColumns.map((column) => {
-                                const isSortableCol = column.type !== 'image' && column.type !== 'actions';
+                                const isSortableCol = column.type !== 'image' && column.type !== 'actions' && column.sortable !== false;
                                 const isSorted = sortColumn === column.key;
                                 return (
                                     <th

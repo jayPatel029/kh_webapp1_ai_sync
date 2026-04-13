@@ -576,7 +576,7 @@ function AdminManagement() {
         <div className={`admin-page-content ${isMobile ? "px-3 pb-20" : "pb-20"}`}>
           {/* List Section */}
           <div className="admin-card">
-            <div className={`admin-card__header flex justify-between pb-6 items-center ${isMobile ? "flex-col gap-4" : ""}`}>
+            <div className={`admin-card__header flex justify-between mb-6 items-center ${isMobile ? "flex-col gap-4" : ""}`}>
               <div className="flex items-center gap-4">
                 <h3 className="admin-card__title">Total Doctors: <span className="font-bold">{doctors.length}</span>
                 </h3>
