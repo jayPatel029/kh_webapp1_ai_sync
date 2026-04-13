@@ -7,14 +7,14 @@ import { Box, Flex } from '../component-library';
 // - userName: optional patient name for the avatar/name area
 // - compact: boolean to use compact padding and rounded-xl styles
 // - children: content
-const PatientSectionCard = ({ title, userName, compact = false, children, className = '' }) => {
+const PatientSectionCard = ({ title, userName, compact = false, children, className = '' , noheaderline = false }) => {
   const baseClass = compact
     ? 'bg-white rounded-xl w-full p-3'
     : 'bg-white rounded-[15px] w-full p-8 mt-8 shadow-[2px_2px_8px_8px_rgba(0,0,0,0.1)] shadow-[-2px_-2px_8px_8px_rgba(0,0,0,0.1)]';
 
   return (
     <Box className={`${baseClass} ${className}`}>
-      <Flex justify="between" align="center" className="pb-4 border-b-2 !border-info mb-6">
+      <Flex justify="between" align="center" className={(noheaderline ? "" : " border-b-2 !border-info pb-4 mb-6")} >
         <Box>
           <h2 className="text-[18px] font-bold text-[#393939]">{title}</h2>
         </Box>

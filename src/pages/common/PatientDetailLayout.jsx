@@ -56,6 +56,8 @@ const  PatientDetailLayout = ({
   loading = false,
   onBackClick,
   additionalProps = {},
+  showNavTabs = true, // set to false when rendering inside a modal
+  showHeader = true, // set to false when rendering inside a modal
 }) => {
   const navigate = useNavigate();
   const params = useParams();
@@ -109,22 +111,26 @@ const  PatientDetailLayout = ({
         <Box className="flex-1 flex flex-col min-w-0">
           {/* Compact sticky header */}
           <Box className="sticky top-0 z-20 bg-white px-4 pt-2 pb-0">
-            <PageHeader
-              title={title}
-              breadcrumbs={[
-                { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
-                { label: title, active: true },
-              ]}
-              onBack={handleBackClick}
-            />
+            {showHeader && (
+              <PageHeader
+                title={title}
+                breadcrumbs={[
+                  { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
+                  { label: title, active: true },
+                ]}
+                onBack={handleBackClick}
+              />
+            )}
             {/* Navigation Tabs - compact horizontal scroll */}
-            <PatientNavTabs
-              patientId={patientId}
-              userData={resolvedUserData}
-              unreadAdminCount={resolvedUnreadAdminCount}
-              unreadDoctorCount={resolvedUnreadDoctorCount}
-              role={resolvedRole}
-            />
+            {showNavTabs && (
+              <PatientNavTabs
+                patientId={patientId}
+                userData={resolvedUserData}
+                unreadAdminCount={resolvedUnreadAdminCount}
+                unreadDoctorCount={resolvedUnreadDoctorCount}
+                role={resolvedRole}
+              />
+            )}
           </Box>
 
           {/* Content without heavy shadow/padding */}
@@ -143,29 +149,34 @@ const  PatientDetailLayout = ({
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
         {/* Sticky Header Section */}
-        <Box className="sticky top-[56px] z-20 bg-white">
-          <Flex justify="start" align="center" className="py-4 px-6">
-            <PageHeader
-              title={title}
-              breadcrumbs={[
-                { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
-                { label: title, active: true },
-              ]}
-              onBack={handleBackClick}
-            />
-          </Flex>
-          <PatientNavTabs
-            patientId={patientId}
-            userData={resolvedUserData}
-            unreadAdminCount={resolvedUnreadAdminCount}
-            unreadDoctorCount={resolvedUnreadDoctorCount}
-            role={resolvedRole}
-          />
-        </Box>
-
+        {showNavTabs | showHeader ?
+          (<Box className="sticky top-[56px] z-20 bg-white">
+            <Flex justify="start" align="center" className="py-4 px-6">
+              {showHeader && (
+                <PageHeader
+                  title={title}
+                  breadcrumbs={[
+                    { label: "Patient", path: ROUTES.patientDetail(patientId), active: false },
+                    { label: title, active: true },
+                  ]}
+                  onBack={handleBackClick}
+                />
+              )}
+            </Flex>
+            {showNavTabs && (
+              <PatientNavTabs
+                patientId={patientId}
+                userData={resolvedUserData}
+                unreadAdminCount={resolvedUnreadAdminCount}
+                unreadDoctorCount={resolvedUnreadDoctorCount}
+                role={resolvedRole}
+              />
+            )}
+          </Box>) : null 
+} 
         {/* Main Content */}
         <Box className="flex-1 ">
-          <PatientSectionCard title={title} userName={userData?.name}>
+          <PatientSectionCard title={title} userName={userData?.name} noheaderline={!(showNavTabs | showHeader)}  >
             {children}
           </PatientSectionCard>
         </Box>

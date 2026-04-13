@@ -44,6 +44,10 @@ export const BaseModal = ({
   showCloseButton = true,
   closeOnOverlayClick = true,
   closeOnEsc = true,
+  contentStyle,
+  contentClassName,
+  bodyStyle,
+  bodyClassName,
   ...props
 }) => {
   return (
@@ -56,7 +60,15 @@ export const BaseModal = ({
       {...props}
     >
       <ModalOverlay />
-      <ModalContent style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+      <ModalContent
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '90vh',
+          ...contentStyle,
+        }}
+        className={contentClassName}
+      >
         {title && (
           <ModalHeader flexShrink={0}>
             <Flex justify="between" align="center">
@@ -71,8 +83,9 @@ export const BaseModal = ({
             overflowY: 'auto', 
             overflowX: 'hidden',
             minHeight: 0,
+            ...bodyStyle,
           }}
-          className="scrollbar-subtle"
+          className={`scrollbar-subtle ${bodyClassName || ''}`.trim()}
         >
           {children}
         </ModalBody>

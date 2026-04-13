@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 import { MdSend } from "react-icons/md";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import PatientDetailLayout from "../common/PatientDetailLayout";
 import {
   getPatientById,
@@ -203,6 +203,9 @@ const EmptyState = ({ icon, title, subtitle }) => (
 const UnifiedChatApp = ({ chatType = "doctor" }) => {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Email passed from GlobalChatsPage via navigate(path, { state: { autoSelectStaffEmail } })
+  const autoSelectEmail = location.state?.autoSelectStaffEmail ?? null;
 
   const [role, setRole] = useState("");
   const [sender, setSender] = useState("");
@@ -215,6 +218,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
   const [loadingContacts, setLoadingContacts] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const autoSelectDoneRef = useRef(false);
 
   const socket = useRef(null);
   const activeChatIdRef = useRef(null);
@@ -452,6 +456,20 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
     },
     [role, patientId]
   );
+
+  // ── Auto-select staff when navigated from GlobalChatsPage ─────────────────
+  // Runs after contacts are loaded; finds the staff by email and opens that chat.
+  useEffect(() => {
+    if (!autoSelectEmail || autoSelectDoneRef.current) return;
+    if (loadingContacts || contacts.length === 0) return;
+    const match = contacts.find(
+      (c) => c.email?.toLowerCase() === autoSelectEmail.toLowerCase()
+    );
+    if (match) {
+      autoSelectDoneRef.current = true;
+      openChat(match);
+    }
+  }, [autoSelectEmail, contacts, loadingContacts, openChat]);
 
   // ── Send message: REST POST only (guide §5.5) ─────────────────────────────
   // Do NOT append to messages here — the server broadcasts via WS and we receive it.

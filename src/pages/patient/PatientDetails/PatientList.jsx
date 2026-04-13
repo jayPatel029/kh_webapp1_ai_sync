@@ -41,6 +41,8 @@ import Edit from "../../../assets/Edit.svg"; // Assuming you have an Edit icon i
 
 import RefreshButton from "../../../components/RefreshButton/RefreshButton";
 import { usePageCache, PAGE_CACHE } from "../../../cache";
+import { CalendarIcon, ClipboardIcon } from '../../dashboard/components/DashboardIcons';
+import UserLabReports from '../../UserLabReports/UserLabReports';
 
 
 const PatientList = ({ data, onAddClick }) => {
@@ -73,6 +75,8 @@ const PatientList = ({ data, onAddClick }) => {
   const [appointmentLoading, setAppointmentLoading] = useState(false);
   const [appointmentError, setAppointmentError] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  // Lab reports modal state (for dialysis technician)
+  const [labModal, setLabModal] = useState({ isOpen: false, patientId: null, patientName: '' });
 
   // Sync with prop data and load assigned users for all patients
   useEffect(() => {
@@ -206,16 +210,66 @@ const PatientList = ({ data, onAddClick }) => {
       if (res && res.success) {
         const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
         const filtered = list.filter((apt) => String(apt.patient_id) === String(patientId) || String(apt.patientId) === String(patientId));
-        setPatientAppointments(filtered);
+        if (!filtered || filtered.length === 0) {
+          // fallback to dummy data when no appointments for this patient
+          setPatientAppointments(generateDummyAppointments(patientId));
+        } else {
+          setPatientAppointments(filtered);
+        }
       } else {
-        setAppointmentError(res?.data?.message || 'Failed to fetch appointments');
+        // API returned failure — provide dummy data so UI remains useful
+        setAppointmentError(res?.data?.message || 'Failed to fetch appointments; showing sample data');
+        setPatientAppointments(generateDummyAppointments(patientId));
       }
     } catch (err) {
       console.error('Error fetching appointments:', err);
-      setAppointmentError('Failed to fetch appointments');
+      setAppointmentError('Failed to fetch appointments; showing sample data');
+      setPatientAppointments(generateDummyAppointments(patientId));
     } finally {
       setAppointmentLoading(false);
     }
+  };
+
+  // Generate lightweight dummy appointments for demo/fallback
+  const generateDummyAppointments = (patientId) => {
+    const statuses = ['COMPLETED', 'COMPLETED', 'COMPLETED', 'MISSED', 'PENDING', 'COMPLETED', 'CANCELLED'];
+    const doctors = ['Dr. Shah', 'Dr. Mehta', 'Dr. Singh', 'Dr. Patel'];
+    const services = ['Hemodialysis', 'Peritoneal dialysis', 'Consultation'];
+    const items = [];
+    const today = new Date();
+
+    // create appointments spanning ~4 months in the past to ~1 month future
+    const startOffset = -120; // days
+    const endOffset = 30; // days
+    const step = 2; // every 2 days to keep list manageable (~75 entries)
+
+    for (let i = startOffset; i <= endOffset; i += step) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+
+      const idx = Math.abs(i) % statuses.length;
+      const status = statuses[idx];
+
+      const hour = 6 + (Math.abs(i) % 10); // varying hour between 6..15
+      const minute = (Math.abs(i) % 2) === 0 ? '00' : '30';
+
+      const doctor = doctors[Math.abs(i) % doctors.length];
+      const service = services[Math.abs(i) % services.length];
+
+      items.push({
+        id: `sample-${patientId}-${i}-${Math.abs(i)}`,
+        patient_id: patientId,
+        appointment_date: d.toISOString(),
+        appointment_time: `${String(hour).padStart(2, '0')}:${minute}`,
+        status,
+        duration_minutes: status === 'COMPLETED' ? 240 : 30,
+        doctor_name: doctor,
+        service_name: service,
+        notes: status === 'MISSED' ? 'Patient did not arrive' : (status === 'PENDING' ? 'Awaiting confirmation' : ''),
+      });
+    }
+
+    return items;
   };
 
   const openAppointmentModal = async (patient, event) => {
@@ -223,6 +277,15 @@ const PatientList = ({ data, onAddClick }) => {
     setAppointmentModal({ isOpen: true, patient });
     setPatientAppointments([]);
     await loadAppointmentsForPatient(patient.id);
+  };
+
+  const openLabModal = (patient, event) => {
+    event?.stopPropagation?.();
+    setLabModal({ isOpen: true, patientId: patient.id, patientName: patient.name });
+  };
+
+  const closeLabModal = () => {
+    setLabModal({ isOpen: false, patientId: null, patientName: '' });
   };
 
   const closeAppointmentModal = () => {
@@ -326,6 +389,62 @@ const PatientList = ({ data, onAddClick }) => {
   // prepare columns for unified table (desktop + mobile card support)
   const columns = useMemo(() => {
     const isAdmin = isAdminRole(role?.role_name);
+    const isDialysisTechnician = String(role?.role_name || '').toLowerCase().includes('dialysis');
+
+    // When user is dialysis technician show a compact set of columns
+    if (isDialysisTechnician) {
+    // if (true) {
+      return [
+        { key: 'profile', label: 'Profile', type: 'image', width: '111px', justifyContent: 'start' },
+        { key: 'name', label: 'Name', type: 'text', width: '150px' },
+        { key: 'ailment', label: 'Ailment', type: 'text', width: '120px' },
+        { key: 'gender', label: 'Gender', type: 'text', width: '90px' },
+        {
+          key: 'condition', label: 'Condition', type: 'custom', width: '120px', render: (row) => (
+            <span className={getConditionStyles(row.condition)}>{row.condition || '-'}</span>
+          )
+        },
+        {
+          key: 'labreports',
+          label: 'Lab Reports',
+          type: 'custom',
+          width: '120px',
+          render: (row) => (
+            <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', height: '100%', paddingLeft: 12 }}>
+              <Button
+                variant="outline"
+                onClick={(e) => openLabModal(row, e)}
+                aria-label={`Open lab reports for ${row.name}`}
+                style={{ justifyContent: 'center', fontSize: '14px', padding: '6px', minWidth: '34px', height: '34px' }}
+              >
+                <ClipboardIcon className="w-5 h-5" />
+              </Button>
+              <span style={{ marginLeft: 8, fontSize: 13, color: '#374151', display: 'none' }} className="hidden md:inline">Reports</span>
+            </div>
+          )
+        },
+        {
+          key: 'appointments',
+          label: 'Appointment Details',
+          type: 'custom',
+          width: '120px',
+          render: (row) => (
+            <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', height: '100%', paddingLeft: 12 }}>
+              <Button
+                variant="outline"
+                onClick={(e) => openAppointmentModal(row, e)}
+                aria-label={`Open appointments for ${row.name}`}
+                style={{ justifyContent: 'center', fontSize: '14px', padding: '6px', minWidth: '34px', height: '34px' }}
+              >
+                <CalendarIcon className="w-5 h-5" />
+              </Button>
+              {/** Small label next to icon (hidden on small screens) */}
+              <span style={{ marginLeft: 8, fontSize: 13, color: '#374151', display: 'none' }} className="hidden md:inline">View</span>
+            </div>
+          )
+        },
+      ];
+    }
 
     const cols = [
       { key: 'profile', label: 'Profile', type: 'image', width: '111px', justifyContent: 'start' },
@@ -528,8 +647,15 @@ const PatientList = ({ data, onAddClick }) => {
 
   // Handle patient click
   const handlePatientClick = (patient) => {
-    // Navigate to user profile page using route constants
-    // Wrap navigation in startTransition to avoid suspending during synchronous input
+    // If dialysis technician, open appointment timeline modal instead of navigating
+    const isDialysisTechnician = String(role?.role_name || '').toLowerCase().includes('dialysis');
+    if (isDialysisTechnician) {
+    // if (true) {
+      openAppointmentModal(patient);
+      return;
+    }
+
+    // Default: navigate to user profile
     startTransition(() => {
       navigate(ROUTES.userProfile(patient.id), { state: patient });
     });
@@ -862,6 +988,107 @@ const PatientList = ({ data, onAddClick }) => {
               </div>
             </div>
           )}
+        </BaseModal>
+
+        {/* Lab reports modal (for dialysis technicians) */}
+        <BaseModal
+          isOpen={labModal.isOpen}
+          onClose={closeLabModal}
+          title={`${labModal.patientName ? `${labModal.patientName} — ` : ''}Lab Reports`}
+          size="8xl"
+          contentStyle={{ width: '80vw', maxWidth: '80vw', height: '88vh' }}
+          bodyStyle={{ paddingTop: 12 }}
+          footer={
+            <Flex justify="end" gap={3}>
+              <Button variant="outline" onClick={closeLabModal}>Close</Button>
+            </Flex>
+          }
+        >
+          <div style={{ minHeight: 200 }}>
+            {labModal.patientId ? (
+              <UserLabReports patientId={labModal.patientId} />
+            ) : (
+              <div style={{ padding: 20, color: '#6b7280' }}>No patient selected.</div>
+            )}
+          </div>
+        </BaseModal>
+        {/* Appointment timeline modal (for dialysis technicians) */}
+        <BaseModal
+          isOpen={appointmentModal.isOpen}
+          onClose={closeAppointmentModal}
+          title={`${appointmentModal.patient?.name || ''} — Appointments`}
+          size="8xl"
+          contentStyle={{ width: '80vw', maxWidth: '80vw', height: '88vh' }}
+          bodyStyle={{ paddingTop: 12 }}
+          footer={
+            <Flex justify="end" gap={3}>
+              <Button variant="outline" onClick={closeAppointmentModal}>Close</Button>
+            </Flex>
+          }
+        >
+          {appointmentLoading ? (
+            <Flex justify="center" align="center" style={{ minHeight: '180px' }}>
+              <Spinner size="md" color="primary" />
+            </Flex>
+          ) : (
+            <div>
+              <div style={{ position: 'sticky', top: 0, background: '#fff', zIndex: 30, padding: '12px 0', borderBottom: '1px solid #e5e7eb' }}>
+                {appointmentError && (
+                  <div style={{ color: '#b91c1c', marginBottom: 8 }}>{appointmentError}</div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ fontWeight: 700 }}>Appointment Timeline</div>
+                  <div style={{ fontSize: 13, color: '#6b7280' }}>
+                    {patientAppointments && patientAppointments.length > 0 ? (
+                      (() => {
+                        const dates = patientAppointments
+                          .map((a) => new Date(a.appointment_date || a.date || a.createdAt))
+                          .filter((d) => !Number.isNaN(d?.getTime()))
+                          .sort((x, y) => x - y);
+                        const first = dates[0];
+                        const last = dates[dates.length - 1];
+                        return `${first ? formatDateString(first.toISOString()) : '-'} → ${last ? formatDateString(last.toISOString()) : '-'}`;
+                      })()
+                    ) : 'No appointments'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}><span style={{ width: 10, height: 10, background: '#22C55E', borderRadius: 10 }}></span> Completed</div>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}><span style={{ width: 10, height: 10, background: '#EF4444', borderRadius: 10 }}></span> Missed</div>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}><span style={{ width: 10, height: 10, background: '#EAB308', borderRadius: 10 }}></span> Pending</div>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}><span style={{ width: 10, height: 10, background: '#6B7280', borderRadius: 10 }}></span> Cancelled</div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <PatientAppointmentTimeline appointments={patientAppointments} onCellClick={(apt) => setSelectedAppointment(apt)} />
+              </div>
+            </div>
+          )}
+        </BaseModal>
+
+        {/* Appointment detail modal */}
+        <BaseModal
+          isOpen={!!selectedAppointment}
+          onClose={() => setSelectedAppointment(null)}
+          title="Appointment details"
+          size="sm"
+          footer={
+            <Flex justify="end" gap={3}>
+              <Button variant="outline" onClick={() => setSelectedAppointment(null)}>Close</Button>
+            </Flex>
+          }
+        >
+          {selectedAppointment ? (
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div><strong>Date:</strong> {formatDateString(selectedAppointment.appointment_date || selectedAppointment.date || selectedAppointment.createdAt)}</div>
+              <div><strong>Time:</strong> {selectedAppointment.appointment_time || (selectedAppointment.date ? new Date(selectedAppointment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-')}</div>
+              <div><strong>Status:</strong> {String(selectedAppointment.status || selectedAppointment.statusName || '-')}</div>
+              {selectedAppointment.notes && <div><strong>Notes:</strong> {selectedAppointment.notes}</div>}
+            </div>
+          ) : null}
         </BaseModal>
       </div>
     </div>

@@ -60,7 +60,7 @@ const LAB_REPORT_SORT_OPTIONS = [
   "CT Scan",
 ].map((type) => ({ value: type, label: type }));
 
-const UserLabReports = () => {
+const UserLabReports = ({ patientId: propPatientId }) => {
   const [showModal, setShowModal] = useState(false);
   const [labReportData, setLabReportData] = useState([]);
   const [filteredReportData, setFilteredReportData] = useState([]);
@@ -75,7 +75,8 @@ const UserLabReports = () => {
   const [loading, setLoading] = useState(false);
   const [labColumns, setLabColumns] = useState([]);
 
-  const { id } = useParams();
+  const params = useParams();
+  const id = propPatientId || params.id;
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
   const email = localStorage.getItem("email");
@@ -246,13 +247,15 @@ const UserLabReports = () => {
 
   return (
     <PatientDetailLayout
-             title={"Lab reports"}
+      title={propPatientId ? "" : "Lab reports"}
       patientIdParam="id"
       userData={userData}
       totalUnreadCount={totalUnreadCount}
       totalUnreadCountDoc={totalUnreadCountDoc}
       loading={loading}
       onBackClick={() => navigate(ROUTES.PATIENTS)}
+      showNavTabs={!propPatientId}
+      showHeader={!propPatientId}
     >
       {/* Filter and Action Bar */}
       <Flex
