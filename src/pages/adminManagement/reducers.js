@@ -178,6 +178,18 @@ export function newDoctorReducer(state, action) {
         reports: action.payload,
       };
     }
+    case "dialysisCenterRole": {
+      return {
+        ...state,
+        dialysisCenterRole: action.payload,
+      };
+    }
+    case "dialysisCenterRoleOther": {
+      return {
+        ...state,
+        dialysisCenterRoleOther: action.payload,
+      };
+    }
     case "all": {
       return {
         id: null,
@@ -203,6 +215,8 @@ export function newDoctorReducer(state, action) {
         Dialysis_updates: "yes",
         can_export: "no",
         reports: [],
+        dialysisCenterRole: "",
+        dialysisCenterRoleOther: "",
         ...action.payload,
       };
     }

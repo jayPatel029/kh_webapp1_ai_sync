@@ -186,6 +186,14 @@ const BedCard = ({
                       Time left: {formatRemaining(remainingMs)}
                     </Text>
                   )}
+                  {bed.heparin && (
+                    <Text fontSize="sm" color="textMuted">
+                      <span style={{ fontWeight: 600 }}>Heparin:</span>{' '}
+                      {bed.heparin.dose_iu || bed.heparin.dose || bed.heparin.doseIU || '—'} IU
+                      {bed.heparin.per_kg ? ` (${bed.heparin.per_kg} IU/kg)` : ''}
+                      {bed.heparin.ailment ? ` • ${bed.heparin.ailment}` : ''}
+                    </Text>
+                  )}
                 </VStack>
               </CardBody>
             </Card>
@@ -818,6 +826,8 @@ export default function BedManagementDashboard() {
             [data.bed_id]: {
               dialysis_start: data.dialysis_start,
               dialysis_duration_minutes: data.dialysis_duration_minutes,
+              // include heparin details if provided so UI can display dosage
+              ...(data.heparin ? { heparin: data.heparin } : {}),
             },
           }));
         }

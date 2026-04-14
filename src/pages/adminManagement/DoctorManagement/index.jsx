@@ -147,6 +147,8 @@ function AdminManagement() {
     dailyReadingsAlerts: "no",
     can_export: "no",
     reports: [],
+    dialysisCenterRole: "",
+    dialysisCenterRoleOther: "",
   });
 
   const specialitiesOptions = useMemo(() => {
@@ -250,6 +252,11 @@ function AdminManagement() {
     } else {
       // for other roles ensure practicingAt exists
       if (!doctorData.practicingAt || typeof doctorData.practicingAt !== "string") errors.practicingAt = true;
+    }
+
+    if (doctorData.role === "Dialysis Technician") {
+      if (!doctorData.dialysisCenterRole || typeof doctorData.dialysisCenterRole !== "string") errors.dialysisCenterRole = true;
+      if (doctorData.dialysisCenterRole === "Other" && (!doctorData.dialysisCenterRoleOther || doctorData.dialysisCenterRoleOther.trim() === "")) errors.dialysisCenterRoleOther = true;
     }
 
     return errors;
@@ -398,6 +405,8 @@ function AdminManagement() {
           practicingAt: newDoctor.practicingAt,
           photo: photourl?.data?.objectUrl,
           description: newDoctor.description,
+          dialysisCenterRole: newDoctor.dialysisCenterRole,
+          dialysisCenterRoleOther: newDoctor.dialysisCenterRoleOther,
           email_notification: newDoctor.email_notification,
           specialities: newDoctor.specialities,
           can_export: newDoctor.can_export,
@@ -478,7 +487,9 @@ function AdminManagement() {
       type: "all",
       payload: {
         practicingAt: practicingAtList[0],
-        role: "Doctor"
+        role: "Doctor",
+        dialysisCenterRole: "",
+        dialysisCenterRoleOther: "",
       }
     });
     setEditMode(false);
@@ -516,7 +527,20 @@ function AdminManagement() {
         dailyReadingsAlerts: doctor.daily_update,
         Dialysis_updates: doctor.Dialysis_updates,
         can_export: doctor.can_export,
-        reports: Array.isArray(doctor.reports) ? doctor.reports : [],
+            reports: Array.isArray(doctor.reports) ? doctor.reports : [],
+            dialysisCenterRole:
+              doctor["dialysis center role"] ||
+              doctor.dialysisCenterRole ||
+              doctor.dialysis_center_role ||
+              doctor.role_in_dialysis_center ||
+              doctor.dialysisRole ||
+              doctor.roleInDialysis ||
+              "",
+            dialysisCenterRoleOther:
+              doctor.dialysisCenterRoleOther ||
+              doctor.dialysis_center_role_other ||
+              doctor.dialysisRoleOther ||
+              "",
       },
     });
     setEditMode(true);
@@ -637,7 +661,7 @@ function AdminManagement() {
           onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
         >
           {/* User Role */}
-          <Box className="w-full md:w-1/2 mb-6 flex flex-row gap-8">
+          <Box className="w-full md:w-1/2 mb-4 flex flex-row gap-8">
             <Box className="flex-1">
               <FormControl isInvalid={Boolean(fieldErrors.role)}>
                 <FormLabel>User Role<span className="text-red-500">*</span></FormLabel>
@@ -671,9 +695,58 @@ function AdminManagement() {
                 />
               </FormControl>
 
+              
+              
+
             </Box>
+            
           </Box>
 
+          {newDoctor.role === "Dialysis Technician" && (
+            <Box>
+              <FormControl isInvalid={Boolean(fieldErrors.dialysisCenterRole)} className="mb-4">
+                <FormLabel>Role in Dialysis Center<span className="text-red-500">*</span></FormLabel>
+                <Select
+                  value={newDoctor.dialysisCenterRole}
+                  isInvalid={Boolean(fieldErrors.dialysisCenterRole)}
+                  onChange={(event) => {
+                    newDoctorDispatch({
+                      type: "dialysisCenterRole",
+                      payload: event.target.value,
+                    });
+                    setFieldErrors((prev) => ({ ...prev, dialysisCenterRole: false }));
+                  }}
+                >
+                  <option value="">Select role</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Technician">Technician</option>
+                  <option value="Frontdesk">Frontdesk</option>
+                  <option value="Other">Other</option>
+                </Select>
+              </FormControl>
+
+              {newDoctor.dialysisCenterRole === "Other" && (
+                <Box className="mt-6 mb-4">
+                  <FormControl>
+                    <FormLabel>Please specify</FormLabel>
+                    <Input
+                      type="text"
+                      placeholder="Specify role"
+                      value={newDoctor.dialysisCenterRoleOther}
+                      onChange={(event) => {
+                        newDoctorDispatch({
+                          type: "dialysisCenterRoleOther",
+                          payload: event.target.value,
+                        });
+                        setFieldErrors((prev) => ({ ...prev, dialysisCenterRoleOther: false }));
+                      }}
+                    />
+                  </FormControl>
+                </Box>
+              )}
+            </Box>
+          )}
+          
           {/* Readings Modal Trigger */}
           {showReadingsModal && (
             <ReadingsModal
@@ -1065,6 +1138,8 @@ function AdminManagement() {
                 </FormControl>
               </Box>
             )}
+
+            
             {/* </Box> */}
           </Box>
 

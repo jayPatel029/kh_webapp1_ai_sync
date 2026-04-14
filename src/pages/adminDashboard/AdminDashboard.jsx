@@ -135,7 +135,11 @@ const DashboardError = ({ message, onRetry }) => (
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
-  const roleName = useSelector((state) => state.permission?.role_name);
+  const roleName = useSelector((state) => {
+    // alert(JSON.stringify(state));
+    return state.permission?.role_name;
+  });
+  
   const isDialysisTechnician = roleName === 'Dialysis Technician' || localStorage.getItem('role') === 'Dialysis Technician';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -407,7 +411,8 @@ const AdminDashboard = () => {
     return { doctorAlerts: d, adminAlerts: a };
   }, [allAlerts]);
 
-  if (true) {
+  if (isDialysisTechnician) {
+  // if (true) {
     return <BedManagemnetDashboard />;
   }
 

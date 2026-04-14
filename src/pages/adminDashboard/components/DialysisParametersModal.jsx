@@ -13,7 +13,7 @@
  * - Post-dialysis notes
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -39,6 +39,7 @@ import {
   Badge,
   Checkbox,
 } from '../../../component-library';
+import { Select } from '../../../component-library/primitives/Select';
 import { Accordion, AccordionItem } from '../../../component-library/primitives/Accordion';
 import {
   getDialysisHealthParams,
@@ -46,6 +47,7 @@ import {
   getDialysisReadings,
 } from '../../../ApiCalls';
 import './DialysisParametersModal.css';
+import { calculateHeparinDose } from '../../../utils/heparinDosage';
 
 /**
  * DialysisParametersModal Component
@@ -82,6 +84,16 @@ export default function DialysisParametersModal({
   const [beforeNotes, setBeforeNotes] = useState('');
   const [measuredWeight, setMeasuredWeight] = useState('');
   const [estimatedDuration, setEstimatedDuration] = useState(''); // minutes
+
+  // Heparin dosage state
+  const [heparinOverride, setHeparinOverride] = useState('auto'); // 'auto' | 'low' | 'standard' | 'high'
+  const [selectedAilment, setSelectedAilment] = useState('');
+
+  const heparinInfo = useMemo(() => {
+    // Prefer dry_weight as requested; fall back to measured or body_weight
+    const dry = Number(patientParams?.dry_weight) || Number(measuredWeight) || Number(patientParams?.body_weight);
+    return calculateHeparinDose(dry, heparinOverride || 'auto', selectedAilment || null);
+  }, [patientParams?.dry_weight, patientParams?.body_weight, measuredWeight, heparinOverride, selectedAilment]);
 
   // During Dialysis state
   const [duringReadings, setDuringReadings] = useState({
@@ -151,12 +163,23 @@ export default function DialysisParametersModal({
         return;
       }
 
+      // Include calculated heparin data in submission
+      const heparinPayload = heparinInfo?.doseIU
+        ? {
+            strategy: heparinInfo.strategy,
+            dose_iu: heparinInfo.doseIU,
+            per_kg: heparinInfo.perKg,
+            ailment: selectedAilment || null,
+          }
+        : null;
+
       const result = await submitDialysisHealthParams({
         patient_id: patient.patient_id,
         bed_id: bed?.id,
         stage: 'before',
         checklist: beforeChecklist,
         notes: beforeNotes,
+        heparin: heparinPayload,
         timestamp: new Date().toISOString(),
       });
 
@@ -183,6 +206,7 @@ export default function DialysisParametersModal({
             time_range: timeRange,
             appointment_id: patient?.appointment_id,
             bed_id: bed?.id,
+            heparin: heparinPayload,
           });
         }
       }
@@ -245,7 +269,7 @@ export default function DialysisParametersModal({
               <Heading as="h2" size="lg" className="dialysis-modal__title">
                 Dialysis Session Management
               </Heading>
-              <ModalCloseButton className="dialysis-modal__close-button" />
+              {/* <ModalCloseButton className="dialysis-modal__close-button" /> */}
             </Box>
 
             <Box className="dialysis-modal__header-summary">
@@ -485,6 +509,58 @@ export default function DialysisParametersModal({
                         Calculate
                       </Button>
                     </HStack>
+                    {/* Heparin dosage suggestion */}
+                    <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
+                      <CardHeader>
+                        <Heading as="h4" size="sm">Heparin Dosage</Heading>
+                      </CardHeader>
+                      <CardBody>
+                        <VStack spacing={3} align="start">
+                          <HStack width="100%" spacing={3}>
+                            <FormControl flex={1}>
+                              <FormLabel>Doctor override</FormLabel>
+                              <Select
+                                value={heparinOverride}
+                                onChange={(e) => setHeparinOverride(e.target.value)}
+                                disabled={stage !== 'before' || isLoading}
+                              >
+                                <option value="auto">Auto (ailment-based)</option>
+                                <option value="low">Low dose</option>
+                                <option value="standard">Standard dose</option>
+                                <option value="high">High dose</option>
+                              </Select>
+                            </FormControl>
+
+                            <FormControl flex={1}>
+                              <FormLabel>Ailment / condition</FormLabel>
+                              <Select
+                                value={selectedAilment}
+                                onChange={(e) => setSelectedAilment(e.target.value)}
+                                disabled={stage !== 'before' || isLoading}
+                              >
+                                <option value="">None</option>
+                                <option value="anticoagulation">On anticoagulation</option>
+                                <option value="bleeding_risk">High bleeding risk</option>
+                                <option value="hypercoagulable">Hypercoagulable</option>
+                                <option value="heparin_resistance">Heparin resistance</option>
+                              </Select>
+                            </FormControl>
+                          </HStack>
+
+                          <Box>
+                            <Text fontSize="sm" fontWeight="600">
+                              Suggested dose:
+                              {' '}
+                              {heparinInfo?.doseIU ? `${heparinInfo.doseIU} IU` : '—'}
+                              {heparinInfo?.perKg ? ` (${heparinInfo.perKg} IU/kg)` : ''}
+                            </Text>
+                            <Text fontSize="xs" color="textMuted">
+                              {heparinInfo?.note || 'Heparin dose will be computed using dry weight.'}
+                            </Text>
+                          </Box>
+                        </VStack>
+                      </CardBody>
+                    </Card>
                   <HStack justify="flex-end" width="100%">
                     <Button
                       variant="solid"
