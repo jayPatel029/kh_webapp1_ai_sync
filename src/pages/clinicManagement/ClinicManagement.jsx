@@ -3,12 +3,16 @@
  * Two-tab layout: Organizations | Clinics
  * Modeled after AddRole.jsx and AdminManagement.jsx patterns.
  *
- * No API integration — uses dummy data.
+ * API Integration (Clinics tab):
+ *  - GET /clinics  → getClinics()
+ *  - GET /clinics/:id → getClinicById()
+ *
+ * Organizations tab: local state only (no backend API).
  *
  * @file src/pages/clinicManagement/ClinicManagement.jsx
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Box,
   FormControl,
@@ -24,6 +28,7 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import UnifiedListTable from '../../components/table/UnifiedListTable';
 import { useAdminToast } from '../../components/AdminToast';
 import { useNavigate } from 'react-router-dom';
+import { getClinics, getClinicById } from '../../ApiCalls/clinicApis';
 
 // ─── Dummy Data ────────────────────────────────────────────
 
@@ -33,41 +38,21 @@ const DUMMY_ORGANIZATIONS = [
   { id: 3, name: 'Fortis Healthcare', email: 'info@fortishealthcare.com', phone: '9234567890', address: 'Bangalore, Karnataka, India' },
 ];
 
-const DUMMY_CLINICS = [
-  {
-    id: 1,
-    clinicName: 'Kifayti Dialysis Center',
-    clinicEmail: 'dialysis@kifaytihealth.com',
-    phone: '9876543210',
-    whatsapp: '9876543210',
-    address: 'Plot 42, Andheri East, Mumbai',
-    upiDetails: 'kifayti@upi',
-    bankDetails: 'HDFC Bank, Holder: Kifayti Health, Account No: 1234567890, IFSC: HDFC0001234',
-    clinicIconURL: '',
-  },
-  {
-    id: 2,
-    clinicName: 'Kifayti Nephro Clinic',
-    clinicEmail: 'nephro@kifaytihealth.com',
-    phone: '9123456780',
-    whatsapp: '9123456780',
-    address: 'Sector 15, Navi Mumbai',
-    upiDetails: 'nephro@upi',
-    bankDetails: 'SBI Bank, Holder: Nephro Clinic, Account No: 9876543210, IFSC: SBIN0005678',
-    clinicIconURL: '',
-  },
-  {
-    id: 3,
-    clinicName: 'Apollo Dialysis Wing',
-    clinicEmail: 'dialysis@apollo.com',
-    phone: '9988776655',
-    whatsapp: '',
-    address: 'Sarita Vihar, Delhi',
-    upiDetails: '',
-    bankDetails: 'ICICI Bank, Holder: Apollo, Account No: 5432167890, IFSC: ICIC0009876',
-    clinicIconURL: '',
-  },
-];
+/**
+ * Normalize a clinic from the backend into the shape the UI expects.
+ * The API may return snake_case or camelCase; we handle both.
+ */
+const normalizeClinicFromApi = (c) => ({
+  id: c.id,
+  clinicName: c.clinicName || c.clinic_name || c.name || '',
+  clinicEmail: c.clinicEmail || c.clinic_email || c.email || '',
+  phone: c.phone || c.phoneno || c.phone_number || '',
+  whatsapp: c.whatsapp || c.whatsapp_no || '',
+  address: c.address || '',
+  upiDetails: c.upiDetails || c.upi_details || '',
+  bankDetails: c.bankDetails || c.bank_details || '',
+  clinicIconURL: c.clinicIconURL || c.clinic_icon || c.clinic_icon_url || '',
+});
 
 // ─── Tabs ──────────────────────────────────────────────────
 
@@ -94,7 +79,36 @@ const ClinicManagement = () => {
   const [orgErrorMessage, setOrgErrorMessage] = useState('');
 
   // ─── Clinic state ──────────────────────────────────────
-  const [clinics, setClinics] = useState(DUMMY_CLINICS);
+  const [clinics, setClinics] = useState([]);
+  const [clinicsLoading, setClinicsLoading] = useState(false);
+
+  // ─── Fetch clinics from API ──────────────────────────
+  const fetchClinics = useCallback(async () => {
+    setClinicsLoading(true);
+    try {
+      const result = await getClinics();
+      if (result.success) {
+        const rows = Array.isArray(result.data?.data)
+          ? result.data.data
+          : Array.isArray(result.data)
+          ? result.data
+          : [];
+        setClinics(rows.map(normalizeClinicFromApi));
+      } else {
+        showToast(result.data?.message || 'Failed to load clinics', 'error');
+      }
+    } catch (err) {
+      showToast(err?.message || 'Network error loading clinics', 'error');
+    } finally {
+      setClinicsLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    if (activeTab === 'clinics') {
+      fetchClinics();
+    }
+  }, [activeTab, fetchClinics]);
   const [clinicSearchTerm, setClinicSearchTerm] = useState('');
   const [isClinicModalOpen, setIsClinicModalOpen] = useState(false);
   const [clinicEditMode, setClinicEditMode] = useState(false);
@@ -484,15 +498,21 @@ const ClinicManagement = () => {
                 </Button>
               </div>
 
-              <UnifiedListTable
-                columns={clinicColumns}
-                data={clinicTableData}
-                onEdit={openClinicEdit}
-                onDelete={handleClinicDelete}
-                emptyMessage="No clinics found"
-                displayMode="table"
-                rowsPerPage={10}
-              />
+              {clinicsLoading ? (
+                <div className="flex items-center justify-center" style={{ minHeight: '200px' }}>
+                  <p style={{ color: '#6B7280' }}>Loading clinics…</p>
+                </div>
+              ) : (
+                <UnifiedListTable
+                  columns={clinicColumns}
+                  data={clinicTableData}
+                  onEdit={openClinicEdit}
+                  onDelete={handleClinicDelete}
+                  emptyMessage="No clinics found"
+                  displayMode="table"
+                  rowsPerPage={10}
+                />
+              )}
             </div>
           )}
         </div>

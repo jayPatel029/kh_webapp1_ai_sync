@@ -44,8 +44,6 @@ import PageSkeleton from '../../components/PageSkeleton';
 import StatCard from '../../components/dashboard/StatCard';
 import AlertsPanel from '../../components/dashboard/AlertsPanel';
 import PageHeader from '../../components/PageHeader';
-import DialysisAppointmentsDashboard from './components/DialysisAppointmentsDashboard';
-import BedManagemnetDashboard from './components/BedManagementDashboard';
 
 
 // Design system primitives
@@ -411,10 +409,6 @@ const AdminDashboard = () => {
     return { doctorAlerts: d, adminAlerts: a };
   }, [allAlerts]);
 
-  if (isDialysisTechnician) {
-  // if (true) {
-    return <BedManagemnetDashboard />;
-  }
 
   // render
   if (error) {

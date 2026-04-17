@@ -7,39 +7,76 @@
  * @file src/pages/dialysis/DialysisPatients.jsx
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Box, Input } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import UnifiedListTable from '../../components/table/UnifiedListTable';
-
-// ─── Dummy data (all patients have dialysis as ailment) ────
-const DUMMY_PATIENTS = [
-  { id: 1, name: 'Ramesh Kumar', age: 58, gender: 'Male', phone: '9876543210', email: 'ramesh.k@mail.com', ailment: 'Dialysis', lastVisit: '17-04-2026' },
-  { id: 2, name: 'Sunita Devi', age: 45, gender: 'Female', phone: '9123456780', email: 'sunita.d@mail.com', ailment: 'Dialysis', lastVisit: '16-04-2026' },
-  { id: 3, name: 'Ajay Verma', age: 62, gender: 'Male', phone: '9988776655', email: 'ajay.v@mail.com', ailment: 'Dialysis', lastVisit: '15-04-2026' },
-  { id: 4, name: 'Meena Sharma', age: 50, gender: 'Female', phone: '9871234560', email: 'meena.s@mail.com', ailment: 'Dialysis', lastVisit: '14-04-2026' },
-  { id: 5, name: 'Vikram Singh', age: 70, gender: 'Male', phone: '9009876543', email: 'vikram.s@mail.com', ailment: 'Dialysis', lastVisit: '13-04-2026' },
-  { id: 6, name: 'Priya Patel', age: 39, gender: 'Female', phone: '9345678901', email: 'priya.p@mail.com', ailment: 'Dialysis', lastVisit: '12-04-2026' },
-  { id: 7, name: 'Ravi Gupta', age: 55, gender: 'Male', phone: '9012345678', email: 'ravi.g@mail.com', ailment: 'Dialysis', lastVisit: '11-04-2026' },
-  { id: 8, name: 'Anita Joshi', age: 48, gender: 'Female', phone: '9234567890', email: 'anita.j@mail.com', ailment: 'Dialysis', lastVisit: '10-04-2026' },
-];
+import { getPatients } from '../../ApiCalls/patientAPis';
+import { useAdminToast } from '../../components/AdminToast';
 
 const DialysisPatients = () => {
   const { isMobile } = useIsMobile();
+  const { showToast, ToastContainer } = useAdminToast();
+  
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const patients = useMemo(() => {
-    if (!searchQuery.trim()) return DUMMY_PATIENTS;
+  const fetchPatients = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await getPatients();
+      if (result.success) {
+        const allPatients = result.data?.data || result.data || [];
+        // Filter for patients with "Dialysis" in ailments or reason if provided by backend
+        // For now, if we don't have a specific field, we show all since this is the Dialysis view
+        // But the requirement says "only patient with dialysis in ailement"
+        const dialysisPatients = allPatients.filter(p => {
+          const ailments = String(p.ailments || p.patient_ailments || '').toLowerCase();
+          return ailments.includes('dialysis');
+        });
+        
+        // Map to table shape
+        const mapped = dialysisPatients.map(p => ({
+          id: p.id,
+          name: p.name || p.patient_name || `Patient #${p.id}`,
+          age: p.age || p.patient_age || '—',
+          gender: p.gender || p.patient_gender || '—',
+          phone: p.phone || p.phone_number || '—',
+          email: p.email || '—',
+          ailment: 'Dialysis',
+          lastVisit: p.last_visit || p.updated_at ? new Date(p.updated_at).toLocaleDateString() : '—',
+          _raw: p
+        }));
+        setPatients(mapped);
+      } else {
+        setError(result.error || 'Failed to fetch patients');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPatients();
+  }, [fetchPatients]);
+
+  const filteredPatients = useMemo(() => {
+    if (!searchQuery.trim()) return patients;
     const q = searchQuery.toLowerCase();
-    return DUMMY_PATIENTS.filter(
+    return patients.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.phone.includes(q) ||
         p.email.toLowerCase().includes(q)
     );
-  }, [searchQuery]);
+  }, [patients, searchQuery]);
 
   const columns = [
     { key: 'name', label: 'Patient Name', type: 'text', width: '180px' },
@@ -93,7 +130,7 @@ const DialysisPatients = () => {
               }}
             >
               <span style={{ fontSize: '14px', fontWeight: 600 }}>
-                Total Patients: <strong>{patients.length}</strong>
+                Total Patients: <strong>{filteredPatients.length}</strong>
               </span>
               <Input
                 type="text"
@@ -104,15 +141,32 @@ const DialysisPatients = () => {
               />
             </div>
 
-            <UnifiedListTable
-              columns={columns}
-              data={patients}
-              emptyMessage="No dialysis patients found"
-              displayMode="table"
-              rowsPerPage={10}
-            />
+            {loading ? (
+              <div className="flex items-center justify-center p-10">
+                <p style={{ color: '#6B7280' }}>Loading patients...</p>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center p-10 gap-4">
+                <p style={{ color: '#DC2626' }}>{error}</p>
+                <button 
+                  onClick={fetchPatients}
+                  style={{ padding: '8px 16px', background: '#004c6d', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <UnifiedListTable
+                columns={columns}
+                data={filteredPatients}
+                emptyMessage="No dialysis patients found"
+                displayMode="table"
+                rowsPerPage={10}
+              />
+            )}
           </div>
         </div>
+        <ToastContainer />
       </Box>
     </ThemeProvider>
   );

@@ -66,6 +66,7 @@ const UnifiedListTable = ({
     onCardClick, // callback when a card is tapped
     cardStatusKey, // key for status badge
     mobileCardRender, // optional custom card render fn(row, columns, renderCell)
+    rowProps, // optional fn(row) => object of props to spread on <tr>
 }) => {
     const { isMobile } = useIsMobile();
     const [currentPage, setCurrentPage] = useState(1);
@@ -443,6 +444,7 @@ const UnifiedListTable = ({
                                     data-row-index={rowIdx}
                                     onClick={() => onRowClick?.(row)}
                                     style={onRowClick ? { cursor: 'pointer' } : undefined}
+                                    {...(rowProps ? rowProps(row) : {})}
                                 >
                                     {visibleColumns.map((column) => (
                                         <td
