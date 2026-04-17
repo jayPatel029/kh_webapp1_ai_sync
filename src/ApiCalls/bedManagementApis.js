@@ -160,6 +160,20 @@ export async function updateBedStatus(bedId, payload, config = {}) {
   }
 }
 
+/**
+ * Transfer a patient from one bed to another
+ * @param {Object} payload - {from_bed_id, to_bed_id, patient_id, requested_by}
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function transferPatientBed(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/beds/transfer`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
 export default {
   getAllBeds,
   getBedsByStatus,
@@ -171,4 +185,5 @@ export default {
   getBedAssignmentsByDateRange,
   getPatientDetails,
   updateBedStatus,
+  transferPatientBed,
 };
