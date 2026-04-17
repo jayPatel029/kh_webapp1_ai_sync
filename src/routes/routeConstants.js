@@ -74,6 +74,17 @@ export const ROUTES = {
 
   ALERTS: "/alerts",
 
+  // Dialysis Member routes
+  DIALYSIS_DASHBOARD: "/dialysis/dashboard",
+  DIALYSIS_INVENTORY: "/dialysis/inventory",
+  DIALYSIS_SESSIONS: "/dialysis/sessions",
+  DIALYSIS_APPOINTMENTS: "/dialysis/appointments",
+  DIALYSIS_PATIENTS: "/dialysis/patients",
+  DIALYSIS_BILLING: "/dialysis/billing",
+
+  // Clinic / Organization management
+  CLINIC_MANAGEMENT: "/clinic",
+
   AI_CHAT: "/ai-chat",
 
   LOGIN: "/login",
@@ -112,6 +123,17 @@ export const ROUTE_NAMES = {
   ALERTS: "PatientAlertsByType",
   SUPPORT: "ContactUsPage",
   SETTINGS_LOGS: "logs",
+
+  // Dialysis
+  DIALYSIS_DASHBOARD: "DialysisDashboard",
+  DIALYSIS_INVENTORY: "DialysisInventory",
+  DIALYSIS_SESSIONS: "DialysisSessions",
+  DIALYSIS_APPOINTMENTS: "DialysisAppointments",
+  DIALYSIS_PATIENTS: "DialysisPatients",
+  DIALYSIS_BILLING: "DialysisBilling",
+
+  // Clinic
+  CLINIC_MANAGEMENT: "ClinicManagement",
 };
 
 export const SIDEBAR_ROUTE_CONFIG = [

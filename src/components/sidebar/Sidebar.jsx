@@ -17,6 +17,7 @@ import SubdirectoryArrowRightIcon from "@mui/icons-material/SubdirectoryArrowRig
 import { AdminPanelSettings, ArrowBack, Assessment } from "@mui/icons-material";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import TranslateIcon from "@mui/icons-material/Translate";
+import LocalHospitalIcon from "@mui/icons-material/LocalHospital";
 import { useSelector } from "react-redux";
 import { useLocation } from 'react-router-dom';
 import { Sidebar as DSidebar, SidebarHeader } from "../../component-library/navigation/Sidebar";
@@ -28,6 +29,7 @@ import { hasAnyPermission, hasDashboardAccess } from "../../helpers/permissions"
 const Sidebar = ({ mobile = false }) => {
   const [dropdown, setDropdown] = useState(false);
   const [chatDropdown, setChatDropdown] = useState(false);
+  const [dialysisDropdown, setDialysisDropdown] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebarCollapsed') === 'true';
@@ -75,6 +77,7 @@ const Sidebar = ({ mobile = false }) => {
     if (isCollapsed) {
       setDropdown(false);
       setChatDropdown(false);
+      setDialysisDropdown(false);
     }
   }, [isCollapsed]);
 
@@ -227,11 +230,14 @@ const Sidebar = ({ mobile = false }) => {
   const adminGroupVisible = !!(
     hasAnyPermission(role, "createAdmin") ||
     hasAnyPermission(role, "createDoctor") ||
-    hasAnyPermission(role, "manageRoles")
+    hasAnyPermission(role, "manageRoles") ||
+    (role?.role_name === "Admin" || role?.role_name === "PSadmin")
   );
 
   // Show Chats group only for admin-type roles
   const chatsGroupVisible = !!(role?.role_name === "Admin" || role?.role_name === "PSadmin");
+
+  const dialysisGroupVisible = !!(role?.role_name === "Admin" || role?.role_name === "PSadmin");
 
   const renderDesktopNavItem = (item) => {
     const Icon = item.icon;
@@ -324,6 +330,7 @@ const Sidebar = ({ mobile = false }) => {
             {hasAnyPermission(role, "createAdmin") && renderAdminChild('Create Admin', SubdirectoryArrowRightIcon, ROUTES.USERS_ADMINS)}
             {hasAnyPermission(role, "createDoctor") && renderAdminChild('Create Doctor', SubdirectoryArrowRightIcon, ROUTES.USERS_DOCTORS)}
             {hasAnyPermission(role, "manageRoles") && renderAdminChild('Manage Roles', SubdirectoryArrowRightIcon, ROUTES.USERS_ROLES)}
+            {(role?.role_name === "Admin" || role?.role_name === "PSadmin") && renderAdminChild('Clinic Management', SubdirectoryArrowRightIcon, ROUTES.CLINIC_MANAGEMENT)}
           </div>
         )}
       </li>
@@ -375,6 +382,59 @@ const Sidebar = ({ mobile = false }) => {
           <div className="mt-2 flex flex-col gap-1 pl-4">
             {renderAdminChild('Admin Team', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_ADMIN)}
             {renderAdminChild('Medical Team', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_DOCTOR)}
+          </div>
+        )}
+      </li>
+    );
+  };
+
+  const renderDialysisGroup = () => {
+    if (!dialysisGroupVisible) return null;
+
+    const shouldShowChildren = dialysisDropdown && !isCollapsed;
+
+    return (
+      <li key="dialysis-management" className={isIconOnly ? 'w-full flex justify-center' : ''}>
+        <button
+          type="button"
+          aria-expanded={dialysisDropdown}
+          onClick={() => {
+            if (isIconOnly) {
+              toggleCollapse();
+              setDialysisDropdown((prev) => !prev);
+              return;
+            }
+            setDialysisDropdown((prev) => !prev);
+          }}
+          className={clsx(
+            'text-white transition-colors duration-200',
+            isIconOnly
+              ? clsx(
+                'flex flex-col items-center justify-center px-2 py-2.5 rounded-lg',
+                pathname.toLowerCase().includes('/dialysis/') ? 'bg-white/10 text-white' : 'text-white hover:text-white hover:bg-white/10'
+              )
+              : 'w-full flex items-center gap-3 px-3 py-3 text-sm font-semibold justify-between rounded-2xl'
+          )}
+        >
+          <LocalHospitalIcon className="text-2xl text-white" />
+          {!isIconOnly && (
+            <>
+              <span className="text-sm font-semibold break-words flex-1 text-left">Dialysis Management</span>
+              <span className={clsx('text-lg transition-transform duration-200', dialysisDropdown ? 'rotate-180' : 'rotate-0')}>
+                ▾
+              </span>
+            </>
+          )}
+          {isIconOnly && (<span className="text-[8px] font-semibold break-words">Dialysis</span>)}
+        </button>
+        {shouldShowChildren && (
+          <div className="mt-2 flex flex-col gap-1 pl-4">
+            {renderAdminChild('Dashboard', SubdirectoryArrowRightIcon, ROUTES.DIALYSIS_DASHBOARD)}
+            {renderAdminChild('Inventory', SubdirectoryArrowRightIcon, ROUTES.DIALYSIS_INVENTORY)}
+            {renderAdminChild('Sessions', SubdirectoryArrowRightIcon, ROUTES.DIALYSIS_SESSIONS)}
+            {renderAdminChild('Appointments', SubdirectoryArrowRightIcon, ROUTES.DIALYSIS_APPOINTMENTS)}
+            {renderAdminChild('Patients', SubdirectoryArrowRightIcon, ROUTES.DIALYSIS_PATIENTS)}
+            {renderAdminChild('Billing', SubdirectoryArrowRightIcon, ROUTES.DIALYSIS_BILLING)}
           </div>
         )}
       </li>
@@ -463,6 +523,7 @@ const Sidebar = ({ mobile = false }) => {
                     nodes.push(renderDesktopNavItem(it));
                     if (it.id === 'admin-dashboard') {
                       nodes.push(renderAdminGroup());
+                      nodes.push(renderDialysisGroup());
                       nodes.push(renderChatsGroup());
                       inserted = true;
                       chatsInserted = true;
@@ -471,6 +532,7 @@ const Sidebar = ({ mobile = false }) => {
 
                   if (!inserted && adminGroupVisible) {
                     nodes.unshift(renderAdminGroup());
+                    nodes.unshift(renderDialysisGroup());
                   }
                   if (!chatsInserted && chatsGroupVisible) {
                     nodes.unshift(renderChatsGroup());

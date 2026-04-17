@@ -9,6 +9,7 @@ import { getUserRoutes } from "./userRoutes";
 import { getMedicalRoutes } from "./medicalRoutes";
 import { getSettingsRoutes } from "./settingsRoutes";
 import { getReadingRoutes } from "./readingRoutes";
+import { getDialysisRoutes } from "./dialysisRoutes";
 
 const Login = lazy(() => import("../pages/login/Login"));
 const DoctorLogin = lazy(() => import("../pages/doctorLogin/DoctorLogin"));
@@ -26,6 +27,7 @@ const UserMedicalTeam = lazy(() => import("../components/UserListAdmin/UserMedic
 const PatientAlertsByType = lazy(() => import("../pages/PatientAlertsByType"));
 const CommentsDemoPage = lazy(() => import("../pages/CommentsDemoPage"));
 const GlobalChatsPage = lazy(() => import("../pages/chats/GlobalChatsPage"));
+const ClinicManagement = lazy(() => import("../pages/clinicManagement/ClinicManagement"));
 
 const RouteFallback = () => <div className="p-6">Loading...</div>;
 
@@ -235,6 +237,16 @@ function AppRoutes() {
         ...getUserRoutes({ guard, ROUTE_NAMES }),
         ...getMedicalRoutes({ guard, ROUTE_NAMES }),
         ...getSettingsRoutes({ guard, ROUTE_NAMES }),
+        ...getDialysisRoutes({ guard, ROUTE_NAMES }),
+
+        {
+          path: "clinic",
+          element: guard(
+            <ClinicManagement />,
+            ROUTE_NAMES.CLINIC_MANAGEMENT,
+            ["Admin", "PSadmin"]
+          ),
+        },
 
         {
           path: "reports",

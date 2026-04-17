@@ -60,17 +60,19 @@ const MainLayout = () => {
 
     const role = useSelector((state) => state.permission);
     const isDoctor = role?.role_name === 'Doctor';
+    const isDialysisMember = role?.role_name === 'Dialysis Technician';
+    const isCompactRole = isDoctor || isDialysisMember;
 
     // On mobile, always hide desktop sidebar; calculate offset only for desktop
     // For Doctor role we render a compact left area inside PageHeader instead of the fixed Sidebar
-    const showDesktopSidebar = showSidebar && !isMobile && !isDoctor;
+    const showDesktopSidebar = showSidebar && !isMobile && !isCompactRole;
 
     // Calculate sidebar width for layout offset
     const SIDEBAR_WIDTH = 250;
     const COLLAPSED_WIDTH = 96; // 24 * 4 (w-24 in tailwind)
     const sidebarOffset = showDesktopSidebar
         ? (isSidebarCollapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH)
-        : (isDoctor ? COLLAPSED_WIDTH : 0);
+        : (isCompactRole ? COLLAPSED_WIDTH : 0);
 
     return (
         <Box className="flex min-h-screen w-full">
@@ -95,7 +97,7 @@ const MainLayout = () => {
                 {showSidebar && isMobile && <MobileTopBar />}
 
                 {/* Page content - rendered by nested routes */}
-                <Box className={showSidebar ? (isMobile ? "p-0 pt-0 pb-20" : `md:p-6 ${isDoctor ? 'md:pr-4' : 'md:pr-8'}`) : "p-0"}>
+                <Box className={showSidebar ? (isMobile ? "p-0 pt-0 pb-20" : `md:p-6 ${isCompactRole ? 'md:pr-4' : 'md:pr-8'}`) : "p-0"}>
                     <Outlet />
                 </Box>
             </Box>

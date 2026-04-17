@@ -22,6 +22,10 @@ import RateReviewIcon from '@mui/icons-material/RateReview';
 import HistoryIcon from '@mui/icons-material/History';
 import TranslateIcon from '@mui/icons-material/Translate';
 import { Assessment } from '@mui/icons-material';
+import EventNoteIcon from '@mui/icons-material/EventNote';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import { hasAnyPermission, hasDashboardAccess } from '../helpers/permissions';
 import * as assets from '../assets';
 import kifayti_logo from '../assets/kifayti_logo.png';
@@ -47,6 +51,17 @@ export const PageHeader = ({
   const location = useLocation();
   const pathname = location?.pathname || '';
   const isDoctor = role?.role_name === 'Doctor';
+  const isDialysisMember = role?.role_name === 'Dialysis Technician';
+
+  // Detect dialysis sub-role from user profile data
+  const dialysisSubRole = (
+    user?.dialysisCenterRole ||
+    user?.dialysis_center_role ||
+    user?.roleInDialysis ||
+    user?.dialysisRole ||
+    user?.role_in_dialysis_center ||
+    ''
+  ).toLowerCase();
 
   const navItems = React.useMemo(() => {
     const canOpenDashboard = hasDashboardAccess(role?.role_name);
@@ -85,12 +100,58 @@ export const PageHeader = ({
     return items;
   }, [role]);
 
+  // ─── Dialysis member nav items (sub-role aware) ──────
+  const dialysisNavItems = React.useMemo(() => {
+    if (!isDialysisMember) return [];
+
+    const sub = dialysisSubRole;
+
+    // Manager: Dashboard, Inventory, Dialysis, Appointments, Patients, Billing
+    if (sub === 'manager') {
+      return [
+        { id: 'dialysis-dashboard', label: 'Dashboard', href: ROUTES.DIALYSIS_DASHBOARD, icon: DashboardIcon, showInMobileBar: true },
+        { id: 'dialysis-inventory', label: 'Inventory', href: ROUTES.DIALYSIS_INVENTORY, icon: InventoryIcon },
+        { id: 'dialysis-sessions', label: 'Dialysis', href: ROUTES.DIALYSIS_SESSIONS, icon: LocalHospitalIcon, showInMobileBar: true },
+        { id: 'dialysis-appointments', label: 'Appointments', href: ROUTES.DIALYSIS_APPOINTMENTS, icon: EventNoteIcon, showInMobileBar: true },
+        { id: 'dialysis-patients', label: 'Patients', href: ROUTES.DIALYSIS_PATIENTS, icon: PeopleAltIcon },
+        { id: 'dialysis-billing', label: 'Billing', href: ROUTES.DIALYSIS_BILLING, icon: ReceiptLongIcon },
+      ];
+    }
+
+    // Technician: Dialysis, Appointments, Patients
+    if (sub === 'technician') {
+      return [
+        { id: 'dialysis-sessions', label: 'Dialysis', href: ROUTES.DIALYSIS_SESSIONS, icon: LocalHospitalIcon, showInMobileBar: true },
+        { id: 'dialysis-appointments', label: 'Appointments', href: ROUTES.DIALYSIS_APPOINTMENTS, icon: EventNoteIcon, showInMobileBar: true },
+        { id: 'dialysis-patients', label: 'Patients', href: ROUTES.DIALYSIS_PATIENTS, icon: PeopleAltIcon, showInMobileBar: true },
+      ];
+    }
+
+    // Frontdesk: Dialysis, Appointments, Patients, Billing
+    if (sub === 'frontdesk') {
+      return [
+        { id: 'dialysis-sessions', label: 'Dialysis', href: ROUTES.DIALYSIS_SESSIONS, icon: LocalHospitalIcon, showInMobileBar: true },
+        { id: 'dialysis-appointments', label: 'Appointments', href: ROUTES.DIALYSIS_APPOINTMENTS, icon: EventNoteIcon, showInMobileBar: true },
+        { id: 'dialysis-patients', label: 'Patients', href: ROUTES.DIALYSIS_PATIENTS, icon: PeopleAltIcon },
+        { id: 'dialysis-billing', label: 'Billing', href: ROUTES.DIALYSIS_BILLING, icon: ReceiptLongIcon, showInMobileBar: true },
+      ];
+    }
+
+    // Other / unset: Dashboard only (blank)
+    return [
+      { id: 'dialysis-dashboard', label: 'Dashboard', href: ROUTES.DIALYSIS_DASHBOARD, icon: DashboardIcon, showInMobileBar: true },
+    ];
+  }, [isDialysisMember, dialysisSubRole]);
+
+  // Use dialysis nav items when role is Dialysis Technician, otherwise use standard navItems
+  const effectiveNavItems = isDialysisMember ? dialysisNavItems : navItems;
+
   const getActiveIdFromPath = (path) => {
     if (!path) return null;
     if (path.toLowerCase().includes('/userprofile/')) return 'patients';
-    const exact = navItems.find((it) => it.href === path);
+    const exact = effectiveNavItems.find((it) => it.href === path);
     if (exact) return exact.id;
-    const starts = navItems.find((it) => it.href && it.href !== '/' && path.startsWith(it.href));
+    const starts = effectiveNavItems.find((it) => it.href && it.href !== '/' && path.startsWith(it.href));
     if (starts) return starts.id;
     return null;
   };
@@ -101,8 +162,9 @@ export const PageHeader = ({
   const renderOnlyHeaderDefault = variant === 'onlyheader';
 
   if (renderOnlyHeaderDefault) {
-    // If doctor role, center logo and title and render top-tabs beneath
-    if (isDoctor && !isMobile) {
+    // If doctor or dialysis member role, center logo and title and render top-tabs beneath
+    if ((isDoctor || isDialysisMember) && !isMobile) {
+      const tabItems = isDialysisMember ? dialysisNavItems : navItems;
       return (
         <Box className="w-full border-b-2 -mt-8 border-info bg-white relative">
 
@@ -110,7 +172,7 @@ export const PageHeader = ({
           <div className="flex flex-col items-start justify-start py-4">
             {/* tabs */}
             <nav className="mt-3 flex gap-3 items-center">
-              {navItems.map((item) => {
+              {tabItems.map((item) => {
                 const isActive = activeId === item.id;
                 return (
                   <NavLink
