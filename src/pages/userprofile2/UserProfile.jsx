@@ -70,6 +70,9 @@ import LineChartComponentSys from "../../components/linecomponent-sys-dys/LineCh
 import LineChartComponentLab from "../../components/linechartlab/LineChartComponentLab";
 import LabRedingUpdateModal from "../../components/modals/LabReadingModal";
 import { PatientProfileShellContext } from "../common/PatientProfileShellContext";
+import ImmunizationSection from "../../components/ImmunizationSection";
+import ImmunizationChart from "../../components/ImmunizationChart";
+import demoPatient from "../../data/dummyPatient";
 
 const buildCombinedTitle = (baseTitle, keyword, insertText) => {
   if (!baseTitle) return baseTitle;
@@ -576,6 +579,9 @@ function UserProfile() {
             onEditAilments={openEditalimentsModal}
           />
 
+          {/* Immunization Chart / Records */}
+          <ImmunizationSection userData={userData} role={role} onSuccess={handleUpdateSuccess} />
+
           {/* Medical & Admin Team */}
           {/* Team Management Section */}
           {/* <Box className="grid grid-cols-1 md:grid-cols-2 gap-4"> */}
@@ -903,6 +909,28 @@ function UserProfile() {
               )}
             </Box>
           )}
+
+              {/* Demo: Dummy patient & immunization chart */}
+              <Box className="space-y-4 mt-8">
+                <Box className="flex items-center justify-between">
+                  <Box as="h2" className="text-xl font-bold">Demo — Dummy Patient</Box>
+                </Box>
+
+                 <Box className="mt-4">
+                    <Box as="h3" className="text-sm font-semibold mb-2">Immunizations</Box>
+                    <div className="space-y-2">
+                      {demoPatient.immunizations.map((it) => (
+                        <Box key={it.id} className="text-sm">
+                          <strong>{it.vaccine}</strong> — {new Date(it.date).toLocaleDateString()} • {it.administeredBy}
+                        </Box>
+                      ))}
+                    </div>
+                  </Box>
+
+                  <Box className="mt-4">
+                    <ImmunizationChart items={demoPatient.immunizations} />
+                  </Box>
+              </Box>
 
 
         </Flex>

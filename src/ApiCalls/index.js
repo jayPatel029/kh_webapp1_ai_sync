@@ -52,3 +52,4 @@ export * from './adminPatientApis';
 export * from './ailmentPatientApis';
 export * from './doctorPatientApis';
 export * from './remainingApis';
+export * from './immunizationApis';
