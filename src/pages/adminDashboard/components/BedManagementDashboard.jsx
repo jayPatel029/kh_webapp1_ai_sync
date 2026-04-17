@@ -671,7 +671,7 @@ const AssignmentModal = ({
 // ============================================================================
 // Main BedManagementDashboard Component
 // ============================================================================
-export default function BedManagementDashboard() {
+export default function BedManagementDashboard(props) {
   const {
     beds,
     bedsByStatus,
@@ -684,6 +684,8 @@ export default function BedManagementDashboard() {
     quarantineBed,
     canAssignPatientToBed,
   } = useBedManagement();
+
+  const hideAppointments = props?.hideAppointments || false;
 
   const [appointments, setAppointments] = useState([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
@@ -956,27 +958,29 @@ export default function BedManagementDashboard() {
 
         {/* Main Two-Column Layout */}
         <Grid
-          templateColumns={{ base: '1fr', md: '1fr 1.5fr' }}
+          templateColumns={hideAppointments ? '1fr' : { base: '1fr', md: '1fr 1.5fr' }}
           gap={4}
           className="main-layout"
           width="100%"
         >
           {/* Left Column: Appointments */}
-          <Box>
-            <Card variant="outline" className="appointments-card">
-              <CardHeader>
-                <Heading as="h2" size="md">
-                  Appointments
-                </Heading>
-                <Text fontSize="xs" color="textMuted" mt={1} align="right" >
-                  Drag a row to assign to an empty bed
-                </Text>
-              </CardHeader>
-              <CardBody p={0}>
-                <AppointmentDraggableList appointments={displayAppointments} />
-              </CardBody>
-            </Card>
-          </Box>
+          {!hideAppointments && (
+            <Box>
+              <Card variant="outline" className="appointments-card">
+                <CardHeader>
+                  <Heading as="h2" size="md">
+                    Appointments
+                  </Heading>
+                  <Text fontSize="xs" color="textMuted" mt={1} align="right" >
+                    Drag a row to assign to an empty bed
+                  </Text>
+                </CardHeader>
+                <CardBody p={0}>
+                  <AppointmentDraggableList appointments={displayAppointments} />
+                </CardBody>
+              </Card>
+            </Box>
+          )}
 
           {/* Right Column: Beds */}
           <Box>

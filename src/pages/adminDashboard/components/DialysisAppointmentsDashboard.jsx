@@ -357,11 +357,21 @@ const DialysisAppointmentsDashboard = () => {
     [appointments]
   );
 
+  const handleDragStart = useCallback((e, appt) => {
+    const dragPayload = {
+      patient_id: appt.patient_id || appt.id,
+      appointment_id: appt.id,
+      patient_name: appt.patientName || appt.patient_name,
+    };
+    e.dataTransfer.setData('application/json', JSON.stringify(dragPayload));
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
   return (
     <Box className="flex flex-col gap-6">
       <Flex justify="between" align="center" className="flex-wrap gap-4">
         <Box>
-          <Heading as="h2" size="lg">Dialysis Technician Dashboard</Heading>
+          <Heading as="h2" size="lg">Dialysis Appointments Schedule</Heading>
           <Text size="sm" className="text-muted">
             Manage dialysis appointment bookings for the week.
           </Text>
@@ -393,7 +403,7 @@ const DialysisAppointmentsDashboard = () => {
         <Flex justify="between" align="center" className="mb-4 flex-wrap gap-3">
           <Heading as="h3" size="md">Upcoming appointments</Heading>
           <Text size="sm" className="text-muted">
-            {appointments.length} total
+            {appointments.length} total (Drag to assign bed)
           </Text>
         </Flex>
         <UnifiedListTable
@@ -405,6 +415,11 @@ const DialysisAppointmentsDashboard = () => {
           onEdit={openEditModal}
           onDelete={handleCancelAppointment}
           emptyMessage="No appointments booked yet."
+          rowProps={(row) => ({
+            draggable: true,
+            onDragStart: (e) => handleDragStart(e, row),
+            className: 'list-table__row--draggable',
+          })}
         />
       </Box>
 
