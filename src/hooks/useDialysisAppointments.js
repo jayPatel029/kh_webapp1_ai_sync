@@ -1,11 +1,17 @@
 /**
- * Dialysis appointment booking hook (local state only)
+ * Dialysis appointment booking hook - Integrated with clinicApis
  *
  * @file src/hooks/useDialysisAppointments.js
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { addMinutes, daysBetween, overlaps, startOfDay } from '../utils/appointmentDateUtils';
+import { 
+  getAppointments, 
+  createAppointment as createAppointmentApi, 
+  updateAppointment as updateAppointmentApi, 
+  deleteAppointment as deleteAppointmentApi 
+} from '../ApiCalls/clinicApis';
 
 const DEFAULT_SETTINGS = {
   slotDurationMinutes: 30,
@@ -24,9 +30,42 @@ const isWithinWorkingHours = (start, end, workingHours) => {
   return startMinutes >= minMinutes && endMinutes <= maxMinutes;
 };
 
-export default function useDialysisAppointments(initial = {}) {
-  const [appointments, setAppointments] = useState(initial.appointments || []);
-  const [settings, setSettings] = useState(initial.settings || DEFAULT_SETTINGS);
+export default function useDialysisAppointments(options = {}) {
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [settings, setSettings] = useState(options.settings || DEFAULT_SETTINGS);
+
+  const fetchAppointments = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await getAppointments();
+      if (result.success) {
+        // Map backend fields to the hook's expected format if necessary
+        const mapped = (result.data?.data || result.data || []).map(apt => ({
+          ...apt,
+          id: apt.id,
+          title: apt.reason || apt.title || 'Dialysis Appointment',
+          patientName: apt.patient_name || apt.patientName || `Patient #${apt.patient_id}`,
+          start: new Date(apt.start_time ? `${apt.appointment_date}T${apt.start_time}` : apt.appointment_date),
+          end: new Date(apt.end_time ? `${apt.appointment_date}T${apt.end_time}` : apt.appointment_date),
+          status: String(apt.status || 'scheduled').toLowerCase(),
+        }));
+        setAppointments(mapped);
+      } else {
+        setError(result.data?.message || 'Failed to fetch appointments');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while fetching appointments');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const findConflictsInternal = useCallback(
     (list, start, end, excludeId = null) => {
@@ -43,7 +82,7 @@ export default function useDialysisAppointments(initial = {}) {
   );
 
   const createAppointment = useCallback(
-    (data) => {
+    async (data) => {
       const start = new Date(data.start);
       const end = new Date(data.end);
       if (start >= end) {
@@ -59,25 +98,30 @@ export default function useDialysisAppointments(initial = {}) {
         }
       }
 
-      const newAppointment = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        title: data.title || 'Dialysis Appointment',
-        patientName: data.patientName || 'Unnamed Patient',
-        notes: data.notes || '',
-        start,
-        end,
-        status: 'scheduled',
-        createdAt: new Date(),
+      // API Call
+      const payload = {
+        patient_id: data.patient_id || data.patientId || 1, // fallback to avoid crash
+        clinic_id: data.clinic_id || data.clinicId || 1, // fallback
+        appointment_date: start.toISOString().split('T')[0],
+        start_time: start.toTimeString().split(' ')[0],
+        end_time: end.toTimeString().split(' ')[0],
+        reason: data.title || data.reason,
+        status: 'SCHEDULED',
       };
 
-      setAppointments((prev) => [...prev, newAppointment]);
-      return newAppointment;
+      const result = await createAppointmentApi(payload);
+      if (result.success) {
+        await fetchAppointments();
+        return result.data;
+      } else {
+        throw new Error(result.data?.message || 'Failed to create appointment');
+      }
     },
-    [appointments, settings.allowOverlapping, findConflictsInternal]
+    [appointments, settings.allowOverlapping, findConflictsInternal, fetchAppointments]
   );
 
   const updateAppointment = useCallback(
-    (id, updates) => {
+    async (id, updates) => {
       const nextStart = updates.start ? new Date(updates.start) : null;
       const nextEnd = updates.end ? new Date(updates.end) : null;
 
@@ -97,18 +141,29 @@ export default function useDialysisAppointments(initial = {}) {
         }
       }
 
-      setAppointments((prev) =>
-        prev.map((appt) => (appt.id === id ? { ...appt, ...updates } : appt))
-      );
+      // API Call
+      const payload = {};
+      if (updates.status) payload.status = updates.status.toUpperCase();
+      if (updates.title || updates.reason) payload.reason = updates.title || updates.reason;
+
+      const result = await updateAppointmentApi(id, payload);
+      if (result.success) {
+        await fetchAppointments();
+      } else {
+        throw new Error(result.data?.message || 'Failed to update appointment');
+      }
     },
-    [appointments, settings.allowOverlapping, findConflictsInternal]
+    [appointments, settings.allowOverlapping, findConflictsInternal, fetchAppointments]
   );
 
-  const cancelAppointment = useCallback((id) => {
-    setAppointments((prev) =>
-      prev.map((appt) => (appt.id === id ? { ...appt, status: 'cancelled' } : appt))
-    );
-  }, []);
+  const cancelAppointment = useCallback(async (id) => {
+    const result = await deleteAppointmentApi(id);
+    if (result.success) {
+      await fetchAppointments();
+    } else {
+      throw new Error(result.data?.message || 'Failed to cancel appointment');
+    }
+  }, [fetchAppointments]);
 
   const isSlotAvailable = useCallback(
     (start, end) => {
@@ -183,12 +238,15 @@ export default function useDialysisAppointments(initial = {}) {
 
   return {
     appointments: sortedAppointments,
+    loading,
+    error,
     settings,
     setSettings,
+    fetchAppointments,
     createAppointment,
     updateAppointment,
     cancelAppointment,
     isSlotAvailable,
     generateSlotsForRange,
   };
-}
+}
