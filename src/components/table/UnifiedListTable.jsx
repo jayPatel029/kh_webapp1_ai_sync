@@ -146,6 +146,13 @@ const UnifiedListTable = ({
     const showCards = displayMode === 'cards' || (displayMode !== 'table' && isMobile);
 
     // Render cell content based on column type
+    const formatDateSafe = (val) => {
+        if (!val) return '-';
+        const d = new Date(val);
+        if (Number.isNaN(d.getTime())) return '-';
+        return d.toISOString().split('T')[0];
+    };
+
     const renderCell = (row, column) => {
         const value = row[column.key];
 
@@ -169,7 +176,7 @@ const UnifiedListTable = ({
             case 'date':
                 return (
                     <span className="list-table__text-cell">
-                        {value ? new Date(value).toISOString().split('T')[0] : '-'}
+                        {formatDateSafe(value)}
                     </span>
                 );
 
@@ -337,8 +344,8 @@ const UnifiedListTable = ({
                                                 <div key={col.key} className="list-table__card-field">
                                                     <span className="list-table__card-field-label">{col.label}</span>
                                                     <span className="list-table__card-field-value">
-                                                        {col.type === 'date' && row[col.key]
-                                                            ? new Date(row[col.key]).toISOString().split('T')[0]
+                                                        {col.type === 'date'
+                                                            ? formatDateSafe(row[col.key])
                                                             : col.type === 'custom' && col.render
                                                                 ? col.render(row, row[col.key])
                                                                 : (row[col.key] || '-')}

@@ -24,6 +24,7 @@ export default function usePaymentFlow({ onPaymentAdded, onRefundProcessed } = {
     appointment: null,
     amount: '',
     method: 'cash',
+    receipt_file: null,
     submitting: false,
     error: null,
   });
@@ -47,13 +48,14 @@ export default function usePaymentFlow({ onPaymentAdded, onRefundProcessed } = {
       appointment,
       amount: '',
       method: 'cash',
+      receipt_file: null,
       submitting: false,
       error: null,
     });
   }, []);
 
   const closePaymentModal = useCallback(() => {
-    setPaymentModal((prev) => ({ ...prev, isOpen: false, appointment: null }));
+    setPaymentModal((prev) => ({ ...prev, isOpen: false, appointment: null, receipt_file: null }));
   }, []);
 
   const updatePaymentField = useCallback((field, value) => {
@@ -65,7 +67,7 @@ export default function usePaymentFlow({ onPaymentAdded, onRefundProcessed } = {
    * onPaymentAdded callback.
    */
   const submitPayment = useCallback(async () => {
-    const { appointment, amount, method } = paymentModal;
+    const { appointment, amount, method, receipt_file } = paymentModal;
 
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       setPaymentModal((prev) => ({ ...prev, error: 'Please enter a valid amount.' }));
@@ -79,7 +81,22 @@ export default function usePaymentFlow({ onPaymentAdded, onRefundProcessed } = {
       const totalPaid = Number(appointment?.amountPaid || 0) + paidAmount;
       const totalDue = Number(appointment?.totalAmount || appointment?.total_amt || 0);
 
-      // Build bill data
+      // 1. Upload manual receipt if provided
+      let manualReceiptUrl = null;
+      if (receipt_file) {
+        try {
+          const formData = new FormData();
+          formData.append('file', receipt_file);
+          const uploadRes = await uploadFile(formData);
+          if (uploadRes.success) {
+            manualReceiptUrl = uploadRes.data?.url || uploadRes.data?.file_url;
+          }
+        } catch (e) {
+          console.warn('Manual receipt upload failed:', e);
+        }
+      }
+
+      // 2. Build bill data for auto-generated PDF
       const billData = {
         invoiceId: `INV-${appointment?.id || Date.now()}`,
         date: new Date(),
@@ -101,7 +118,7 @@ export default function usePaymentFlow({ onPaymentAdded, onRefundProcessed } = {
         notes: `Payment method: ${method}`,
       };
 
-      // Generate and upload PDF
+      // 3. Generate and upload Auto-Generated PDF
       let billPDFUrl = null;
       try {
         const blob = await generateBillPDF(billData, { returnBlob: true, autoDownload: false });
@@ -115,7 +132,8 @@ export default function usePaymentFlow({ onPaymentAdded, onRefundProcessed } = {
         console.warn('PDF generation/upload failed (non-fatal):', pdfErr);
       }
 
-      onPaymentAdded?.(appointment.id, paidAmount, method, billPDFUrl);
+      // Prioritize manual receipt URL over auto-generated PDF for receipt_url
+      onPaymentAdded?.(appointment.id, paidAmount, method, manualReceiptUrl || billPDFUrl);
       closePaymentModal();
     } catch (err) {
       setPaymentModal((prev) => ({

@@ -10,8 +10,21 @@ import {
   getAppointments, 
   createAppointment as createAppointmentApi, 
   updateAppointment as updateAppointmentApi, 
-  deleteAppointment as deleteAppointmentApi 
+  cancelAppointment as cancelAppointmentApi 
 } from '../ApiCalls/clinicApis';
+
+const STATUS_FLOW = {
+  scheduled: 'arrived',
+  booked: 'arrived',
+  arrived: 'in_progress',
+  in_progress: 'completed',
+};
+
+const normalizeStatus = (status) => {
+  const normalized = String(status || 'scheduled').toLowerCase();
+  if (normalized === 'confirmed') return 'booked';
+  return normalized;
+};
 
 const DEFAULT_SETTINGS = {
   slotDurationMinutes: 30,
@@ -47,11 +60,17 @@ export default function useDialysisAppointments(options = {}) {
         const mapped = (result.data?.data || result.data || []).map(apt => ({
           ...apt,
           id: apt.id,
-          title: apt.reason || apt.title || 'Dialysis Appointment',
+          title: apt.reason || apt.metadata?.notes || apt.title || 'Dialysis Appointment',
           patientName: apt.patient_name || apt.patientName || `Patient #${apt.patient_id}`,
-          start: new Date(apt.start_time ? `${apt.appointment_date}T${apt.start_time}` : apt.appointment_date),
-          end: new Date(apt.end_time ? `${apt.appointment_date}T${apt.end_time}` : apt.appointment_date),
-          status: String(apt.status || 'scheduled').toLowerCase(),
+          start: new Date(
+            apt.startUTC ||
+            (apt.start_time ? `${apt.appointment_date}T${apt.start_time}` : apt.appointment_date)
+          ),
+          end: new Date(
+            apt.endUTC ||
+            (apt.end_time ? `${apt.appointment_date}T${apt.end_time}` : apt.appointment_date)
+          ),
+          status: normalizeStatus(apt.status || apt.appointmentStatus),
         }));
         setAppointments(mapped);
       } else {
@@ -101,13 +120,16 @@ export default function useDialysisAppointments(options = {}) {
 
       // API Call
       const payload = {
-        patient_id: data.patient_id || data.patientId || 1, // fallback to avoid crash
-        clinic_id: data.clinic_id || data.clinicId || 1, // fallback
-        appointment_date: start.toISOString().split('T')[0],
-        start_time: start.toTimeString().split(' ')[0],
-        end_time: end.toTimeString().split(' ')[0],
-        reason: data.title || data.reason,
-        status: 'SCHEDULED',
+        clinicId: data.clinic_id || data.clinicId || 1,
+        patientId: data.patient_id || data.patientId || 1,
+        patientName: data.patientName || data.patient_name,
+        startUTC: start.toISOString(),
+        endUTC: end.toISOString(),
+        bookingType: data.bookingType || 'offline',
+        amountDue: Number(data.amountDue || data.totalAmount || 0),
+        metadata: {
+          notes: data.title || data.reason,
+        },
       };
 
       const result = await createAppointmentApi(payload);
@@ -157,8 +179,8 @@ export default function useDialysisAppointments(options = {}) {
     [appointments, settings.allowOverlapping, findConflictsInternal, fetchAppointments]
   );
 
-  const cancelAppointment = useCallback(async (id) => {
-    const result = await deleteAppointmentApi(id);
+  const cancelAppointment = useCallback(async (id, reason = 'Cancelled from sessions dashboard') => {
+    const result = await cancelAppointmentApi(id, { reason, refundAmount: 0 });
     if (result.success) {
       await fetchAppointments();
     } else {
@@ -183,7 +205,10 @@ export default function useDialysisAppointments(options = {}) {
         },
       ]);
     }
-    const result = await deleteAppointmentApi(id);
+    const result = await cancelAppointmentApi(id, {
+      reason: 'Cancelled with refund',
+      refundAmount,
+    });
     if (result.success) {
       await fetchAppointments();
     } else {
@@ -249,9 +274,10 @@ export default function useDialysisAppointments(options = {}) {
 
           if (slotEnd > dayEnd) break;
 
-          const appointment = appointments.find(
-            (appt) => appt.status === 'scheduled' && overlaps(appt.start, appt.end, slotStart, slotEnd)
-          );
+          const appointment = appointments.find((appt) => {
+            const activeStatuses = ['scheduled', 'booked', 'arrived', 'in_progress'];
+            return activeStatuses.includes(appt.status) && overlaps(appt.start, appt.end, slotStart, slotEnd);
+          });
 
           const available = !appointment && isSlotAvailable(slotStart, slotEnd);
 
@@ -277,6 +303,17 @@ export default function useDialysisAppointments(options = {}) {
     return [...appointments].sort((a, b) => new Date(a.start) - new Date(b.start));
   }, [appointments]);
 
+  const advanceAppointmentStatus = useCallback(
+    async (id) => {
+      const current = appointments.find((appt) => appt.id === id);
+      if (!current) throw new Error('Appointment not found');
+      const nextStatus = STATUS_FLOW[current.status];
+      if (!nextStatus) return;
+      await updateAppointment(id, { status: nextStatus });
+    },
+    [appointments, updateAppointment]
+  );
+
   return {
     appointments: sortedAppointments,
     loading,
@@ -286,6 +323,7 @@ export default function useDialysisAppointments(options = {}) {
     fetchAppointments,
     createAppointment,
     updateAppointment,
+    advanceAppointmentStatus,
     cancelAppointment,
     cancelAppointmentWithRefund,
     addPayment,
@@ -293,4 +331,4 @@ export default function useDialysisAppointments(options = {}) {
     isSlotAvailable,
     generateSlotsForRange,
   };
-}
+}

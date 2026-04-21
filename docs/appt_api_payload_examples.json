@@ -1,0 +1,71 @@
+{
+  "createAppointment": {
+    "payload": {
+      "clinicId": 1,
+      "patientId": 42,
+      "patientName": "John Doe",
+      "startUTC": "2024-04-22T08:00:00Z",
+      "endUTC": "2024-04-22T12:00:00Z",
+      "bookingType": "offline",
+      "amountDue": 2500,
+      "immediatePayment": {
+        "amount": 2500,
+        "method": "CASH",
+        "receiptUrl": "http://example.com/receipt.pdf"
+      },
+      "metadata": {
+        "notes": "Regular session"
+      }
+    },
+    "response": {
+      "success": true,
+      "data": {
+        "appointment_id": 123,
+        "invoice_id": 456,
+        "status": "CONFIRMED"
+      }
+    }
+  },
+  "addPayment": {
+    "payload": {
+      "amount": 1500,
+      "method": "UPI",
+      "receiptUrl": "http://example.com/receipt2.pdf"
+    },
+    "response": {
+      "success": true,
+      "data": {
+        "payment_id": 789,
+        "new_amount_due": 1000
+      }
+    }
+  },
+  "cancelAppointment": {
+    "payload": {
+      "reason": "Patient unwell",
+      "refundAmount": 500,
+      "refundUrl": "http://example.com/refund.pdf"
+    },
+    "response": {
+      "success": true,
+      "data": {
+        "status": "CANCELLED",
+        "refund_processed": true
+      }
+    }
+  },
+  "startSession": {
+    "payload": {
+      "patient_id": 42,
+      "bed_id": 10,
+      "appointment_id": 123
+    },
+    "response": {
+      "success": true,
+      "data": {
+        "session_id": 1122,
+        "state": "RUNNING"
+      }
+    }
+  }
+}

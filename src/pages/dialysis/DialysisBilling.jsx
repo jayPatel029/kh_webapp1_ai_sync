@@ -7,7 +7,7 @@
  * @file src/pages/dialysis/DialysisBilling.jsx
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Box, Input, Button } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
@@ -18,17 +18,21 @@ import PaymentModal from '../../components/PaymentModal';
 import InvoicePreview from '../../components/InvoicePreview';
 import usePaymentFlow from '../../hooks/usePaymentFlow';
 import { getPaymentStatus } from '../../utils/refundCalculator';
+import { getAppointments, addAppointmentPayment } from '../../ApiCalls/clinicApis';
 
-// ─── Dummy data (replace with API when available) ──────────
-const INITIAL_BILLS = [
-  { id: 1, appointment_date: '17-04-2026', name: 'Ramesh Kumar',  patient_id: 101, phoneNumber: '9876543210', consultation_type: 'In Clinic', service: 'Hemodialysis',        totalAmount: 3500, amountPaid: 3500, status: 'COMPLETED' },
-  { id: 2, appointment_date: '17-04-2026', name: 'Sunita Devi',   patient_id: 102, phoneNumber: '9876543211', consultation_type: 'In Clinic', service: 'Hemodialysis',        totalAmount: 3500, amountPaid: 3500, status: 'COMPLETED' },
-  { id: 3, appointment_date: '17-04-2026', name: 'Ajay Verma',    patient_id: 103, phoneNumber: '9876543212', consultation_type: 'In Clinic', service: 'Peritoneal Dialysis', totalAmount: 4200, amountPaid: 0,    status: 'BOOKED'    },
-  { id: 4, appointment_date: '16-04-2026', name: 'Meena Sharma',  patient_id: 104, phoneNumber: '9876543213', consultation_type: 'In Clinic', service: 'Hemodialysis',        totalAmount: 3500, amountPaid: 2000, status: 'ARRIVED'   },
-  { id: 5, appointment_date: '16-04-2026', name: 'Vikram Singh',  patient_id: 105, phoneNumber: '9876543214', consultation_type: 'In Clinic', service: 'Hemodialysis',        totalAmount: 3500, amountPaid: 3500, status: 'COMPLETED' },
-  { id: 6, appointment_date: '15-04-2026', name: 'Priya Patel',   patient_id: 106, phoneNumber: '9876543215', consultation_type: 'In Clinic', service: 'Peritoneal Dialysis', totalAmount: 4200, amountPaid: 4200, status: 'COMPLETED' },
-  { id: 7, appointment_date: '15-04-2026', name: 'Ravi Gupta',    patient_id: 107, phoneNumber: '9876543216', consultation_type: 'In Clinic', service: 'Hemodialysis',        totalAmount: 3500, amountPaid: 0,    status: 'BOOKED'    },
-];
+const normalizeBillingRow = (apt) => ({
+  id: apt.id,
+  appointment_date: apt.appointment_date || (apt.startUTC ? String(apt.startUTC).split('T')[0] : '—'),
+  name: apt.patient_name || apt.patientName || (apt.patient_id ? `Patient #${apt.patient_id}` : '—'),
+  patient_id: apt.patient_id || apt.patientId,
+  phoneNumber: apt.phoneNumber || apt.phone_number || apt.patient_phone || apt.phone || '—',
+  consultation_type: apt.bookingType || apt.appointment_type || 'In Clinic',
+  service: apt.reason || apt.metadata?.notes || 'Dialysis Session',
+  totalAmount: Number(apt.totalAmount || apt.total_amt || apt.amountDue || 0),
+  amountPaid: Number(apt.amountPaid || apt.received_amt || apt.paidAmount || 0),
+  status: String(apt.status || apt.appointmentStatus || 'BOOKED').toUpperCase(),
+  billPDFUrl: apt.billPDFUrl || apt.billUrl || null,
+});
 
 const PAYMENT_COLORS = {
   PAID:    { bg: '#DCFCE7', text: '#166534' },
@@ -59,9 +63,41 @@ const DialysisBilling = () => {
   const { isMobile } = useIsMobile();
   const { showToast, ToastContainer } = useAdminToast();
 
-  const [bills, setBills]             = useState(INITIAL_BILLS);
+  const [bills, setBills]             = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [invoiceTarget, setInvoiceTarget] = useState(null);
+
+  const fetchBills = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await getAppointments();
+      if (result.success) {
+        const list = Array.isArray(result.data?.data)
+          ? result.data.data
+          : Array.isArray(result.data)
+            ? result.data
+            : [];
+        setBills(list.map(normalizeBillingRow));
+      } else {
+        const msg = result.data?.message || 'Failed to load billing records';
+        setError(msg);
+        showToast(msg, 'error');
+      }
+    } catch (err) {
+      const msg = err?.message || 'Network error while loading billing records';
+      setError(msg);
+      showToast(msg, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    fetchBills();
+  }, [fetchBills]);
 
   // ─── Payment flow ──────────────────────────────────────
   const {
@@ -71,15 +107,19 @@ const DialysisBilling = () => {
     updatePaymentField,
     submitPayment,
   } = usePaymentFlow({
-    onPaymentAdded: (apptId, amount, method, billPDFUrl) => {
-      setBills((prev) =>
-        prev.map((b) =>
-          b.id === apptId
-            ? { ...b, amountPaid: Number(b.amountPaid) + Number(amount), paymentMethod: method, billPDFUrl: billPDFUrl || b.billPDFUrl }
-            : b
-        )
-      );
-      showToast(`Payment of ₹${amount} recorded`, 'success');
+    onPaymentAdded: async (apptId, amount, method, billPDFUrl) => {
+      const result = await addAppointmentPayment(apptId, {
+        amount: Number(amount),
+        method: String(method || 'cash').toUpperCase(),
+        receiptUrl: billPDFUrl || undefined,
+      });
+
+      if (result.success) {
+        showToast(`Payment of ₹${amount} recorded`, 'success');
+        fetchBills();
+      } else {
+        showToast(result.data?.message || 'Failed to record payment', 'error');
+      }
     },
   });
 
@@ -254,13 +294,24 @@ const DialysisBilling = () => {
               />
             </div>
 
-            <UnifiedListTable
-              columns={columns}
-              data={filteredBills}
-              emptyMessage="No billing records found"
-              displayMode="table"
-              rowsPerPage={10}
-            />
+            {loading ? (
+              <div className="flex items-center justify-center" style={{ minHeight: '180px' }}>
+                <p style={{ color: '#6B7280' }}>Loading billing records…</p>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center" style={{ minHeight: '180px', gap: '12px' }}>
+                <p style={{ color: '#DC2626' }}>{error}</p>
+                <Button variant="outline" onClick={fetchBills}>Retry</Button>
+              </div>
+            ) : (
+              <UnifiedListTable
+                columns={columns}
+                data={filteredBills}
+                emptyMessage="No billing records found"
+                displayMode="table"
+                rowsPerPage={10}
+              />
+            )}
           </div>
         </div>
 

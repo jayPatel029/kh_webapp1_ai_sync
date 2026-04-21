@@ -21,9 +21,10 @@
   padding: 4px;
 
   /* Styling */
-  background-color: var(--bg-color, #e5e7eb);
+  background-color: var(--status-color, #e5e7eb);
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
+  opacity: 0.9;
 
   /* Interaction */
   cursor: pointer;

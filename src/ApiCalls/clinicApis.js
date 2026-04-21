@@ -71,6 +71,19 @@ export async function getClinics(config = {}) {
   }
 }
 
+  /**
+   * Associate uploaded files (icon / barcode / qr) with a clinic record.
+   * Expected payload shape (examples): { id: clinicId, clinic_icon: '<url>' }
+   */
+  export async function uploadClinicFiles(payload = {}, config = {}) {
+    try {
+      const response = await axiosInstance.post(`${server_url}/clinic/uploadFiles`, payload, config);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, data: error.response?.data || error.message };
+    }
+  }
+
 /**
  * Get clinic by ID
  * @param {string|number} clinicId 

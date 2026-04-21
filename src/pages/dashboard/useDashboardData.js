@@ -148,7 +148,7 @@ export function useAdminDashboardData() {
             return (res?.data || []).reverse();
           }
         })(),
-        getTeleconsultationGetAllAppointmentsById().catch(() => ({ success: false, data: [] })),
+        // getTeleconsultationGetAllAppointmentsById().catch(() => ({ success: false, data: [] })),
       ]);
 
       // Extract results safely

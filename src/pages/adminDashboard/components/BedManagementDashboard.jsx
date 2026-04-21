@@ -46,28 +46,46 @@ import {
   CardBody,
   CardFooter,
   Checkbox,
+  Select,
 } from '../../../component-library';
 import useBedManagement from '../../../hooks/useBedManagement';
 import UnifiedListTable from '../../../components/table/UnifiedListTable';
 import DialysisParametersModal from './DialysisParametersModal';
 import { DialysisBedSeat } from '../../../components/DialysisBedSeat';
 import {
-  getAllAppointmentsById,
-  bookAppointment,
-} from '../../../ApiCalls';
+  getClinics,
+  getClinicBeds,
+  getClinicAppointments,
+  getAppointments,
+} from '../../../ApiCalls/clinicApis';
 import './BedManagementDashboard.css';
 
 // Bed statuses
+// Bed statuses for Legend
 const BED_STATUS_COLOR = {
-  OCCUPIED: 'danger',
-  EMPTY: 'success',
-  QUARANTINE: 'warning',
+  OCCUPIED: '#3B82F6',   // Blue
+  EMPTY: '#10B981',      // Green (Available)
+  AVAILABLE: '#10B981',
+  QUARANTINE: '#FACC15', // Yellow (ISO)
+  CLEANING: '#F97316',   // Orange
+  MAINTENANCE: '#94A3B8', // Slate
 };
+
+// Helper for status dot legend
+const StatusDot = ({ color, label }) => (
+  <HStack spacing={2}>
+    <Box w={3} h={3} borderRadius="full" bg={color} />
+    <Text fontSize="xs" fontWeight="600" color="gray.600">{label}</Text>
+  </HStack>
+);
 
 const BED_STATUS_LABEL = {
   OCCUPIED: 'Occupied',
-  EMPTY: 'Empty',
-  QUARANTINE: 'Quarantine',
+  EMPTY: 'Available',
+  AVAILABLE: 'Available',
+  QUARANTINE: 'Isolated',
+  CLEANING: 'Cleaning',
+  MAINTENANCE: 'Maintenance',
 };
 
 // ---------------------------------------------------------------------------
@@ -313,12 +331,22 @@ const AppointmentTableComponent = ({ appointments = [] }) => {
 // ============================================================================
 // AppointmentDraggableList - Draggable table styled like UnifiedListTable
 // ============================================================================
-const AppointmentDraggableList = ({ appointments = [] }) => {
+const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => {
   const handleDragStart = (e, apt) => {
+    const status = String(apt.status).toLowerCase();
+    // Allow assignment for READY statuses: awaiting, arrived, waiting, confirmed, pending
+    const canAssign = ['awaiting', 'arrived', 'waiting', 'confirmed', 'pending'].includes(status);
+
+    if (!canAssign) {
+      e.preventDefault();
+      return;
+    }
+
     const dragPayload = {
       patient_id: apt.patient_id || apt.id,
       appointment_id: apt.id,
       patient_name: apt.patient_name,
+      is_infectious: apt.patient_ailments?.toLowerCase().includes('infectious') || apt.is_infectious,
     };
     e.dataTransfer.setData('application/json', JSON.stringify(dragPayload));
     e.dataTransfer.effectAllowed = 'move';
@@ -328,7 +356,7 @@ const AppointmentDraggableList = ({ appointments = [] }) => {
     return (
       <Box className="list-table__empty">
         <Heading as="h4" size="sm" mb={2}>No Appointments</Heading>
-        <Text fontSize="sm" color="textMuted">No appointments available</Text>
+        <Text fontSize="sm" color="textMuted">No appointments available for this clinic</Text>
       </Box>
     );
   }
@@ -340,41 +368,58 @@ const AppointmentDraggableList = ({ appointments = [] }) => {
           <thead>
             <tr className="list-table__header-row">
               <th className="list-table__header-cell">Patient</th>
-              <th className="list-table__header-cell">Time</th>
-              <th className="list-table__header-cell">Doctor</th>
               <th className="list-table__header-cell">Status</th>
+              <th className="list-table__header-cell">Ailments</th>
+              <th className="list-table__header-cell">Action</th>
             </tr>
           </thead>
           <tbody>
-            {appointments.map((apt) => (
-              <tr
-                key={apt.id}
-                className="list-table__row draggable-row"
-                draggable
-                onDragStart={(e) => handleDragStart(e, apt)}
-                role="button"
-                tabIndex={0}
-              >
-                <td className="list-table__cell">
-                  <span className="list-table__text-cell">{apt.patient_name}</span>
-                </td>
-                <td className="list-table__cell">
-                  <span className="list-table__text-cell">{apt.time_range || apt.appointment_time || 'TBD'}</span>
-                </td>
-                <td className="list-table__cell">
-                  <span className="list-table__text-cell">{apt.doctor_name || 'Unassigned'}</span>
-                </td>
-                <td className="list-table__cell">
-                  <Badge
-                    colorScheme={apt.status === 'Confirmed' ? 'success' : apt.status === 'Pending' ? 'warning' : 'gray'}
-                    variant="subtle"
-                    size="sm"
-                  >
-                    {apt.status || 'Pending'}
-                  </Badge>
-                </td>
-              </tr>
-            ))}
+            {(Array.isArray(appointments) ? appointments : []).map((apt) => {
+              const isEligible = String(apt.status).toLowerCase() === 'awaiting' || String(apt.status).toLowerCase() === 'arrived' || String(apt.status).toLowerCase() === 'waiting' || String(apt.status).toLowerCase() === 'confirmed' || String(apt.status).toLowerCase() === 'pending';
+              const isInfectious = apt.patient_ailments?.toLowerCase().includes('infectious') || apt.is_infectious;
+
+              return (
+                <tr
+                  key={apt.id}
+                  className={`list-table__row draggable-row ${!isEligible ? 'draggable-row--disabled' : ''}`}
+                  draggable={isEligible}
+                  onDragStart={(e) => handleDragStart(e, apt)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <td className="list-table__cell">
+                    <VStack align="start" spacing={0}>
+                      <span className="list-table__text-cell" style={{ fontWeight: 600 }}>{apt.patient_name}</span>
+                      <Text fontSize="xs" color="textMuted">ID: {apt.patient_id}</Text>
+                    </VStack>
+                  </td>
+                  <td className="list-table__cell">
+                    <Badge
+                      colorScheme={isEligible ? 'success' : apt.status === 'in_progress' ? 'info' : 'gray'}
+                      variant="subtle"
+                      size="sm"
+                    >
+                      {apt.status?.toUpperCase() || 'PENDING'}
+                    </Badge>
+                  </td>
+                  <td className="list-table__cell">
+                    {isInfectious && (
+                      <Badge colorScheme="danger" variant="solid" size="xs" mb={1}>
+                        INFECTIOUS
+                      </Badge>
+                    )}
+                    <span className="list-table__text-cell text-xs">{apt.patient_ailments || 'None'}</span>
+                  </td>
+                  <td className="list-table__cell">
+                    {isEligible ? (
+                      <Text fontSize="xs" color="success" fontWeight="500">Ready</Text>
+                    ) : (
+                      <Text fontSize="xs" color="textMuted">N/A</Text>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </Box>
@@ -483,10 +528,15 @@ const BedGridGrid = ({
 const mapBedStatusToDialysisSeatStatus = (bedStatus) => {
   switch (bedStatus) {
     case 'EMPTY':
+    case 'AVAILABLE':
       return 'AVAILABLE';
     case 'OCCUPIED':
       return 'OCCUPIED';
     case 'QUARANTINE':
+      return 'QUARANTINE';
+    case 'CLEANING':
+      return 'CLEANING';
+    case 'MAINTENANCE':
       return 'MAINTENANCE';
     default:
       return 'AVAILABLE';
@@ -497,13 +547,13 @@ const mapBedStatusToDialysisSeatStatus = (bedStatus) => {
 // BedGridCompact Component - Dense grid using DialysisBedSeat (80x80px)
 // ============================================================================
 const BedGridCompact = ({
-  beds,
+  beds = [],
   status,
   onBedDrop,
   onBedClick,
   onBedDragOver = null,
 }) => {
-  const statusBeds = beds.filter((b) => b.status === status);
+  const statusBeds = (Array.isArray(beds) ? beds : []).filter((b) => b.status === status);
   const statusLabel = BED_STATUS_LABEL[status] || 'Unknown';
 
   if (statusBeds.length === 0) {
@@ -521,7 +571,7 @@ const BedGridCompact = ({
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, 80px)',
-        gap: '12px',
+        gap: '24px',
         width: '100%',
       }}>
         {statusBeds.map((bed) => (
@@ -675,21 +725,24 @@ export default function BedManagementDashboard(props) {
   const {
     beds,
     bedsByStatus,
-    loading,
+    loading: bedsLoading,
     error,
     BED_STATUS,
+    clinicId,
+    setClinicId,
     fetchAllBeds,
     assignPatient,
     unassignPatient,
+    transferPatient,
     quarantineBed,
     canAssignPatientToBed,
   } = useBedManagement();
 
-  const hideAppointments = props?.hideAppointments || false;
-
+  const [clinics, setClinics] = useState([]);
+  const [clinicsLoading, setClinicsLoading] = useState(false);
   const [appointments, setAppointments] = useState([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
-  const [bedTimers, setBedTimers] = useState({}); // { [bedId]: { dialysis_start, dialysis_duration_minutes } }
+
   const [selectedBed, setSelectedBed] = useState(null);
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -700,26 +753,61 @@ export default function BedManagementDashboard(props) {
 
   const showNotification = useCallback((title, description, status = 'success') => {
     setNotification({ title, description, status });
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 3500);
+  }, []);
+
+  // Fetch Clinics for selector
+  useEffect(() => {
+    const fetchClinicsData = async () => {
+      setClinicsLoading(true);
+      try {
+        const result = await getClinics();
+        console.log('Clinics fetch result:', result);
+        if (result.success) {
+          const rawData = result.data || [];
+          const dataList = Array.isArray(rawData) ? rawData : (rawData.data || []);
+          setClinics(dataList);
+          if (dataList.length > 0 && !clinicId) {
+            setClinicId(String(dataList[0].id));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch clinics:', err);
+      } finally {
+        setClinicsLoading(false);
+      }
+    };
+    fetchClinicsData();
+  }, [setClinicId]);
+
+  // Fetch Appointments for clinic (filter for arrived)
+  const loadAppointments = useCallback(async (cid) => {
+    if (!cid) return;
+    setAppointmentsLoading(true);
+    try {
+      // Use getAppointments with filters
+      const result = await getAppointments({
+        clinicId: cid,
+        status: 'ARRIVED'
+      });
+
+      if (result.success) {
+        // The API returns { page, limit, data: [...] }
+        const appointmentList = result.data?.data || (Array.isArray(result.data) ? result.data : []);
+        setAppointments(appointmentList);
+      }
+    } catch (err) {
+      console.error('Failed to fetch appointments:', err);
+    } finally {
+      setAppointmentsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    const fetchAppointments = async () => {
-      setAppointmentsLoading(true);
-      try {
-        const result = await getAllAppointmentsById();
-        if (result.success) {
-          setAppointments(result.data || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch appointments:', err);
-      } finally {
-        setAppointmentsLoading(false);
-      }
-    };
-
-    fetchAppointments();
-  }, []);
+    if (clinicId) {
+      loadAppointments(clinicId);
+    }
+  }, [clinicId, loadAppointments]);
 
   const handleBedDrop = useCallback(
     async (e, targetBed) => {
@@ -733,6 +821,13 @@ export default function BedManagementDashboard(props) {
 
       try {
         const patientData = JSON.parse(draggedData);
+
+        // Bed logic: section 2.3 - cannot assign to cleaning
+        if (targetBed.status === 'CLEANING') {
+          showNotification('Bed Unavailable', 'This bed is currently being cleaned.', 'error');
+          return;
+        }
+
         const canAssign = await canAssignPatientToBed(
           targetBed.id,
           patientData.patient_id
@@ -747,13 +842,13 @@ export default function BedManagementDashboard(props) {
         const result = await assignPatient(
           targetBed.id,
           patientData.patient_id,
-          `Assigned via drag-and-drop`
+          patientData.appointment_id,
+          `Assigned via clinic command center drag-drop`
         );
 
         if (result.success) {
-          await fetchAllBeds();
-
-          // Open dialysis modal with patient data
+          // Section 2.5: Transitions Appt -> Session (RUNNING)
+          // Open dialysis modal with patient data and selected bed
           setDialysisPatientData({
             patient_id: patientData.patient_id,
             patient_name: patientData.patient_name,
@@ -763,8 +858,10 @@ export default function BedManagementDashboard(props) {
           setIsDialysisModalOpen(true);
 
           showNotification('Success', `Patient assigned to Bed ${targetBed.bed_number}`, 'success');
+          loadAppointments(clinicId);
+          fetchAllBeds(); // Refresh beds to show occupation
         } else {
-          showNotification('Assignment failed', result.data, 'error');
+          showNotification('Assignment failed', result.data || 'Unknown error', 'error');
         }
       } catch (err) {
         showNotification('Error', err.message, 'error');
@@ -772,24 +869,30 @@ export default function BedManagementDashboard(props) {
         setIsAssigning(false);
       }
     },
-    [assignPatient, canAssignPatientToBed, fetchAllBeds, showNotification]
+    [assignPatient, canAssignPatientToBed, clinicId, loadAppointments, showNotification]
   );
 
   const handleBedClick = useCallback((bed) => {
-    // If bed is occupied, open dialysis modal for parameter entry
+    if (bed.status === 'CLEANING') {
+      showNotification('Bed is Cleaning', `Last cleaned: ${bed.last_cleaned_at ? new Date(bed.last_cleaned_at).toLocaleTimeString() : 'N/A'}`, 'info');
+      return;
+    }
+
+    // If bed is occupied, open dialysis modal for session tracking
     if (bed.status === 'OCCUPIED' && bed.patient_id) {
       setDialysisPatientData({
         patient_id: bed.patient_id,
         patient_name: bed.patient_name,
+        appointment_id: bed.appointment_id,
       });
       setDialysisBedData(bed);
       setIsDialysisModalOpen(true);
-    } else {
-      // For empty beds, show assignment modal
+    } else if (bed.status === 'EMPTY' || bed.status === 'AVAILABLE' || bed.status === 'QUARANTINE') {
+      // For empty or quarantine beds, show assignment modal
       setSelectedBed(bed);
       setIsAssignmentModalOpen(true);
     }
-  }, []);
+  }, [showNotification]);
 
   const handleAssignmentConfirm = useCallback(
     async (assignmentData) => {
@@ -798,13 +901,14 @@ export default function BedManagementDashboard(props) {
         const result = await assignPatient(
           assignmentData.bed_id,
           assignmentData.patient_id,
+          null, // explicit manual assignment has no appointment_id in this simplified modal
           assignmentData.notes
         );
 
         if (result.success) {
-          await fetchAllBeds();
           showNotification('Success', `Patient assigned to Bed ${selectedBed.bed_number}`, 'success');
           setIsAssignmentModalOpen(false);
+          loadAppointments(clinicId);
         } else {
           showNotification('Assignment failed', result.data, 'error');
         }
@@ -814,52 +918,30 @@ export default function BedManagementDashboard(props) {
         setIsAssigning(false);
       }
     },
-    [assignPatient, fetchAllBeds, selectedBed, showNotification]
+    [assignPatient, clinicId, loadAppointments, selectedBed, showNotification]
   );
 
-  // Handle stages coming from DialysisParametersModal
   const handleDialysisStageChange = useCallback(
     (stageName, data) => {
-      if (stageName === 'during') {
-        // update local overlay timers for immediate UI feedback
-        if (data?.bed_id && data?.dialysis_start && data?.dialysis_duration_minutes) {
-          setBedTimers((prev) => ({
-            ...prev,
-            [data.bed_id]: {
-              dialysis_start: data.dialysis_start,
-              dialysis_duration_minutes: data.dialysis_duration_minutes,
-              // include heparin details if provided so UI can display dosage
-              ...(data.heparin ? { heparin: data.heparin } : {}),
-            },
-          }));
-        }
+      // Refresh both beds and appointments
+      fetchAllBeds();
+      loadAppointments(clinicId);
 
-        // update appointments list with time_range if appointment_id provided
-        if (data?.appointment_id && data?.time_range) {
-          setAppointments((prev) =>
-            prev.map((apt) =>
-              (apt.id === data.appointment_id || apt.appointment_id === data.appointment_id)
-                ? { ...apt, time_range: data.time_range }
-                : apt
-            )
-          );
-        }
-
-        // refresh backend state if available
-        fetchAllBeds();
+      if (stageName === 'completed') {
+        showNotification('Session Finished', 'Dialysis session completed and bed released for cleaning.', 'success');
       }
     },
-    [fetchAllBeds]
+    [clinicId, fetchAllBeds, loadAppointments, showNotification]
   );
 
-  if (loading) {
+  if (bedsLoading && clinics.length === 0) {
     return (
       <Flex justify="center" align="center" minH="400px">
         <Card variant="outline" className="loading-card">
           <CardBody>
             <VStack spacing={3} align="center">
               <div className="spinner" />
-              <Text>Loading bed management data...</Text>
+              <Text>Synchronizing Clinic Data...</Text>
             </VStack>
           </CardBody>
         </Card>
@@ -867,189 +949,208 @@ export default function BedManagementDashboard(props) {
     );
   }
 
-  const emptyBeds = bedsByStatus[BED_STATUS.EMPTY]?.length || 0;
-  const occupiedBeds = bedsByStatus[BED_STATUS.OCCUPIED]?.length || 0;
-  const quarantineBeds = bedsByStatus[BED_STATUS.QUARANTINE]?.length || 0;
-
-  // For local testing: fall back to dummy data if hook returns empty
-  const displayBeds = (beds && beds.length > 0) ? beds : DUMMY_BEDS;
-  const displayAppointments = (appointments && appointments.length > 0) ? appointments : DUMMY_APPOINTMENTS;
-
-  const displayEmptyBeds = displayBeds.filter((b) => b.status === BED_STATUS.EMPTY).length;
-  const displayOccupiedBeds = displayBeds.filter((b) => b.status === BED_STATUS.OCCUPIED).length;
-  const displayQuarantineBeds = displayBeds.filter((b) => b.status === BED_STATUS.QUARANTINE).length;
+  const selectedClinic = (Array.isArray(clinics) ? clinics : []).find(c => c.id === Number(clinicId));
 
   return (
     <Box className="bed-management-dashboard">
       <VStack spacing={4} align="stretch">
 
-        {/* Page Header */}
-        <HStack justify="space-between" align="center">
-          <Heading as="h1" size="lg">
-            Bed Management System
-          </Heading>
-          <Button
-            variant="solid"
-            onClick={fetchAllBeds}
-            isLoading={loading}
-            size="md"
-          >
-            Refresh Data
-          </Button>
+        {/* Command Center Header */}
+        <HStack justify="space-between" align="center" bg="white" borderRadius="xl" shadow="sm">
+          {/* <VStack align="start" spacing={0}>
+            <Heading as="h1" size="lg" color="brand.600">
+              Clinic Command Center
+            </Heading>
+            <Text fontSize="sm" color="textMuted">
+              Bed Inventory & Real-time Dialysis Tracking
+            </Text>
+          </VStack> */}
+          <HStack spacing={4}>
+            <FormControl minW="250px">
+              <FormLabel fontSize="xs" mb={1} color="textMuted">CLINIC</FormLabel>
+              <Select
+                value={clinicId || ''}
+                onChange={(e) => setClinicId(e.target.value)}
+                size="sm"
+                borderRadius="lg"
+                placeholder="Select a Clinic"
+              >
+                {(Array.isArray(clinics) ? clinics : []).map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.clinic_name || c.name || `Clinic #${c.id}`}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                fetchAllBeds();
+                loadAppointments(clinicId);
+              }}
+              isLoading={bedsLoading || appointmentsLoading}
+              size="md"
+              leftIcon={<span className="refresh-icon">↻</span>}
+            >
+              Sync
+            </Button>
+          </HStack>
         </HStack>
 
-        {/* Summary Stats Cards */}
+        {/* Capacity Summary */}
         {/* <Grid 
           templateColumns={{ base: '1fr', md: 'repeat(4, 1fr)' }} 
           gap={4}
         >
           <Card variant="outline" className="stat-card">
             <CardBody>
-              <VStack spacing={2} align="start">
-                <Text fontSize="sm" color="textMuted" fontWeight="600">
-                  Total Beds
-                </Text>
-                <Heading as="h3" size="lg">
-                  {beds.length}
-                </Heading>
-              </VStack>
+              <HStack justify="space-between">
+                <VStack spacing={0} align="start">
+                  <Text fontSize="xs" color="textMuted" fontWeight="600">TOTAL BEDS</Text>
+                  <Heading as="h3" size="lg">{beds.length}</Heading>
+                </VStack>
+                <div className="stat-icon stat-icon--total" />
+              </HStack>
             </CardBody>
           </Card>
 
-          <Card variant="outline" className="stat-card stat-card--available">
+          <Card variant="outline" className="stat-card">
             <CardBody>
-              <VStack spacing={2} align="start">
-                <Text fontSize="sm" color="textMuted" fontWeight="600">
-                  Available
-                </Text>
-                <Heading as="h3" size="lg">
-                  {emptyBeds}
-                </Heading>
-              </VStack>
+              <HStack justify="space-between">
+                <VStack spacing={0} align="start">
+                  <Text fontSize="xs" color="textMuted" fontWeight="600">AVAILABLE</Text>
+                  <Heading as="h3" size="lg" color="success.500">{bedsByStatus[BED_STATUS.EMPTY]?.length || 0}</Heading>
+                </VStack>
+                <div className="stat-icon stat-icon--available" />
+              </HStack>
             </CardBody>
           </Card>
 
-          <Card variant="outline" className="stat-card stat-card--occupied">
+          <Card variant="outline" className="stat-card">
             <CardBody>
-              <VStack spacing={2} align="start">
-                <Text fontSize="sm" color="textMuted" fontWeight="600">
-                  Occupied
-                </Text>
-                <Heading as="h3" size="lg">
-                  {occupiedBeds}
-                </Heading>
-              </VStack>
+              <HStack justify="space-between">
+                <VStack spacing={0} align="start">
+                  <Text fontSize="xs" color="textMuted" fontWeight="600">IN SESSION</Text>
+                  <Heading as="h3" size="lg" color="brand.500">{bedsByStatus[BED_STATUS.OCCUPIED]?.length || 0}</Heading>
+                </VStack>
+                <div className="stat-icon stat-icon--occupied" />
+              </HStack>
             </CardBody>
           </Card>
 
-          <Card variant="outline" className="stat-card stat-card--quarantine">
+          <Card variant="outline" className="stat-card">
             <CardBody>
-              <VStack spacing={2} align="start">
-                <Text fontSize="sm" color="textMuted" fontWeight="600">
-                  Quarantine
-                </Text>
-                <Heading as="h3" size="lg">
-                  {quarantineBeds}
-                </Heading>
-              </VStack>
+              <HStack justify="space-between">
+                <VStack spacing={0} align="start">
+                  <Text fontSize="xs" color="textMuted" fontWeight="600">CLEANING</Text>
+                  <Heading as="h3" size="lg" color="info.500">{bedsByStatus[BED_STATUS.CLEANING]?.length || 0}</Heading>
+                </VStack>
+                <div className="stat-icon stat-icon--cleaning" />
+              </HStack>
             </CardBody>
           </Card>
         </Grid> */}
 
-        {/* Main Two-Column Layout */}
+        {/* Main Workspace */}
         <Grid
-          templateColumns={hideAppointments ? '1fr' : { base: '1fr', md: '1fr 1.5fr' }}
-          gap={4}
+          templateColumns={{ base: '1fr', lg: '350px 1fr' }}
+          gap={6}
           className="main-layout"
           width="100%"
         >
-          {/* Left Column: Appointments */}
-          {!hideAppointments && (
-            <Box>
-              <Card variant="outline" className="appointments-card">
-                <CardHeader>
-                  <Heading as="h2" size="md">
-                    Appointments
-                  </Heading>
-                  <Text fontSize="xs" color="textMuted" mt={1} align="right" >
-                    Drag a row to assign to an empty bed
-                  </Text>
-                </CardHeader>
-                <CardBody p={0}>
-                  <AppointmentDraggableList appointments={displayAppointments} />
-                </CardBody>
-              </Card>
-            </Box>
-          )}
-
-          {/* Right Column: Beds */}
+          {/* Appointment Queue Panel */}
           <Box>
-            <Card variant="outline" className="beds-section">
-              <CardHeader>
-                <Heading as="h2" size="md">
-                  Beds
-                </Heading>
+            <Card variant="outline" height="100%" borderRadius="xl" overflow="hidden">
+              <CardHeader bg="gray.50" borderBottom="1px solid" borderColor="gray.100">
+                <HStack justify="space-between">
+                  <VStack align="start" spacing={0}>
+                    <Heading as="h3" size="sm">Appointment Queue</Heading>
+                    <Text fontSize="xs" color="textMuted">Drag to assign bed</Text>
+                  </VStack>
+                  <Badge variant="solid" colorScheme="brand" borderRadius="full">
+                    {(Array.isArray(appointments) ? appointments : []).filter(a => {
+                      const s = String(a.status).toLowerCase();
+                      return s === 'awaiting' || s === 'arrived' || s === 'confirmed' || s === 'pending';
+                    }).length} READY
+                  </Badge>
+                </HStack>
               </CardHeader>
-              <CardBody p={3}>
-                <VStack spacing={4} align="stretch">
-                  {/* Available Beds - Horizontal */}
-                  <Box>
-                    <BedGridHorizontal
-                      beds={displayBeds.map((b) => ({ ...b, ...(bedTimers[b.id] || {}) }))}
+              <CardBody p={0}>
+                {appointmentsLoading ? (
+                  <Flex p={8} justify="center"><div className="spinner-small" /></Flex>
+                ) : (
+                  <AppointmentDraggableList appointments={appointments} />
+                )}
+              </CardBody>
+            </Card>
+          </Box>
+
+          {/* Bed Map Panel */}
+          <Box>
+            <Card variant="outline" borderRadius="xl" shadow="sm">
+              <CardHeader borderBottom="1px solid" borderColor="gray.100">
+                <HStack justify="space-between">
+                  <Heading as="h3" size="sm">Clinical Bed Map</Heading>
+                  <HStack spacing={3}>
+                    <StatusDot color={BED_STATUS_COLOR.EMPTY} label="Free" />
+                    <StatusDot color={BED_STATUS_COLOR.OCCUPIED} label="In-use" />
+                    <StatusDot color={BED_STATUS_COLOR.QUARANTINE} label="Isolated" />
+                    <StatusDot color={BED_STATUS_COLOR.CLEANING} label="Cleaning" />
+                  </HStack>
+                </HStack>
+              </CardHeader>
+              <CardBody p={6}>
+                <VStack spacing={8} align="stretch">
+
+                  {/* Normal / Available Section */}
+                  <Box border="2px solid" borderColor={BED_STATUS_COLOR.EMPTY} p={4} borderRadius="xl">
+                    <Heading as="h4" size="xs" mb={4} color="gray.600" textTransform="uppercase" letterSpacing="wider">
+                      Standard Units
+                    </Heading>
+                    <BedGridCompact
+                      beds={beds}
                       status={BED_STATUS.EMPTY}
                       onBedDrop={handleBedDrop}
                       onBedClick={handleBedClick}
                     />
                   </Box>
 
-                  {/* Occupied Beds - Compact Grid */}
-                  {occupiedBeds > 0 && (
-                    <>
-                      <Box
-                        borderTop="1px solid"
-                        className="border-[#B6432E]"
-                        borderColor="borderLight"
-                        pt={4}
+                  {/* Occupied Section */}
+                  <Box border="2px solid" borderColor={BED_STATUS_COLOR.OCCUPIED} p={4} borderRadius="xl">
+                    <Heading as="h4" size="xs" mb={4} color="gray.600" textTransform="uppercase" letterSpacing="wider">
+                      Active Sessions
+                    </Heading>
+                    <BedGridCompact
+                      beds={beds}
+                      status={BED_STATUS.OCCUPIED}
+                      onBedDrop={handleBedDrop}
+                      onBedClick={handleBedClick}
+                    />
+                  </Box>
+
+                  {/* Special Management: Isolated & Cleaning */}
+                  <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={6}>
+                    <Box border="2px solid" borderColor={BED_STATUS_COLOR.QUARANTINE} p={4} borderRadius="xl">
+                      <Heading as="h4" size="xs" mb={3} color="gray.600">ISO / QUARANTINE</Heading>
+                      <BedGridCompact
+                        beds={beds}
+                        status={BED_STATUS.QUARANTINE}
+                        onBedDrop={handleBedDrop}
+                        onBedClick={handleBedClick}
                       />
-                      <Box>
-                        <HStack mb={3} justify="space-between">
-                          <Heading as="h3" size="sm">
-                            Occupied
-                          </Heading>
-                          <Text fontSize="xs" color="textMuted">
-                            {displayOccupiedBeds} beds
-                          </Text>
-                        </HStack>
-                        <BedGridCompact
-                          beds={displayBeds.map((b) => ({ ...b, ...(bedTimers[b.id] || {}) }))}
-                          status={BED_STATUS.OCCUPIED}
-                          onBedDrop={handleBedDrop}
-                          onBedClick={handleBedClick}
-                        />
-                      </Box>
-                    </>
-                  )}
-
-
-                  {/* Quarantine Beds Section - Full Width */}
-                  {displayQuarantineBeds > 0 && (
-                    <Box
-                      borderTop="2px solid"
-                      borderColor="borderLight"
-                      pt={4}
-                    >
-                      <Card variant="outline" className="quarantine-section">
-                        <CardBody>
-                          <BedGridGrid
-                            beds={displayBeds.map((b) => ({ ...b, ...(bedTimers[b.id] || {}) }))}
-                            status={BED_STATUS.QUARANTINE}
-                            onBedDrop={handleBedDrop}
-                            onBedClick={handleBedClick}
-                          />
-                        </CardBody>
-                      </Card>
                     </Box>
-                  )}
+
+                    <Box border="2px solid" borderColor={BED_STATUS_COLOR.CLEANING} p={4} borderRadius="xl">
+                      <Heading as="h4" size="xs" mb={3} color="gray.600">CLEANING COOLDOWN</Heading>
+                      <BedGridCompact
+                        beds={beds}
+                        status={BED_STATUS.CLEANING}
+                        onBedDrop={handleBedDrop}
+                        onBedClick={handleBedClick}
+                      />
+                    </Box>
+                  </Grid>
 
                 </VStack>
               </CardBody>
@@ -1058,7 +1159,7 @@ export default function BedManagementDashboard(props) {
         </Grid>
       </VStack>
 
-      {/* Assignment Modal */}
+      {/* Modals & Notifications */}
       <AssignmentModal
         isOpen={isAssignmentModalOpen}
         onClose={() => setIsAssignmentModalOpen(false)}
@@ -1067,36 +1168,29 @@ export default function BedManagementDashboard(props) {
         isLoading={isAssigning}
       />
 
-      {/* Dialysis Parameters Modal */}
       <DialysisParametersModal
         isOpen={isDialysisModalOpen}
         onClose={() => {
           setIsDialysisModalOpen(false);
           setDialysisPatientData({});
           setDialysisBedData({});
+          fetchAllBeds(); // final refresh
         }}
         patient={dialysisPatientData}
         bed={dialysisBedData}
         onStageChange={handleDialysisStageChange}
       />
 
-      {/* Notification Toast */}
       {notification && (
-        <Box
-          className={`notification notification--${notification.status}`}
-          role="alert"
-          aria-live="polite"
-        >
-          <Text fontWeight="600" mb={1}>
-            {notification.title}
-          </Text>
-          {notification.description && (
-            <Text fontSize="sm">
-              {notification.description}
-            </Text>
-          )}
+        <Box className={`notification toast--${notification.status}`} role="alert">
+          <VStack align="start" spacing={0}>
+            <Text fontWeight="700">{notification.title}</Text>
+            <Text fontSize="xs">{notification.description}</Text>
+          </VStack>
         </Box>
       )}
     </Box>
   );
 }
+
+

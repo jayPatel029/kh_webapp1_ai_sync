@@ -18,12 +18,14 @@ import './DialysisBedSeat.css';
 
 // Status color mapping
 const STATUS_COLORS = {
-  AVAILABLE: '#E5E7EB',      // Light gray
-  OCCUPIED: '#60A5FA',       // Light blue
-  DIALYSIS_RUNNING: '#34D399', // Green
-  PAUSED: '#F59E0B',         // Amber
-  ALERT: '#EF4444',          // Red
-  MAINTENANCE: '#6B7280',    // Dark gray
+  AVAILABLE: '#10B981',      // Emerald 500 (Green)
+  OCCUPIED: '#3B82F6',       // Blue 500
+  DIALYSIS_RUNNING: '#10B981', // Emerald 500
+  PAUSED: '#F59E0B',         // Amber 500
+  ALERT: '#EF4444',          // Red 500
+  QUARANTINE: '#FACC15',     // Yellow 400 (ISO)
+  MAINTENANCE: '#94A3B8',    // Slate 400
+  CLEANING: '#F97316',       // Orange 500
 };
 
 // Determine if text should be light (white) based on background luminance
@@ -120,9 +122,9 @@ const DialysisBedSeat = ({
     <div
       className="dialysis-bed-seat"
       style={{
-        '--bg-color': backgroundColor,
+        '--status-color': backgroundColor,
         '--text-color': textColor,
-        '--icon-color': iconColor,
+        '--icon-color': textColor,
       }}
       onClick={onClick}
       role="button"

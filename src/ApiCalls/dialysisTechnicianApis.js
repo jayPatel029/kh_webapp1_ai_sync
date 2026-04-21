@@ -26,7 +26,7 @@ export const bookAppointment = (payload, config = {}) =>
   postTeleconsultationBookAppointment(payload, config);
 
 export const getAllAppointmentsById = (config = {}) =>
-  getTeleconsultationGetAllAppointmentsById(config);
+  getAllAppointmentsById(config)
 
 // Badge / UI-only data: no server API found in repository for "badge details".
 // Return a helpful not-implemented response so callers can handle it gracefully.

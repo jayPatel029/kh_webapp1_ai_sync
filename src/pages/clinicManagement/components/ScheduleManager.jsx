@@ -75,10 +75,10 @@ export function ScheduleManager({ slotTemplates, onChange }) {
     <div className="space-y-6">
       {/* Builder Form */}
       <Box className="p-2 border border-secondary rounded-lg">
-        {/* <div className="mb-4">
+        <div className="mb-4">
           <label className="block text-sm font-semibold text-[#3b4b60] mb-2">Select Frequency</label>
           <div className="flex gap-4">
-            {['weekly'].map(freq => (
+            {['weekly', 'bi-weekly', 'monthly'].map(freq => (
               <label key={freq} className="flex items-center gap-2 cursor-pointer text-[#1f2937]">
                 <input
                   type="radio"
@@ -88,11 +88,11 @@ export function ScheduleManager({ slotTemplates, onChange }) {
                   onChange={() => setFrequency(freq)}
                   className="w-4 h-4 text-[#3b82f6] focus:ring-[#3b82f6]"
                 />
-                <span className="text-sm capitalize">{freq}</span>
+                <span className="text-sm capitalize">{freq.replace('-', ' ')}</span>
               </label>
             ))}
           </div>
-        </div> */}
+        </div>
 
         <div className="mb-4">
           <label className="block text-sm font-semibold text-[#3b4b60] mb-3">Select Weekdays</label>
