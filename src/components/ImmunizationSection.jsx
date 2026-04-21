@@ -36,11 +36,11 @@ function ImmunizationSection({ userData = {}, role = {}, onSuccess }) {
     setLoading(false);
   };
 
-  const persist = async (nextItems) => {
+  const persist = async (nextItems, extra = {}) => {
     if (!userData?.id) return;
     setLoading(true);
     try {
-      const res = await saveImmunizations(userData.id, nextItems);
+      const res = await saveImmunizations(userData.id, nextItems, extra);
       if (res.success) {
         setItems(nextItems);
         if (typeof onSuccess === 'function') onSuccess();
@@ -63,7 +63,7 @@ function ImmunizationSection({ userData = {}, role = {}, onSuccess }) {
     setShowModal(true);
   };
 
-  const handleModalSave = async (updatedItem, mode) => {
+  const handleModalSave = async (updatedItem, mode, extra = {}) => {
     const copy = JSON.parse(JSON.stringify(items || []));
     let next;
     if (mode === 'add') {
@@ -71,7 +71,7 @@ function ImmunizationSection({ userData = {}, role = {}, onSuccess }) {
     } else {
       next = copy.map((i) => (i.id === updatedItem.id ? updatedItem : i));
     }
-    await persist(next);
+    await persist(next, extra);
   };
 
   const handleModalDelete = async (id) => {
@@ -181,6 +181,7 @@ function ImmunizationSection({ userData = {}, role = {}, onSuccess }) {
           onClose={() => setShowModal(false)}
           mode={modalMode}
           initialItem={modalItem}
+          patientId={userData?.id}
           onSave={handleModalSave}
           onDelete={handleModalDelete}
           role={role}

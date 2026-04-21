@@ -10,12 +10,14 @@ import {
   Flex,
   Text,
 } from '../../component-library';
+import { getPatientById } from '../../ApiCalls/patientAPis';
 
 const ImmunizationModal = ({
   isOpen,
   onClose,
   mode = 'edit', // 'edit' | 'add'
   initialItem = null,
+  patientId,
   onSave,
   onDelete,
   role,
@@ -29,6 +31,8 @@ const ImmunizationModal = ({
   const [verifiedDT, setVerifiedDT] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [identityImmunizationRaw, setIdentityImmunizationRaw] = useState('');
+  const [identityLoading, setIdentityLoading] = useState(false);
 
   const currentUserName =
     localStorage.getItem('name') || localStorage.getItem('email') || role?.role_name || 'User';
@@ -61,6 +65,51 @@ const ImmunizationModal = ({
     setError('');
   }, [initialItem, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !patientId) {
+      setIdentityImmunizationRaw('');
+      return;
+    }
+
+    let isMounted = true;
+    const fetchIdentityField = async () => {
+      setIdentityLoading(true);
+      try {
+        const res = await getPatientById(patientId);
+        const patientData = res?.data?.data || res?.data || {};
+        const identityValue =
+          patientData.identityImmunization ||
+          patientData.identity_immunization ||
+          patientData.immunizationIdentity ||
+          patientData.identity ||
+          '';
+
+        const rawValue = typeof identityValue === 'string'
+          ? identityValue
+          : JSON.stringify(identityValue, null, 2);
+
+        if (isMounted) {
+          setIdentityImmunizationRaw(rawValue);
+        }
+      } catch (e) {
+        console.error('Error loading identity immunization field:', e);
+        if (isMounted) {
+          setIdentityImmunizationRaw('');
+        }
+      } finally {
+        if (isMounted) {
+          setIdentityLoading(false);
+        }
+      }
+    };
+
+    fetchIdentityField();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, patientId]);
+
   const buildVerifiedObj = () => ({
     doctor: {
       value: Boolean(verifiedDoctor),
@@ -87,6 +136,16 @@ const ImmunizationModal = ({
     setIsSaving(true);
     setError('');
 
+    let identityValue = identityImmunizationRaw;
+    const trimmedIdentity = identityImmunizationRaw?.trim();
+    if (trimmedIdentity?.startsWith('{') || trimmedIdentity?.startsWith('[')) {
+      try {
+        identityValue = JSON.parse(trimmedIdentity);
+      } catch {
+        identityValue = identityImmunizationRaw;
+      }
+    }
+
     const out = {
       id: initialItem?.id || `local-${Date.now()}`,
       vaccine: vaccine.trim(),
@@ -97,7 +156,7 @@ const ImmunizationModal = ({
     };
 
     try {
-      await onSave(out, mode);
+      await onSave(out, mode, { identityImmunization: identityValue });
       onClose();
     } catch (e) {
       console.error('Error saving immunization:', e);
@@ -139,6 +198,20 @@ const ImmunizationModal = ({
     >
       <Box className="space-y-3">
         {error && <Text color="danger">{error}</Text>}
+
+        {identityLoading ? (
+          <Text color="muted">Loading patient immunization identity…</Text>
+        ) : (
+          <FormControl>
+            <FormLabel>Immunization Identity</FormLabel>
+            <Textarea
+              value={identityImmunizationRaw}
+              onChange={(e) => setIdentityImmunizationRaw(e.target.value)}
+              placeholder="e.g. {{'Influenza', '2026-04-21'}, {'Hepatitis B', '2025-11-15'}}"
+              rows={4}
+            />
+          </FormControl>
+        )}
 
         <FormControl isRequired>
           <FormLabel>Vaccine</FormLabel>

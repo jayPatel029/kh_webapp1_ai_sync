@@ -19,9 +19,9 @@ export async function getImmunizations(patientId) {
   }
 }
 
-export async function saveImmunizations(patientId, immunizations = []) {
+export async function saveImmunizations(patientId, immunizations = [], extraData = {}) {
   try {
-    const payload = { id: patientId, immunizations };
+    const payload = { id: patientId, immunizations, ...extraData };
     const res = await updatePatient(payload);
     if (res?.success) return { success: true, data: res.data };
     return { success: false, data: res?.data || null };
