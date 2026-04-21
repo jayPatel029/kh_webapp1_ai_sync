@@ -23,7 +23,7 @@ import { server_url } from '../constants/constants';
  */
 export async function startDialysisSession(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/dialysis/sessions/start`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/dialysis/sessions/start`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -38,7 +38,7 @@ export async function startDialysisSession(payload, config = {}) {
  */
 export async function getDialysisSessionById(sessionId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/dialysis/sessions/${sessionId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/dialysis/sessions/${sessionId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -60,7 +60,7 @@ export async function getDialysisSessionById(sessionId, config = {}) {
  */
 export async function submitSessionPreReadings(sessionId, payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/dialysis/sessions/${sessionId}/pre-readings`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/dialysis/sessions/${sessionId}/pre-readings`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -80,7 +80,7 @@ export async function submitSessionPreReadings(sessionId, payload, config = {}) 
  */
 export async function submitSessionReadings(sessionId, payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/dialysis/sessions/${sessionId}/readings`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/dialysis/sessions/${sessionId}/readings`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -95,7 +95,7 @@ export async function submitSessionReadings(sessionId, payload, config = {}) {
  */
 export async function getSessionReadings(sessionId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/dialysis/sessions/${sessionId}/readings`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/dialysis/sessions/${sessionId}/readings`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -113,7 +113,7 @@ export async function getSessionReadings(sessionId, config = {}) {
  */
 export async function updateSessionParameters(sessionId, payload, config = {}) {
   try {
-    const response = await axiosInstance.patch(`${server_url}/dialysis/sessions/${sessionId}/parameters`, payload, config);
+    const response = await axiosInstance.patch(`${server_url}/dt/dialysis/sessions/${sessionId}/parameters`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -131,7 +131,7 @@ export async function updateSessionParameters(sessionId, payload, config = {}) {
  */
 export async function submitSessionAction(sessionId, payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/dialysis/sessions/${sessionId}/actions`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/dialysis/sessions/${sessionId}/actions`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

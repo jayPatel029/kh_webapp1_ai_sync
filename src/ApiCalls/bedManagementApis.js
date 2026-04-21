@@ -18,7 +18,7 @@ import { server_url } from '../constants/constants';
  */
 export async function getAllBeds(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/beds/all`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/beds/all`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -32,7 +32,7 @@ export async function getAllBeds(config = {}) {
  */
 export async function getBedsByStatus(status, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/beds/status/${status}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/beds/status/${status}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -46,7 +46,7 @@ export async function getBedsByStatus(status, config = {}) {
  */
 export async function getBedById(bedId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/beds/${bedId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/beds/${bedId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -60,7 +60,7 @@ export async function getBedById(bedId, config = {}) {
  */
 export async function assignPatientToBed(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/beds/assign`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/beds/assign`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -74,7 +74,7 @@ export async function assignPatientToBed(payload, config = {}) {
  */
 export async function unassignPatientFromBed(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/beds/unassign`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/beds/unassign`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -90,7 +90,7 @@ export async function unassignPatientFromBed(payload, config = {}) {
 export async function setQuarantineBed(bedId, payload, config = {}) {
   try {
     const response = await axiosInstance.post(
-      `${server_url}/beds/${bedId}/quarantine`,
+      `${server_url}/dt/beds/${bedId}/quarantine`,
       payload,
       config
     );
@@ -124,7 +124,7 @@ export async function getPatientIsolationStatus(patientId, config = {}) {
  */
 export async function getBedAssignmentsByDateRange(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/beds/assignments/date-range`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/beds/assignments/date-range`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -153,7 +153,7 @@ export async function getPatientDetails(patientId, config = {}) {
  */
 export async function updateBedStatus(bedId, payload, config = {}) {
   try {
-    const response = await axiosInstance.put(`${server_url}/beds/${bedId}/status`, payload, config);
+    const response = await axiosInstance.put(`${server_url}/dt/beds/${bedId}/status`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -167,7 +167,7 @@ export async function updateBedStatus(bedId, payload, config = {}) {
  */
 export async function transferPatientBed(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/beds/transfer`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/beds/transfer`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

@@ -44,7 +44,7 @@ import { server_url } from '../constants/constants';
  */
 export async function getClinics(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/clinics`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/clinics`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -59,7 +59,7 @@ export async function getClinics(config = {}) {
  */
 export async function getClinicById(clinicId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/clinics/${clinicId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/clinics/${clinicId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -74,7 +74,7 @@ export async function getClinicById(clinicId, config = {}) {
  */
 export async function getClinicBeds(clinicId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/clinics/${clinicId}/beds`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/clinics/${clinicId}/beds`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -89,7 +89,7 @@ export async function getClinicBeds(clinicId, config = {}) {
  */
 export async function getClinicAppointments(clinicId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/clinics/${clinicId}/appointments`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/clinics/${clinicId}/appointments`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -105,7 +105,7 @@ export async function getClinicAppointments(clinicId, config = {}) {
  */
 export async function getAppointments(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/appointments`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/appointments`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -131,7 +131,7 @@ export async function getAppointments(config = {}) {
  */
 export async function createAppointment(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/appointments`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/appointments`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -146,7 +146,7 @@ export async function createAppointment(payload, config = {}) {
  */
 export async function getAppointmentById(appointmentId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/appointments/${appointmentId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/appointments/${appointmentId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -165,7 +165,7 @@ export async function getAppointmentById(appointmentId, config = {}) {
  */
 export async function updateAppointment(appointmentId, payload, config = {}) {
   try {
-    const response = await axiosInstance.put(`${server_url}/appointments/${appointmentId}`, payload, config);
+    const response = await axiosInstance.put(`${server_url}/dt/appointments/${appointmentId}`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -180,7 +180,7 @@ export async function updateAppointment(appointmentId, payload, config = {}) {
  */
 export async function deleteAppointment(appointmentId, config = {}) {
   try {
-    const response = await axiosInstance.delete(`${server_url}/appointments/${appointmentId}`, config);
+    const response = await axiosInstance.delete(`${server_url}/dt/appointments/${appointmentId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -195,7 +195,7 @@ export async function deleteAppointment(appointmentId, config = {}) {
  */
 export async function getAppointmentDetails(appointmentId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/appointments/${appointmentId}/details`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/appointments/${appointmentId}/details`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -211,7 +211,7 @@ export async function getAppointmentDetails(appointmentId, config = {}) {
  */
 export async function getShifts(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/shifts`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/shifts`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -230,7 +230,7 @@ export async function getShifts(config = {}) {
  */
 export async function createShift(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/shifts`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/shifts`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -245,7 +245,7 @@ export async function createShift(payload, config = {}) {
  */
 export async function getShiftById(shiftId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/shifts/${shiftId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/shifts/${shiftId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

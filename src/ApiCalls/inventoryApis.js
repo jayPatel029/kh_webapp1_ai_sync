@@ -22,7 +22,7 @@ import { server_url } from '../constants/constants';
  */
 export async function getInventoryItems(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/items`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/items`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -37,7 +37,7 @@ export async function getInventoryItems(config = {}) {
  */
 export async function getInventoryItemById(itemId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/items/${itemId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/items/${itemId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -66,7 +66,7 @@ export async function getInventoryItemById(itemId, config = {}) {
  */
 export async function createInventoryItem(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/items`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/items`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -82,7 +82,7 @@ export async function createInventoryItem(payload, config = {}) {
  */
 export async function updateInventoryItem(itemId, payload, config = {}) {
   try {
-    const response = await axiosInstance.put(`${server_url}/inventory/items/${itemId}`, payload, config);
+    const response = await axiosInstance.put(`${server_url}/dt/items/${itemId}`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -97,7 +97,7 @@ export async function updateInventoryItem(itemId, payload, config = {}) {
  */
 export async function deleteInventoryItem(itemId, config = {}) {
   try {
-    const response = await axiosInstance.delete(`${server_url}/inventory/items/${itemId}`, config);
+    const response = await axiosInstance.delete(`${server_url}/dt/items/${itemId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -127,7 +127,7 @@ export async function deleteInventoryItem(itemId, config = {}) {
  */
 export async function getInventoryStock(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/stock`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/stock`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -142,7 +142,7 @@ export async function getInventoryStock(config = {}) {
  */
 export async function getStockByItemId(itemId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/stock/${itemId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/stock/${itemId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -157,7 +157,7 @@ export async function getStockByItemId(itemId, config = {}) {
  */
 export async function getStockByLocationId(locationId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/stock/location/${locationId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/stock/location/${locationId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -181,7 +181,7 @@ export async function getStockByLocationId(locationId, config = {}) {
  */
 export async function addInventoryStock(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/stock/add`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/stock/add`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -201,7 +201,7 @@ export async function addInventoryStock(payload, config = {}) {
  */
 export async function issueInventoryStock(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/stock/issue`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/stock/issue`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -226,7 +226,7 @@ export async function issueInventoryStock(payload, config = {}) {
  */
 export async function adjustInventoryStock(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/stock/adjust`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/stock/adjust`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -258,7 +258,7 @@ export async function adjustInventoryStock(payload, config = {}) {
  */
 export async function getInventoryTransactions(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/transactions`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/transactions`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -273,7 +273,7 @@ export async function getInventoryTransactions(config = {}) {
  */
 export async function getInventoryTransactionById(transactionId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/transactions/${transactionId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/transactions/${transactionId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -293,7 +293,7 @@ export async function getInventoryTransactionById(transactionId, config = {}) {
  */
 export async function createInventoryTransaction(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/transactions`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/transactions`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -319,7 +319,7 @@ export async function createInventoryTransaction(payload, config = {}) {
  */
 export async function getInventoryLocations(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/locations`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/locations`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -339,7 +339,7 @@ export async function getInventoryLocations(config = {}) {
  */
 export async function createInventoryLocation(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/locations`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/locations`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -354,7 +354,7 @@ export async function createInventoryLocation(payload, config = {}) {
  */
 export async function getInventoryLocationById(locationId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/locations/${locationId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/locations/${locationId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -373,7 +373,7 @@ export async function getInventoryLocationById(locationId, config = {}) {
  */
 export async function updateInventoryLocation(locationId, payload, config = {}) {
   try {
-    const response = await axiosInstance.put(`${server_url}/inventory/locations/${locationId}`, payload, config);
+    const response = await axiosInstance.put(`${server_url}/dt/locations/${locationId}`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -403,7 +403,7 @@ export async function updateInventoryLocation(locationId, payload, config = {}) 
  */
 export async function getInventoryAlerts(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/alerts`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/alerts`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -418,7 +418,7 @@ export async function getInventoryAlerts(config = {}) {
  */
 export async function getInventoryAlertById(alertId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/alerts/${alertId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/alerts/${alertId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -434,7 +434,7 @@ export async function getInventoryAlertById(alertId, config = {}) {
  */
 export async function resolveInventoryAlert(alertId, payload = {}, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/alerts/${alertId}/resolve`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/alerts/${alertId}/resolve`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -462,7 +462,7 @@ export async function resolveInventoryAlert(alertId, payload = {}, config = {}) 
  */
 export async function getInventoryDialyzers(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/dialyzers`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/dialyzers`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -481,7 +481,7 @@ export async function getInventoryDialyzers(config = {}) {
  */
 export async function createInventoryDialyzer(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/dialyzers`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/dialyzers`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -496,7 +496,7 @@ export async function createInventoryDialyzer(payload, config = {}) {
  */
 export async function getInventoryDialyzerById(id, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/dialyzers/${id}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/dialyzers/${id}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -513,7 +513,7 @@ export async function getInventoryDialyzerById(id, config = {}) {
  */
 export async function useInventoryDialyzer(id, payload = {}, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/dialyzers/${id}/use`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/dialyzers/${id}/use`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -528,7 +528,7 @@ export async function useInventoryDialyzer(id, payload = {}, config = {}) {
  */
 export async function getInventoryDialyzerUsage(id, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/dialyzers/${id}/usage`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/dialyzers/${id}/usage`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -544,7 +544,7 @@ export async function getInventoryDialyzerUsage(id, config = {}) {
  */
 export async function getInventoryLabItems(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/lab-items`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/lab-items`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -559,7 +559,7 @@ export async function getInventoryLabItems(config = {}) {
  */
 export async function createInventoryLabItem(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/lab-items`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/lab-items`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -573,7 +573,7 @@ export async function createInventoryLabItem(payload, config = {}) {
  */
 export async function getExpiringInventoryLabItems(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/inventory/lab-items/expiring`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/lab-items/expiring`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -593,7 +593,7 @@ export async function getExpiringInventoryLabItems(config = {}) {
  */
 export async function receiveInventoryStock(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/receive`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/receive`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -613,7 +613,7 @@ export async function receiveInventoryStock(payload, config = {}) {
  */
 export async function moveInventoryStock(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/move`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/move`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -628,7 +628,7 @@ export async function moveInventoryStock(payload, config = {}) {
  */
 export async function legacyAdjustInventoryStock(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/adjust`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/adjust`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -648,7 +648,7 @@ export async function legacyAdjustInventoryStock(payload, config = {}) {
  */
 export async function dispenseInventoryToPatient(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/dispense/patient`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/dispense/patient`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -668,7 +668,7 @@ export async function dispenseInventoryToPatient(payload, config = {}) {
  */
 export async function dispenseInventoryToDepartment(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/dispense/department`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/dispense/department`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -687,7 +687,7 @@ export async function dispenseInventoryToDepartment(payload, config = {}) {
  */
 export async function performInventoryCycleCount(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/inventory/cycle-count`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/cycle-count`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
