@@ -19,6 +19,7 @@
     "date-fns": "^3.6.0",
     "deep-chat-react": "^1.4.11",
     "jspdf": "^2.5.2",
+    "jspdf-autotable": "^5.0.7",
     "pdf-lib": "^1.17.1",
     "pdf-to-text": "^0.0.7",
     "pdf.js-extract": "^0.2.1",

@@ -32,6 +32,7 @@ const isWithinWorkingHours = (start, end, workingHours) => {
 
 export default function useDialysisAppointments(options = {}) {
   const [appointments, setAppointments] = useState([]);
+  const [payments, setPayments] = useState([]); // In‑memory payments
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [settings, setSettings] = useState(options.settings || DEFAULT_SETTINGS);
@@ -165,6 +166,46 @@ export default function useDialysisAppointments(options = {}) {
     }
   }, [fetchAppointments]);
 
+  // Cancel with refund handling (client‑side mock)
+  const cancelAppointmentWithRefund = useCallback(async (id) => {
+    const appt = appointments.find((a) => a.id === id);
+    if (!appt) throw new Error('Appointment not found');
+    const refundAmount = appt.amountPaid || 0;
+    if (refundAmount > 0) {
+      setPayments((prev) => [
+        ...prev,
+        {
+          id: `refund-${Date.now()}`,
+          appointmentId: id,
+          amount: -refundAmount,
+          method: 'refund',
+          timestamp: new Date(),
+        },
+      ]);
+    }
+    const result = await deleteAppointmentApi(id);
+    if (result.success) {
+      await fetchAppointments();
+    } else {
+      throw new Error(result.data?.message || 'Failed to cancel appointment');
+    }
+  }, [appointments, fetchAppointments]);
+
+  // Add a payment to an existing appointment (client‑side mock)
+  const addPayment = useCallback((appointmentId, amount, method) => {
+    setPayments((prev) => [
+      ...prev,
+      {
+        id: `pay-${Date.now()}`,
+        appointmentId,
+        amount,
+        method,
+        timestamp: new Date(),
+      },
+    ]);
+    // Optionally update appointment payment status here
+  }, []);
+
   const isSlotAvailable = useCallback(
     (start, end) => {
       const now = new Date();
@@ -246,6 +287,9 @@ export default function useDialysisAppointments(options = {}) {
     createAppointment,
     updateAppointment,
     cancelAppointment,
+    cancelAppointmentWithRefund,
+    addPayment,
+    payments,
     isSlotAvailable,
     generateSlotsForRange,
   };

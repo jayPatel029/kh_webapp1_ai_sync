@@ -99,13 +99,37 @@ export async function getClinicAppointments(clinicId, config = {}) {
 // --- Appointments ---
 
 /**
- * Get all appointments
- * @param {Object} config Axios config
- * @returns {Promise<{success: boolean, data: Appointment[]}>}
+ * Find available dialysis slots
+ * @param {string|number} clinicId - Required clinic ID
+ * @param {string} from - ISO datetime string
+ * @param {string} to - ISO datetime string
+ * @param {Object} config - Axios config
+ * @returns {Promise<{success: boolean, data: any[]}>}
  */
-export async function getAppointments(config = {}) {
+export async function getAvailableSlots(clinicId, from, to, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/dt/appointments`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/slots`, {
+      ...config,
+      params: { ...config.params, clinicId, from, to }
+    });
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Get all appointments
+ * @param {Object} params - Query params (from, to, patientId, page, limit)
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function getAppointments(params = {}, config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/appointments`, {
+      ...config,
+      params: { ...config.params, ...params }
+    });
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -115,19 +139,18 @@ export async function getAppointments(config = {}) {
 /**
  * Create a new appointment
  * @param {Object} payload 
- * @param {number} payload.clinic_id required
- * @param {number} payload.patient_id required
- * @param {string} payload.appointment_date YYYY-MM-DD required
- * @param {string} [payload.start_time] HH:MM:SS
- * @param {string} [payload.end_time] HH:MM:SS
- * @param {number} [payload.organization_id]
- * @param {number} [payload.primary_doctor_id]
- * @param {string} [payload.appointment_type]
- * @param {string} [payload.reason]
- * @param {string} [payload.patient_ailments]
- * @param {string} [payload.status] default: SCHEDULED
- * @param {Object} config Axios config
- * @returns {Promise<{success: boolean, data: {id: number}}>}
+ * @param {number} payload.clinicId required unless slotId infers clinic
+ * @param {number} payload.patientId required
+ * @param {string} [payload.patientName]
+ * @param {string} payload.startUTC ISO datetime
+ * @param {string} payload.endUTC ISO datetime
+ * @param {string} [payload.bookingType] 'online' or 'offline'
+ * @param {number} [payload.amountDue]
+ * @param {Object} [payload.immediatePayment]
+ * @param {number} [payload.slotId]
+ * @param {Object} [payload.metadata]
+ * @param {Object} config Axios config. Header 'Idempotency-Key' is required.
+ * @returns {Promise<{success: boolean, data: any}>}
  */
 export async function createAppointment(payload, config = {}) {
   try {
@@ -196,6 +219,75 @@ export async function deleteAppointment(appointmentId, config = {}) {
 export async function getAppointmentDetails(appointmentId, config = {}) {
   try {
     const response = await axiosInstance.get(`${server_url}/dt/appointments/${appointmentId}/details`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Add payment to an appointment
+ * @param {string|number} appointmentId 
+ * @param {Object} payload 
+ * @param {number} payload.amount required
+ * @param {string} payload.method required
+ * @param {string} [payload.currency] defaults to 'INR'
+ * @param {string} [payload.receiptUrl]
+ * @param {Object} config Axios config. Header 'Idempotency-Key' is required.
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function addAppointmentPayment(appointmentId, payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/dt/appointments/${appointmentId}/payments`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Cancel an appointment
+ * @param {string|number} appointmentId 
+ * @param {Object} payload 
+ * @param {string} [payload.reason]
+ * @param {number} [payload.refundAmount]
+ * @param {string} [payload.refundUrl]
+ * @param {Object} config Axios config. Header 'Idempotency-Key' is required.
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function cancelAppointment(appointmentId, payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/dt/appointments/${appointmentId}/cancel`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Retrieve invoice for an appointment
+ * @param {string|number} appointmentId 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function getAppointmentInvoice(appointmentId, config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/appointments/${appointmentId}/invoice`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Regenerate invoice
+ * @param {string|number} invoiceId 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function regenerateInvoice(invoiceId, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/dt/invoices/${invoiceId}/generate`, {}, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -293,12 +385,17 @@ export default {
   getClinicById,
   getClinicBeds,
   getClinicAppointments,
+  getAvailableSlots,
   getAppointments,
   createAppointment,
   getAppointmentById,
   updateAppointment,
   deleteAppointment,
   getAppointmentDetails,
+  addAppointmentPayment,
+  cancelAppointment,
+  getAppointmentInvoice,
+  regenerateInvoice,
   getShifts,
   createShift,
   getShiftById,
