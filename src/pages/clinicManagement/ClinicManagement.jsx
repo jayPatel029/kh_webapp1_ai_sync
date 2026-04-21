@@ -22,21 +22,18 @@ import {
   Textarea,
 } from '../../component-library';
 import { FormModal } from '../../component-library/modals/FormModal';
+import { ClinicFormModal } from './components/ClinicFormModal';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import UnifiedListTable from '../../components/table/UnifiedListTable';
 import { useAdminToast } from '../../components/AdminToast';
 import { useNavigate } from 'react-router-dom';
-import { getClinics, getClinicById } from '../../ApiCalls/clinicApis';
-
-// ─── Dummy Data ────────────────────────────────────────────
-
-const DUMMY_ORGANIZATIONS = [
-  { id: 1, name: 'Kifayti Health Pvt. Ltd.', email: 'admin@kifaytihealth.com', phone: '9876543210', address: 'Mumbai, Maharashtra, India' },
-  { id: 2, name: 'Apollo Health Group', email: 'contact@apollohealth.com', phone: '9123456789', address: 'Delhi, India' },
-  { id: 3, name: 'Fortis Healthcare', email: 'info@fortishealthcare.com', phone: '9234567890', address: 'Bangalore, Karnataka, India' },
-];
+import {
+  getClinics, getClinicById, createClinic, updateClinic, deleteClinic,
+  getOrganizations, getOrganizationById, createOrganization, updateOrganization, deleteOrganization,
+  uploadClinicFiles,
+} from '../../ApiCalls/clinicApis';
 
 /**
  * Normalize a clinic from the backend into the shape the UI expects.
@@ -52,6 +49,8 @@ const normalizeClinicFromApi = (c) => ({
   upiDetails: c.upiDetails || c.upi_details || '',
   bankDetails: c.bankDetails || c.bank_details || '',
   clinicIconURL: c.clinicIconURL || c.clinic_icon || c.clinic_icon_url || '',
+  organizationId: c.organizationId || c.organization_id || '',
+  organizationName: c.organization?.name || '',
 });
 
 // ─── Tabs ──────────────────────────────────────────────────
@@ -69,14 +68,44 @@ const ClinicManagement = () => {
   const [activeTab, setActiveTab] = useState('organizations');
 
   // ─── Organization state ────────────────────────────────
-  const [organizations, setOrganizations] = useState(DUMMY_ORGANIZATIONS);
+  const [organizations, setOrganizations] = useState([]);
+  const [organizationsLoading, setOrganizationsLoading] = useState(false);
   const [orgSearchTerm, setOrgSearchTerm] = useState('');
   const [isOrgModalOpen, setIsOrgModalOpen] = useState(false);
   const [orgEditMode, setOrgEditMode] = useState(false);
-  const [orgFormData, setOrgFormData] = useState({ name: '', email: '', phone: '', address: '' });
+  const [orgFormData, setOrgFormData] = useState({ 
+    name: '', email: '', phone: '', address: '',
+    hasGuidelines: false, guidelines: [],
+    hasChecklists: false, checklists: [], 
+    hasInventory: false, hasPurchaseOrder: false 
+  });
   const [orgEditId, setOrgEditId] = useState(null);
   const [orgFieldErrors, setOrgFieldErrors] = useState({});
   const [orgErrorMessage, setOrgErrorMessage] = useState('');
+
+  // ─── Fetch organizations from API ──────────────────────
+  const fetchOrganizations = useCallback(async () => {
+    setOrganizationsLoading(true);
+    try {
+      const result = await getOrganizations();
+      if (result.success) {
+        const rows = Array.isArray(result.data?.data) ? result.data.data : Array.isArray(result.data) ? result.data : [];
+        setOrganizations(rows);
+      } else {
+        showToast(result.data?.message || 'Failed to load organizations', 'error');
+      }
+    } catch (err) {
+      showToast(err?.message || 'Network error loading organizations', 'error');
+    } finally {
+      setOrganizationsLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    if (activeTab === 'organizations' || activeTab === 'clinics') {
+      fetchOrganizations();
+    }
+  }, [activeTab, fetchOrganizations]);
 
   // ─── Clinic state ──────────────────────────────────────
   const [clinics, setClinics] = useState([]);
@@ -112,21 +141,8 @@ const ClinicManagement = () => {
   const [clinicSearchTerm, setClinicSearchTerm] = useState('');
   const [isClinicModalOpen, setIsClinicModalOpen] = useState(false);
   const [clinicEditMode, setClinicEditMode] = useState(false);
-  const [clinicFormData, setClinicFormData] = useState({
-    clinicName: '',
-    clinicEmail: '',
-    phone: '',
-    whatsapp: '',
-    address: '',
-    upiId: '',
-    accountHolder: '',
-    accountNumber: '',
-    bankName: '',
-    ifscCode: '',
-  });
   const [clinicEditId, setClinicEditId] = useState(null);
-  const [clinicFieldErrors, setClinicFieldErrors] = useState({});
-  const [clinicErrorMessage, setClinicErrorMessage] = useState('');
+  const [clinicFullData, setClinicFullData] = useState(null);
 
   // ═══════════════════════════════════════════════════════
   //  ORGANIZATION HANDLERS
@@ -143,7 +159,12 @@ const ClinicManagement = () => {
   }, [organizations, orgSearchTerm]);
 
   const openOrgAdd = () => {
-    setOrgFormData({ name: '', email: '', phone: '', address: '' });
+    setOrgFormData({ 
+      name: '', email: '', phone: '', address: '',
+      hasGuidelines: false, guidelines: [{ text: '', type: 'Pre-dialysis' }], 
+      hasChecklists: false, checklists: [{ text: '', type: 'Pre-dialysis' }], 
+      hasInventory: false, hasPurchaseOrder: false 
+    });
     setOrgEditMode(false);
     setOrgEditId(null);
     setOrgFieldErrors({});
@@ -151,21 +172,37 @@ const ClinicManagement = () => {
     setIsOrgModalOpen(true);
   };
 
-  const openOrgEdit = (org) => {
-    setOrgFormData({
-      name: org.name,
-      email: org.email,
-      phone: org.phone,
-      address: org.address,
-    });
-    setOrgEditMode(true);
-    setOrgEditId(org.id);
-    setOrgFieldErrors({});
-    setOrgErrorMessage('');
-    setIsOrgModalOpen(true);
+  const openOrgEdit = async (org) => {
+    try {
+      const result = await getOrganizationById(org.id);
+      if (result.success) {
+        const fullOrg = result.data.data || result.data;
+        setOrgFormData({
+          name: fullOrg.name || '',
+          email: fullOrg.email || fullOrg.contactEmail || '',
+          phone: fullOrg.phone || fullOrg.contactPhone || '',
+          address: fullOrg.address || '',
+          hasGuidelines: fullOrg.hasGuidelines || false,
+          guidelines: fullOrg.guidelines?.length > 0 ? fullOrg.guidelines : [],
+          hasChecklists: fullOrg.hasChecklists || false,
+          checklists: fullOrg.checklists?.length > 0 ? fullOrg.checklists : [],
+          hasInventory: fullOrg.hasInventory || false,
+          hasPurchaseOrder: fullOrg.hasPurchaseOrder || false,
+        });
+        setOrgEditMode(true);
+        setOrgEditId(fullOrg.id);
+        setOrgFieldErrors({});
+        setOrgErrorMessage('');
+        setIsOrgModalOpen(true);
+      } else {
+        showToast(result.data?.message || 'Failed to fetch full organization details', 'error');
+      }
+    } catch (err) {
+      showToast(err?.message || 'Network error fetching organization details', 'error');
+    }
   };
 
-  const handleOrgSubmit = () => {
+  const handleOrgSubmit = async () => {
     const errors = {};
     if (!orgFormData.name.trim()) errors.name = 'Name is required';
     if (!orgFormData.email.trim()) errors.email = 'Email is required';
@@ -178,23 +215,44 @@ const ClinicManagement = () => {
       return;
     }
 
-    if (orgEditMode) {
-      setOrganizations((prev) =>
-        prev.map((o) => (o.id === orgEditId ? { ...o, ...orgFormData } : o))
-      );
-      showToast('Organization updated successfully!', 'success');
-    } else {
-      const newOrg = { ...orgFormData, id: Date.now() };
-      setOrganizations((prev) => [...prev, newOrg]);
-      showToast('Organization added successfully!', 'success');
+    try {
+      if (orgEditMode) {
+        const res = await updateOrganization(orgEditId, orgFormData);
+        if (res.success) {
+          showToast('Organization updated successfully!', 'success');
+          fetchOrganizations();
+          setIsOrgModalOpen(false);
+        } else {
+          setOrgErrorMessage(res.data?.message || 'Failed to update organization');
+        }
+      } else {
+        const res = await createOrganization(orgFormData);
+        if (res.success) {
+          showToast('Organization added successfully!', 'success');
+          fetchOrganizations();
+          setIsOrgModalOpen(false);
+        } else {
+          setOrgErrorMessage(res.data?.message || 'Failed to create organization');
+        }
+      }
+    } catch (err) {
+      setOrgErrorMessage(err?.message || 'An error occurred during submission');
     }
-    setIsOrgModalOpen(false);
   };
 
-  const handleOrgDelete = (org) => {
+  const handleOrgDelete = async (org) => {
     if (window.confirm(`Delete organization "${org.name}"?`)) {
-      setOrganizations((prev) => prev.filter((o) => o.id !== org.id));
-      showToast('Organization deleted successfully!', 'success');
+      try {
+        const res = await deleteOrganization(org.id);
+        if (res.success) {
+          showToast('Organization deleted successfully!', 'success');
+          fetchOrganizations();
+        } else {
+          showToast(res.data?.message || 'Failed to delete organization', 'error');
+        }
+      } catch (err) {
+        showToast(err?.message || 'Network error deleting organization', 'error');
+      }
     }
   };
 
@@ -226,50 +284,27 @@ const ClinicManagement = () => {
   }, [clinics, clinicSearchTerm]);
 
   const openClinicAdd = () => {
-    setClinicFormData({
-      clinicName: '',
-      clinicEmail: '',
-      phone: '',
-      whatsapp: '',
-      address: '',
-      upiId: '',
-      accountHolder: '',
-      accountNumber: '',
-      bankName: '',
-      ifscCode: '',
-    });
     setClinicEditMode(false);
     setClinicEditId(null);
-    setClinicFieldErrors({});
-    setClinicErrorMessage('');
+    setClinicFullData(null);
     setIsClinicModalOpen(true);
   };
 
-  const openClinicEdit = (clinic) => {
-    // Parse bank details string back into fields
-    const bankParts = (clinic.bankDetails || '').split(',').map((s) => s.trim());
-    const parseBankField = (prefix) => {
-      const part = bankParts.find((p) => p.startsWith(prefix));
-      return part ? part.replace(prefix, '').trim() : '';
-    };
-
-    setClinicFormData({
-      clinicName: clinic.clinicName,
-      clinicEmail: clinic.clinicEmail,
-      phone: clinic.phone,
-      whatsapp: clinic.whatsapp || '',
-      address: clinic.address,
-      upiId: clinic.upiDetails || '',
-      accountHolder: parseBankField('Holder:'),
-      accountNumber: parseBankField('Account No:'),
-      bankName: bankParts[0] ? bankParts[0].replace(/Bank$/i, '').trim() + ' Bank' : '',
-      ifscCode: parseBankField('IFSC:'),
-    });
-    setClinicEditMode(true);
-    setClinicEditId(clinic.id);
-    setClinicFieldErrors({});
-    setClinicErrorMessage('');
-    setIsClinicModalOpen(true);
+  const openClinicEdit = async (clinic) => {
+    try {
+      const result = await getClinicById(clinic.id);
+      if (result.success) {
+        const fullClinic = result.data.data || result.data;
+        setClinicFullData(fullClinic);
+        setClinicEditMode(true);
+        setClinicEditId(fullClinic.id);
+        setIsClinicModalOpen(true);
+      } else {
+        showToast(result.data?.message || 'Failed to fetch full clinic details', 'error');
+      }
+    } catch (err) {
+      showToast(err?.message || 'Network error fetching clinic details', 'error');
+    }
   };
 
   const buildBankDetailsString = (data) => {
@@ -281,47 +316,113 @@ const ClinicManagement = () => {
     return parts.join(', ');
   };
 
-  const handleClinicSubmit = () => {
-    const errors = {};
-    if (!clinicFormData.clinicName.trim()) errors.clinicName = 'Clinic Name is required';
-    if (!clinicFormData.clinicEmail.trim()) errors.clinicEmail = 'Email is required';
-    if (!clinicFormData.phone.trim()) errors.phone = 'Phone is required';
-    if (!clinicFormData.address.trim()) errors.address = 'Address is required';
+  const handleClinicSubmit = async (clinicPayloadFromModal) => {
+    const finalPayload = {
+      clinicName: clinicPayloadFromModal.clinicName,
+      organizationId: Number(clinicPayloadFromModal.organizationId) || null,
+      address: typeof clinicPayloadFromModal.address === 'object' 
+        ? clinicPayloadFromModal.address 
+        : { line1: clinicPayloadFromModal.address || '', city: '', state: '', postal: '', country: 'India' },
+      phone: clinicPayloadFromModal.contact?.phone || '',
+      whatsapp: clinicPayloadFromModal.contact?.whatsapp || '',
+      clinicEmail: clinicPayloadFromModal.contact?.email || '',
+      
+      timezone: clinicPayloadFromModal.timezone || 'Asia/Calcutta',
+      status: clinicPayloadFromModal.status || 'active',
+      capacity: Number(clinicPayloadFromModal.capacity) || 0,
+      normalBeds: Number(clinicPayloadFromModal.normalBeds) || 0,
+      isolatedBeds: Number(clinicPayloadFromModal.isolatedBeds) || 0,
+      cleaningTimeMinutes: Number(clinicPayloadFromModal.cleaningTimeMinutes) || 30,
+      
+      upiDetails: clinicPayloadFromModal.upiId || '',
+      bankDetails: buildBankDetailsString(clinicPayloadFromModal),
+      clinicIconURL: clinicPayloadFromModal.clinicIconURL || '',
 
-    if (Object.keys(errors).length > 0) {
-      setClinicFieldErrors(errors);
-      setClinicErrorMessage('Please fill all required fields');
-      return;
-    }
+      services: (clinicPayloadFromModal.services || []).map(s => ({
+        name: s.name || '',
+        amount: Number(s.amount) || 0,
+        discount: Number(s.discount) || 0,
+        gst: Number(s.gst) || 0,
+        netAmount: Number(s.netAmount) || 0
+      })),
 
-    const clinicPayload = {
-      clinicName: clinicFormData.clinicName,
-      clinicEmail: clinicFormData.clinicEmail,
-      phone: clinicFormData.phone,
-      whatsapp: clinicFormData.whatsapp,
-      address: clinicFormData.address,
-      upiDetails: clinicFormData.upiId,
-      bankDetails: buildBankDetailsString(clinicFormData),
-      clinicIconURL: '',
+      slotTemplates: (clinicPayloadFromModal.slotTemplates || []).map(st => {
+        const formatTime = (t) => t ? t.split(':').slice(0, 2).join(':') : '00:00';
+        return {
+          frequency: st.frequency || 'weekly',
+          daysOfWeek: Array.isArray(st.daysOfWeek) ? st.daysOfWeek : [st.daysOfWeek].filter(Boolean),
+          timings: [{
+            startTime: formatTime(st.startTime),
+            endTime: formatTime(st.endTime)
+          }],
+          maxPatientsPerSlot: Number(st.maxPatientsPerSlot) || 1,
+          bufferMinutes: Number(st.bufferMinutes) || 30,
+          price: Number(st.price) || 0,
+          status: st.status || 'active'
+        };
+      })
     };
 
-    if (clinicEditMode) {
-      setClinics((prev) =>
-        prev.map((c) => (c.id === clinicEditId ? { ...c, ...clinicPayload } : c))
-      );
-      showToast('Clinic updated successfully!', 'success');
-    } else {
-      const newClinic = { ...clinicPayload, id: Date.now() };
-      setClinics((prev) => [...prev, newClinic]);
-      showToast('Clinic added successfully!', 'success');
+    try {
+      if (clinicEditMode) {
+        const res = await updateClinic(clinicEditId, finalPayload);
+        if (res.success) {
+          // If the modal provided an uploaded icon URL, associate it with the clinic via the uploadFiles endpoint
+          if (clinicPayloadFromModal.clinicIconURL) {
+            try {
+              await uploadClinicFiles({ id: clinicEditId, clinic_icon: clinicPayloadFromModal.clinicIconURL });
+            } catch (e) {
+              // non-fatal - show a warning but continue
+              console.warn('Failed to attach clinic icon after update', e);
+              showToast('Clinic updated but failed to attach icon', 'warning');
+            }
+          }
+
+          showToast('Clinic updated successfully!', 'success');
+          fetchClinics();
+          setIsClinicModalOpen(false);
+        } else {
+          showToast(res.data?.message || 'Failed to update clinic', 'error');
+        }
+      } else {
+        const res = await createClinic(finalPayload);
+        if (res.success) {
+          // try to extract created clinic id from response
+          const createdId = res?.data?.data?.id || res?.data?.id || res?.data?.clinicId || null;
+          if (clinicPayloadFromModal.clinicIconURL && createdId) {
+            try {
+              await uploadClinicFiles({ id: createdId, clinic_icon: clinicPayloadFromModal.clinicIconURL });
+            } catch (e) {
+              console.warn('Failed to attach clinic icon after create', e);
+              showToast('Clinic created but failed to attach icon', 'warning');
+            }
+          }
+
+          showToast('Clinic added successfully!', 'success');
+          fetchClinics();
+          setIsClinicModalOpen(false);
+        } else {
+          showToast(res.data?.message || 'Failed to create clinic', 'error');
+        }
+      }
+    } catch (err) {
+      showToast(err?.message || 'Network error during submission', 'error');
     }
-    setIsClinicModalOpen(false);
   };
 
-  const handleClinicDelete = (clinic) => {
+  const handleClinicDelete = async (clinic) => {
     if (window.confirm(`Delete clinic "${clinic.clinicName}"?`)) {
-      setClinics((prev) => prev.filter((c) => c.id !== clinic.id));
-      showToast('Clinic deleted successfully!', 'success');
+      try {
+        const res = await deleteClinic(clinic.id);
+        if (res.success) {
+          showToast('Clinic deleted successfully!', 'success');
+          fetchClinics();
+        } else {
+          showToast(res.data?.message || 'Failed to delete clinic', 'error');
+        }
+      } catch (err) {
+        showToast(err?.message || 'Network error deleting clinic', 'error');
+      }
     }
   };
 
@@ -358,6 +459,7 @@ const ClinicManagement = () => {
         ),
     },
     { key: 'clinicName', label: 'Clinic', type: 'text', width: '180px' },
+    { key: 'organizationName', label: 'Organization', type: 'text', width: '180px' },
     { key: 'clinicEmail', label: 'Email', type: 'text', width: '200px' },
     { key: 'phone', label: 'Phone', type: 'text', width: '130px' },
     { key: 'whatsapp', label: 'WhatsApp', type: 'text', width: '130px' },
@@ -455,15 +557,21 @@ const ClinicManagement = () => {
                 </Button>
               </div>
 
-              <UnifiedListTable
-                columns={orgColumns}
-                data={orgTableData}
-                onEdit={openOrgEdit}
-                onDelete={handleOrgDelete}
-                emptyMessage="No organizations found"
-                displayMode="table"
-                rowsPerPage={10}
-              />
+              {organizationsLoading ? (
+                <div className="flex items-center justify-center" style={{ minHeight: '200px' }}>
+                  <p style={{ color: '#6B7280' }}>Loading organizations…</p>
+                </div>
+              ) : (
+                  <UnifiedListTable
+                    columns={orgColumns}
+                    data={orgTableData}
+                    onEdit={openOrgEdit}
+                    onDelete={handleOrgDelete}
+                    emptyMessage="No organizations found"
+                    displayMode="table"
+                    rowsPerPage={10}
+                  />
+              )}
             </div>
           )}
 
@@ -524,7 +632,7 @@ const ClinicManagement = () => {
           onSubmit={handleOrgSubmit}
           title={orgEditMode ? 'Edit Organization' : 'Add Organization'}
           submitText={orgEditMode ? 'Update' : 'Submit'}
-          size="lg"
+          size="6xl"
           errorMessage={orgErrorMessage}
           fieldErrors={orgFieldErrors}
           onFieldErrorClear={(field) =>
@@ -533,105 +641,31 @@ const ClinicManagement = () => {
         >
           {({ getFieldProps, clearFieldError }) => (
             <>
-              <FormControl isRequired isInvalid={getFieldProps('name').isInvalid}>
-                <FormLabel>Organization Name</FormLabel>
-                <Input
-                  type="text"
-                  placeholder="Enter organization name"
-                  value={orgFormData.name}
-                  {...getFieldProps('name')}
-                  onChange={(e) => {
-                    setOrgFormData((prev) => ({ ...prev, name: e.target.value }));
-                    clearFieldError('name');
-                  }}
-                />
-              </FormControl>
-
-              <FormControl isRequired isInvalid={getFieldProps('email').isInvalid}>
-                <FormLabel>Email</FormLabel>
-                <Input
-                  type="email"
-                  placeholder="Enter email"
-                  value={orgFormData.email}
-                  {...getFieldProps('email')}
-                  onChange={(e) => {
-                    setOrgFormData((prev) => ({ ...prev, email: e.target.value }));
-                    clearFieldError('email');
-                  }}
-                />
-              </FormControl>
-
-              <FormControl isRequired isInvalid={getFieldProps('phone').isInvalid}>
-                <FormLabel>Phone</FormLabel>
-                <Input
-                  type="tel"
-                  placeholder="Enter phone number"
-                  value={orgFormData.phone}
-                  {...getFieldProps('phone')}
-                  onChange={(e) => {
-                    setOrgFormData((prev) => ({ ...prev, phone: e.target.value }));
-                    clearFieldError('phone');
-                  }}
-                />
-              </FormControl>
-
-              <FormControl isRequired isInvalid={getFieldProps('address').isInvalid}>
-                <FormLabel>Address</FormLabel>
-                <Textarea
-                  placeholder="Enter address"
-                  value={orgFormData.address}
-                  onChange={(e) => {
-                    setOrgFormData((prev) => ({ ...prev, address: e.target.value }));
-                    clearFieldError('address');
-                  }}
-                  rows={2}
-                />
-              </FormControl>
-            </>
-          )}
-        </FormModal>
-
-        {/* ─── CLINIC FORM MODAL ──────────────────────── */}
-        <FormModal
-          isOpen={isClinicModalOpen}
-          onClose={() => setIsClinicModalOpen(false)}
-          onSubmit={handleClinicSubmit}
-          title={clinicEditMode ? 'Edit Clinic' : 'Add Clinic'}
-          submitText={clinicEditMode ? 'Update' : 'Submit'}
-          size="3xl"
-          errorMessage={clinicErrorMessage}
-          fieldErrors={clinicFieldErrors}
-          onFieldErrorClear={(field) =>
-            setClinicFieldErrors((prev) => ({ ...prev, [field]: undefined }))
-          }
-        >
-          {({ getFieldProps, clearFieldError }) => (
-            <>
-              <Box className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormControl isRequired isInvalid={getFieldProps('clinicName').isInvalid} className="mt-6">
-                  <FormLabel>Clinic Name</FormLabel>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <FormControl className="mt-6" isRequired isInvalid={getFieldProps('name').isInvalid}>
+                  <FormLabel>Organization Name</FormLabel>
                   <Input
                     type="text"
-                    placeholder="Enter clinic name"
-                    value={clinicFormData.clinicName}
-                    {...getFieldProps('clinicName')}
+                    placeholder="Enter organization name"
+                    value={orgFormData.name}
+                    {...getFieldProps('name')}
                     onChange={(e) => {
-                      setClinicFormData((prev) => ({ ...prev, clinicName: e.target.value }));
-                      clearFieldError('clinicName');
+                      setOrgFormData((prev) => ({ ...prev, name: e.target.value }));
+                      clearFieldError('name');
                     }}
                   />
                 </FormControl>
 
-                <FormControl isRequired isInvalid={getFieldProps('clinicEmail').isInvalid}>
+                <FormControl isRequired isInvalid={getFieldProps('email').isInvalid}>
                   <FormLabel>Email</FormLabel>
                   <Input
                     type="email"
-                    placeholder="Enter clinic email"
-                    value={clinicFormData.clinicEmail}
-                    {...getFieldProps('clinicEmail')}
+                    placeholder="Enter email"
+                    value={orgFormData.email}
+                    {...getFieldProps('email')}
                     onChange={(e) => {
-                      setClinicFormData((prev) => ({ ...prev, clinicEmail: e.target.value }));
-                      clearFieldError('clinicEmail');
+                      setOrgFormData((prev) => ({ ...prev, email: e.target.value }));
+                      clearFieldError('email');
                     }}
                   />
                 </FormControl>
@@ -641,110 +675,194 @@ const ClinicManagement = () => {
                   <Input
                     type="tel"
                     placeholder="Enter phone number"
-                    value={clinicFormData.phone}
+                    value={orgFormData.phone}
                     {...getFieldProps('phone')}
                     onChange={(e) => {
-                      setClinicFormData((prev) => ({ ...prev, phone: e.target.value }));
+                      setOrgFormData((prev) => ({ ...prev, phone: e.target.value }));
                       clearFieldError('phone');
                     }}
                   />
                 </FormControl>
 
-                <FormControl>
-                  <FormLabel>WhatsApp</FormLabel>
+                <FormControl isRequired isInvalid={getFieldProps('address').isInvalid}>
+                  <FormLabel>Address</FormLabel>
                   <Input
-                    type="tel"
-                    placeholder="WhatsApp number"
-                    value={clinicFormData.whatsapp}
-                    onChange={(e) =>
-                      setClinicFormData((prev) => ({ ...prev, whatsapp: e.target.value }))
-                    }
+                    type="text"
+                    placeholder="Enter address"
+                    value={orgFormData.address}
+                    onChange={(e) => {
+                      setOrgFormData((prev) => ({ ...prev, address: e.target.value }));
+                      clearFieldError('address');
+                    }}
                   />
                 </FormControl>
-              </Box>
-
-              <FormControl isRequired isInvalid={getFieldProps('address').isInvalid} className="mt-4">
-                <FormLabel>Address</FormLabel>
-                <Textarea
-                  placeholder="Enter clinic address"
-                  value={clinicFormData.address}
-                  onChange={(e) => {
-                    setClinicFormData((prev) => ({ ...prev, address: e.target.value }));
-                    clearFieldError('address');
-                  }}
-                  rows={2}
-                />
-              </FormControl>
-
-              {/* Payment Details Section */}
-              <div className="mb-2">
-                <h4 className="text-sm font-semibold text-gray-600">Payment Details</h4>
               </div>
 
-              <Box className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormControl className="mt-6">
-                  <FormLabel>UPI ID</FormLabel>
-                  <Input
-                    type="text"
-                    placeholder="Enter UPI ID"
-                    value={clinicFormData.upiId}
-                    onChange={(e) =>
-                      setClinicFormData((prev) => ({ ...prev, upiId: e.target.value }))
-                    }
-                  />
-                </FormControl>
+              {/* Operational Requirements Section */}
+              <div className="mt-8">
+                <h4 className="text-lg font-semibold mb-4 border-b pb-2 text-[#2c3e50]">Operational Requirements</h4>
+                
+                <div className="space-y-6">
 
-                <FormControl>
-                  <FormLabel>Account Holder</FormLabel>
-                  <Input
-                    type="text"
-                    placeholder="Account holder name"
-                    value={clinicFormData.accountHolder}
-                    onChange={(e) =>
-                      setClinicFormData((prev) => ({ ...prev, accountHolder: e.target.value }))
-                    }
-                  />
-                </FormControl>
+                  {/* Inventory & Purchase Order Toggles */}
+                  <div className="flex flex-col md:flex-row w-1/2 items-start gap-8 px-5 py-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                    <div className="flex items-center gap-4">
+                      <p className="mb-0 font-medium text-[#2c3e50] text-sm">Require Inventory Module?</p>
+                      <div className="flex gap-3">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-sm text-[#1f2937]">
+                          <input type="radio" checked={orgFormData.hasInventory === true} onChange={() => setOrgFormData(prev => ({ ...prev, hasInventory: true }))} className="w-3.5 h-3.5 text-[#004c6d] focus:ring-[#004c6d]" /> Yes
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-sm text-[#1f2937]">
+                          <input type="radio" checked={orgFormData.hasInventory === false} onChange={() => setOrgFormData(prev => ({ ...prev, hasInventory: false }))} className="w-3.5 h-3.5 text-[#004c6d] focus:ring-[#004c6d]" /> No
+                        </label>
+                      </div>
+                    </div>
+                    {/* Divider for larger screens */}
+                    {/* <div className="hidden md:block w-px h-6 bg-gray-300"></div> */}
+                    <div className="flex items-center gap-4">
+                      <p className="mb-0 font-medium text-[#2c3e50] text-sm">Require Purchase Order?</p>
+                      <div className="flex gap-3">
+                        <label className="flex items-center gap-1.5 cursor-pointer text-sm text-[#1f2937]">
+                          <input type="radio" checked={orgFormData.hasPurchaseOrder === true} onChange={() => setOrgFormData(prev => ({ ...prev, hasPurchaseOrder: true }))} className="w-3.5 h-3.5 text-[#004c6d] focus:ring-[#004c6d]" /> Yes
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-sm text-[#1f2937]">
+                          <input type="radio" checked={orgFormData.hasPurchaseOrder === false} onChange={() => setOrgFormData(prev => ({ ...prev, hasPurchaseOrder: false }))} className="w-3.5 h-3.5 text-[#004c6d] focus:ring-[#004c6d]" /> No
+                        </label>
+                      </div>
+                    </div>
+                  </div>
 
-                <FormControl>
-                  <FormLabel>Account Number</FormLabel>
-                  <Input
-                    type="text"
-                    placeholder="Enter account number"
-                    value={clinicFormData.accountNumber}
-                    onChange={(e) =>
-                      setClinicFormData((prev) => ({ ...prev, accountNumber: e.target.value }))
-                    }
-                  />
-                </FormControl>
+                  {/* Guidelines */}
+                  <Box className="p-4 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="mb-0 font-semibold text-[#2c3e50] text-base">Do you need Guidelines?</p>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer text-[#1f2937]">
+                          <input type="radio" checked={orgFormData.hasGuidelines === true} onChange={() => setOrgFormData(prev => ({ ...prev, hasGuidelines: true }))} className="w-4 h-4 text-[#004c6d] focus:ring-[#004c6d]" /> Yes
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-[#1f2937]">
+                          <input type="radio" checked={orgFormData.hasGuidelines === false} onChange={() => setOrgFormData(prev => ({ ...prev, hasGuidelines: false }))} className="w-4 h-4 text-[#004c6d] focus:ring-[#004c6d]" /> No
+                        </label>
+                      </div>
+                    </div>
+                    {orgFormData.hasGuidelines && (
+                      <div className="space-y-3 mt-4 pt-4 border-t border-gray-200">
+                        <p className="font-medium text-sm text-gray-700 mb-2">Guidelines List</p>
+                        {orgFormData.guidelines.map((gl, i) => (
+                          <div key={i} className="flex items-start gap-3 w-full">
+                            <div className="flex flex-col items-start gap-3 flex-1 w-full">
+                              <select
+                                value={gl.type}
+                                onChange={(e) => {
+                                  const newGL = [...orgFormData.guidelines];
+                                  newGL[i] = { ...newGL[i], type: e.target.value };
+                                  setOrgFormData(prev => ({ ...prev, guidelines: newGL }));
+                                }}
+                                className="w-full h-10 px-3 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#004c6d] focus:border-transparent shrink-0 mt-1 text-gray-700"
+                              >
+                                <option value="Pre-dialysis">Pre-dialysis</option>
+                                <option value="During dialysis">During dialysis</option>
+                                <option value="Post-dialysis">Post-dialysis</option>
+                                <option value="Cleaning">Cleaning</option>
+                                <option value="Preparation">Preparation</option>
+                              </select>
+                              <Textarea
+                                value={gl.text}
+                                onChange={(e) => {
+                                  const newGL = [...orgFormData.guidelines];
+                                  newGL[i] = { ...newGL[i], text: e.target.value };
+                                  setOrgFormData(prev => ({ ...prev, guidelines: newGL }));
+                                }} 
+                                className="flex-1 min-h-[60px] resize-y w-full text-sm"
+                                placeholder="e.g. Ensure patient has updated their consent forms..."
+                              />
+                            </div>
+                            {orgFormData.guidelines.length > 1 && (
+                              <button type="button" onClick={() => setOrgFormData(prev => ({ ...prev, guidelines: prev.guidelines.filter((_, idx) => idx !== i) }))} className="mt-1 text-red-500 font-bold w-8 h-8 flex items-center justify-center bg-red-50 rounded-full hover:bg-red-100 transition-colors shrink-0" title="Remove row">
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <Button type="button" variant="outline" size="sm" onClick={() => setOrgFormData(prev => ({ ...prev, guidelines: [...prev.guidelines, { text: '', type: 'Pre-dialysis' }] }))} className="mt-2 text-[#004c6d] border-[#004c6d]">
+                          + Add More Guideline
+                        </Button>
+                      </div>
+                    )}
+                  </Box>
 
-                <FormControl>
-                  <FormLabel>Bank Name</FormLabel>
-                  <Input
-                    type="text"
-                    placeholder="Enter bank name"
-                    value={clinicFormData.bankName}
-                    onChange={(e) =>
-                      setClinicFormData((prev) => ({ ...prev, bankName: e.target.value }))
-                    }
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel>IFSC Code</FormLabel>
-                  <Input
-                    type="text"
-                    placeholder="Enter IFSC code"
-                    value={clinicFormData.ifscCode}
-                    onChange={(e) =>
-                      setClinicFormData((prev) => ({ ...prev, ifscCode: e.target.value }))
-                    }
-                  />
-                </FormControl>
-              </Box>
+                  {/* Checklists */}
+                  <Box className="p-4 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="mb-0 font-semibold text-[#2c3e50] text-base">Do you need Checklists?</p>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer text-[#1f2937]">
+                          <input type="radio" checked={orgFormData.hasChecklists === true} onChange={() => setOrgFormData(prev => ({ ...prev, hasChecklists: true }))} className="w-4 h-4 text-[#004c6d] focus:ring-[#004c6d]" /> Yes
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-[#1f2937]">
+                          <input type="radio" checked={orgFormData.hasChecklists === false} onChange={() => setOrgFormData(prev => ({ ...prev, hasChecklists: false }))} className="w-4 h-4 text-[#004c6d] focus:ring-[#004c6d]" /> No
+                        </label>
+                      </div>
+                    </div>
+                    {orgFormData.hasChecklists && (
+                      <div className="space-y-3 mt-4 pt-4 border-t border-gray-200">
+                        <p className="font-medium text-sm text-gray-700 mb-2">Checklists List</p>
+                        {orgFormData.checklists.map((chk, i) => (
+                          <div key={i} className="flex items-start gap-3 w-full">
+                            <div className="flex flex-col items-start gap-3 flex-1 w-full">
+                              <select
+                                value={chk.type}
+                                onChange={(e) => {
+                                  const newChk = [...orgFormData.checklists];
+                                  newChk[i] = { ...newChk[i], type: e.target.value };
+                                  setOrgFormData(prev => ({ ...prev, checklists: newChk }));
+                                }}
+                                className="w-full h-10 px-3 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#004c6d] focus:border-transparent shrink-0 mt-1 text-gray-700"
+                              >
+                                <option value="Pre-dialysis">Pre-dialysis</option>
+                                <option value="During dialysis">During dialysis</option>
+                                <option value="Post-dialysis">Post-dialysis</option>
+                                <option value="Cleaning">Cleaning</option>
+                                <option value="Preparation">Preparation</option>
+                              </select>
+                              <Textarea
+                                value={chk.text}
+                                onChange={(e) => {
+                                  const newChk = [...orgFormData.checklists];
+                                  newChk[i] = { ...newChk[i], text: e.target.value };
+                                  setOrgFormData(prev => ({ ...prev, checklists: newChk }));
+                                }} 
+                                className="flex-1 min-h-[60px] resize-y w-full text-sm"
+                                placeholder="e.g. Check vital signs..."
+                              />
+                            </div>
+                            {orgFormData.checklists.length > 1 && (
+                              <button type="button" onClick={() => setOrgFormData(prev => ({ ...prev, checklists: prev.checklists.filter((_, idx) => idx !== i) }))} className="mt-1 text-red-500 font-bold w-8 h-8 flex items-center justify-center bg-red-50 rounded-full hover:bg-red-100 transition-colors shrink-0" title="Remove row">
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <Button type="button" variant="outline" size="sm" onClick={() => setOrgFormData(prev => ({ ...prev, checklists: [...prev.checklists, { text: '', type: 'Pre-dialysis' }] }))} className="mt-2 text-[#004c6d] border-[#004c6d]">
+                          + Add More Checklist
+                        </Button>
+                      </div>
+                    )}
+                  </Box>
+                </div>
+              </div>
             </>
           )}
         </FormModal>
+
+        {/* ─── CLINIC FORM MODAL ──────────────────────── */}
+        <ClinicFormModal
+          open={isClinicModalOpen}
+          initial={clinicFullData}
+          organizations={organizations}
+          onClose={() => setIsClinicModalOpen(false)}
+          onSave={handleClinicSubmit}
+        />
 
         <ToastContainer />
       </Box>

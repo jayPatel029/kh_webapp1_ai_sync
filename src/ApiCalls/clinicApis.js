@@ -11,17 +11,22 @@ import { server_url } from '../constants/constants';
 
 /**
  * @typedef {Object} Appointment
- * @property {number} id
- * @property {number} clinic_id
- * @property {number} patient_id
- * @property {string} appointment_date
- * @property {string} start_time
- * @property {string} end_time
- * @property {string} status
- * @property {string} reason
- * @property {string} patient_ailments
- * @property {string} created_at
- * @property {string} updated_at
+ * @property {string|number} id
+ * @property {string|number} [invoiceId]
+ * @property {number} [clinicId]
+ * @property {number} [patientId]
+ * @property {string} [patientName]
+ * @property {string} [startUTC]
+ * @property {string} [endUTC]
+ * @property {string} [bookingType]
+ * @property {string} [appointmentStatus]
+ * @property {string} [paymentStatus]
+ * @property {number} [amountDue]
+ * @property {number} [amountPaid]
+ * @property {string} [billUrl]
+ * @property {string} [receiptUrl]
+ * @property {Array} [conflicts]
+ * @property {Object} [metadata]
  */
 
 /**
@@ -34,6 +39,21 @@ import { server_url } from '../constants/constants';
  * @property {string} created_at
  * @property {string} updated_at
  */
+
+// --- Utility ---
+const generateIdempotencyKey = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Date.now().toString() + Math.random().toString(36).substring(2);
+
+const withIdempotency = (config = {}) => {
+  const headers = { ...config.headers };
+  // Only inject if neither casing exists
+  if (!headers['Idempotency-Key'] && !headers['idempotency-key']) {
+    headers['Idempotency-Key'] = generateIdempotencyKey();
+  }
+  return { ...config, headers };
+};
 
 // --- Clinics ---
 
@@ -65,6 +85,130 @@ export async function getClinicById(clinicId, config = {}) {
     return { success: false, data: error.response?.data || error.message };
   }
 }
+
+/**
+ * Create a new clinic
+ * @param {Object} payload 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function createClinic(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/dt/clinics`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Update a clinic
+ * @param {string|number} clinicId 
+ * @param {Object} payload 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function updateClinic(clinicId, payload, config = {}) {
+  try {
+    const response = await axiosInstance.put(`${server_url}/dt/clinics/${clinicId}`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Delete a clinic
+ * @param {string|number} clinicId 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function deleteClinic(clinicId, config = {}) {
+  try {
+    const response = await axiosInstance.delete(`${server_url}/dt/clinics/${clinicId}`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+// --- Organizations ---
+
+/**
+ * Get all organizations
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any[]}>}
+ */
+export async function getOrganizations(config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/organizations`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Get organization by ID
+ * @param {string|number} orgId 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function getOrganizationById(orgId, config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/organizations/${orgId}`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Create a new organization
+ * @param {Object} payload 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function createOrganization(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/dt/organizations`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Update an organization
+ * @param {string|number} orgId 
+ * @param {Object} payload 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function updateOrganization(orgId, payload, config = {}) {
+  try {
+    const response = await axiosInstance.put(`${server_url}/dt/organizations/${orgId}`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Delete an organization
+ * @param {string|number} orgId 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function deleteOrganization(orgId, config = {}) {
+  try {
+    const response = await axiosInstance.delete(`${server_url}/dt/organizations/${orgId}`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
 
 /**
  * Get clinic beds
@@ -149,12 +293,13 @@ export async function getAppointments(params = {}, config = {}) {
  * @param {Object} [payload.immediatePayment]
  * @param {number} [payload.slotId]
  * @param {Object} [payload.metadata]
- * @param {Object} config Axios config. Header 'Idempotency-Key' is required.
+ * @param {Object} config Axios config. Header 'Idempotency-Key' is required (auto-generated if missing).
  * @returns {Promise<{success: boolean, data: any}>}
  */
 export async function createAppointment(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/dt/appointments`, payload, config);
+    const finalConfig = withIdempotency(config);
+    const response = await axiosInstance.post(`${server_url}/dt/appointments`, payload, finalConfig);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -233,12 +378,13 @@ export async function getAppointmentDetails(appointmentId, config = {}) {
  * @param {string} payload.method required
  * @param {string} [payload.currency] defaults to 'INR'
  * @param {string} [payload.receiptUrl]
- * @param {Object} config Axios config. Header 'Idempotency-Key' is required.
+ * @param {Object} config Axios config. Header 'Idempotency-Key' is required (auto-generated if missing).
  * @returns {Promise<{success: boolean, data: any}>}
  */
 export async function addAppointmentPayment(appointmentId, payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/dt/appointments/${appointmentId}/payments`, payload, config);
+    const finalConfig = withIdempotency(config);
+    const response = await axiosInstance.post(`${server_url}/dt/appointments/${appointmentId}/payments`, payload, finalConfig);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -252,12 +398,13 @@ export async function addAppointmentPayment(appointmentId, payload, config = {})
  * @param {string} [payload.reason]
  * @param {number} [payload.refundAmount]
  * @param {string} [payload.refundUrl]
- * @param {Object} config Axios config. Header 'Idempotency-Key' is required.
+ * @param {Object} config Axios config. Header 'Idempotency-Key' is required (auto-generated if missing).
  * @returns {Promise<{success: boolean, data: any}>}
  */
 export async function cancelAppointment(appointmentId, payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/dt/appointments/${appointmentId}/cancel`, payload, config);
+    const finalConfig = withIdempotency(config);
+    const response = await axiosInstance.post(`${server_url}/dt/appointments/${appointmentId}/cancel`, payload, finalConfig);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -383,6 +530,14 @@ export async function getStaffSchedule(staffId, config = {}) {
 export default {
   getClinics,
   getClinicById,
+  createClinic,
+  updateClinic,
+  deleteClinic,
+  getOrganizations,
+  getOrganizationById,
+  createOrganization,
+  updateOrganization,
+  deleteOrganization,
   getClinicBeds,
   getClinicAppointments,
   getAvailableSlots,
