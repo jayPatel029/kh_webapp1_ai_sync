@@ -259,13 +259,18 @@ const AlertModal = ({ closeModal }) => {
                 >
                   <div className="flex justify-between items-center flex-col lg:flex-row">
                     <div className="flex items-center">
-                      <div className="mb-4">
+                      <div className="mb-4 flex flex-col">
                         <label
-                          className="block text-sm font-semibold mb-2"
+                          className="block text-sm font-semibold mb-1"
                           style={{ color: alert?.color || "red" }}
                         >
-                          {alert.type?.split("https:")[0]}
+                          {alert.type?.split("https:")[0]?.toUpperCase() || "ALERT"}
                         </label>
+                        {alert.category && (
+                          <span className="text-gray-800 text-sm font-medium">
+                            {alert.category}
+                          </span>
+                        )}
                       </div>
                     </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, startTransition } from "react";
 import { io } from "socket.io-client";
 import { MdSend } from "react-icons/md";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -525,7 +525,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
       userData={patient}
       totalUnreadCount={0}
       totalUnreadCountDoc={0}
-      onBackClick={() => navigate(ROUTES.PATIENTS)}
+      onBackClick={() => startTransition(() => navigate(ROUTES.PATIENTS))}
     >
       <div className="h-[80vh] flex overflow-hidden rounded-xl border border-gray-200 shadow-sm">
         {/* ── Left Sidebar ─────────────────────────────────────────────── */}

@@ -5,7 +5,7 @@
  * @file src/components/PatientNavTabs.jsx
  */
 
-import React from 'react';
+import React, { startTransition } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Flex, Box, Badge } from '../component-library';
 import '../design-system/styles/index.css';
@@ -69,7 +69,11 @@ export const PatientNavTabs = ({
         {tabs.filter(tab => tab.visible).map((tab) => (
           <button
             key={tab.id}
-            onClick={() => navigate(tab.path, { state: tab.state })}
+            onClick={() => {
+              startTransition(() => {
+                navigate(tab.path, { state: tab.state });
+              });
+            }}
             className="flex flex-col items-center gap-1 shrink-0 border-none bg-transparent cursor-pointer relative"
             style={{
               padding: '6px 10px',
@@ -145,7 +149,11 @@ export const PatientNavTabs = ({
         <Button
           key={tab.id}
           variant={isActive(tab.path) ? 'secondary' : 'outline'}
-          onClick={() => navigate(tab.path, { state: tab.state })}
+          onClick={() => {
+            startTransition(() => {
+              navigate(tab.path, { state: tab.state });
+            });
+          }}
           className=" h-10 px-4  py-4 rounded-md flex items-center gap-3 shrink-0 bg-white border-2 border-textLight transition-colors"
           aria-label={tab.label}
         >

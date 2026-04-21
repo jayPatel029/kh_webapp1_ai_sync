@@ -162,15 +162,14 @@ export const PageHeader = ({
   const renderOnlyHeaderDefault = variant === 'onlyheader';
 
   if (renderOnlyHeaderDefault) {
-    // If doctor or dialysis member role, center logo and title and render top-tabs beneath
+    // Render tab navigation for Doctor and Dialysis Technician roles (desktop only)
+    // Each shows role-specific navigation items
     if ((isDoctor || isDialysisMember) && !isMobile) {
       const tabItems = isDialysisMember ? dialysisNavItems : navItems;
       return (
         <Box className="w-full border-b-2 -mt-8 border-info bg-white relative">
-
-
           <div className="flex flex-col items-start justify-start py-4">
-            {/* tabs */}
+            {/* Navigation tabs */}
             <nav className="mt-3 flex gap-3 items-center">
               {tabItems.map((item) => {
                 const isActive = activeId === item.id;

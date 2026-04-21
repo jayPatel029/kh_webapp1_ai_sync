@@ -381,7 +381,7 @@ const ClinicManagement = () => {
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
           <PageHeader
-            title="Clinic Management"
+            title="Clinic/Centers Management"
             breadcrumbs={[
               { label: 'Dashboard', path: '/' },
               { label: 'Clinic Management', active: true },
@@ -608,7 +608,7 @@ const ClinicManagement = () => {
           {({ getFieldProps, clearFieldError }) => (
             <>
               <Box className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormControl isRequired isInvalid={getFieldProps('clinicName').isInvalid}>
+                <FormControl isRequired isInvalid={getFieldProps('clinicName').isInvalid} className="mt-6">
                   <FormLabel>Clinic Name</FormLabel>
                   <Input
                     type="text"
@@ -677,12 +677,12 @@ const ClinicManagement = () => {
               </FormControl>
 
               {/* Payment Details Section */}
-              <div className="mt-6 mb-2">
-                <h4 className="text-sm font-semibold text-gray-600 mb-3">Payment Details</h4>
+              <div className="mb-2">
+                <h4 className="text-sm font-semibold text-gray-600">Payment Details</h4>
               </div>
 
               <Box className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormControl>
+                <FormControl className="mt-6">
                   <FormLabel>UPI ID</FormLabel>
                   <Input
                     type="text"

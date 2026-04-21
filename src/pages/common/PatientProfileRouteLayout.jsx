@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, startTransition } from "react";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
@@ -78,7 +78,7 @@ const PatientProfileRouteLayout = () => {
                                 { label: "Patient  /", path: ROUTES.patientDetail(patientId), active: false },
                                 // { label: userData?.name || "Patient", active: true },
                             ]}
-                            onBack={() => navigate(ROUTES.PATIENTS)}
+                            onBack={() => startTransition(() => navigate(ROUTES.PATIENTS))}
                         />
                         <PatientNavTabs
                             patientId={patientId}

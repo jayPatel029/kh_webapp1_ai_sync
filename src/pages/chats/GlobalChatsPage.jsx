@@ -28,6 +28,7 @@ import {
   getSWMessages,
   sendMessage,
 } from "../../ApiCalls/chatApis";
+import axiosInstance from "../../helpers/axios/axiosInstance";
 
 import { ROUTES } from "../../routes/routeConstants";
 import "../../design-system/styles/index.css";
@@ -41,23 +42,7 @@ const API_BASE = (
 const WS_ORIGIN = new URL(API_BASE).origin;        // "https://api.kifaytihealth.com"
 const SOCKET_IO_PATH = "/api1/socket.io";
 
-// ── Dummy Data ──────────────────────────────────────────────────────────────
-const DUMMY_ALERTS = [
-  { id: 33, date: "2026-04-09T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 32, date: "2026-04-09T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 31, date: "2026-04-08T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 27, date: "2026-04-03T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 26, date: "2026-04-03T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 25, date: "2026-04-01T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 21, date: "2026-03-31T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 20, date: "2026-03-31T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 16, date: "2026-03-26T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 15, date: "2026-03-25T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 11, date: "2026-03-20T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 5,  date: "2026-03-11T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 3,  date: "2026-02-26T00:00:00.000Z", isOpened: 0, type: "patient", category: "Patient has not answered dialysis alarm for 3 or more days", chatId: 0, patientId: 10 },
-  { id: 1,  date: "2026-01-24T00:00:00.000Z", isOpened: 1, type: "patient", category: "New Program Enrollment", chatId: 0, patientId: 10, programName: "Advanced" }
-];
+// ── No more Dummy Data ──
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const getInitials = (name = "") => {
@@ -155,6 +140,7 @@ const GlobalChatsPage = ({ chatType = "admin" }) => {
   const messagesEndRef  = useRef(null);
   const inputRef        = useRef(null);
   const allPatientsRef  = useRef([]);
+  const allAlertsRef    = useRef([]);
   // Keep myRole and mySender accessible in callbacks without stale closures
   const myRoleRef   = useRef(myRole);
   const mySenderRef = useRef(mySender);
@@ -229,12 +215,18 @@ const GlobalChatsPage = ({ chatType = "admin" }) => {
       setActiveChatId(null);
 
       try {
-        const [roleRes, patientsRes] = await Promise.all([identifyRole(), getPatients()]);
+        const fetchAlerts = isAdminType 
+          ? axiosInstance.get('/alerts/byType/patient').catch(() => ({ data: { alerts: [] } }))
+          : axiosInstance.get('/alerts/byType/doctor').catch(() => ({ data: { alerts: [] } }));
+        
+        const [roleRes, patientsRes, alertsRes] = await Promise.all([identifyRole(), getPatients(), fetchAlerts]);
 
         const role   = roleRes?.data?.data?.role_name || "";
         const sender = localStorage.getItem("email") || "";
         setMyRole(role);
         setMySender(sender);
+        
+        allAlertsRef.current = alertsRes?.data?.alerts || [];
 
         allPatientsRef.current = (patientsRes?.data?.data || patientsRes?.data || []).map((p) => {
           const dob = p.dob ? new Date(p.dob) : null;
@@ -305,6 +297,7 @@ const GlobalChatsPage = ({ chatType = "admin" }) => {
   };
 
   // ── Column 2: Load patients for a staff member ────────────────────────────
+  // Filter alerts from allAlertsRef (no chat API calls) for this staff member
   const onSelectStaff = useCallback(
     async (staff) => {
       setSelectedStaff(staff);
@@ -315,76 +308,68 @@ const GlobalChatsPage = ({ chatType = "admin" }) => {
       setLoadingPatients(true);
 
       try {
-        const role   = myRoleRef.current;
-        const sender = mySenderRef.current;
-        const sw     = isSWChatBetween(role, staff.role);
-        const patientsWithChats = [];
-        let staffTotalMessages = 0;
-
-        await Promise.all(
-          allPatientsRef.current.map(async (pat) => {
-            try {
-              // REST: GET chat summaries for this patient
-              const res = isAdminType
-                ? await getAllChatsAdmin(pat.id)
-                : await getAllChats(pat.id);
-
-              const chats = res?.data?.data || res?.data || [];
-
-              let match;
-              if (sw) {
-                // Admin↔Admin: look for composite receiver key
-                const compKey = compositeReceiver(sender, staff.email);
-                match = chats.find((c) => c.receiver === compKey || (c.receiver && c.receiver.includes(staff.email)));
-              } else {
-                match = chats.find(
-                  (c) => c.sender === staff.email || c.receiver === staff.email || c.user_email === staff.email
-                );
-              }
-
-              if (match) {
-                const unread = match.unread_count || Math.floor(Math.random() * 3); // using logic or mock for alert
-                patientsWithChats.push({
-                  ...pat,
-                  chatId: match.chatid || match.chat_id || match.chatId || match.id,
-                  lastMessage: match.message || match.last_message || "Active chat",
-                  lastAt: match.sent_at || match.created_at || new Date().toISOString(),
-                  unreadCount: unread
-                });
-                staffTotalMessages += unread;
-              } else {
-                // If NO matching chat found, check DUMMY_ALERTS
-                // This allows us to "render table now" even if there's no chat history
-                const dummy = [...DUMMY_ALERTS]
-                  .sort((a,b) => new Date(b.date) - new Date(a.date))
-                  .find(d => String(d.patientId) === String(pat.id));
-
-                if (dummy) {
-                  patientsWithChats.push({
-                    ...pat,
-                    chatId: 0, // indicates it's a dummy/alert entry
-                    lastMessage: dummy.category,
-                    lastAt: dummy.date,
-                    unreadCount: dummy.isOpened === 0 ? 1 : 0
-                  });
-                  if (dummy.isOpened === 0) staffTotalMessages += 1;
-                }
-              }
-            } catch {
-              // skip silently
-            }
-          })
-        );
-
-        patientsWithChats.sort((a, b) => new Date(b.lastAt || 0) - new Date(a.lastAt || 0));
-        setPatientList(patientsWithChats);
+        // Get all alerts from the pre-fetched list
+        const allAlerts = [...(allAlertsRef.current || [])];
         
-        // Update staff counts
+        // Build a map of unique patients with their alerts
+        const patientAlertsMap = new Map();
+        let staffUnreadCount = 0;
+
+        allAlerts.forEach((alert) => {
+          // Each alert belongs to a patient
+          const patId = String(alert.patientId || alert.userId || alert.patient_id);
+          const isUnread = alert.isOpened === 0 || alert.isOpened === false || alert.isRead === 0 || alert.isRead === false;
+
+          if (!patientAlertsMap.has(patId)) {
+            patientAlertsMap.set(patId, {
+              alerts: [],
+              unreadCount: 0,
+              latestAlert: null,
+            });
+          }
+
+          const entry = patientAlertsMap.get(patId);
+          entry.alerts.push(alert);
+          
+          if (isUnread) {
+            entry.unreadCount += 1;
+            staffUnreadCount += 1;
+          }
+
+          // Track latest alert by date for this patient
+          if (!entry.latestAlert || new Date(alert.date || 0) > new Date(entry.latestAlert.date || 0)) {
+            entry.latestAlert = alert;
+          }
+        });
+
+        // Build patient list from alerts
+        const patientsWithAlerts = [];
+
+        allPatientsRef.current.forEach((pat) => {
+          const patId = String(pat.id);
+          const entry = patientAlertsMap.get(patId);
+
+          if (entry && entry.alerts.length > 0) {
+            patientsWithAlerts.push({
+              ...pat,
+              chatId: entry.latestAlert.id || entry.latestAlert.alertId || 0,
+              lastMessage: entry.latestAlert.category || entry.latestAlert.type || `${entry.alerts.length} alert(s)`,
+              lastAt: entry.latestAlert.date || new Date().toISOString(),
+              unreadCount: entry.unreadCount,
+              alertCount: entry.alerts.length
+            });
+          }
+        });
+
+        patientsWithAlerts.sort((a, b) => new Date(b.lastAt || 0) - new Date(a.lastAt || 0));
+        setPatientList(patientsWithAlerts);
+        
+        // Update staff counts with unread alert count
         setMessagesPerStaff(prev => ({
           ...prev,
-          [staff.email]: patientsWithChats.length > 0 ? patientsWithChats.length : staffTotalMessages
+          [staff.email]: staffUnreadCount > 0 ? staffUnreadCount : patientsWithAlerts.length
         }));
-        setTotalMessages(prev => prev + (patientsWithChats.length > 0 ? patientsWithChats.length : staffTotalMessages));
+        setTotalMessages(prev => prev + (staffUnreadCount > 0 ? staffUnreadCount : patientsWithAlerts.length));
         
       } catch (err) {
         console.error("onSelectStaff error:", err);
