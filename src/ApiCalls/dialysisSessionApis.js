@@ -138,6 +138,15 @@ export async function submitSessionAction(sessionId, payload, config = {}) {
   }
 }
 
+export async function getHemoDialysisParameters(pid) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dialysisParameter/Hemo%20dialysis?user=${pid}`);
+    return { success: true, data: response.data?.data || response.data || [] };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
 export default {
   startDialysisSession,
   getDialysisSessionById,
@@ -146,4 +155,5 @@ export default {
   getSessionReadings,
   updateSessionParameters,
   submitSessionAction,
+  getHemoDialysisParameters,
 };

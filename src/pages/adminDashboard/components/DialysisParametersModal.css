@@ -6,8 +6,10 @@
 .dialysis-modal__content {
   overflow: hidden;
   border-radius: 24px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  background: #ffffff;
   box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
 }
 
 .dialysis-modal__header {
@@ -66,14 +68,31 @@
 
 .dialysis-modal__body {
   padding: 0;
-  background: #f7fafc;
+  background: #f8fafc;
+  overflow-y: auto !important;
+  max-height: calc(88vh - 180px); /* Adjust based on header/footer height */
 }
 
 .dialysis-modal__workspace {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 22px 24px 18px;
+  padding: 24px;
+  min-height: 100%;
+}
+
+.dialysis-modal__main-layout {
+  align-items: flex-start;
+}
+
+.dialysis-modal__left-column {
+  min-width: 0; /* Prevent flex overflow */
+}
+
+.dialysis-modal__right-column {
+  position: sticky;
+  top: 0;
+  height: fit-content;
 }
 
 .dialysis-modal__workspace-banner {

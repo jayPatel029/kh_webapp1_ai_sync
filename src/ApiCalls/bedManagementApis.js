@@ -138,7 +138,7 @@ export async function getBedAssignmentsByDateRange(payload, config = {}) {
  */
 export async function getPatientDetails(patientId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/patients/${patientId}`, config);
+    const response = await axiosInstance.get(`${server_url}/patient/getPatient/${patientId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

@@ -186,6 +186,42 @@ function to24Hour(t) {
   return `${String(h).padStart(2, '0')}:${m}:00`;
 }
 
+function getDayOfWeek(dateStr) {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return 'Monday';
+  return date.toLocaleDateString('en-US', { weekday: 'long' });
+}
+
+function addMinutesToTime(timeStr, minutes) {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return '';
+  const hours = Number(parts[0]);
+  const mins = Number(parts[1]);
+  if (Number.isNaN(hours) || Number.isNaN(mins)) return '';
+  const date = new Date(0, 0, 0, hours, mins + Number(minutes));
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function buildSlotTemplates(raw) {
+  const startTime = raw.start_time || (raw.startUTC ? String(raw.startUTC).split('T')[1]?.slice(0, 5) : '');
+  const endTime = raw.end_time || (startTime ? addMinutesToTime(startTime, 30) : '');
+  if (!startTime) return [];
+
+  const appointmentDate = raw.appointment_date || (raw.startUTC ? String(raw.startUTC).split('T')[0] : null);
+  return [{
+    id: `slot-${Date.now()}`,
+    frequency: 'weekly',
+    daysOfWeek: [getDayOfWeek(appointmentDate || new Date().toISOString().split('T')[0])],
+    dayOfMonth: null,
+    startTime,
+    endTime: endTime || '00:00',
+    maxPatientsPerSlot: 1,
+    bufferMinutes: 30,
+    price: 0,
+  }];
+}
+
 // ─── Action Button ──────────────────────────────────────────
 const ActionIconBtn = ({ icon, onClick, disabled = false, style = {} }) => (
   <button
@@ -578,33 +614,56 @@ const DialysisAppointments = () => {
     setSavedAppointment(null);
     setCreateFieldErrors({});
     setCreateErrorMessage('');
+    setIsEditOpen(false);
     // Keep clinic pre-selected if only one exists
     const preClinic = clinics.length === 1
       ? { clinic_id: String(clinics[0].id), clinic_name: clinics[0].name || `Clinic #${clinics[0].id}` }
       : { clinic_id: '', clinic_name: '' };
     setCreateForm({ ...defaultForm, appointment_date: today, ...preClinic });
-  }, [clinics, today]);
+  }, [clinics, today, defaultForm]);
 
   // ─── Edit Open ────────────────────────────────────────
   const handleEditOpen = useCallback((apt) => {
+    const raw = apt._raw || apt;
+    const slotTemplates = raw.slotTemplates || buildSlotTemplates(raw);
+    const patientAilments = raw.patient_ailments || raw.metadata?.patientAilments || raw.metadata?.patientAilments || '';
+    const reason = raw.reason || raw.metadata?.notes || raw.metadata?.notes_brief || '';
+    const totalAmount = raw.totalAmount || raw.amountDue || raw.total_amt || raw.amount || 0;
+    const amountPaid = raw.amountPaid || raw.paidAmount || raw.received_amt || 0;
+    const paymentMethod = raw.paymentMethod || raw.payment_method || raw.metadata?.paymentMethod || 'cash';
+    const doctorId = raw.doctor_id || raw.doctorId || raw.primary_doctor_id || raw.doctor?.id || '';
+
+    setCreateFieldErrors({});
+    setCreateErrorMessage('');
+    setSavedAppointment(null);
+
     setCreateForm({
       ...defaultForm,
-      id: apt.id,
-      patient_id: apt.patient_id,
-      clinic_id: String(apt.clinic_id),
-      clinic_name: apt.clinic_name,
-      appointment_date: apt.appointment_date,
-      start_time: apt.start_time || '',
-      patient_ailments: apt.patient_ailments || '',
-      total_amount: apt.totalAmount,
-      amount_paid: apt.amountPaid,
-      payment_option: apt.amountPaid >= apt.totalAmount ? 'full' : 'partial',
+      id: raw.id || apt.id,
+      patient_id: raw.patient_id || raw.patientId || '',
+      clinic_id: String(raw.clinic_id || raw.clinicId || ''),
+      clinic_name: raw.clinic_name || raw.clinic?.name || '',
+      appointment_date: raw.appointment_date || (raw.startUTC ? String(raw.startUTC).split('T')[0] : today),
+      start_time: raw.start_time || (raw.startUTC ? String(raw.startUTC).split('T')[1]?.slice(0, 5) : ''),
+      end_time: raw.end_time || '',
+      appointment_type: raw.appointment_type || raw.treatment_type || raw.bookingType || defaultForm.appointment_type,
+      doctor_id: doctorId,
+      is_emergency: Boolean(raw.is_emergency || raw.emergency),
+      reason,
+      patient_ailments: patientAilments,
+      slotTemplates,
+      total_amount: totalAmount,
+      amount_paid: amountPaid,
+      payment_option: amountPaid >= totalAmount ? 'full' : 'partial',
+      payment_method: String(paymentMethod).toLowerCase(),
+      receipt_file: null,
     });
-    // If services were saved in metadata, you'd restore them here
-    setAddedServices([]); 
-    setIsEditOpen(true);
+
+    setAddedServices(raw.metadata?.services || raw.services || []);
     setCreateStep(1);
-  }, []);
+    setIsEditOpen(true);
+    setIsCreateOpen(true);
+  }, [today, defaultForm]);
 
   // ─── Step 1 → Step 2 ─────────────────────────────────
   const handleNextStep1 = () => {

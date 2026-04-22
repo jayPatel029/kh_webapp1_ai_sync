@@ -42,7 +42,6 @@ import {
 import { Select } from '../../../component-library/primitives/Select';
 import { Accordion, AccordionItem } from '../../../component-library/primitives/Accordion';
 import {
-  getDialysisHealthParams,
   submitDialysisHealthParams,
   getDialysisReadings,
 } from '../../../ApiCalls';
@@ -51,10 +50,12 @@ import {
   submitSessionPreReadings,
   submitSessionReadings,
   submitSessionAction,
+  getHemoDialysisParameters,
 } from '../../../ApiCalls/dialysisSessionApis';
 import {
   getPatientById,
 } from '../../../ApiCalls/patientAPis';
+import PatientProfileCard from '../../../components/PatientProfileCard';
 import {
   getOrganizationById,
 } from '../../../ApiCalls/clinicApis';
@@ -89,7 +90,6 @@ export default function DialysisParametersModal({
   initialData = {},
 }) {
   const [stage, setStage] = useState('before'); // 'before', 'during', 'after'
-  const [patientParams, setPatientParams] = useState(null);
   const [completePatientData, setCompletePatientData] = useState(null);
   const [dialysisReadings, setDialysisReadings] = useState(null);
   const [loadingData, setLoadingData] = useState(false);
@@ -117,10 +117,10 @@ export default function DialysisParametersModal({
   const [selectedAilment, setSelectedAilment] = useState('');
 
   const heparinInfo = useMemo(() => {
-    // Prefer dry_weight as requested; fall back to measured or body_weight
-    const dry = Number(patientParams?.dry_weight) || Number(measuredWeight) || Number(patientParams?.body_weight);
+    // Prefer dry_weight; fall back to measured or body_weight
+    const dry = Number(completePatientData?.dry_weight) || Number(measuredWeight) || Number(completePatientData?.body_weight);
     return calculateHeparinDose(dry, heparinOverride || 'auto', selectedAilment || null);
-  }, [patientParams?.dry_weight, patientParams?.body_weight, measuredWeight, heparinOverride, selectedAilment]);
+  }, [completePatientData?.dry_weight, completePatientData?.body_weight, measuredWeight, heparinOverride, selectedAilment]);
 
   // During Dialysis state
   const [duringReadings, setDuringReadings] = useState({
@@ -137,10 +137,16 @@ export default function DialysisParametersModal({
 
   // After Dialysis state
   const [afterNotes, setAfterNotes] = useState('');
+
+  // Blood Samples state
   const [bloodSamples, setBloodSamples] = useState({
     samples_taken: false,
     samples_sent_to_lab: false,
   });
+
+  // Hemo Dialysis Parameters from API
+  const [hemoParams, setHemoParams] = useState([]);
+  const [hemoParamsResponses, setHemoParamsResponses] = useState({});
 
   // Inventory & Supplies state
   const [inventoryItems, setInventoryItems] = useState([]);
@@ -226,16 +232,10 @@ export default function DialysisParametersModal({
         }
       }
 
-      // 2. Fetch dialysis specific health params (Dry weight etc)
+      // 2. Dialysis specific health params are now part of complete patient data
       if (initialData?.params) {
-        setPatientParams(initialData.params);
-      } else {
-        const paramsResult = await getDialysisHealthParams({
-          patient_id: patient.patient_id,
-        });
-        if (paramsResult.success) {
-          setPatientParams(paramsResult.data);
-        }
+        // Fallback for legacy data if needed, but primary source is now completePatientData
+        if (!completePatientData) setCompletePatientData(initialData.params);
       }
 
       // 3. Fetch recent readings
@@ -249,6 +249,12 @@ export default function DialysisParametersModal({
           );
           setDialysisReadings(patientReadings);
         }
+      }
+
+      // 4. Fetch Hemo Dialysis specific parameters
+      const hemoRes = await getHemoDialysisParameters(patient.patient_id);
+      if (hemoRes.success) {
+        setHemoParams(hemoRes.data || []);
       }
     } catch (err) {
       console.error('Failed to fetch patient data:', err);
@@ -281,7 +287,7 @@ export default function DialysisParametersModal({
       const plannedParameters = {
         session_duration_minutes: Number(estimatedDuration) || 240,
         ultrafiltration_target_ml: Number(targetUltrafiltration) || 2000,
-        target_dry_weight_kg: Number(patientParams?.dry_weight) || Number(completePatientData?.dry_weight) || undefined,
+        target_dry_weight_kg: Number(completePatientData?.dry_weight) || undefined,
         heparin_dose_units: heparinInfo?.doseIU || undefined,
         ailments: completePatientData?.ailments || [],
         notes: beforeNotes,
@@ -308,6 +314,7 @@ export default function DialysisParametersModal({
         weight_kg: Number(measuredWeight) || undefined,
         notes: beforeNotes,
         access_assessment: beforeChecklist.blood_access_checked ? 'Checked & patent' : 'Pending check',
+        custom_parameters: hemoParamsResponses,
         labs: {
           is_infectious: completePatientData?.is_infectious || false,
         }
@@ -321,6 +328,7 @@ export default function DialysisParametersModal({
         notes: beforeNotes,
         heparin: heparinPayload,
         planned_parameters: plannedParameters,
+        custom_readings: hemoParamsResponses,
         timestamp: new Date().toISOString(),
       });
 
@@ -524,713 +532,422 @@ export default function DialysisParametersModal({
             </VStack>
           ) : (
             <Box className="dialysis-modal__workspace">
-              <Accordion defaultIndex={stage === 'before' ? 0 : stage === 'during' ? 1 : 2}>
-              {/* =================================================================
-                  BEFORE DIALYSIS
-                  ================================================================= */}
-              <AccordionItem
-                title="Pre-Dialysis Assessment & Checklist"
-                badge="STEP 1"
-                badgeColor="info"
-                className="dialysis-modal__accordion-item"
-              >
-                <VStack spacing={4}>
-                  {/* Patient Parameters */}
-                  {patientParams && (
-                    <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
-                      <CardHeader>
-                        <Heading as="h4" size="sm">
-                          Patient Parameters
-                        </Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack spacing={3} align="start">
-                          <HStack width="100%" justify="space-between">
-                            <Text fontSize="sm">Height:</Text>
-                            <Text fontWeight="600">{patientParams.height || 'N/A'} cm</Text>
-                          </HStack>
-                          <HStack width="100%" justify="space-between">
-                            <Text fontSize="sm">Weight:</Text>
-                            <Text fontWeight="600">
-                              {patientParams.body_weight || 'N/A'} kg
-                            </Text>
-                          </HStack>
-                          <HStack width="100%" justify="space-between">
-                            <Text fontSize="sm">Blood Type:</Text>
-                            <Text fontWeight="600">{patientParams.blood_type || 'N/A'}</Text>
-                          </HStack>
-                          <HStack width="100%" justify="space-between">
-                            <Text fontSize="sm">Vascular Access:</Text>
-                            <Text fontWeight="600">
-                              {patientParams.vascular_access_type || 'N/A'}
-                            </Text>
-                          </HStack>
-                          <HStack width="100%" justify="space-between">
-                            <Text fontSize="sm">Dry Weight:</Text>
-                            <Text fontWeight="600">
-                              {patientParams.dry_weight || 'N/A'} kg
-                            </Text>
-                          </HStack>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  )}
+              <HStack align="start" spacing={6} width="100%" className="dialysis-modal__main-layout">
+                {/* LEFT SIDE: Patient Profile & Session Accordions */}
+                <VStack flex={7} align="stretch" spacing={6} className="dialysis-modal__left-column">
+                  <PatientProfileCard userData={completePatientData || patient} role={{ role_name: 'Medical Staff' }} />
 
-                  {/* Pre-Dialysis Checklist */}
-                  <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
-                    <CardHeader>
-                      <Heading as="h4" size="sm">
-                        Pre-Dialysis Checklist
-                      </Heading>
-                    </CardHeader>
-                    <CardBody>
-                      <VStack spacing={3} align="start">
-                        <FormControl display="flex" alignItems="center">
-                          <HStack spacing={3}>
-                            <Checkbox
-                              checked={beforeChecklist.physical_exam_done}
-                              onChange={(e) =>
-                                setBeforeChecklist({
-                                  ...beforeChecklist,
-                                  physical_exam_done: e.target.checked,
-                                })
-                              }
-                              disabled={stage !== 'before' || isLoading}
-                            />
-                            <FormLabel mb={0}>Physical examination completed</FormLabel>
-                          </HStack>
-                        </FormControl>
-
-                        <FormControl display="flex" alignItems="center">
-                          <HStack spacing={3}>
-                            <Checkbox
-                              checked={beforeChecklist.vital_signs_recorded}
-                              onChange={(e) =>
-                                setBeforeChecklist({
-                                  ...beforeChecklist,
-                                  vital_signs_recorded: e.target.checked,
-                                })
-                              }
-                              disabled={stage !== 'before' || isLoading}
-                            />
-                            <FormLabel mb={0}>Vital signs recorded</FormLabel>
-                          </HStack>
-                        </FormControl>
-
-                        <FormControl display="flex" alignItems="center">
-                          <HStack spacing={3}>
-                            <Checkbox
-                              checked={beforeChecklist.blood_access_checked}
-                              onChange={(e) =>
-                                setBeforeChecklist({
-                                  ...beforeChecklist,
-                                  blood_access_checked: e.target.checked,
-                                })
-                              }
-                              disabled={stage !== 'before' || isLoading}
-                            />
-                            <FormLabel mb={0}>Blood access checked & patent</FormLabel>
-                          </HStack>
-                        </FormControl>
-
-                        <FormControl display="flex" alignItems="center">
-                          <HStack spacing={3}>
-                            <Checkbox
-                              checked={beforeChecklist.medication_given}
-                              onChange={(e) =>
-                                setBeforeChecklist({
-                                  ...beforeChecklist,
-                                  medication_given: e.target.checked,
-                                })
-                              }
-                              disabled={stage !== 'before' || isLoading}
-                            />
-                            <FormLabel mb={0}>Pre-dialysis medications given</FormLabel>
-                          </HStack>
-                        </FormControl>
-
-                        <FormControl display="flex" alignItems="center">
-                          <HStack spacing={3}>
-                            <Checkbox
-                              checked={beforeChecklist.consent_obtained}
-                              onChange={(e) =>
-                                setBeforeChecklist({
-                                  ...beforeChecklist,
-                                  consent_obtained: e.target.checked,
-                                })
-                              }
-                              disabled={stage !== 'before' || isLoading}
-                            />
-                            <FormLabel mb={0}>Informed consent obtained</FormLabel>
-                          </HStack>
-                        </FormControl>
-                      </VStack>
-                    </CardBody>
-                  </Card>
-
-                  {/* Dynamic Organization Guidelines (Pre-Dialysis) */}
-                  {orgGuidelines.filter(g => g.type?.toLowerCase().includes('pre')).length > 0 && (
-                    <Card variant="outline" size="sm" className="dialysis-modal__panel-card" borderLeft="4px solid" borderColor="info.400">
-                      <CardHeader>
-                        <Heading as="h4" size="sm">Organization Guidelines (Pre-Dialysis)</Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack spacing={3} align="start">
-                          {orgGuidelines.filter(g => g.type?.toLowerCase().includes('pre')).map((gl, i) => (
-                            <FormControl key={i} display="flex" alignItems="center">
-                              <HStack spacing={3}>
-                                <Checkbox
-                                  checked={dynamicChecklist[`dynamic_${i}`]}
-                                  onChange={(e) => setDynamicChecklist(prev => ({
-                                    ...prev,
-                                    [`dynamic_${i}`]: e.target.checked
-                                  }))}
-                                  disabled={stage !== 'before' || isLoading}
-                                />
-                                <Text fontSize="sm">{gl.text}</Text>
-                              </HStack>
-                            </FormControl>
-                          ))}
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  )}
-
-                  {/* Pre-Dialysis Notes */}
-                  <FormControl>
-                    <FormLabel>Pre-Dialysis Notes</FormLabel>
-                    <Textarea
-                      placeholder="Enter any observations or notes before starting dialysis..."
-                      value={beforeNotes}
-                      onChange={(e) => setBeforeNotes(e.target.value)}
-                      disabled={stage !== 'before' || isLoading}
-                      rows={3}
-                      className="dialysis-modal__textarea"
-                    />
-                  </FormControl>
-
-                    {/* Measured weight and estimated duration */}
-                    <HStack width="100%" spacing={3} align="end">
-                      <FormControl flex={1}>
-                        <FormLabel>Measured Weight (kg)</FormLabel>
-                        <Input
-                          placeholder="e.g., 70"
-                          value={measuredWeight}
-                          onChange={(e) => setMeasuredWeight(e.target.value)}
-                          disabled={stage !== 'before' || isLoading}
-                          type="number"
-                          step="0.1"
-                        />
-                      </FormControl>
-
-                      <FormControl flex={1}>
-                        <FormLabel>Est. Duration (min)</FormLabel>
-                        <Input
-                          placeholder="e.g., 240"
-                          value={estimatedDuration}
-                          onChange={(e) => setEstimatedDuration(e.target.value)}
-                          disabled={stage !== 'before' || isLoading}
-                          type="number"
-                        />
-                      </FormControl>
-
-                      <FormControl flex={1}>
-                        <FormLabel>UF Target (ml)</FormLabel>
-                        <Input
-                          placeholder="e.g., 2000"
-                          value={targetUltrafiltration}
-                          onChange={(e) => setTargetUltrafiltration(e.target.value)}
-                          disabled={stage !== 'before' || isLoading}
-                          type="number"
-                        />
-                      </FormControl>
-
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          // Try to compute duration from measured weight and dry weight
-                          const mw = Number(measuredWeight) || Number(patientParams?.body_weight) || 0;
-                          const dw = Number(patientParams?.dry_weight) || 0;
-                          const targetKg = Math.max(0, mw - dw);
-                          const targetMl = Math.round(targetKg * 1000);
-                          
-                          setTargetUltrafiltration(String(targetMl));
-                          
-                          // simple heuristic: 500ml/hr -> 1000ml -> 120min
-                          const computedMin = Math.max(60, Math.round((targetMl / 500) * 60));
-                          setEstimatedDuration(String(computedMin));
-                        }}
-                        isDisabled={stage !== 'before' || isLoading}
-                      >
-                        Calculate
-                      </Button>
-                    </HStack>
-                    {/* Heparin dosage suggestion */}
-                    <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
-                      <CardHeader>
-                        <Heading as="h4" size="sm">Heparin Dosage</Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack spacing={3} align="start">
-                          <HStack width="100%" spacing={3}>
-                            <FormControl flex={1}>
-                              <FormLabel>Doctor override</FormLabel>
-                              <Select
-                                value={heparinOverride}
-                                onChange={(e) => setHeparinOverride(e.target.value)}
-                                disabled={stage !== 'before' || isLoading}
-                              >
-                                <option value="auto">Auto (ailment-based)</option>
-                                <option value="low">Low dose</option>
-                                <option value="standard">Standard dose</option>
-                                <option value="high">High dose</option>
-                              </Select>
-                            </FormControl>
-
-                            <FormControl flex={1}>
-                              <FormLabel>Ailment / condition</FormLabel>
-                              <Select
-                                value={selectedAilment}
-                                onChange={(e) => setSelectedAilment(e.target.value)}
-                                disabled={stage !== 'before' || isLoading}
-                              >
-                                <option value="">None</option>
-                                {/* Populate from patient's actual ailments if available */}
-                                {completePatientData?.ailments?.map(ail => (
-                                  <option key={ail} value={ail}>{ail}</option>
+                  <Accordion defaultIndex={stage === 'before' ? 0 : stage === 'during' ? 1 : 2} allowToggle={false}>
+                    {/* =================================================================
+                        BEFORE DIALYSIS
+                        ================================================================= */}
+                    <AccordionItem
+                      title="Pre-Dialysis Assessment & Checklist"
+                      badge="STEP 1"
+                      badgeColor="info"
+                      className="dialysis-modal__accordion-item"
+                    >
+                      <VStack spacing={4} align="stretch">
+                        {/* Dynamic Hemo Dialysis Parameters from API */}
+                        {hemoParams.length > 0 && (
+                          <Card variant="outline" size="sm" className="dialysis-modal__panel-card" borderLeft="4px solid" borderColor="info.500">
+                            <CardHeader>
+                              <Heading as="h4" size="sm">Hemo-Dialysis Reading Parameters</Heading>
+                            </CardHeader>
+                            <CardBody>
+                              <Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {hemoParams.map((param) => (
+                                  <FormControl key={param.id}>
+                                    <FormLabel fontSize="sm" fontWeight="600">
+                                      {param.title} {param.unit ? `(${param.unit})` : ''}
+                                    </FormLabel>
+                                    {param.type === 'Numeric' ? (
+                                      <Input
+                                        type="number"
+                                        placeholder={`Enter ${param.title}`}
+                                        value={hemoParamsResponses[param.id] || ''}
+                                        onChange={(e) => setHemoParamsResponses({
+                                          ...hemoParamsResponses,
+                                          [param.id]: e.target.value
+                                        })}
+                                        size="sm"
+                                        disabled={stage !== 'before'}
+                                      />
+                                    ) : param.type === 'Date' ? (
+                                      <Input
+                                        type="datetime-local"
+                                        value={hemoParamsResponses[param.id] || ''}
+                                        onChange={(e) => setHemoParamsResponses({
+                                          ...hemoParamsResponses,
+                                          [param.id]: e.target.value
+                                        })}
+                                        size="sm"
+                                        disabled={stage !== 'before'}
+                                      />
+                                    ) : (
+                                      <Input
+                                        placeholder={`Enter ${param.title}`}
+                                        value={hemoParamsResponses[param.id] || ''}
+                                        onChange={(e) => setHemoParamsResponses({
+                                          ...hemoParamsResponses,
+                                          [param.id]: e.target.value
+                                        })}
+                                        size="sm"
+                                        disabled={stage !== 'before'}
+                                      />
+                                    )}
+                                    {param.assign_range === 'yes' && (param.low_range !== null || param.high_range !== null) && (
+                                      <Text fontSize="10px" color="textMuted" mt={1}>
+                                        Normal range: {param.low_range ?? 'N/A'} - {param.high_range ?? 'N/A'}
+                                      </Text>
+                                    )}
+                                  </FormControl>
                                 ))}
-                                <option value="anticoagulation">On anticoagulation</option>
-                                <option value="bleeding_risk">High bleeding risk</option>
-                                <option value="hypercoagulable">Hypercoagulable</option>
-                                <option value="heparin_resistance">Heparin resistance</option>
-                              </Select>
-                            </FormControl>
-                          </HStack>
+                              </Box>
+                            </CardBody>
+                          </Card>
+                        )}
 
-                          <Box>
-                            <Text fontSize="sm" fontWeight="600">
-                              Suggested dose:
-                              {' '}
-                              {heparinInfo?.doseIU ? `${heparinInfo.doseIU} IU` : '—'}
-                              {heparinInfo?.perKg ? ` (${heparinInfo.perKg} IU/kg)` : ''}
-                            </Text>
-                            <Text fontSize="xs" color="textMuted">
-                              {heparinInfo?.note || 'Heparin dose will be computed using dry weight.'}
-                            </Text>
-                          </Box>
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  <HStack justify="flex-end" width="100%">
-                    <Button
-                      variant="solid"
-                      colorScheme="success"
-                      onClick={handleStartDialysis}
-                      isLoading={isLoading}
-                      isDisabled={stage !== 'before' || isLoading}
-                    >
-                      Start Dialysis
-                    </Button>
-                  </HStack>
-                </VStack>
-              </AccordionItem>
+                        {/* Baseline Parameters (derived from completePatientData) */}
+                        {completePatientData && (
+                          <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
+                            <CardHeader>
+                              <Heading as="h4" size="sm">Baseline Parameters</Heading>
+                            </CardHeader>
+                            <CardBody>
+                              <Box className="grid grid-cols-2 gap-x-6 gap-y-2">
+                                <HStack justify="space-between"><Text fontSize="xs">Height:</Text><Text fontSize="xs" fontWeight="700">{completePatientData.height || 'N/A'} cm</Text></HStack>
+                                <HStack justify="space-between"><Text fontSize="xs">Weight:</Text><Text fontSize="xs" fontWeight="700">{completePatientData.body_weight || 'N/A'} kg</Text></HStack>
+                                <HStack justify="space-between"><Text fontSize="xs">Blood Type:</Text><Text fontSize="xs" fontWeight="700">{completePatientData.blood_type || 'N/A'}</Text></HStack>
+                                <HStack justify="space-between"><Text fontSize="xs">Access:</Text><Text fontSize="xs" fontWeight="700">{completePatientData.vascular_access_type || 'N/A'}</Text></HStack>
+                                <HStack justify="space-between" gridColumn="span 2"><Text fontSize="xs">Dry Weight:</Text><Text fontSize="xs" fontWeight="700">{completePatientData.dry_weight || 'N/A'} kg</Text></HStack>
+                              </Box>
+                            </CardBody>
+                          </Card>
+                        )}
 
-              {/* =================================================================
-                  SUPPLIES & INVENTORY
-                  ================================================================= */}
-              <AccordionItem
-                title="Supplies & Inventory"
-                badge={consumedItems.length > 0 ? `${consumedItems.length} ISSUED` : "LINKED"}
-                badgeColor={consumedItems.length > 0 ? "info" : "gray"}
-                className="dialysis-modal__accordion-item"
-              >
-                <VStack spacing={4} align="stretch">
-                  <Text fontSize="sm" color="textMuted">
-                    Link inventory consumption to this session for stock tracking and audit trail.
-                  </Text>
-                  
-                  <HStack spacing={3} align="flex-end">
-                    <FormControl flex={2}>
-                      <FormLabel fontSize="xs">Issue Item</FormLabel>
-                      <Select 
-                        placeholder="Select item..."
-                        onChange={(e) => {
-                          const itemId = e.target.value;
-                          if (itemId) handleIssueItem(itemId, 1);
-                        }}
-                        disabled={stage === 'before'}
-                        size="sm"
-                      >
-                        {inventoryItems.map(item => (
-                          <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    
-                    <FormControl flex={1.5}>
-                      <FormLabel fontSize="xs">Dialyzer Use</FormLabel>
-                      <HStack spacing={1}>
-                        <Select
-                          placeholder="Select Dialyzer..."
-                          value={selectedDialyzerId}
-                          onChange={(e) => setSelectedDialyzerId(e.target.value)}
-                          disabled={stage === 'before'}
-                          size="sm"
+                        <HStack align="start" spacing={4}>
+                          {/* Pre-Dialysis Checklist */}
+                          <Card variant="outline" size="sm" className="dialysis-modal__panel-card" flex={1}>
+                            <CardHeader>
+                              <Heading as="h4" size="sm">Checklist</Heading>
+                            </CardHeader>
+                            <CardBody>
+                              <VStack spacing={2} align="start">
+                                {[
+                                  { key: 'physical_exam_done', label: 'Physical exam' },
+                                  { key: 'vital_signs_recorded', label: 'Vitals recorded' },
+                                  { key: 'blood_access_checked', label: 'Access patent' },
+                                  { key: 'medication_given', label: 'Medications' },
+                                  { key: 'consent_obtained', label: 'Consent' }
+                                ].map(item => (
+                                  <FormControl key={item.key} display="flex" alignItems="center">
+                                    <HStack spacing={2}>
+                                      <Checkbox
+                                        checked={beforeChecklist[item.key]}
+                                        onChange={(e) => setBeforeChecklist({ ...beforeChecklist, [item.key]: e.target.checked })}
+                                        disabled={stage !== 'before'}
+                                        size="sm"
+                                      />
+                                      <Text fontSize="xs">{item.label}</Text>
+                                    </HStack>
+                                  </FormControl>
+                                ))}
+                              </VStack>
+                            </CardBody>
+                          </Card>
+
+                          {/* Dynamic Organization Guidelines */}
+                          {orgGuidelines.filter(g => g.type?.toLowerCase().includes('pre')).length > 0 && (
+                            <Card variant="outline" size="sm" className="dialysis-modal__panel-card" flex={1.2}>
+                              <CardHeader>
+                                <Heading as="h4" size="sm">Org Guidelines</Heading>
+                              </CardHeader>
+                              <CardBody>
+                                <VStack spacing={2} align="start">
+                                  {orgGuidelines.filter(g => g.type?.toLowerCase().includes('pre')).map((gl, i) => (
+                                    <FormControl key={i} display="flex" alignItems="center">
+                                      <HStack spacing={2}>
+                                        <Checkbox
+                                          checked={dynamicChecklist[`dynamic_${i}`]}
+                                          onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`dynamic_${i}`]: e.target.checked }))}
+                                          disabled={stage !== 'before'}
+                                          size="sm"
+                                        />
+                                        <Text fontSize="xs">{gl.text}</Text>
+                                      </HStack>
+                                    </FormControl>
+                                  ))}
+                                </VStack>
+                              </CardBody>
+                            </Card>
+                          )}
+                        </HStack>
+
+                        {/* Heparin dosage suggestion */}
+                        <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
+                          <CardHeader>
+                            <Heading as="h4" size="sm">Heparin Dosage</Heading>
+                          </CardHeader>
+                          <CardBody>
+                            <VStack spacing={3} align="stretch">
+                              <HStack width="100%" spacing={3}>
+                                <FormControl flex={1}>
+                                  <FormLabel fontSize="xs">Strategy</FormLabel>
+                                  <Select
+                                    value={heparinOverride}
+                                    onChange={(e) => setHeparinOverride(e.target.value)}
+                                    disabled={stage !== 'before'}
+                                    size="sm"
+                                  >
+                                    <option value="auto">Auto</option>
+                                    <option value="low">Low</option>
+                                    <option value="standard">Standard</option>
+                                    <option value="high">High</option>
+                                  </Select>
+                                </FormControl>
+                                <FormControl flex={1}>
+                                  <FormLabel fontSize="xs">Suggested Dose</FormLabel>
+                                  <Box p={2} bg="gray.50" borderRadius="md" border="1px solid" borderColor="gray.200">
+                                    <Text fontSize="xs" fontWeight="700">
+                                      {heparinInfo?.doseIU ? `${heparinInfo.doseIU} IU` : '—'}
+                                      {heparinInfo?.perKg ? ` (${heparinInfo.perKg} IU/kg)` : ''}
+                                    </Text>
+                                  </Box>
+                                </FormControl>
+                              </HStack>
+                            </VStack>
+                          </CardBody>
+                        </Card>
+
+                        {/* Planning Inputs */}
+                        <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
+                          <CardBody>
+                            <HStack spacing={3} align="end">
+                              <FormControl flex={1}>
+                                <FormLabel fontSize="xs">Weight (kg)</FormLabel>
+                                <Input value={measuredWeight} onChange={(e) => setMeasuredWeight(e.target.value)} disabled={stage !== 'before'} size="sm" type="number" />
+                              </FormControl>
+                              <FormControl flex={1}>
+                                <FormLabel fontSize="xs">Duration (min)</FormLabel>
+                                <Input value={estimatedDuration} onChange={(e) => setEstimatedDuration(e.target.value)} disabled={stage !== 'before'} size="sm" type="number" />
+                              </FormControl>
+                              <FormControl flex={1}>
+                                <FormLabel fontSize="xs">UF Target (ml)</FormLabel>
+                                <Input value={targetUltrafiltration} onChange={(e) => setTargetUltrafiltration(e.target.value)} disabled={stage !== 'before'} size="sm" type="number" />
+                              </FormControl>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const mw = Number(measuredWeight) || Number(completePatientData?.body_weight) || 0;
+                                  const dw = Number(completePatientData?.dry_weight) || 0;
+                                  const targetKg = Math.max(0, mw - dw);
+                                  const targetMl = Math.round(targetKg * 1000);
+                                  setTargetUltrafiltration(String(targetMl));
+                                  const computedMin = Math.max(60, Math.round((targetMl / 500) * 60));
+                                  setEstimatedDuration(String(computedMin));
+                                }}
+                                isDisabled={stage !== 'before'}
+                              >
+                                Calc
+                              </Button>
+                            </HStack>
+                          </CardBody>
+                        </Card>
+
+                        <FormControl>
+                          <FormLabel fontSize="xs">Pre-Dialysis Notes</FormLabel>
+                          <Textarea
+                            placeholder="Observations..."
+                            value={beforeNotes}
+                            onChange={(e) => setBeforeNotes(e.target.value)}
+                            disabled={stage !== 'before'}
+                            rows={2}
+                            size="sm"
+                          />
+                        </FormControl>
+
+                        <Button
+                          colorScheme="success"
+                          onClick={handleStartDialysis}
+                          isLoading={isLoading}
+                          isDisabled={stage !== 'before'}
+                          width="100%"
                         >
-                          {dialyzers.map(d => (
-                            <option key={d.id} value={d.id}>
-                              Dialyzer #{d.id} ({d.usage_count}/{d.max_usage})
-                            </option>
-                          ))}
-                        </Select>
-                        <Button 
-                          size="xs" 
-                          variant="solid" 
-                          colorScheme="info"
-                          onClick={handleUseDialyzer}
-                          disabled={!selectedDialyzerId || stage === 'before'}
-                        >
-                          Use
+                          Start Dialysis Session
                         </Button>
-                      </HStack>
-                    </FormControl>
-                  </HStack>
-
-                  {consumedItems.length > 0 && (
-                    <Card variant="outline" size="sm" bg="gray50">
-                      <CardHeader py={2}>
-                        <Heading as="h5" size="xs">Linked Consumption</Heading>
-                      </CardHeader>
-                      <CardBody py={2}>
-                        <VStack align="stretch" spacing={1}>
-                          {consumedItems.map(item => (
-                            <HStack key={item.id} justify="space-between" fontSize="xs">
-                              <Text fontWeight="600">{item.name}</Text>
-                              <Badge size="xs" variant="outline">Qty: {item.quantity}</Badge>
-                            </HStack>
-                          ))}
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  )}
-                </VStack>
-              </AccordionItem>
-
-              {/* =================================================================
-                  DURING DIALYSIS
-                  ================================================================= */}
-              <AccordionItem
-                title="During Dialysis - Monitoring & Readings"
-                badge="STEP 2"
-                badgeColor="warning"
-                className="dialysis-modal__accordion-item"
-              >
-                <VStack spacing={4}>
-                  {/* Dialysis Machine Readings */}
-                  <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
-                    <CardHeader>
-                      <Heading as="h4" size="sm">
-                        Machine Parameters
-                      </Heading>
-                    </CardHeader>
-                    <CardBody>
-                      <VStack spacing={3}>
-                        <HStack width="100%" spacing={3} justify="space-between">
-                          <FormControl flex={1}>
-                            <FormLabel fontSize="sm">Blood Flow Rate (mL/min)</FormLabel>
-                            <Input
-                              placeholder="e.g., 300"
-                              value={duringReadings.blood_flow_rate}
-                              onChange={(e) =>
-                                setDuringReadings({
-                                  ...duringReadings,
-                                  blood_flow_rate: e.target.value,
-                                })
-                              }
-                              disabled={stage !== 'during' || isLoading}
-                              type="number"
-                            />
-                          </FormControl>
-                          <FormControl flex={1}>
-                            <FormLabel fontSize="sm">Dialysate Flow (mL/min)</FormLabel>
-                            <Input
-                              placeholder="e.g., 500"
-                              value={duringReadings.dialysate_flow_rate}
-                              onChange={(e) =>
-                                setDuringReadings({
-                                  ...duringReadings,
-                                  dialysate_flow_rate: e.target.value,
-                                })
-                              }
-                              disabled={stage !== 'during' || isLoading}
-                              type="number"
-                            />
-                          </FormControl>
-                        </HStack>
-
-                        <HStack width="100%" spacing={3} justify="space-between">
-                          <FormControl flex={1}>
-                            <FormLabel fontSize="sm">Arterial Pressure (mmHg)</FormLabel>
-                            <Input
-                              placeholder="e.g., -120"
-                              value={duringReadings.arterial_pressure}
-                              onChange={(e) =>
-                                setDuringReadings({
-                                  ...duringReadings,
-                                  arterial_pressure: e.target.value,
-                                })
-                              }
-                              disabled={stage !== 'during' || isLoading}
-                              type="number"
-                            />
-                          </FormControl>
-                          <FormControl flex={1}>
-                            <FormLabel fontSize="sm">Venous Pressure (mmHg)</FormLabel>
-                            <Input
-                              placeholder="e.g., 250"
-                              value={duringReadings.venous_pressure}
-                              onChange={(e) =>
-                                setDuringReadings({
-                                  ...duringReadings,
-                                  venous_pressure: e.target.value,
-                                })
-                              }
-                              disabled={stage !== 'during' || isLoading}
-                              type="number"
-                            />
-                          </FormControl>
-                        </HStack>
-
-                        <HStack width="100%" spacing={3} justify="space-between">
-                          <FormControl flex={1}>
-                            <FormLabel fontSize="sm">TMP (mmHg)</FormLabel>
-                            <Input
-                              placeholder="e.g., 180"
-                              value={duringReadings.transmembrane_pressure}
-                              onChange={(e) =>
-                                setDuringReadings({
-                                  ...duringReadings,
-                                  transmembrane_pressure: e.target.value,
-                                })
-                              }
-                              disabled={stage !== 'during' || isLoading}
-                              type="number"
-                            />
-                          </FormControl>
-                          <FormControl flex={1}>
-                            <FormLabel fontSize="sm">UF Rate (mL/hr)</FormLabel>
-                            <Input
-                              placeholder="e.g., 500"
-                              value={duringReadings.ultrafiltration_rate}
-                              onChange={(e) =>
-                                setDuringReadings({
-                                  ...duringReadings,
-                                  ultrafiltration_rate: e.target.value,
-                                })
-                              }
-                              disabled={stage !== 'during' || isLoading}
-                              type="number"
-                            />
-                          </FormControl>
-                        </HStack>
-
-                        <HStack width="100%" spacing={3} justify="space-between">
-                          <FormControl flex={1}>
-                            <FormLabel fontSize="sm">Temperature (°C)</FormLabel>
-                            <Input
-                              placeholder="e.g., 37.2"
-                              value={duringReadings.temperature}
-                              onChange={(e) =>
-                                setDuringReadings({
-                                  ...duringReadings,
-                                  temperature: e.target.value,
-                                })
-                              }
-                              disabled={stage !== 'during' || isLoading}
-                              type="number"
-                              step="0.1"
-                            />
-                          </FormControl>
-                          <FormControl flex={1}>
-                            <FormLabel fontSize="sm">Conductivity (mS/cm)</FormLabel>
-                            <Input
-                              placeholder="e.g., 14.0"
-                              value={duringReadings.conductivity}
-                              onChange={(e) =>
-                                setDuringReadings({
-                                  ...duringReadings,
-                                  conductivity: e.target.value,
-                                })
-                              }
-                              disabled={stage !== 'during' || isLoading}
-                              type="number"
-                              step="0.1"
-                            />
-                          </FormControl>
-                        </HStack>
                       </VStack>
-                    </CardBody>
-                  </Card>
+                    </AccordionItem>
 
-                  {/* Monitoring Guidelines (During Dialysis) */}
-                  {orgGuidelines.filter(g => g.type?.toLowerCase().includes('during')).length > 0 && (
-                    <Card variant="outline" size="sm" className="dialysis-modal__panel-card" borderLeft="4px solid" borderColor="warning.400">
-                      <CardHeader>
-                        <Heading as="h4" size="sm">Organization Monitoring Guidelines</Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack spacing={2} align="start">
-                          {orgGuidelines.filter(g => g.type?.toLowerCase().includes('during')).map((gl, i) => (
-                            <HStack key={i} spacing={2}>
-                              <Box w="6px" h="6px" borderRadius="full" bg="warning.500" />
-                              <Text fontSize="sm">{gl.text}</Text>
-                            </HStack>
-                          ))}
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  )}
-
-                  {/* During-Dialysis Notes */}
-                  <FormControl>
-                    <FormLabel>During-Dialysis Notes</FormLabel>
-                    <Textarea
-                      placeholder="Record any incidents, complications, or observations during the session..."
-                      value={duringNotes}
-                      onChange={(e) => setDuringNotes(e.target.value)}
-                      disabled={stage !== 'during' || isLoading}
-                      rows={3}
-                      className="dialysis-modal__textarea"
-                    />
-                  </FormControl>
-                  <HStack justify="flex-end" width="100%">
-                    <Button
-                      variant="solid"
-                      colorScheme="warning"
-                      onClick={handleStopDialysis}
-                      isLoading={isLoading}
-                      isDisabled={stage !== 'during' || isLoading}
+                    {/* =================================================================
+                        DURING DIALYSIS
+                        ================================================================= */}
+                    <AccordionItem
+                      title="During Dialysis Monitoring"
+                      badge="STEP 2"
+                      badgeColor="warning"
+                      className="dialysis-modal__accordion-item"
                     >
-                      Stop Dialysis
-                    </Button>
-                  </HStack>
+                      <VStack spacing={4} align="stretch">
+                        <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
+                          <CardHeader><Heading as="h4" size="sm">Machine Readings</Heading></CardHeader>
+                          <CardBody>
+                            <Box className="grid grid-cols-2 gap-4">
+                              <FormControl><FormLabel fontSize="xs">BFR (mL/min)</FormLabel><Input size="sm" type="number" value={duringReadings.blood_flow_rate} onChange={(e) => setDuringReadings({ ...duringReadings, blood_flow_rate: e.target.value })} disabled={stage !== 'during'} /></FormControl>
+                              <FormControl><FormLabel fontSize="xs">DFR (mL/min)</FormLabel><Input size="sm" type="number" value={duringReadings.dialysate_flow_rate} onChange={(e) => setDuringReadings({ ...duringReadings, dialysate_flow_rate: e.target.value })} disabled={stage !== 'during'} /></FormControl>
+                              <FormControl><FormLabel fontSize="xs">Arterial (mmHg)</FormLabel><Input size="sm" type="number" value={duringReadings.arterial_pressure} onChange={(e) => setDuringReadings({ ...duringReadings, arterial_pressure: e.target.value })} disabled={stage !== 'during'} /></FormControl>
+                              <FormControl><FormLabel fontSize="xs">Venous (mmHg)</FormLabel><Input size="sm" type="number" value={duringReadings.venous_pressure} onChange={(e) => setDuringReadings({ ...duringReadings, venous_pressure: e.target.value })} disabled={stage !== 'during'} /></FormControl>
+                              <FormControl><FormLabel fontSize="xs">TMP (mmHg)</FormLabel><Input size="sm" type="number" value={duringReadings.transmembrane_pressure} onChange={(e) => setDuringReadings({ ...duringReadings, transmembrane_pressure: e.target.value })} disabled={stage !== 'during'} /></FormControl>
+                              <FormControl><FormLabel fontSize="xs">UF Rate (mL/hr)</FormLabel><Input size="sm" type="number" value={duringReadings.ultrafiltration_rate} onChange={(e) => setDuringReadings({ ...duringReadings, ultrafiltration_rate: e.target.value })} disabled={stage !== 'during'} /></FormControl>
+                            </Box>
+                          </CardBody>
+                        </Card>
+
+                        <FormControl>
+                          <FormLabel fontSize="xs">Monitoring Notes</FormLabel>
+                          <Textarea value={duringNotes} onChange={(e) => setDuringNotes(e.target.value)} disabled={stage !== 'during'} rows={2} size="sm" />
+                        </FormControl>
+
+                        <Button colorScheme="warning" onClick={handleStopDialysis} isLoading={isLoading} isDisabled={stage !== 'during'} width="100%">
+                          Stop Dialysis
+                        </Button>
+                      </VStack>
+                    </AccordionItem>
+
+                    {/* =================================================================
+                        AFTER DIALYSIS
+                        ================================================================= */}
+                    <AccordionItem
+                      title="Post-Dialysis Assessment"
+                      badge="STEP 3"
+                      badgeColor="success"
+                      className="dialysis-modal__accordion-item"
+                    >
+                      <VStack spacing={4} align="stretch">
+                        <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
+                          <CardHeader><Heading as="h4" size="sm">Post-Session Checks</Heading></CardHeader>
+                          <CardBody>
+                            <VStack align="start" spacing={2}>
+                              <Checkbox checked={bloodSamples.samples_taken} onChange={(e) => setBloodSamples({ ...bloodSamples, samples_taken: e.target.checked })} disabled={stage !== 'after'} size="sm">Samples taken</Checkbox>
+                              <Checkbox checked={bloodSamples.samples_sent_to_lab} onChange={(e) => setBloodSamples({ ...bloodSamples, samples_sent_to_lab: e.target.checked })} disabled={stage !== 'after'} size="sm">Sent to lab</Checkbox>
+                            </VStack>
+                          </CardBody>
+                        </Card>
+                        <FormControl>
+                          <FormLabel fontSize="xs">Post-Dialysis Notes</FormLabel>
+                          <Textarea value={afterNotes} onChange={(e) => setAfterNotes(e.target.value)} disabled={stage !== 'after'} rows={2} size="sm" />
+                        </FormControl>
+                        <HStack justify="space-between" align="center" width="100%" mt={2}>
+                          <Checkbox
+                            checked={markBedForCleaning}
+                            onChange={(e) => setMarkBedForCleaning(e.target.checked)}
+                            size="sm"
+                            colorScheme="info"
+                          >
+                            <Text fontSize="xs" fontWeight="500">Mark bed for cleaning after session</Text>
+                          </Checkbox>
+                          <Button
+                            colorScheme="success"
+                            onClick={async () => {
+                              if (markBedForCleaning && bed?.id) {
+                                try {
+                                  await updateBedStatus(bed.id, {
+                                    status: 'MAINTENANCE',
+                                    notes: 'Automatically marked for cleaning after session'
+                                  });
+                                } catch (e) {
+                                  console.error('Failed to update bed status:', e);
+                                }
+                              }
+                              handleCloseDialysis();
+                            }}
+                            isLoading={isLoading}
+                            isDisabled={stage !== 'after'}
+                            px={8}
+                          >
+                            Complete & Close Session
+                          </Button>
+                        </HStack>
+                      </VStack>
+                    </AccordionItem>
+                  </Accordion>
                 </VStack>
-              </AccordionItem>
 
-              {/* =================================================================
-                  AFTER DIALYSIS
-                  ================================================================= */}
-              <AccordionItem
-                title="Post-Dialysis Assessment"
-                badge="STEP 3"
-                badgeColor="success"
-                className="dialysis-modal__accordion-item"
-              >
-                <VStack spacing={4}>
-                  {/* Blood Samples */}
-                  <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
-                    <CardHeader>
-                      <Heading as="h4" size="sm">
-                        Blood Samples
-                      </Heading>
+                {/* RIGHT SIDE: Supplies & Inventory */}
+                <VStack flex={3} align="stretch" spacing={6} className="dialysis-modal__right-column">
+                  <Card variant="elevated" className="dialysis-modal__inventory-card" height="fit-content" shadow="md" borderRadius="20px">
+                    <CardHeader bg="slate.50" borderTopRadius="20px" py={4}>
+                      <VStack align="start" spacing={1}>
+                        <Heading as="h4" size="sm" color="slate.800">Supplies & Inventory</Heading>
+                        <Text fontSize="xs" color="slate.500">Track items consumed during this session</Text>
+                      </VStack>
                     </CardHeader>
-                    <CardBody>
-                      <VStack spacing={3} align="start">
-                        <FormControl display="flex" alignItems="center">
-                          <HStack spacing={3}>
-                            <Checkbox
-                              checked={bloodSamples.samples_taken}
-                              onChange={(e) =>
-                                setBloodSamples({
-                                  ...bloodSamples,
-                                  samples_taken: e.target.checked,
-                                })
-                              }
-                              disabled={stage !== 'after' || isLoading}
-                            />
-                            <FormLabel mb={0}>Blood samples collected</FormLabel>
+                    <CardBody p={4}>
+                      <VStack spacing={4} align="stretch">
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold">Select Item</FormLabel>
+                          <Select
+                            placeholder="Choose supply item..."
+                            onChange={(e) => {
+                              const itemId = e.target.value;
+                              if (itemId) handleIssueItem(itemId, 1);
+                            }}
+                            disabled={stage === 'before'}
+                            size="sm"
+                          >
+                            {inventoryItems.map(item => (
+                              <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>
+                            ))}
+                          </Select>
+                        </FormControl>
+
+                        <FormControl>
+                          <FormLabel fontSize="xs" fontWeight="bold">Dialyzer Usage</FormLabel>
+                          <HStack>
+                            <Select
+                              placeholder="Select Dialyzer..."
+                              value={selectedDialyzerId}
+                              onChange={(e) => setSelectedDialyzerId(e.target.value)}
+                              disabled={stage === 'before'}
+                              size="sm"
+                            >
+                              {dialyzers.map(d => (
+                                <option key={d.id} value={d.id}>Dialyzer #{d.id} ({d.usage_count}/{d.max_usage})</option>
+                              ))}
+                            </Select>
+                            <Button
+                              size="sm"
+                              colorScheme="info"
+                              onClick={handleUseDialyzer}
+                              isDisabled={!selectedDialyzerId || stage === 'before'}
+                            >
+                              Use
+                            </Button>
                           </HStack>
                         </FormControl>
 
-                        <FormControl display="flex" alignItems="center">
-                          <HStack spacing={3}>
-                            <Checkbox
-                              checked={bloodSamples.samples_sent_to_lab}
-                              onChange={(e) =>
-                                setBloodSamples({
-                                  ...bloodSamples,
-                                  samples_sent_to_lab: e.target.checked,
-                                })
-                              }
-                              disabled={stage !== 'after' || isLoading}
-                            />
-                            <FormLabel mb={0}>Samples sent to laboratory</FormLabel>
-                          </HStack>
-                        </FormControl>
+                        <Box mt={4}>
+                          <Text fontSize="xs" fontWeight="bold" mb={2} color="slate.600">Consumed Items List</Text>
+                          {consumedItems.length > 0 ? (
+                            <VStack align="stretch" spacing={2}>
+                              {consumedItems.map(item => (
+                                <HStack key={item.id} justify="space-between" p={2} bg="blue.50" borderRadius="md" border="1px solid" borderColor="blue.100">
+                                  <Text fontSize="xs" fontWeight="600" color="blue.800">{item.name}</Text>
+                                  <Badge size="xs" colorScheme="blue" variant="solid">Qty: {item.quantity}</Badge>
+                                </HStack>
+                              ))}
+                            </VStack>
+                          ) : (
+                            <Box p={4} textAlign="center" border="1px dashed" borderColor="slate.200" borderRadius="lg">
+                              <Text fontSize="xs" color="slate.400 italic">No items linked yet</Text>
+                            </Box>
+                          )}
+                        </Box>
                       </VStack>
                     </CardBody>
                   </Card>
-
-                  {/* Post-Dialysis Guidelines */}
-                  {orgGuidelines.filter(g => g.type?.toLowerCase().includes('post')).length > 0 && (
-                    <Card variant="outline" size="sm" className="dialysis-modal__panel-card" borderLeft="4px solid" borderColor="success.400">
-                      <CardHeader>
-                        <Heading as="h4" size="sm">Organization Post-Dialysis Protocols</Heading>
-                      </CardHeader>
-                      <CardBody>
-                        <VStack spacing={2} align="start">
-                          {orgGuidelines.filter(g => g.type?.toLowerCase().includes('post')).map((gl, i) => (
-                            <HStack key={i} spacing={2}>
-                              <Box w="6px" h="6px" borderRadius="full" bg="success.500" />
-                              <Text fontSize="sm">{gl.text}</Text>
-                            </HStack>
-                          ))}
-                        </VStack>
-                      </CardBody>
-                    </Card>
-                  )}
-
-                  {/* Post-Dialysis Notes */}
-                  <FormControl>
-                    <FormLabel>Post-Dialysis Notes</FormLabel>
-                    <Textarea
-                      placeholder="Enter post-dialysis assessment, patient condition, recommendations, follow-up actions..."
-                      value={afterNotes}
-                      onChange={(e) => setAfterNotes(e.target.value)}
-                      disabled={stage !== 'after' || isLoading}
-                      rows={4}
-                      className="dialysis-modal__textarea"
-                    />
-                  </FormControl>
-                    <HStack justify="flex-end" width="100%">
-                      <Checkbox 
-                        checked={markBedForCleaning} 
-                        onChange={(e) => setMarkBedForCleaning(e.target.checked)}
-                        size="sm"
-                      >
-                        Start Post-Session Cleaning
-                      </Checkbox>
-                      <Button
-                        variant="solid"
-                        colorScheme="success"
-                        onClick={async () => {
-                          if (markBedForCleaning && bed?.id) {
-                            await updateBedStatus(bed.id, { 
-                              status: 'MAINTENANCE',
-                              notes: 'Automatically marked for cleaning after session' 
-                            });
-                          }
-                          handleCloseDialysis();
-                        }}
-                        isLoading={isLoading}
-                        isDisabled={stage !== 'after' || isLoading}
-                      >
-                        Close Session
-                      </Button>
-                    </HStack>
                 </VStack>
-              </AccordionItem>
-              </Accordion>
+              </HStack>
             </Box>
           )}
         </ModalBody>
