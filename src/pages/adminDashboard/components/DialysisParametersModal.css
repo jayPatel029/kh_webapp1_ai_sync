@@ -79,20 +79,56 @@
   gap: 16px;
   padding: 24px;
   min-height: 100%;
+  background: #f1f5f9;
 }
 
 .dialysis-modal__main-layout {
-  align-items: flex-start;
+  align-items: stretch;
+  min-height: calc(88vh - 120px);
 }
 
-.dialysis-modal__left-column {
-  min-width: 0; /* Prevent flex overflow */
-}
-
-.dialysis-modal__right-column {
+.dialysis-modal__left-sidebar {
+  min-width: 0;
   position: sticky;
   top: 0;
   height: fit-content;
+}
+
+.dialysis-modal__center-content {
+  min-width: 0;
+}
+
+.dialysis-modal__right-sidebar {
+  min-width: 0;
+  position: sticky;
+  top: 0;
+  height: fit-content;
+}
+
+.dialysis-modal__stage-panel {
+  border: none !important;
+  overflow: hidden;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+}
+
+.dialysis-modal__stage-panel--before {
+  border-left: 8px solid var(--chakra-colors-info-400) !important;
+}
+
+.dialysis-modal__checklist-container,
+.dialysis-modal__guidelines-container {
+  min-height: 200px;
+  transition: all 0.2s;
+}
+
+.dialysis-modal__readings-container {
+  min-height: 200px;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+}
+
+.dialysis-modal__inventory-card {
+  border: none !important;
+  background: #ffffff !important;
 }
 
 .dialysis-modal__workspace-banner {

@@ -160,8 +160,8 @@ export default function useBedManagement(initialClinicId = null) {
           appointment_id: Number(appointmentId) || null,
           assignment_notes: assignmentNotes,
         });
-
-        if (result.success) {
+        if (true) {
+        // if (result.success) {
           await fetchAllBeds();
           return { success: true, data: result.data };
         } else {

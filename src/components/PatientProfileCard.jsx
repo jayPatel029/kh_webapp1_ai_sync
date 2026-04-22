@@ -42,6 +42,7 @@ export const PatientProfileCard = ({
   role,
   onEditName,
   onEditAilments,
+  showAilmentDetails = true,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [resolvedUserData, setResolvedUserData] = useState({ ailments: [] });
@@ -210,8 +211,8 @@ export const PatientProfileCard = ({
               </Box>
             </Flex>
           ) : (
-            <Flex direction="flex-row" gap={8} align="start">
-              <Flex className="w-1/3" direction="column" align="center" gap={3}>
+            <Flex direction="flex-row" gap={8} align="start" wrap={!showAilmentDetails ? 'wrap' : 'nowrap'}>
+              <Flex className={showAilmentDetails ? "w-1/3" : "w-full"} direction="column" align="center" gap={3}>
                 <Flex align="end" justify="between" className="w-full">
                   <Flex align="center" direction="column" gap={2}>
                     <Box
@@ -273,28 +274,32 @@ export const PatientProfileCard = ({
                 {/* </Box> */}
               </Flex>
               {/* <hr className="border-2 w-full rotate-90 border-info self-stretch"/> */}
-                < div className="w-0 self-stretch origin-top-left outline outline-[1px] outline-offset-[-0.5px] outline-info" />
-                
-              <Box className="flex-1 w-full">
-                <Box className="space-y-4">
-                  <Heading as="h4" size="sm" weight="bold">Ailment Details</Heading>
+              {showAilmentDetails && (
+                <>
+                  <div className="w-0 self-stretch origin-top-left outline outline-[1px] outline-offset-[-0.5px] outline-info" />
+                  
+                  <Box className="flex-1 w-full">
+                    <Box className="space-y-4">
+                      <Heading as="h4" size="sm" weight="bold">Ailment Details</Heading>
 
-                  {isFetchingProfile && mergedUserData?.ailments?.length === 0 ? (
-                    <Text size="sm" className="text-slate-500">Loading profile details...</Text>
-                  ) : mergedUserData?.ailments && mergedUserData.ailments.length > 0 ? (
-                    <Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {mergedUserData.ailments.map((ailment, idx) => (
-                        <Box key={`${ailment}-${idx}`} className="border border-slate-200 rounded-lg p-3">
-                          <Heading as="h5" size="xs" weight="bold" className="text-accent mb-2">{ailment}</Heading>
-                          <QuestionsContainer aliment={ailment} user_id={mergedUserData?.id || routePatientId} />
+                      {isFetchingProfile && mergedUserData?.ailments?.length === 0 ? (
+                        <Text size="sm" className="text-slate-500">Loading profile details...</Text>
+                      ) : mergedUserData?.ailments && mergedUserData.ailments.length > 0 ? (
+                        <Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {mergedUserData.ailments.map((ailment, idx) => (
+                            <Box key={`${ailment}-${idx}`} className="border border-slate-200 rounded-lg p-3">
+                              <Heading as="h5" size="xs" weight="bold" className="text-accent mb-2">{ailment}</Heading>
+                              <QuestionsContainer aliment={ailment} user_id={mergedUserData?.id || routePatientId} />
+                            </Box>
+                          ))}
                         </Box>
-                      ))}
+                      ) : (
+                        <Text size="sm" className="text-slate-500">No ailments listed.</Text>
+                      )}
                     </Box>
-                  ) : (
-                    <Text size="sm" className="text-slate-500">No ailments listed.</Text>
-                  )}
-                </Box>
-              </Box>
+                  </Box>
+                </>
+              )}
             </Flex>
           )}
         </CardBody>

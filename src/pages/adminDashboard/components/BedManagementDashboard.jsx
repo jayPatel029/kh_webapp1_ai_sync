@@ -52,12 +52,15 @@ import useBedManagement from '../../../hooks/useBedManagement';
 import UnifiedListTable from '../../../components/table/UnifiedListTable';
 import DialysisParametersModal from './DialysisParametersModal';
 import { DialysisBedSeat } from '../../../components/DialysisBedSeat';
+import ClinicSelector from '../../../components/ClinicSelector';
 import {
   getClinics,
   getClinicBeds,
   getClinicAppointments,
   getAppointments,
+  getOrganizations,
 } from '../../../ApiCalls/clinicApis';
+import OrganizationSelector from '../../../components/OrganizationSelector';
 import './BedManagementDashboard.css';
 
 // Bed statuses
@@ -739,6 +742,8 @@ export default function BedManagementDashboard(props) {
   } = useBedManagement();
 
   const [clinics, setClinics] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
+  const [selectedOrgId, setSelectedOrgId] = useState('');
   const [clinicsLoading, setClinicsLoading] = useState(false);
   const [appointments, setAppointments] = useState([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
@@ -756,15 +761,26 @@ export default function BedManagementDashboard(props) {
     setTimeout(() => setNotification(null), 3500);
   }, []);
 
-  // Fetch Clinics for selector
+  // Fetch Clinics & Orgs for selector
   useEffect(() => {
-    const fetchClinicsData = async () => {
+    const fetchInitialData = async () => {
       setClinicsLoading(true);
       try {
-        const result = await getClinics();
-        console.log('Clinics fetch result:', result);
-        if (result.success) {
-          const rawData = result.data || [];
+        const [clinicsResult, orgsResult] = await Promise.all([
+          getClinics(),
+          getOrganizations()
+        ]);
+
+        if (orgsResult.success) {
+          const orgList = Array.isArray(orgsResult.data?.data) ? orgsResult.data.data : (orgsResult.data || []);
+          setOrganizations(orgList);
+          if (orgList.length > 0 && !selectedOrgId) {
+            setSelectedOrgId(String(orgList[0].id));
+          }
+        }
+
+        if (clinicsResult.success) {
+          const rawData = clinicsResult.data || [];
           const dataList = Array.isArray(rawData) ? rawData : (rawData.data || []);
           setClinics(dataList);
           if (dataList.length > 0 && !clinicId) {
@@ -772,13 +788,13 @@ export default function BedManagementDashboard(props) {
           }
         }
       } catch (err) {
-        console.error('Failed to fetch clinics:', err);
+        console.error('Failed to fetch initial data:', err);
       } finally {
         setClinicsLoading(false);
       }
     };
-    fetchClinicsData();
-  }, [setClinicId]);
+    fetchInitialData();
+  }, [setClinicId, selectedOrgId, clinicId]);
 
   // Fetch Appointments for clinic (filter for arrived)
   const loadAppointments = useCallback(async (cid) => {
@@ -956,32 +972,27 @@ export default function BedManagementDashboard(props) {
       <VStack spacing={4} align="stretch">
 
         {/* Command Center Header */}
-        <HStack justify="space-between" align="center" bg="white" borderRadius="xl" shadow="sm">
-          {/* <VStack align="start" spacing={0}>
-            <Heading as="h1" size="lg" color="brand.600">
-              Clinic Command Center
-            </Heading>
-            <Text fontSize="sm" color="textMuted">
-              Bed Inventory & Real-time Dialysis Tracking
-            </Text>
-          </VStack> */}
-          <HStack spacing={4}>
-            <FormControl minW="250px">
-              <FormLabel fontSize="xs" mb={1} color="textMuted">CLINIC</FormLabel>
-              <Select
-                value={clinicId || ''}
-                onChange={(e) => setClinicId(e.target.value)}
-                size="sm"
-                borderRadius="lg"
-                placeholder="Select a Clinic"
-              >
-                {(Array.isArray(clinics) ? clinics : []).map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.clinic_name || c.name || `Clinic #${c.id}`}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
+        <HStack 
+          justify="space-between" 
+          align="center" 
+          bg="white" 
+          borderRadius="xl" 
+          shadow="sm" 
+          p={4} 
+          position="relative" 
+          zIndex={100}
+        >
+          <HStack spacing={4} flexWrap="wrap">
+            <OrganizationSelector
+              orgId={selectedOrgId}
+              setOrgId={setSelectedOrgId}
+              organizations={organizations}
+            />
+            <ClinicSelector 
+              clinicId={clinicId}
+              setClinicId={setClinicId}
+              clinics={clinics}
+            />
 
             <Button
               variant="outline"

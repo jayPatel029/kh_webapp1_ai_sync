@@ -12,6 +12,8 @@ import {
 import ReadingsModal from "./readingsModal";
 import { useSelector } from "react-redux";
 import { uploadFile } from "../../../ApiCalls/dataUpload";
+import OrganizationSelector from "../../../components/OrganizationSelector";
+import ClinicSelector from "../../../components/ClinicSelector";
 import PageHeader from "../../../components/PageHeader";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../../routes/routeConstants";
@@ -121,6 +123,7 @@ function AdminManagement() {
     fetchData();
   }, [successMessage, refreshKey]);
 
+
   const [editMode, setEditMode] = useState(false);
 
   const [newDoctor, newDoctorDispatch] = useReducer(newDoctorReducer, {
@@ -149,6 +152,8 @@ function AdminManagement() {
     reports: [],
     dialysisCenterRole: "",
     dialysisCenterRoleOther: "",
+    org_id: null,
+    clinic_id: null,
   });
 
   const specialitiesOptions = useMemo(() => {
@@ -310,6 +315,8 @@ function AdminManagement() {
           reports: newDoctor.reports,
           changeby: localStorage.getItem("email"),
           doctorid: newDoctor.id,
+          org_id: newDoctor.org_id,
+          clinic_id: newDoctor.clinic_id,
         };
         console.log("ipdating with,", payload.dailyReadings);
         if (!editMode) {
@@ -362,6 +369,8 @@ function AdminManagement() {
           reports: newDoctor.reports,
           changeby: localStorage.getItem("email"),
           doctorid: newDoctor.id,
+          org_id: newDoctor.org_id,
+          clinic_id: newDoctor.clinic_id,
         };
         console.log("docs payload", payload);
         if (!editMode) {
@@ -415,6 +424,8 @@ function AdminManagement() {
           reports: newDoctor.reports,
           changeby: localStorage.getItem("email"),
           doctorid: newDoctor.id,
+          org_id: newDoctor.org_id,
+          clinic_id: newDoctor.clinic_id,
         };
 
         console.log("Dialysis Technician payload", payload);
@@ -490,6 +501,8 @@ function AdminManagement() {
         role: "Doctor",
         dialysisCenterRole: "",
         dialysisCenterRoleOther: "",
+        org_id: null,
+        clinic_id: null,
       }
     });
     setEditMode(false);
@@ -541,6 +554,8 @@ function AdminManagement() {
               doctor.dialysis_center_role_other ||
               doctor.dialysisRoleOther ||
               "",
+            org_id: doctor.org_id,
+            clinic_id: doctor.clinic_id,
       },
     });
     setEditMode(true);
@@ -660,6 +675,28 @@ function AdminManagement() {
           fieldErrors={fieldErrors}
           onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
         >
+          {/* Org and Clinic Selection - Only for Dialysis Technician */}
+          {newDoctor.role === "Dialysis Technician" && (
+            <Box className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-4">
+              <Box>
+                <OrganizationSelector
+                  orgId={newDoctor.org_id}
+                  setOrgId={(val) => newDoctorDispatch({ type: 'org_id', payload: val })}
+                  label="ORGANIZATION"
+                  isDisabled={editMode}
+                />
+              </Box>
+              <Box>
+                <ClinicSelector
+                  clinicId={newDoctor.clinic_id}
+                  setClinicId={(val) => newDoctorDispatch({ type: 'clinic_id', payload: val })}
+                  orgId={newDoctor.org_id}
+                  label="CLINIC"
+                />
+              </Box>
+            </Box>
+          )}
+
           {/* User Role */}
           <Box className="w-full md:w-1/2 mb-4 flex flex-row gap-8">
             <Box className="flex-1">

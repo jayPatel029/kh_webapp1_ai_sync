@@ -36,8 +36,8 @@ const DialysisPatients = () => {
         // For now, if we don't have a specific field, we show all since this is the Dialysis view
         // But the requirement says "only patient with dialysis in ailement"
         const dialysisPatients = allPatients.filter(p => {
-          const ailments = String(p.ailments || p.patient_ailments || '').toLowerCase();
-          return ailments.includes('dialysis');
+          const ailments = String(p.ailments || p.patient_ailments || p.aliments || '').toLowerCase();
+          return ailments.includes('hemo dialysis') || ailments.includes('hemodialysis');
         });
         
         // Map to table shape

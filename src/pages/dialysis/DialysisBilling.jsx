@@ -18,7 +18,9 @@ import PaymentModal from '../../components/PaymentModal';
 import InvoicePreview from '../../components/InvoicePreview';
 import usePaymentFlow from '../../hooks/usePaymentFlow';
 import { getPaymentStatus } from '../../utils/refundCalculator';
-import { getAppointments, addAppointmentPayment } from '../../ApiCalls/clinicApis';
+import { getAppointments, addAppointmentPayment, getClinics, getOrganizations } from '../../ApiCalls/clinicApis';
+import ClinicSelector from '../../components/ClinicSelector';
+import OrganizationSelector from '../../components/OrganizationSelector';
 
 const normalizeBillingRow = (apt) => ({
   id: apt.id,
@@ -68,12 +70,18 @@ const DialysisBilling = () => {
   const [error, setError]             = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [invoiceTarget, setInvoiceTarget] = useState(null);
+  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [clinics, setClinics] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
+  const [selectedOrgId, setSelectedOrgId] = useState('');
 
   const fetchBills = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await getAppointments();
+      const result = await getAppointments({
+        clinicId: selectedClinicId || undefined
+      });
       if (result.success) {
         const list = Array.isArray(result.data?.data)
           ? result.data.data
@@ -93,7 +101,37 @@ const DialysisBilling = () => {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [selectedClinicId, showToast]);
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [clinicsResult, orgsResult] = await Promise.all([
+          getClinics(),
+          getOrganizations()
+        ]);
+
+        if (orgsResult.success) {
+          const orgList = Array.isArray(orgsResult.data?.data) ? orgsResult.data.data : (orgsResult.data || []);
+          setOrganizations(orgList);
+          if (orgList.length > 0 && !selectedOrgId) {
+            setSelectedOrgId(String(orgList[0].id));
+          }
+        }
+
+        if (clinicsResult.success) {
+          const list = Array.isArray(clinicsResult.data?.data) ? clinicsResult.data.data : (clinicsResult.data || []);
+          setClinics(list);
+          if (list.length > 0 && !selectedClinicId) {
+            setSelectedClinicId(String(list[0].id));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch initial data:', err);
+      }
+    };
+    fetchInitialData();
+  }, []);
 
   useEffect(() => {
     fetchBills();
@@ -280,11 +318,29 @@ const DialysisBilling = () => {
                 flexWrap: 'wrap',
                 gap: '12px',
                 marginBottom: '12px',
+                position: 'relative',
+                zIndex: 100
               }}
             >
-              <span style={{ fontSize: '14px', fontWeight: 600 }}>
-                Bills: <strong>{filteredBills.length}</strong>
-              </span>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '14px', fontWeight: 600 }}>
+                  Bills: <strong>{filteredBills.length}</strong>
+                </span>
+                <OrganizationSelector
+                  orgId={selectedOrgId}
+                  setOrgId={setSelectedOrgId}
+                  organizations={organizations}
+                  label=""
+                  minW="180px"
+                />
+                <ClinicSelector
+                  clinicId={selectedClinicId}
+                  setClinicId={setSelectedClinicId}
+                  clinics={clinics}
+                  label=""
+                  minW="180px"
+                />
+              </div>
               <Input
                 type="text"
                 placeholder="Search patient or service…"

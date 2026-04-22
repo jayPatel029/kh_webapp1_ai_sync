@@ -190,6 +190,18 @@ export function newDoctorReducer(state, action) {
         dialysisCenterRoleOther: action.payload,
       };
     }
+    case "org_id": {
+      return {
+        ...state,
+        org_id: action.payload,
+      };
+    }
+    case "clinic_id": {
+      return {
+        ...state,
+        clinic_id: action.payload,
+      };
+    }
     case "all": {
       return {
         id: null,
@@ -217,6 +229,8 @@ export function newDoctorReducer(state, action) {
         reports: [],
         dialysisCenterRole: "",
         dialysisCenterRoleOther: "",
+        org_id: null,
+        clinic_id: null,
         ...action.payload,
       };
     }

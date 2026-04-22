@@ -52,10 +52,13 @@ import {
   getClinicById,
   getClinicAppointments,
   getOrganizationById,
+  getOrganizations,
 } from '../../ApiCalls/clinicApis';
 import { getPatients, getPatientAilments, getPatientById } from '../../ApiCalls/patientAPis';
 import { getDoctors } from '../../ApiCalls/doctorApis';
 import { jsPDF } from 'jspdf';
+import ClinicSelector from '../../components/ClinicSelector';
+import OrganizationSelector from '../../components/OrganizationSelector';
 
 
 // ─── Status colors ──────────────────────────────────────────
@@ -264,6 +267,9 @@ const DialysisAppointments = () => {
   const today = new Date().toISOString().split('T')[0];
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate]     = useState(today);
+  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [organizations, setOrganizations] = useState([]);
+  const [selectedOrgId, setSelectedOrgId] = useState('');
 
   // ─── Create modal state (3 steps) ─────────────────────
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -365,33 +371,45 @@ const DialysisAppointments = () => {
   // ─── Standalone invoice preview state ─────────────────
   const [invoiceTarget, setInvoiceTarget] = useState(null);
 
-  // ─── Fetch clinics ─────────────────────────────────────
-  const fetchClinics = useCallback(async () => {
+  const fetchInitialData = useCallback(async () => {
     setClinicsLoading(true);
     try {
-      const result = await getClinics();
-      if (result.success) {
-        const list = Array.isArray(result.data?.data)
-          ? result.data.data
-          : Array.isArray(result.data)
-            ? result.data
-            : [];
+      const [clinicsResult, orgsResult] = await Promise.all([
+        getClinics(),
+        getOrganizations()
+      ]);
+
+      if (orgsResult.success) {
+        const orgList = Array.isArray(orgsResult.data?.data) ? orgsResult.data.data : (orgsResult.data || []);
+        setOrganizations(orgList);
+        if (orgList.length > 0 && !selectedOrgId) {
+          setSelectedOrgId(String(orgList[0].id));
+        }
+      }
+
+      if (clinicsResult.success) {
+        const list = Array.isArray(clinicsResult.data?.data) ? clinicsResult.data.data : (clinicsResult.data || []);
         setClinics(list);
-        // Auto-select first clinic
-        if (list.length === 1) {
+        if (list.length > 0 && !selectedClinicId) {
+          const firstId = String(list[0].id);
+          setSelectedClinicId(firstId);
           setCreateForm((prev) => ({
             ...prev,
-            clinic_id: String(list[0].id),
-            clinic_name: list[0].name || `Clinic #${list[0].id}`,
+            clinic_id: firstId,
+            clinic_name: list[0].name || `Clinic #${firstId}`,
           }));
         }
       }
     } catch (err) {
-      console.warn('Could not fetch clinics:', err);
+      console.warn('Could not fetch initial data:', err);
     } finally {
       setClinicsLoading(false);
     }
-  }, []);
+  }, [selectedOrgId, selectedClinicId]);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
 
   // ─── Fetch appointments ───────────────────────────────
   const fetchAppointments = useCallback(async () => {
@@ -401,6 +419,7 @@ const DialysisAppointments = () => {
       const result = await getAppointments({
         from: `${fromDate}T00:00:00Z`,
         to: `${toDate}T23:59:59Z`,
+        clinicId: selectedClinicId || undefined,
       });
       if (result.success) {
         const rows = Array.isArray(result.data?.data)
@@ -421,7 +440,7 @@ const DialysisAppointments = () => {
     } finally {
       setLoading(false);
     }
-  }, [fromDate, toDate, showToast]);
+  }, [fromDate, toDate, selectedClinicId, showToast]);
 
   // ─── Fetch slots for selected clinic + date ────────────
   useEffect(() => {
@@ -503,7 +522,6 @@ const DialysisAppointments = () => {
   }, [createForm.clinic_id, createForm.appointment_date]);
 
   useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
-  useEffect(() => { fetchClinics(); }, [fetchClinics]);
 
   // ─── Payment flow hook ────────────────────────────────
   const {
@@ -923,7 +941,7 @@ const DialysisAppointments = () => {
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
-        <Box className="sticky top-[56px] z-20 bg-white">
+        <Box className="sticky top-[56px] bg-white">
           <PageHeader
             title="Dialysis Appointments"
             breadcrumbs={[
@@ -933,10 +951,9 @@ const DialysisAppointments = () => {
           />
         </Box>
 
-        <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : ''}`}>
+        <div className={` ${isMobile ? 'px-3 pb-20' : ''}`}>
           {/* ─── Filter + Stats Bar ─── */}
           <div
-            className="admin-card"
             style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -946,25 +963,40 @@ const DialysisAppointments = () => {
               marginBottom: '16px',
             }}
           >
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '15px', flexDirection: 'rows', alignItems: 'center', zIndex: 101 }}>
+              <OrganizationSelector
+                orgId={selectedOrgId}
+                setOrgId={setSelectedOrgId}
+                organizations={organizations}
+                label=""
+                minW="180px"
+              // className="mt-6"
+              />
+              <ClinicSelector
+                clinicId={selectedClinicId}
+                setClinicId={setSelectedClinicId}
+                clinics={clinics}
+                label=""
+                minW="180px"
+              />
               <Input
                 type="text"
                 placeholder="Search patient…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ width: isMobile ? '100%' : '190px' }}
+                className="mt-6"
               />
               <Input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                style={{ width: '145px' }}
+                // style={{ width: '245px' }}
               />
               <Input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                style={{ width: '145px' }}
+                // style={{ width: '245px' }}
               />
               <Button
                 variant="primary"
@@ -995,7 +1027,7 @@ const DialysisAppointments = () => {
           </div>
 
           {/* ─── Table ─── */}
-          <div className="admin-card">
+          <div className="">
             {loading ? (
               <div className="flex items-center justify-center" style={{ minHeight: '200px' }}>
                 <p style={{ color: '#6B7280' }}>Loading appointments…</p>
