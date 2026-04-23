@@ -18,7 +18,7 @@ import PaymentModal from '../../components/PaymentModal';
 import InvoicePreview from '../../components/InvoicePreview';
 import usePaymentFlow from '../../hooks/usePaymentFlow';
 import { getPaymentStatus } from '../../utils/refundCalculator';
-import { getAppointments, addAppointmentPayment, getClinics, getOrganizations, getAppointmentById, updateAppointment } from '../../ApiCalls/clinicApis';
+import { getAppointments, addAppointmentPayment, getClinics, getOrganizations, getAppointmentById, updateAppointment, consumeAppointmentServices } from '../../ApiCalls/clinicApis';
 import { getPatients } from '../../ApiCalls/patientAPis';
 import ClinicSelector from '../../components/ClinicSelector';
 import OrganizationSelector from '../../components/OrganizationSelector';
@@ -42,6 +42,7 @@ const normalizeBillingRow = (apt, patients) => {
     status: String(apt.status || apt.appointmentStatus || 'BOOKED').toUpperCase(),
     billPDFUrl: apt.billPDFUrl || apt.billUrl || null,
     payment_action: String(apt.payment_action || apt.paymentAction || '').toUpperCase(),
+    services: apt.services || [],
     _raw: apt
   };
 };
@@ -200,10 +201,10 @@ const DialysisBilling = () => {
           });
         }
 
-        showToast(`Payment of ₹${amount} recorded`, 'success');
+        showToast(`Payment of ₹${amount} successful`, 'success');
         fetchBills();
       } else {
-        showToast(result.data?.message || 'Failed to record payment', 'error');
+        showToast(result.data?.message || 'Failed to process dialysis billing', 'error');
       }
     },
   });
@@ -242,7 +243,68 @@ const DialysisBilling = () => {
     { key: 'age',              label: 'AGE',     type: 'text', width: '60px'  },
     { key: 'sex',              label: 'SEX',     type: 'text', width: '80px'  },
     { key: 'mobile_no',        label: 'MOBILE',  type: 'text', width: '120px' },
-    { key: 'service',          label: 'SERVICE', type: 'text', width: '160px' },
+    { key: 'service',          label: 'SCHEDULE', type: 'text', width: '130px' },
+    {
+      key: 'services',
+      label: 'SERVICES',
+      type: 'custom',
+      width: '180px',
+      render: (row) => {
+        const services = row.services || [];
+        if (!services.length) return <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No services</span>;
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {services.map((s, idx) => (
+              <div key={s.id || idx} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '10px',
+                background: s.status === 'USED' ? '#F0FDF4' : '#F9FAFB',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                border: `1px solid ${s.status === 'USED' ? '#DCFCE7' : '#F3F4F6'}`
+              }}>
+                <span style={{
+                  color: s.status === 'USED' ? '#166534' : '#374151',
+                  textDecoration: s.status === 'USED' ? 'line-through' : 'none',
+                  maxWidth: '100px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {s.service_name || s.name || 'Service'}
+                </span>
+                {s.status !== 'USED' ? (
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        const res = await consumeAppointmentServices(row.id, { serviceId: s.id });
+                        if (res.success) {
+                          showToast('Service marked as used', 'success');
+                          fetchBills();
+                        } else {
+                          showToast(res.data?.message || 'Failed to consume service', 'error');
+                        }
+                      } catch (err) {
+                        showToast('Error consuming service', 'error');
+                      }
+                    }}
+                    style={{ background: '#2563EB', color: '#fff', border: 'none', borderRadius: '3px', padding: '1px 6px', fontSize: '9px', cursor: 'pointer' }}
+                  >
+                    Use
+                  </button>
+                ) : (
+                  <span style={{ color: '#16A34A', fontWeight: 700 }}>✓</span>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      }
+    },
     {
       key: 'totalAmount',
       label: 'TOTAL',
@@ -465,6 +527,7 @@ const DialysisBilling = () => {
           isOpen={!!invoiceTarget}
           onClose={() => setInvoiceTarget(null)}
           appointmentId={invoiceTarget?.id}
+          billId={invoiceTarget?.bill_id || invoiceTarget?.invoice_id}
           appointment={invoiceTarget}
         />
 

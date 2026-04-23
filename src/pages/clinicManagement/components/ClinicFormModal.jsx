@@ -366,7 +366,14 @@ export function ClinicFormModal({ open, onClose, onSave, initial = null, organiz
           {/* Slot Templates Section */}
           <div>
             <h4 className="text-lg font-semibold mb-4 border-b pb-2 text-[#2c3e50]">Slot Templates</h4>
-            <ScheduleManager slotTemplates={form.slotTemplates} onChange={(newTemplates) => updateField('slotTemplates', newTemplates)} />
+            <ScheduleManager 
+              clinicId={initial?.id}
+              slotTemplates={form.slotTemplates} 
+              capacity={form.capacity}
+              bufferMinutes={form.cleaningTimeMinutes}
+              isManagementMode={true}
+              onChange={(newTemplates) => updateField('slotTemplates', newTemplates)} 
+            />
           </div>
 
         </div>

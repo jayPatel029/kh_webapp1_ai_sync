@@ -2,10 +2,10 @@
  * Dialysis Technician Dashboard – High-Density Scheduler
  * 
  * Features:
- * - Days as Columns
- * - Hours as Rows
- * - Slot Templates as Cards
- * - Appointments as Span-Row Cards
+ * - 24-Hour Grid Visualization
+ * - Timezone-Aware Slot/Appointment Matching
+ * - Robust Ad-hoc and Template-based Appointment Rendering
+ * - Centered Bed Management Actions
  *
  * @file src/pages/adminDashboard/components/DialysisAppointmentsDashboard.jsx
  */
@@ -17,10 +17,8 @@ import {
     Button,
     Flex,
     FormControl,
-    FormLabel,
     Heading,
     Input,
-    Spinner,
     Text,
 } from '../../../component-library';
 import useDialysisAppointments from '../../../hooks/useDialysisAppointments';
@@ -28,9 +26,6 @@ import {
     getOrganizations,
     getClinics
 } from '../../../ApiCalls/clinicApis';
-import {
-    formatShortDate,
-} from '../../../utils/appointmentDateUtils';
 
 const HOUR_HEIGHT = 80;
 const START_HOUR = 0;
@@ -44,20 +39,25 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
     const [selectedOrgId, setSelectedOrgId] = useState('');
     const [selectedClinicId, setSelectedClinicId] = useState(initialClinicId || '');
 
-    const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-    const [fromDate, setFromDate] = useState(todayStr);
+    // Use local dates for the range selection to avoid UTC shift issues
+    const todayLocal = useMemo(() => {
+        const d = new Date();
+        return d.toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+    }, []);
+
+    const [fromDate, setFromDate] = useState(todayLocal);
     const [toDate, setToDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() + 6);
-        return d.toISOString().split('T')[0];
+        return d.toLocaleDateString('en-CA');
     });
 
     const dayList = useMemo(() => {
         const list = [];
-        let curr = new Date(fromDate);
-        const endD = new Date(toDate);
+        let curr = new Date(fromDate + 'T00:00:00'); // Parse as local
+        const endD = new Date(toDate + 'T00:00:00');
         let safety = 0;
-        while (curr <= endD && safety < 31) { // Limit to 31 days for sanity
+        while (curr <= endD && safety < 14) { 
             list.push(new Date(curr));
             curr.setDate(curr.getDate() + 1);
             safety++;
@@ -85,6 +85,7 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
 
     useEffect(() => {
         if (selectedClinicId) {
+            // Fetch with ISO strings for the backend
             fetchSlots(selectedClinicId, `${fromDate}T00:00:00Z`, `${toDate}T23:59:59Z`);
         }
     }, [selectedClinicId, fromDate, toDate, fetchSlots]);
@@ -94,7 +95,7 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
             onSelectSlot({
                 start: new Date(slot.instance.startUTC),
                 end: new Date(slot.instance.endUTC),
-                slotId: slot.slot_id,
+                slotId: slot.slotId,
                 clinicId: selectedClinicId
             });
         }
@@ -102,23 +103,28 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
 
     // Position calculation helpers
     const getTopPos = (timeStr) => {
+        if (!timeStr) return 0;
         const [h, m] = timeStr.split(':').map(Number);
         return (h - START_HOUR + (m / 60)) * HOUR_HEIGHT;
     };
 
     const getHeight = (startStr, endStr) => {
+        if (!startStr || !endStr) return HOUR_HEIGHT;
         const [h1, m1] = startStr.split(':').map(Number);
         const [h2, m2] = endStr.split(':').map(Number);
-        const durationHours = (h2 + m2 / 60) - (h1 + m1 / 60);
+        let durationHours = (h2 + m2 / 60) - (h1 + m1 / 60);
+        if (durationHours <= 0) durationHours = 1; // Default to 1h if parsing fails or 0 duration
         return durationHours * HOUR_HEIGHT;
     };
 
-    const getUtcTimeStr = (dateObj) => {
-        return dateObj.toISOString().split('T')[1].slice(0, 5);
+    const getLocalTimeStr = (dateObj) => {
+        // Return HH:mm in local time
+        return dateObj.toTimeString().slice(0, 5);
     };
 
-    const getLocalTimeStr = (dateObj) => {
-        return dateObj.toTimeString().slice(0, 5);
+    const getLocalDateStr = (dateObj) => {
+        // Return YYYY-MM-DD in local time
+        return dateObj.toLocaleDateString('en-CA');
     };
 
     return (
@@ -128,95 +134,86 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
                 <Flex direction="column" gap={4}>
                     <Flex justify="between" align="center" className="flex-wrap gap-4">
                         <Box>
-                            <Heading size="lg" fontWeight="800">Dialysis Scheduler</Heading>
-                            <Text color="gray.500" fontSize="sm">Hour-wise bed management across the week</Text>
+                            <Heading size="lg" fontWeight="800" color="gray.900">Dialysis Scheduler</Heading>
+                            <Text color="gray.500" fontSize="sm" fontWeight="600">Hour-wise clinical occupancy tracking</Text>
                         </Box>
                         <Flex gap={4} align="center" className="bg-gray-50 p-2 rounded-2xl">
                             <Box>
-                                <Text fontSize="9px" fontWeight="900" color="gray.400" textTransform="uppercase" ml={2}>From</Text>
+                                <Text fontSize="9px" fontWeight="900" color="gray.400" textTransform="uppercase" ml={2}>Start Date</Text>
                                 <Input variant="unstyled" px={2} size="xs" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} fontWeight="700" color="blue.600" />
                             </Box>
                             <Box w="1px" h="20px" bg="gray.200" />
                             <Box>
-                                <Text fontSize="9px" fontWeight="900" color="gray.400" textTransform="uppercase" ml={2}>To</Text>
+                                <Text fontSize="9px" fontWeight="900" color="gray.400" textTransform="uppercase" ml={2}>End Date</Text>
                                 <Input variant="unstyled" px={2} size="xs" type="date" value={toDate} onChange={e => setToDate(e.target.value)} fontWeight="700" color="blue.600" />
                             </Box>
                         </Flex>
                     </Flex>
 
-                    <Flex gap={4} align="center">
-                        <Flex gap={4} flex={1}>
-                            <FormControl size="sm">
-                                <select 
-                                    value={selectedOrgId} 
-                                    onChange={e => { setSelectedOrgId(e.target.value); setSelectedClinicId(''); }}
-                                    style={{ width: '100%', height: '40px', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '0 12px', fontSize: '14px', fontWeight: '600' }}
-                                >
-                                    <option value="">Organization</option>
-                                    {organizations.map(org => (<option key={org.id} value={org.id}>{org.name}</option>))}
-                                </select>
-                            </FormControl>
-                            <FormControl size="sm">
-                                <select 
-                                    value={selectedClinicId} 
-                                    onChange={e => setSelectedClinicId(e.target.value)}
-                                    disabled={!selectedOrgId}
-                                    style={{ width: '100%', height: '40px', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '0 12px', fontSize: '14px', fontWeight: '600' }}
-                                >
-                                    <option value="">Clinic</option>
-                                    {clinics.map(clinic => (<option key={clinic.id} value={clinic.id}>{clinic.clinic_name || clinic.name}</option>))}
-                                </select>
-                            </FormControl>
-                        </Flex>
-
-                        {/* Legend moved beside selectors */}
-                        <Flex gap={4} align="center" bg="gray.50" px={4} py={2} borderRadius="xl" border="1px solid #E5E7EB">
-                            <Flex align="center" gap={2}>
-                                <Box style={{ width: '12px', height: '12px', borderRadius: '3px', border: '2px dashed #3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.15)' }} />
-                                <Text fontSize="10px" fontWeight="800" color="gray.600">Available</Text>
-                            </Flex>
-                            <Flex align="center" gap={2}>
-                                <Box style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#FFFFFF', borderLeft: '4px solid #EF4444', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }} />
-                                <Text fontSize="10px" fontWeight="800" color="gray.600">Booked</Text>
-                            </Flex>
-                            <Flex align="center" gap={2}>
-                                <Box style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#10B981' }} />
-                                <Text fontSize="10px" fontWeight="800" color="gray.600">Full</Text>
-                            </Flex>
-                        </Flex>
+                    <Flex gap={4}>
+                        <FormControl size="sm">
+                            <select 
+                                value={selectedOrgId} 
+                                onChange={e => { setSelectedOrgId(e.target.value); setSelectedClinicId(''); }}
+                                style={{ width: '100%', height: '40px', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '0 12px', fontSize: '14px', fontWeight: '600', backgroundColor: '#fff' }}
+                            >
+                                <option value="">Select Organization</option>
+                                {organizations.map(org => (<option key={org.id} value={org.id}>{org.name}</option>))}
+                            </select>
+                        </FormControl>
+                        <FormControl size="sm">
+                            <select 
+                                value={selectedClinicId} 
+                                onChange={e => setSelectedClinicId(e.target.value)}
+                                disabled={!selectedOrgId}
+                                style={{ width: '100%', height: '40px', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '0 12px', fontSize: '14px', fontWeight: '600', backgroundColor: selectedOrgId ? '#fff' : '#f9fafb' }}
+                            >
+                                <option value="">Select Clinic</option>
+                                {clinics.map(clinic => (<option key={clinic.id} value={clinic.id}>{clinic.clinic_name || clinic.name}</option>))}
+                            </select>
+                        </FormControl>
                     </Flex>
                 </Flex>
             </Box>
 
-
-            {/* Scheduler Grid */}
-            <Box className="bg-white shadow-xl border border-gray-100 rounded-3xl overflow-x-auto flex flex-col flex-1 relative">
-                {selectedClinicId ? (
-                    <>
-                        {/* Header Row: Dates */}
-                        <Box style={{ display: 'grid', gridTemplateColumns: `80px repeat(${dayList.length}, minmax(200px, 1fr))`, borderBottom: '1px solid #F3F4F6', backgroundColor: '#F9FAFB', zIndex: 10 }}>
-                            <Box p={4} />
-                            {dayList.map((day, idx) => (
-                                <Box key={idx} p={4} textAlign="center" borderLeft="1px solid #F3F4F6">
-                                    <Text fontSize="xs" fontWeight="900" color="gray.400" textTransform="uppercase">{day.toLocaleString('default', { weekday: 'short' })}</Text>
-                                    <Text fontSize="lg" fontWeight="800" color="gray.900">{day.getDate()} {day.toLocaleString('default', { month: 'short' })}</Text>
+            {/* Scheduler Grid Wrapper - Handles Horizontal Scroll */}
+            <Box className="bg-white shadow-xl border border-gray-100 rounded-3xl flex flex-col flex-1 overflow-hidden">
+                <Box className="flex-1 overflow-x-auto">
+                    <Box style={{ minWidth: `${(dayList.length * 250) + 80}px`, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        {selectedClinicId ? (
+                            <>
+                                {/* Header Row: Dates */}
+                                <Box style={{ 
+                                    display: 'grid', 
+                                    gridTemplateColumns: `80px repeat(${dayList.length}, 1fr)`, 
+                                    borderBottom: '1px solid #F3F4F6', 
+                                    backgroundColor: '#FFFFFF', 
+                                    zIndex: 10,
+                                    position: 'sticky',
+                                    top: 0
+                                }}>
+                                    <Box p={4} />
+                                    {dayList.map((day, idx) => (
+                                        <Box key={idx} p={4} textAlign="center" borderLeft="1px solid #F3F4F6">
+                                            <Text fontSize="xs" fontWeight="900" color="gray.400" textTransform="uppercase" mb={1}>{day.toLocaleString('default', { weekday: 'short' })}</Text>
+                                            <Text fontSize="lg" fontWeight="800" color="gray.900">{day.getDate()} {day.toLocaleString('default', { month: 'short' })}</Text>
+                                        </Box>
+                                    ))}
                                 </Box>
-                            ))}
-                        </Box>
 
-                        {/* Body Area: Scrollable */}
-                        <Box className="flex-1 overflow-y-auto relative" style={{ minHeight: '500px' }}>
-                            <Box style={{ 
-                                display: 'grid', 
-                                gridTemplateColumns: `80px repeat(${dayList.length}, minmax(200px, 1fr))`,
-                                minHeight: `${hours.length * HOUR_HEIGHT}px`,
-                                position: 'relative'
-                            }}>
-                                {/* Hour Markers */}
-                                {hours.map((h, i) => (
+                                {/* Body Area: Scrollable (Vertical) */}
+                                <Box className="flex-1 overflow-y-auto relative" style={{ minHeight: '500px' }}>
+                                    <Box style={{ 
+                                        display: 'grid', 
+                                        gridTemplateColumns: `80px repeat(${dayList.length}, 1fr)`,
+                                        minHeight: `${hours.length * HOUR_HEIGHT}px`,
+                                        position: 'relative'
+                                    }}>
+                                {/* Hour Markers & Background Grid */}
+                                {hours.map((h) => (
                                     <React.Fragment key={h}>
-                                        <Box style={{ height: HOUR_HEIGHT, borderBottom: '1px solid #F9FAFB', display: 'flex', alignItems: 'start', justifyContent: 'center', paddingTop: '10px' }}>
-                                            <Text fontSize="xs" fontWeight="700" color="gray.400">{String(h).padStart(2, '0')}:00</Text>
+                                        <Box style={{ height: HOUR_HEIGHT, borderBottom: '1px solid #F9FAFB', display: 'flex', alignItems: 'start', justifyContent: 'center', paddingTop: '10px', backgroundColor: '#F9FAFB' }}>
+                                            <Text fontSize="xs" fontWeight="700" color="gray.500">{String(h).padStart(2, '0')}:00</Text>
                                         </Box>
                                         {dayList.map((_, idx) => (
                                             <Box key={idx} style={{ height: HOUR_HEIGHT, borderBottom: '1px solid #F3F4F6', borderLeft: '1px solid #F3F4F6' }} />
@@ -233,28 +230,26 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
                                     bottom: 0, 
                                     pointerEvents: 'none',
                                     display: 'grid',
-                                    gridTemplateColumns: `repeat(${dayList.length}, minmax(200px, 1fr))`
+                                    gridTemplateColumns: `repeat(${dayList.length}, 1fr)`
                                 }}>
                                     {dayList.map((day, dayIdx) => {
-                                        const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+                                        const dateStr = getLocalDateStr(day);
                                         
-                                        // 1. Get template slots for this day
+                                        // 1. Get template slots for this day (Timezone robust matching)
                                         const daySlots = availableSlots.filter(s => {
-                                            const sDateObj = new Date(s.instance.startUTC);
-                                            const sDateStr = `${sDateObj.getFullYear()}-${String(sDateObj.getMonth() + 1).padStart(2, '0')}-${String(sDateObj.getDate()).padStart(2, '0')}`;
-                                            return sDateStr === dateStr;
+                                            const slotDate = getLocalDateStr(new Date(s.instance.startUTC));
+                                            return slotDate === dateStr;
                                         });
                                         
                                         // 2. Get appointments for this day
                                         const dayApps = dashboardAppointments.filter(a => {
-                                            const aDate = new Date(a.date);
-                                            const aDateStr = `${aDate.getFullYear()}-${String(aDate.getMonth() + 1).padStart(2, '0')}-${String(aDate.getDate()).padStart(2, '0')}`;
-                                            return aDateStr === dateStr;
+                                            const appDate = getLocalDateStr(new Date(a.date));
+                                            return appDate === dateStr;
                                         });
 
                                         return (
                                             <Box key={dayIdx} style={{ position: 'relative', height: '100%' }}>
-                                                {/* Render Template Slots */}
+                                                {/* Render Template Slots (Dashed Backgrounds) */}
                                                 {daySlots.map(slot => {
                                                     const start = new Date(slot.instance.startUTC);
                                                     const end = new Date(slot.instance.endUTC);
@@ -263,15 +258,15 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
                                                     
                                                     return (
                                                         <Box 
-                                                            key={slot.id}
+                                                            key={`slot-${slot.id}`}
                                                             style={{
                                                                 position: 'absolute',
                                                                 top: `${top}px`,
                                                                 height: `${height}px`,
                                                                 left: '4px',
                                                                 right: '4px',
-                                                                backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                                                                border: '2px dashed #3B82F6',
+                                                                backgroundColor: 'rgba(59, 130, 246, 0.03)',
+                                                                border: '2px dashed #BFDBFE',
                                                                 borderRadius: '16px',
                                                                 pointerEvents: 'auto',
                                                                 padding: '12px',
@@ -279,31 +274,46 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
                                                                 flexDirection: 'column',
                                                                 justifyContent: 'center',
                                                                 alignItems: 'center',
-                                                                gap: '10px',
+                                                                gap: '12px',
                                                                 zIndex: 1,
-                                                                boxShadow: 'inset 0 0 10px rgba(59, 130, 246, 0.05)'
+                                                                transition: 'all 0.2s'
                                                             }}
                                                         >
                                                             <Box textAlign="center">
-                                                                <Text fontSize="10px" fontWeight="900" color="blue.600" textTransform="uppercase">Available Beds</Text>
-                                                                <Text fontSize="xl" fontWeight="900" color="blue.800">
-                                                                    {Number(slot.clinic_capacity || slot.instance.capacity) - Number(slot.instance.bookedCount)} Left
+                                                                <Text fontSize="10px" fontWeight="900" color="blue.500" textTransform="uppercase" letterSpacing="0.05em">Available Beds</Text>
+                                                                <Text fontSize="xl" fontWeight="900" color="blue.700" lineHeight="1">
+                                                                    {Number(slot.instance.capacity) - Number(slot.instance.bookedCount)}
                                                                 </Text>
-                                                                <Text fontSize="10px" fontWeight="800" color="blue.500">({slot.instance.bookedCount}/{slot.clinic_capacity || slot.instance.capacity} Clinic Capacity)</Text>
+                                                                <Text fontSize="10px" fontWeight="700" color="blue.400" mt={1}>of {slot.instance.capacity} beds free</Text>
                                                             </Box>
-                                                            <Button size="xs" variant="brand" onClick={() => handleSlotClick(slot)} style={{ height: '28px', fontSize: '11px', width: '90%', borderRadius: '10px', fontWeight: '800', boxShadow: '0 4px 6px rgba(59, 130, 246, 0.2)' }}>Book Bed</Button>
+                                                            {Number(slot.instance.capacity) > Number(slot.instance.bookedCount) && (
+                                                                <Button 
+                                                                    size="xs" 
+                                                                    variant="brand" 
+                                                                    onClick={() => handleSlotClick(slot)} 
+                                                                    style={{ 
+                                                                        height: '28px', 
+                                                                        fontSize: '11px', 
+                                                                        width: '90%', 
+                                                                        borderRadius: '10px',
+                                                                        boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.2)'
+                                                                    }}
+                                                                >
+                                                                    Book Bed
+                                                                </Button>
+                                                            )}
                                                         </Box>
                                                     );
                                                 })}
 
-                                                {/* Render Actual Appointments (Longer cards over hours) */}
+                                                {/* Render Actual Appointments (Solid Cards) */}
                                                 {dayApps.map(app => {
                                                     const top = getTopPos(app.startTime);
                                                     const height = getHeight(app.startTime, app.endTime);
                                                     
                                                     return (
                                                         <Box 
-                                                            key={app.id}
+                                                            key={`app-${app.id}`}
                                                             onClick={() => onSelectAppointment && onSelectAppointment(app)}
                                                             style={{
                                                                 position: 'absolute',
@@ -311,25 +321,38 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
                                                                 height: `${height}px`,
                                                                 left: '8px',
                                                                 right: '8px',
-                                                                backgroundColor: '#FEF2F2',
-                                                                borderLeft: '6px solid #EF4444',
-                                                                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.1)',
+                                                                backgroundColor: '#FFFFFF',
+                                                                borderLeft: '5px solid #EF4444',
+                                                                boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
                                                                 borderRadius: '12px',
                                                                 pointerEvents: 'auto',
                                                                 padding: '12px',
                                                                 zIndex: 2,
                                                                 overflow: 'hidden',
                                                                 cursor: 'pointer',
-                                                                border: '1px solid #FEE2E2'
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                border: '1px solid #F3F4F6',
+                                                                borderLeftWidth: '5px'
                                                             }}
                                                         >
-                                                            <Flex align="start" justify="between" mb={1}>
-                                                                <Text fontSize="xs" fontWeight="800" color="gray.900" noOfLines={1}>{app.patientName}</Text>
-                                                                <Badge size="xs" colorScheme="red" variant="solid">BOOKED</Badge>
+                                                            <Flex align="start" justify="between" mb={1} gap={2}>
+                                                                <Text fontSize="sm" fontWeight="800" color="gray.900" noOfLines={2} lineHeight="1.2">
+                                                                    {app.patientName || `Patient #${app.patientId || '???'}`}
+                                                                </Text>
+                                                                <Badge size="xs" variant="subtle" colorScheme="red" borderRadius="6px" fontSize="9px">
+                                                                    {String(app.status).toUpperCase()}
+                                                                </Badge>
                                                             </Flex>
-                                                            <Text fontSize="10px" color="gray.500" fontWeight="600">{app.startTime} - {app.endTime}</Text>
-                                                            {height > 60 && (
-                                                                <Text fontSize="9px" color="gray.400" mt={2} noOfLines={2}>Dialysis Treatment Session</Text>
+                                                            <Text fontSize="10px" color="gray.500" fontWeight="700" mb={2}>
+                                                                {app.startTime.slice(0, 5)} - {app.endTime.slice(0, 5)}
+                                                            </Text>
+                                                            
+                                                            {height > 100 && (
+                                                                <Box mt="auto" pt={2} borderTop="1px solid #F9FAFB">
+                                                                    <Text fontSize="9px" color="gray.400" fontWeight="600" textTransform="uppercase">Treatment Session</Text>
+                                                                    <Text fontSize="9px" color="gray.500" fontWeight="700">Bed: {app.bedId || 'Unassigned'}</Text>
+                                                                </Box>
                                                             )}
                                                         </Box>
                                                     );
@@ -344,15 +367,32 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
                 ) : (
                     <Box p={20} textAlign="center">
                         <Flex direction="column" align="center" gap={4}>
-                            <Box p={4} bg="blue.50" borderRadius="full">🏥</Box>
-                            <Heading size="md" color="gray.800">Select Clinic</Heading>
-                            <Text color="gray.500">Pick an organization and clinic to view the live scheduler.</Text>
+                            <Box p={6} bg="blue.50" borderRadius="3xl">
+                                <Text fontSize="4xl">🏥</Text>
+                            </Box>
+                            <Heading size="md" color="gray.800" fontWeight="800">Clinic View Required</Heading>
+                            <Text color="gray.500" maxW="300px" fontWeight="600">Please select an organization and clinic to initialize the scheduler grid.</Text>
                         </Flex>
                     </Box>
                 )}
-            </Box>
+                    </Box> {/* End minWidth Box */}
+                </Box> {/* End overflow-x-auto Box */}
+            </Box> {/* End outer wrapper Box */}
 
-
+            {/* Legend */}
+            <Flex gap={6} p={4} bg="gray.50" borderRadius="2xl" border="1px solid #F1F5F9">
+                <Flex align="center" gap={3}>
+                    <Box w="16px" h="16px" borderRadius="4px" border="2px dashed #BFDBFE" bg="rgba(59, 130, 246, 0.05)" />
+                    <Text fontSize="xs" fontWeight="800" color="gray.600">Available Slot</Text>
+                </Flex>
+                <Flex align="center" gap={3}>
+                    <Box w="16px" h="16px" borderRadius="4px" bg="white" border="1px solid #F3F4F6" borderLeft="5px solid #EF4444" shadow="sm" />
+                    <Text fontSize="xs" fontWeight="800" color="gray.600">Booked Session</Text>
+                </Flex>
+                <Box ml="auto">
+                    <Text fontSize="xs" fontWeight="700" color="gray.400">Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}</Text>
+                </Box>
+            </Flex>
         </Box>
     );
 };

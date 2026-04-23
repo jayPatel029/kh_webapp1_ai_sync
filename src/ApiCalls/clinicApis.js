@@ -454,6 +454,53 @@ export async function regenerateInvoice(invoiceId, config = {}) {
   }
 }
 
+/**
+ * Retrieve a bill from the primary billing module
+ * @param {string|number} billId 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function getBillingBillById(billId, config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/billing/bills/${billId}`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Retrieve a consolidated bill with all appointments and services
+ * @param {string|number} billId 
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function getBillDetails(billId, config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/bills/${billId}`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
+ * Mark services for an appointment as consumed
+ * @param {string|number} appointmentId 
+ * @param {Object} payload 
+ * @param {number} [payload.serviceId] optional specific service ID
+ * @param {Object} config Axios config
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function consumeAppointmentServices(appointmentId, payload = {}, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/dt/appointments/${appointmentId}/consume`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
 // --- Shifts and Staff ---
 
 /**
@@ -569,4 +616,7 @@ export default {
   getShiftById,
   assignStaffToShift,
   getStaffSchedule,
+  getBillDetails,
+  getBillingBillById,
+  consumeAppointmentServices,
 };

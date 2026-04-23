@@ -99,7 +99,7 @@ const PaymentModal = ({
         let alreadyPaid = Number(appt.amountPaid || appt.received_amt || appt.paidAmount || appt.amount_paid || 0);
         if (payments && payments.length > 0) {
           alreadyPaid = payments
-            .filter(p => p.status === 'CAPTURED' || p.status === 'SUCCESS' || p.status === 'PAID')
+            .filter(p => p.status === 'RECEIVED' || p.status === 'SUCCESS' || p.status === 'PAID')
             .reduce((sum, p) => sum + Number(p.amount || p.raw?.initialAmountPaid || p.raw?.amount || 0), 0);
         }
 
@@ -210,7 +210,7 @@ const PaymentModal = ({
     <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Record Payment"
+      title="Dialysis Billing"
       size="sm"
       footer={
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
@@ -218,7 +218,7 @@ const PaymentModal = ({
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSubmit} disabled={submitting || !amount || loading}>
-            {submitting ? 'Processing…' : 'Record Payment'}
+            {submitting ? 'Processing…' : 'Dialysis Billing'}
           </Button>
         </div>
       }
@@ -309,8 +309,29 @@ const PaymentModal = ({
                       cursor: 'pointer',
                     }}
                   >
-                    Pay Half
+                    Partial Payment
                   </button>
+                </div>
+              )}
+
+              {/* Remaining Balance Display (Added for consistency) */}
+              {amount && Number(amount) > 0 && (
+                <div 
+                  style={{ 
+                    marginTop: '12px', 
+                    padding: '12px', 
+                    background: '#FEF2F2', 
+                    borderRadius: '8px', 
+                    border: '1px solid #FECACA',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <span style={{ fontSize: '12px', color: '#991B1B', fontWeight: 600 }}>Remaining Balance</span>
+                  <span style={{ fontSize: '15px', fontWeight: 800, color: '#DC2626' }}>
+                    ₹{Math.max(0, outstanding - Number(amount)).toLocaleString()}
+                  </span>
                 </div>
               )}
             </div>
