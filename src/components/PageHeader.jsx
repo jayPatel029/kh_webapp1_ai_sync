@@ -50,8 +50,9 @@ export const PageHeader = ({
   const user = useSelector((state) => state.auth?.user);
   const location = useLocation();
   const pathname = location?.pathname || '';
-  const isDoctor = role?.role_name === 'Doctor';
-  const isDialysisMember = role?.role_name === 'Dialysis Technician';
+  const roleName = String(role?.role_name || '').trim().toLowerCase();
+  const isDoctor = roleName === 'doctor';
+  const isDialysisMember = roleName === 'dialysis technician';
 
   // Detect dialysis sub-role from user profile data
   const dialysisSubRole = (
@@ -143,8 +144,19 @@ export const PageHeader = ({
     ];
   }, [isDialysisMember, dialysisSubRole]);
 
-  // Use dialysis nav items when role is Dialysis Technician, otherwise use standard navItems
-  const effectiveNavItems = isDialysisMember ? dialysisNavItems : navItems;
+  const doctorNavItems = React.useMemo(() => {
+    if (!isDoctor) return [];
+
+    return [
+      { id: 'doctor-dashboard', label: 'Dashboard', mobileLabel: 'Dashboard', href: ROUTES.DOCTOR_DASHBOARD, icon: DashboardIcon, showInMobileBar: true },
+      { id: 'doctor-patients', label: 'Patients', href: ROUTES.PATIENTS, icon: PeopleAltIcon, showInMobileBar: true },
+      { id: 'doctor-kfre', label: 'KFRE', mobileLabel: 'KFRE', href: ROUTES.REPORTS_KFRE, icon: Assessment, showInMobileBar: true },
+      { id: 'doctor-audit-logs', label: 'Audit Logs', href: ROUTES.SETTINGS_LOGS, icon: HistoryIcon },
+    ];
+  }, [isDoctor]);
+
+  // Use role-specific nav items when applicable, otherwise fall back to the permission-driven menu.
+  const effectiveNavItems = isDoctor ? doctorNavItems : isDialysisMember ? dialysisNavItems : navItems;
 
   const getActiveIdFromPath = (path) => {
     if (!path) return null;
@@ -165,7 +177,7 @@ export const PageHeader = ({
     // Render tab navigation for Doctor and Dialysis Technician roles (desktop only)
     // Each shows role-specific navigation items
     if ((isDoctor || isDialysisMember) && !isMobile) {
-      const tabItems = isDialysisMember ? dialysisNavItems : navItems;
+      const tabItems = isDoctor ? doctorNavItems : dialysisNavItems;
       return (
         <Box className="w-full border-b-2 -mt-8 border-info bg-white relative">
           <div className="flex flex-col items-start justify-start py-4">
