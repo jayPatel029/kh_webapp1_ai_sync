@@ -130,7 +130,7 @@ function ImmunizationSection({ userData = {}, role = {}, onSuccess }) {
             <Flex justify="between" align="center" className="gap-4">
               <Box className="flex-1 min-w-0">
                 <Box className="text-sm font-medium text-gray-800 truncate">{it.vaccine}</Box>
-                <Box className="text-xs text-gray-500">Date: {formatDate(it.date)} • Administered by: {it.administeredBy}</Box>
+                <Box className="text-xs text-gray-500">Date: {formatDate(it.date)} • Entered by: {it.administeredBy}</Box>
                 {it.notes && <Box className="text-xs text-gray-500 mt-1">Notes: {it.notes}</Box>}
               </Box>
 
