@@ -24,10 +24,14 @@ import {
   FormLabel,
   Textarea,
   Select,
+  Flex
 } from '../../component-library';
 import { FormModal } from '../../component-library/modals/FormModal';
 import { BaseModal } from '../../component-library/modals/BaseModal';
 import { ScheduleManager } from '../clinicManagement/components/ScheduleManager';
+import DialysisAppointmentsDashboard from '../adminDashboard/components/DialysisAppointmentsDashboard';
+import DialysisParametersModal from '../adminDashboard/components/DialysisParametersModal';
+import PatientAppointmentTimeline from '../../components/PatientAppointmentTimeline';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
@@ -67,13 +71,13 @@ import QuestionsContainer from '../../components/questions/QuestionsContainer';
 
 // ─── Status colors ──────────────────────────────────────────
 const STATUS_COLORS = {
-  SCHEDULED:   { bg: '#FEF9C3', text: '#854D0E' },
-  BOOKED:      { bg: '#FEF9C3', text: '#854D0E' },
-  ARRIVED:     { bg: '#F3E8FF', text: '#6B21A8' },
+  SCHEDULED: { bg: '#FEF9C3', text: '#854D0E' },
+  BOOKED: { bg: '#FEF9C3', text: '#854D0E' },
+  ARRIVED: { bg: '#F3E8FF', text: '#6B21A8' },
   IN_PROGRESS: { bg: '#DBEAFE', text: '#1E40AF' },
-  COMPLETED:   { bg: '#DCFCE7', text: '#166534' },
-  CANCELLED:   { bg: '#F3F4F6', text: '#6B7280' },
-  MISSED:      { bg: '#FEE2E2', text: '#991B1B' },
+  COMPLETED: { bg: '#DCFCE7', text: '#166534' },
+  CANCELLED: { bg: '#F3F4F6', text: '#6B7280' },
+  MISSED: { bg: '#FEE2E2', text: '#991B1B' },
 };
 
 const STATUS_FLOW = {
@@ -293,8 +297,8 @@ const DialysisAppointments = () => {
 
   // ─── Data state ───────────────────────────────────────
   const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // ─── Clinic state ─────────────────────────────────────
   const [clinics, setClinics] = useState([]);
@@ -305,7 +309,7 @@ const DialysisAppointments = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const today = new Date().toISOString().split('T')[0];
   const [fromDate, setFromDate] = useState(today);
-  const [toDate, setToDate]     = useState(today);
+  const [toDate, setToDate] = useState(today);
   const [selectedClinicId, setSelectedClinicId] = useState('');
   const [organizations, setOrganizations] = useState([]);
   const [selectedOrgId, setSelectedOrgId] = useState('');
@@ -318,30 +322,39 @@ const DialysisAppointments = () => {
 
   const defaultForm = {
     patient_id: '1',
-    clinic_id:        '',
+    clinic_id: '',
     clinic_name: '',
     appointment_date: today,
-    start_time:       '',
-    end_time:         '',
+    start_time: '',
+    end_time: '',
     appointment_type: 'in_clinic',
     doctor_id: '',
     is_emergency: false,
-    reason:           '',
+    reason: '',
     patient_ailments: '',
-    slotTemplates:    [], // Added for recurring/multi-slot support
-    total_amount:     '',
-    payment_option:   'full',
-    payment_method:   'cash',
-    amount_paid:      '',
-    receipt_file:     null,
+    slotTemplates: [], // Added for recurring/multi-slot support
+    total_amount: '',
+    payment_option: 'full',
+    payment_method: 'cash',
+    amount_paid: '',
+    receipt_file: null,
     duration: '4',
   };
 
   const [createForm, setCreateForm] = useState(defaultForm);
-  const [createFieldErrors, setCreateFieldErrors]   = useState({});
+  const [createFieldErrors, setCreateFieldErrors] = useState({});
   const [createErrorMessage, setCreateErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [timelinePatientId, setTimelinePatientId] = useState(null);
+
+  const [sessionModal, setSessionModal] = useState({
+    isOpen: false,
+    patient: null,
+    bed: null
+  });
 
   // --- External Data ---
   const [selectedPatientData, setSelectedPatientData] = useState(null);
@@ -361,6 +374,22 @@ const DialysisAppointments = () => {
     });
   }, [patients]);
 
+  const handleOpenSession = useCallback((app) => {
+    setSessionModal({
+      isOpen: true,
+      patient: {
+        id: app.id,
+        patient_id: app.patientId,
+        patient_name: app.patientName,
+        appointment_id: app.id
+      },
+      bed: {
+        id: app.bedId,
+        bed_number: '—' // Will be fetched by modal or shown as placeholder
+      }
+    });
+  }, []);
+
   // --- Fetch Patients & Doctors ---
   useEffect(() => {
     const loadData = async () => {
@@ -376,6 +405,34 @@ const DialysisAppointments = () => {
     };
     loadData();
   }, []);
+
+  const handleBookFromDashboard = useCallback((slot) => {
+    setIsDashboardOpen(false);
+    resetCreateModal();
+
+    const dateStr = slot.start.toISOString().split('T')[0];
+    const startTimeStr = slot.start.toISOString().split('T')[1].slice(0, 5);
+    const endTimeStr = slot.end.toISOString().split('T')[1].slice(0, 5);
+
+    const chosenClinic = clinics.find(c => String(c.id) === String(slot.clinicId));
+
+    setCreateForm(prev => ({
+      ...prev,
+      clinic_id: slot.clinicId,
+      clinic_name: chosenClinic ? (chosenClinic.name || chosenClinic.clinic_name) : '',
+      appointment_date: dateStr,
+      slotTemplates: [{
+        daysOfWeek: [new Date(dateStr).toLocaleString('default', { weekday: 'long' })],
+        startTime: startTimeStr,
+        endTime: endTimeStr,
+        frequency: 'one-time',
+        slot_id: slot.slotId
+      }],
+      duration: calculateDuration(startTimeStr, endTimeStr).replace('h', '').replace('m', '').trim() || '4'
+    }));
+
+    setIsCreateOpen(true);
+  }, [clinics]);
 
   // --- Fetch Clinic Services when clinic changes ---
   useEffect(() => {
@@ -591,8 +648,8 @@ const DialysisAppointments = () => {
         const rows = Array.isArray(result.data?.data)
           ? result.data.data
           : Array.isArray(result.data)
-          ? result.data
-          : [];
+            ? result.data
+            : [];
         setAppointments(rows.map(apt => normalizeAppointment(apt, patients)));
       } else {
         const msg = result.data?.message || 'Failed to load appointments';
@@ -811,7 +868,7 @@ const DialysisAppointments = () => {
     if (!createForm.patient_id) errors.patient_id = 'Patient ID is required';
     if (!createForm.appointment_date) errors.appointment_date = 'Start Date is required';
     if (createForm.slotTemplates.length === 0) errors.start_time = 'At least one timing slot is required';
-    if (!createForm.total_amount)     errors.total_amount = 'Bill Amount is required';
+    if (!createForm.total_amount) errors.total_amount = 'Bill Amount is required';
 
     if (Object.keys(errors).length > 0) {
       setCreateFieldErrors(errors);
@@ -837,7 +894,7 @@ const DialysisAppointments = () => {
       const primarySlot = createForm.slotTemplates[0] || {};
       const startTime24 = primarySlot.startTime ? (primarySlot.startTime.length === 5 ? primarySlot.startTime + ':00' : primarySlot.startTime) : '00:00:00';
       const startUTC = toUtcIso(createForm.appointment_date, startTime24);
-      
+
       const finalPaid = createForm.payment_option === 'full'
         ? Number(createForm.total_amount)
         : Number(createForm.amount_paid) || 0;
@@ -848,6 +905,7 @@ const DialysisAppointments = () => {
         clinicId: Number(createForm.clinic_id),
         patientId: Number(createForm.patient_id),
         startUTC,
+        slotId: primarySlot.slot_id || primarySlot.id?.split('-')[1],
         bookingType: 'offline',
         amountDue: Number(createForm.total_amount) || 0,
         metadata: {
@@ -879,7 +937,7 @@ const DialysisAppointments = () => {
       if (result.success) {
         showToast(isEditOpen ? 'Appointment updated!' : 'Appointment booked!', 'success');
         fetchAppointments();
-        
+
         if (isEditOpen) {
           setIsCreateOpen(false);
           resetCreateModal();
@@ -921,12 +979,12 @@ const DialysisAppointments = () => {
 
   // ─── Columns ──────────────────────────────────────────
   const columns = [
-    { key: 'created_date',    label: 'DATE',      type: 'text', width: '100px' },
-    { key: 'name',            label: 'PATIENT',   type: 'text', width: '140px' },
-    { key: 'age',             label: 'AGE',       type: 'text', width: '50px'  },
-    { key: 'sex',             label: 'SEX',       type: 'text', width: '70px'  },
-    { key: 'mobile_no',       label: 'MOBILE NO.',type: 'text', width: '120px' },
-    { key: 'appointment_time',label: 'APPOINTMENT TIME', type: 'text', width: '130px'  },
+    { key: 'created_date', label: 'DATE', type: 'text', width: '100px' },
+    { key: 'name', label: 'PATIENT', type: 'text', width: '140px' },
+    { key: 'age', label: 'AGE', type: 'text', width: '50px' },
+    { key: 'sex', label: 'SEX', type: 'text', width: '70px' },
+    { key: 'mobile_no', label: 'MOBILE NO.', type: 'text', width: '120px' },
+    { key: 'appointment_time', label: 'APPOINTMENT TIME', type: 'text', width: '130px' },
     { key: 'duration', label: 'DURATION', type: 'text', width: '100px' },
     {
       key: 'payment_receipt',
@@ -953,9 +1011,9 @@ const DialysisAppointments = () => {
         if (!payStatus || payStatus === 'UNDEFINED') {
           payStatus = getPaymentStatus(row.totalAmount, row.amountPaid);
         }
-        const config = 
+        const config =
           payStatus === 'PAID' ? { label: 'Paid', color: '#10B981' } :
-          { label: 'Pending', color: '#EF4444' };
+            { label: 'Pending', color: '#EF4444' };
 
         return (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -1054,6 +1112,18 @@ const DialysisAppointments = () => {
               icon={EditIcon}
               onClick={() => handleEditOpen(row)}
             />
+            <Button
+              size="xs"
+              variant="ghost"
+              colorScheme="teal"
+              onClick={() => {
+                setTimelinePatientId(row.patient_id);
+                setIsTimelineOpen(true);
+              }}
+              style={{ padding: '0 4px', fontSize: '10px' }}
+            >
+              Timeline
+            </Button>
             <ActionIconBtn
               icon={DeleteIcon}
               onClick={() => handleSimpleCancel(row)}
@@ -1075,6 +1145,30 @@ const DialysisAppointments = () => {
               { label: 'Dashboard', path: '/' },
               { label: 'Dialysis Appointments', active: true },
             ]}
+            actions={
+              <Flex gap={2}>
+                <Button
+                  variant="outline"
+                  colorScheme="blue"
+                  leftIcon={<span>📅</span>}
+                  onClick={() => setIsDashboardOpen(true)}
+                  size="sm"
+                  style={{ borderRadius: '8px', fontWeight: 700, borderColor: '#3b82f6', color: '#1e40af' }}
+                >
+                  Booking Dashboard
+                </Button>
+                <Button
+                  variant="brand"
+                  size="sm"
+                  onClick={() => {
+                    resetCreateModal();
+                    setIsCreateOpen(true);
+                  }}
+                >
+                  + New Appointment
+                </Button>
+              </Flex>
+            }
           />
         </Box>
 
@@ -1129,6 +1223,14 @@ const DialysisAppointments = () => {
                 onChange={(e) => setToDate(e.target.value)}
                 style={{ height: '40px', margin: 0, width: '160px', flexShrink: 0 }}
               />
+              <Button
+                variant="outline"
+                style={{ height: '40px', display: 'flex', alignItems: 'center', margin: 0, whiteSpace: 'nowrap', flexShrink: 0, borderColor: '#3b82f6', color: '#1e40af', fontWeight: 700 }}
+                onClick={() => setIsDashboardOpen(true)}
+                leftIcon={<span>📅</span>}
+              >
+                Dashboard
+              </Button>
               <Button
                 variant="primary"
                 style={{ height: '40px', display: 'flex', alignItems: 'center', margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}
@@ -1202,7 +1304,7 @@ const DialysisAppointments = () => {
             onClose={() => { setIsCreateOpen(false); resetCreateModal(); }}
             onSubmit={handleCreate}
             title={
-              isEditOpen 
+              isEditOpen
                 ? (createStep === 1 ? 'Edit Appointment' : 'Update Bill & Payment')
                 : (createStep === 1 ? 'Book Appointment - Details' : 'Bill & Payment')
             }
@@ -1288,18 +1390,18 @@ const DialysisAppointments = () => {
                         {clinicsLoading ? (
                           <div style={{ fontSize: '13px', color: '#6B7280', padding: '10px 12px' }}>Loading clinics...</div>
                         ) : (
-                            <ClinicSelector
-                              orgId={createForm.org_id}
-                              clinicId={createForm.clinic_id}
-                              setClinicId={(val) => {
-                                const chosen = clinics.find((c) => String(c.id) === String(val));
-                                setCreateForm(p => ({
-                                  ...p,
-                                  clinic_id: val,
-                                  clinic_name: chosen ? (chosen.name || 'Clinic') : '',
-                                  start_time: '',
-                                }));
-                              }}
+                          <ClinicSelector
+                            orgId={createForm.org_id}
+                            clinicId={createForm.clinic_id}
+                            setClinicId={(val) => {
+                              const chosen = clinics.find((c) => String(c.id) === String(val));
+                              setCreateForm(p => ({
+                                ...p,
+                                clinic_id: val,
+                                clinic_name: chosen ? (chosen.name || 'Clinic') : '',
+                                start_time: '',
+                              }));
+                            }}
                             clinics={clinics}
                             label=""
                             size="md"
@@ -1369,27 +1471,27 @@ const DialysisAppointments = () => {
                       <FormControl isRequired isInvalid={getFieldProps('start_time').isInvalid}>
                         <FormLabel>Timing & Schedule</FormLabel>
                         <div className="p-0 border-none">
-                            <ScheduleManager 
-                                slotTemplates={createForm.slotTemplates} 
+                          <ScheduleManager
+                            slotTemplates={createForm.slotTemplates}
                             capacity={selectedClinicData?.capacity || 1}
                             existingAppointments={clinicAppointments}
                             duration={Number(createForm.duration || 4) * 60}
-                                onChange={(newTemplates) => {
-                                  const processed = newTemplates.map(t => {
-                                    if (t.startTime && createForm.duration) {
-                                      return { ...t, endTime: addMinutesToTime(t.startTime, Number(createForm.duration) * 60) };
-                                    }
-                                    return t;
-                                  });
-                                  setCreateForm(prev => ({ ...prev, slotTemplates: processed }));
-                                  if (processed.length > 0) clearFieldError('start_time');
-                                }}
-                            />
+                            onChange={(newTemplates) => {
+                              const processed = newTemplates.map(t => {
+                                if (t.startTime && createForm.duration) {
+                                  return { ...t, endTime: addMinutesToTime(t.startTime, Number(createForm.duration) * 60) };
+                                }
+                                return t;
+                              });
+                              setCreateForm(prev => ({ ...prev, slotTemplates: processed }));
+                              if (processed.length > 0) clearFieldError('start_time');
+                            }}
+                          />
                         </div>
                         {getFieldProps('start_time').isInvalid && (
-                            <p style={{ color: '#DC2626', fontSize: '12px', marginTop: '4px' }}>
-                                At least one schedule timing is required
-                            </p>
+                          <p style={{ color: '#DC2626', fontSize: '12px', marginTop: '4px' }}>
+                            At least one schedule timing is required
+                          </p>
                         )}
                       </FormControl>
                     </div>
@@ -1758,6 +1860,44 @@ const DialysisAppointments = () => {
           appointment={invoiceTarget}
           clinic={clinics?.find(c => String(c.id) === String(invoiceTarget?.clinic_id))}
         />
+
+        {/* Dashboard Modal */}
+        <BaseModal
+          isOpen={isDashboardOpen}
+          onClose={() => setIsDashboardOpen(false)}
+          // title="Dialysis Booking Dashboard"
+          size="full"
+        >
+          <DialysisAppointmentsDashboard
+            clinicId={Number(selectedClinicId || 1)}
+            onSelectSlot={handleBookFromDashboard}
+            onSelectAppointment={handleOpenSession}
+          />
+        </BaseModal>
+
+        {/* ─── Dialysis Session Management Modal ─── */}
+        <DialysisParametersModal
+          isOpen={sessionModal.isOpen}
+          onClose={() => setSessionModal(prev => ({ ...prev, isOpen: false }))}
+          patient={sessionModal.patient}
+          bed={sessionModal.bed}
+          onStageChange={(stage, data) => {
+            console.log('Dialysis stage changed:', stage, data);
+            fetchAppointments();
+          }}
+        />
+
+        {/* Timeline Modal */}
+        <BaseModal
+          isOpen={isTimelineOpen}
+          onClose={() => setIsTimelineOpen(false)}
+          title="Patient Appointment Timeline"
+          size="xl"
+        >
+          {timelinePatientId && (
+            <PatientAppointmentTimeline patientId={timelinePatientId} />
+          )}
+        </BaseModal>
 
         <ToastContainer />
       </Box>

@@ -8,11 +8,14 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Box, Input } from '../../component-library';
+import { Box, Input, Button, Flex } from '../../component-library';
+import { BaseModal } from '../../component-library/modals/BaseModal';
+import DialysisAppointmentsDashboard from '../adminDashboard/components/DialysisAppointmentsDashboard';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import UnifiedListTable from '../../components/table/UnifiedListTable';
+import PatientAppointmentTimeline from '../../components/PatientAppointmentTimeline';
 import { getPatients } from '../../ApiCalls/patientAPis';
 import { useAdminToast } from '../../components/AdminToast';
 
@@ -23,7 +26,11 @@ const DialysisPatients = () => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [selectedPatientName, setSelectedPatientName] = useState('');
 
   const calculateAgeFromDOB = (dobString) => {
     if (!dobString) return '—';
@@ -113,6 +120,27 @@ const DialysisPatients = () => {
       ),
     },
     { key: 'lastVisit', label: 'LAST VISIT', type: 'text', width: '120px' },
+    {
+      key: 'actions',
+      label: 'ACTIONS',
+      type: 'custom',
+      width: '120px',
+      render: (row) => (
+        <Button
+          size="xs"
+          variant="outline"
+          colorScheme="blue"
+          onClick={() => {
+            setSelectedPatientId(row.id);
+            setSelectedPatientName(row.name);
+            setIsTimelineOpen(true);
+          }}
+          style={{ padding: '4px 10px', fontSize: '12px' }}
+        >
+          Timeline
+        </Button>
+      )
+    }
   ];
 
   return (
@@ -125,6 +153,18 @@ const DialysisPatients = () => {
               { label: 'Dashboard', path: '/' },
               { label: 'Dialysis Patients', active: true },
             ]}
+            actions={
+              <Button
+                variant="solid"
+                colorScheme="blue"
+                leftIcon={<span>📅</span>}
+                onClick={() => setIsDashboardOpen(true)}
+                size="sm"
+                style={{ borderRadius: '8px', fontWeight: 700 }}
+              >
+                Overall Calendar View
+              </Button>
+            }
           />
         </Box>
 
@@ -178,6 +218,26 @@ const DialysisPatients = () => {
             )}
           </div>
         </div>
+        <BaseModal
+          isOpen={isDashboardOpen}
+          onClose={() => setIsDashboardOpen(false)}
+          title="Dialysis Booking Dashboard"
+          size="full"
+        >
+          <DialysisAppointmentsDashboard clinicId={1} />
+        </BaseModal>
+
+        <BaseModal
+          isOpen={isTimelineOpen}
+          onClose={() => setIsTimelineOpen(false)}
+          title={`${selectedPatientName} - Appointment Timeline`}
+          size="xl"
+        >
+          {selectedPatientId && (
+            <PatientAppointmentTimeline patientId={selectedPatientId} />
+          )}
+        </BaseModal>
+
         <ToastContainer />
       </Box>
     </ThemeProvider>
