@@ -83,10 +83,9 @@ function ProfileQuestions() {
         }
         fetchWithCache('ailments', () => getAilments()).then((resultAilment) => {
           if (resultAilment.success && resultAilment.data.listOfAilments) {
-            setAilments(resultAilment.data.listOfAilments);
-            setAilments((prevAilments) => [
+            setAilments([
               { name: "Generic Profile" },
-              ...prevAilments,
+              ...resultAilment.data.listOfAilments,
             ]);
             newQuestionDispatch({
               type: "all",
@@ -197,7 +196,7 @@ function ProfileQuestions() {
 
           // Convert ailment IDs back to ailment objects
           const ailmentObjects = newQuestion.ailment.map(ailmentId => {
-            const ailmentObj = ailments.find(a => a.id === ailmentId || a.name === ailmentId);
+            const ailmentObj = ailments.find(a => String(a.id || a.name) === String(ailmentId));
             return ailmentObj || { id: ailmentId, name: ailmentId };
           });
 
@@ -227,7 +226,7 @@ function ProfileQuestions() {
 
           // Convert ailment IDs back to ailment objects
           const ailmentObjects = newQuestion.ailment.map(ailmentId => {
-            const ailmentObj = ailments.find(a => a.id === ailmentId || a.name === ailmentId);
+            const ailmentObj = ailments.find(a => String(a.id || a.name) === String(ailmentId));
             return ailmentObj || { id: ailmentId, name: ailmentId };
           });
 
@@ -286,7 +285,7 @@ function ProfileQuestions() {
       type: "all",
       payload: {
         id: q.id,
-        ailment: q.ailments?.map(a => a.id || a.name) || [],
+        ailment: q.ailments?.map(a => String(a.id || a.name)) || [],
         type: q.type,
         name: q.name,
         options: q.options,
@@ -442,12 +441,12 @@ function ProfileQuestions() {
               onChange={(ailmentIds) => {
                 newQuestionDispatch({
                   type: "ailment",
-                  payload: ailmentIds,
+                  payload: ailmentIds.map(String),
                 });
               }}
             >
               {ailments.map((ailment) => (
-                <option key={ailment.id || ailment.name} value={ailment.id || ailment.name}>
+                <option key={ailment.id || ailment.name} value={String(ailment.id || ailment.name)}>
                   {ailment.name}
                 </option>
               ))}

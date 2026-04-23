@@ -103,11 +103,13 @@ export async function getSessionReadings(sessionId, config = {}) {
 }
 
 /**
- * Update planned session parameters
+ * Update session notes and inventory items
  * @param {string|number} sessionId 
  * @param {Object} payload 
- * @param {Object} [payload.parameters]
- * @param {Object} [payload.planned_parameters]
+ * @param {string} [payload.preDialysisNotes]
+ * @param {string} [payload.duringDialysisNotes]
+ * @param {string} [payload.postDialysisNotes]
+ * @param {Object[]} [payload.inventoryItemsUsed]
  * @param {Object} config Axios config
  * @returns {Promise<{success: boolean, data: any}>}
  */
@@ -140,7 +142,7 @@ export async function submitSessionAction(sessionId, payload, config = {}) {
 
 export async function getHemoDialysisParameters(pid) {
   try {
-    const response = await axiosInstance.get(`${server_url}/dialysisParameter/Hemo%20dialysis?user=${pid}`);
+    const response = await axiosInstance.get(`${server_url}/questions/dialysisParameter/Hemo%20dialysis?user=${pid}`);
     return { success: true, data: response.data?.data || response.data || [] };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

@@ -96,8 +96,8 @@ export async function generateBillPDF(billData, opts = {}) {
   const totalDue    = Number(amountDue || items.reduce((s, it) => s + Number(it.qty || 1) * Number(it.unitPrice || 0), 0));
   const paid        = Number(amountPaid || 0);
   const outstanding = Math.max(0, totalDue - paid);
-  const status      = paid >= totalDue ? 'PAID' : paid > 0 ? 'PARTIALLY PAID' : 'UNPAID';
-  const statusColor = paid >= totalDue ? [22, 163, 74] : paid > 0 ? [133, 77, 14] : [153, 27, 27];
+  const status      = paid >= totalDue ? 'PAID' : 'PENDING';
+  const statusColor = paid >= totalDue ? [22, 163, 74] : [153, 27, 27];
 
   // Status badge
   doc.setFontSize(12);

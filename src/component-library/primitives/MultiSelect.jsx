@@ -60,8 +60,11 @@ export const MultiSelect = forwardRef(({
 
     // Handle option toggle
     const handleToggleOption = (optionValue) => {
-        const newValue = value.includes(optionValue)
-            ? value.filter(v => v !== optionValue)
+        const stringValue = String(optionValue);
+        const isSelected = value.some(v => String(v) === stringValue);
+        
+        const newValue = isSelected
+            ? value.filter(v => String(v) !== stringValue)
             : [...value, optionValue];
 
         if (onChange) {
@@ -87,7 +90,7 @@ export const MultiSelect = forwardRef(({
     const getDisplayText = () => {
         if (value.length === 0) return placeholder;
         if (value.length === 1) {
-            const selected = options.find(opt => opt.props.value === value[0]);
+            const selected = options.find(opt => String(opt.props.value) === String(value[0]));
             return selected?.props.children || value[0];
         }
         return `${value.length} selected`;
@@ -175,12 +178,12 @@ export const MultiSelect = forwardRef(({
                                     key={option.props.value}
                                     className="multi-select__option"
                                     role="option"
-                                    aria-selected={value.includes(option.props.value)}
+                                    aria-selected={value.some(v => String(v) === String(option.props.value))}
                                 >
                                     <input
                                         type="checkbox"
                                         className="multi-select__checkbox"
-                                        checked={value.includes(option.props.value)}
+                                        checked={value.some(v => String(v) === String(option.props.value))}
                                         onChange={() => handleToggleOption(option.props.value)}
                                         disabled={isDisabled}
                                     />

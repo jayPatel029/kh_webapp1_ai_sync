@@ -23,6 +23,7 @@ import {
   FormControl,
   FormLabel,
   Textarea,
+  Select,
 } from '../../component-library';
 import { FormModal } from '../../component-library/modals/FormModal';
 import { BaseModal } from '../../component-library/modals/BaseModal';
@@ -46,6 +47,7 @@ import {
   getAppointments,
   createAppointment,
   updateAppointment,
+  getAppointmentById,
   addAppointmentPayment,
   cancelAppointment,
   getClinics,
@@ -53,12 +55,14 @@ import {
   getClinicAppointments,
   getOrganizationById,
   getOrganizations,
+  getAvailableSlots,
 } from '../../ApiCalls/clinicApis';
-import { getPatients, getPatientAilments, getPatientById } from '../../ApiCalls/patientAPis';
+import { getPatients, getPatientAilments, getPatientById, getGeneralParameterResponse } from '../../ApiCalls/patientAPis';
 import { getDoctors } from '../../ApiCalls/doctorApis';
 import { jsPDF } from 'jspdf';
 import ClinicSelector from '../../components/ClinicSelector';
 import OrganizationSelector from '../../components/OrganizationSelector';
+import QuestionsContainer from '../../components/questions/QuestionsContainer';
 
 
 // ─── Status colors ──────────────────────────────────────────
@@ -100,50 +104,84 @@ function toUtcIso(dateStr, timeStr) {
 }
 
 /** Normalize backend row → table row */
-const normalizeAppointment = (apt) => ({
-  id: apt.id,
-  created_date: (apt.appointment_date || apt.startUTC)
-    ? formatDateDisplay(apt.appointment_date || apt.startUTC)
-    : '—',
-  appointment_date: apt.appointment_date || (apt.startUTC ? String(apt.startUTC).split('T')[0] : null),
-  name:
-    apt.patient_name ||
-    apt.patientName ||
-    apt.patientName ||
-    (apt.patient_id ? `Patient #${apt.patient_id}` : '—'),
-  doctor_name:
-    apt.doctor_name ||
-    apt.doctorName ||
-    apt.primary_doctor_name ||
-    (apt.primary_doctor_id ? `Doctor #${apt.primary_doctor_id}` : '—'),
-  age: apt.age || apt.patient_age || '—',
-  gender: apt.gender || apt.patient_gender || '—',
-  sex: apt.gender || apt.patient_gender || '—',
-  phoneNumber:
-    apt.phoneNumber || apt.phone_number || apt.patient_phone || apt.phone || '—',
-  mobile_no:
-    apt.phoneNumber || apt.phone_number || apt.patient_phone || apt.phone || '—',
-  treatment_type: normalizeType(apt.appointment_type || apt.treatment_type || apt.bookingType),
-  booking_time: apt.start_time
-    ? formatTime12Hour(apt.start_time)
-    : (apt.startUTC ? formatTime12Hour(String(apt.startUTC).split('T')[1]?.slice(0, 8)) : '—'),
-  appointment_time: apt.start_time
-    ? formatTime12Hour(apt.start_time)
-    : (apt.startUTC ? formatTime12Hour(String(apt.startUTC).split('T')[1]?.slice(0, 8)) : '—'),
-  status: normalizeStatus(apt.status || apt.appointmentStatus),
-  reason: apt.reason || apt.metadata?.notes || '',
-  patient_ailments: apt.patient_ailments || '',
-  patient_id: apt.patient_id,
-  clinic_id: apt.clinic_id,
-  clinic_name: apt.clinic_name || apt.clinic?.name || '',
-  // Billing fields (client-side)
-  totalAmount: apt.totalAmount || apt.total_amt || apt.amountDue || 0,
-  amountPaid: apt.amountPaid || apt.received_amt || apt.paidAmount || 0,
-  paymentMethod: apt.paymentMethod || '',
-  billPDFUrl: apt.billPDFUrl || apt.billUrl || null,
-  receipt_url: apt.receiptUrl || apt.billPDFUrl || apt.billUrl || null,
-  _raw: apt,
-});
+const normalizeAppointment = (apt, patients) => {
+  const patientData = patients.find(p => String(p.patient_id || p.id) === String(apt.patient_id));
+
+  return {
+    id: apt.id,
+    created_date: (apt.appointment_date || apt.startUTC)
+      ? formatDateDisplay(apt.appointment_date || apt.startUTC)
+      : '—',
+    appointment_date: apt.appointment_date || (apt.startUTC ? String(apt.startUTC).split('T')[0] : null),
+    name: (() => {
+      const directName = apt.patient_name || apt.patientName || patientData?.name;
+      if (directName && directName !== '—') return directName;
+
+      try {
+        if (apt.patient_ailments && apt.patient_ailments.startsWith('{')) {
+          const parsed = JSON.parse(apt.patient_ailments);
+          if (parsed.patientName) return parsed.patientName;
+        }
+      } catch (e) { }
+
+      return apt.patient_id ? `Patient #${apt.patient_id}` : '—';
+    })(),
+    doctor_name:
+      apt.doctor_name ||
+      apt.doctorName ||
+      apt.primary_doctor_name ||
+      (apt.primary_doctor_id ? `Doctor #${apt.primary_doctor_id}` : '—'),
+    age: apt.age || apt.patient_age || patientData?.age || '—',
+    gender: apt.gender || apt.patient_gender || patientData?.gender || '—',
+    sex: apt.gender || apt.patient_gender || patientData?.gender || '—',
+    phoneNumber:
+      apt.phoneNumber || apt.phone_number || apt.patient_phone || apt.phone || patientData?.phone_no || patientData?.mobile_no || '—',
+    mobile_no:
+      apt.phoneNumber || apt.phone_number || apt.patient_phone || apt.phone || patientData?.phone_no || patientData?.mobile_no || '—',
+    treatment_type: normalizeType(apt.appointment_type || apt.treatment_type || apt.bookingType),
+    booking_time: apt.start_time
+      ? formatTime12Hour(apt.start_time)
+      : (apt.startUTC ? formatTime12Hour(String(apt.startUTC).split('T')[1]?.slice(0, 8)) : '—'),
+    appointment_time: apt.start_time
+      ? formatTime12Hour(apt.start_time)
+      : (apt.startUTC ? formatTime12Hour(String(apt.startUTC).split('T')[1]?.slice(0, 8)) : '—'),
+    status: normalizeStatus(apt.status || apt.appointmentStatus),
+    reason: apt.reason || apt.metadata?.notes || '',
+    patient_ailments: apt.patient_ailments || '',
+    patient_id: apt.patient_id,
+    clinic_id: apt.clinic_id,
+    clinic_name: apt.clinic_name || apt.clinic?.name || '',
+    totalAmount: apt.totalAmount || apt.total_amt || apt.amountDue || 0,
+    amountPaid: apt.amountPaid || apt.received_amt || apt.paidAmount || 0,
+    paymentMethod: apt.paymentMethod || '',
+    billPDFUrl: apt.billPDFUrl || apt.billUrl || null,
+    receipt_url: apt.receiptUrl || apt.billPDFUrl || apt.billUrl || null,
+    duration: (apt.start_time && apt.end_time)
+      ? calculateDuration(apt.start_time, apt.end_time)
+      : (apt.startUTC && apt.endUTC)
+        ? calculateDuration(String(apt.startUTC).split('T')[1]?.slice(0, 5), String(apt.endUTC).split('T')[1]?.slice(0, 5))
+        : '—',
+    _raw: apt,
+  };
+};
+
+function calculateDuration(start, end) {
+  if (!start || !end) return '—';
+  try {
+    const sParts = start.split(':');
+    const eParts = end.split(':');
+    const sMin = parseInt(sParts[0], 10) * 60 + parseInt(sParts[1], 10);
+    const eMin = parseInt(eParts[0], 10) * 60 + (parseInt(eParts[1], 10) || 0);
+    let diff = eMin - sMin;
+    if (diff < 0) diff += 24 * 60;
+    if (diff <= 0) return '—';
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  } catch { return '—'; }
+}
 
 function formatDateDisplay(dateStr) {
   if (!dateStr) return '—';
@@ -260,6 +298,7 @@ const DialysisAppointments = () => {
 
   // ─── Clinic state ─────────────────────────────────────
   const [clinics, setClinics] = useState([]);
+  const [patients, setPatients] = useState([]);
   const [clinicsLoading, setClinicsLoading] = useState(false);
 
   // ─── Filter state ─────────────────────────────────────
@@ -274,9 +313,8 @@ const DialysisAppointments = () => {
   // ─── Create modal state (3 steps) ─────────────────────
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createStep, setCreateStep] = useState(1); // 1, 2, or 3
-  const [slots, setSlots] = useState([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
   const [savedAppointment, setSavedAppointment] = useState(null); // for step 3 preview
+  const [doctors, setDoctors] = useState([]);
 
   const defaultForm = {
     patient_id: '1',
@@ -296,6 +334,7 @@ const DialysisAppointments = () => {
     payment_method:   'cash',
     amount_paid:      '',
     receipt_file:     null,
+    duration: '4',
   };
 
   const [createForm, setCreateForm] = useState(defaultForm);
@@ -305,19 +344,35 @@ const DialysisAppointments = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   // --- External Data ---
-  const [patients, setPatients] = useState([]);
-  const [doctors, setDoctors] = useState([]);
   const [selectedPatientData, setSelectedPatientData] = useState(null);
+  const [selectedClinicData, setSelectedClinicData] = useState(null);
+  const [clinicAppointments, setClinicAppointments] = useState([]);
   const [clinicServices, setClinicServices] = useState([]);
   const [addedServices, setAddedServices] = useState([]);
   const [currentService, setCurrentService] = useState({ name: '', price: 0, discount: 0 });
+
+  // ─── Filtered Patients for Dialysis ───────────────────
+  const dialysisPatients = useMemo(() => {
+    return patients.filter((p) => {
+      const rawAilments = p.ailments || p.patient_ailments || p.aliments || p.medical_history || '';
+      const ailmentsStr = Array.isArray(rawAilments) ? rawAilments.join(', ') : String(rawAilments);
+      const ailments = ailmentsStr.toLowerCase();
+      return ailments.includes('dialysis') || ailments.includes('hemodialysis') || ailments.includes('hemo dialysis');
+    });
+  }, [patients]);
 
   // --- Fetch Patients & Doctors ---
   useEffect(() => {
     const loadData = async () => {
       const [pts, docs] = await Promise.all([getPatients(), getDoctors()]);
-      if (pts.success) setPatients(Array.isArray(pts.data?.data) ? pts.data.data : pts.data || []);
-      if (docs.success) setDoctors(Array.isArray(docs.data?.data) ? docs.data.data : docs.data || []);
+      if (pts.success) {
+        const allPatients = pts.data?.data || pts.data || [];
+        setPatients(Array.isArray(allPatients) ? allPatients : []);
+      }
+      if (docs.success) {
+        const allDocs = docs.data?.data || docs.data || [];
+        setDoctors(Array.isArray(allDocs) ? allDocs : []);
+      }
     };
     loadData();
   }, []);
@@ -329,10 +384,17 @@ const DialysisAppointments = () => {
       return;
     }
     (async () => {
-      const res = await getClinicById(createForm.clinic_id);
-      if (res.success) {
-        const fullClinic = res.data?.data || res.data;
+      const [clinicRes, aptsRes] = await Promise.all([
+        getClinicById(createForm.clinic_id),
+        getClinicAppointments(createForm.clinic_id)
+      ]);
+      if (clinicRes.success) {
+        const fullClinic = clinicRes.data?.data || clinicRes.data;
         setClinicServices(fullClinic.services || []);
+        setSelectedClinicData(fullClinic);
+      }
+      if (aptsRes.success) {
+        setClinicAppointments(aptsRes.data?.data || aptsRes.data || []);
       }
     })();
   }, [createForm.clinic_id]);
@@ -344,19 +406,116 @@ const DialysisAppointments = () => {
       return;
     }
     (async () => {
+      // 1. Fetch Patient profile and ailments list first
       const [pRes, aRes] = await Promise.all([
         getPatientById(createForm.patient_id),
-        getPatientAilments(createForm.patient_id)
+        getPatientAilments(createForm.patient_id),
       ]);
+
+      let patientData = null;
       if (pRes.success) {
-        setSelectedPatientData(pRes.data?.data || pRes.data);
+        patientData = pRes.data?.data || pRes.data;
+        setSelectedPatientData(patientData);
       }
+
+      let fetchedAilments = '';
+      let ailmentNames = [];
       if (aRes.success) {
-        const ailments = Array.isArray(aRes.data) ? aRes.data.map(a => a.ailment_name).join(', ') : aRes.data?.ailments || '';
-        setCreateForm(prev => ({ ...prev, patient_ailments: ailments }));
+        ailmentNames = Array.isArray(aRes.data)
+          ? aRes.data.map(a => a.ailment_name)
+          : (aRes.data?.ailments ? aRes.data.ailments.split(',').map(s => s.trim()) : []);
+        fetchedAilments = ailmentNames.join(', ');
       }
+
+      // 2. Fetch general parameters for all identified ailments to prefill the form
+      let combinedInfo = [];
+      if (ailmentNames.length > 0) {
+        try {
+          const responsePromises = ailmentNames.map(name => getGeneralParameterResponse(name, createForm.patient_id));
+          const allRes = await Promise.all(responsePromises);
+
+          allRes.forEach((r, idx) => {
+            if (r.success && Array.isArray(r.data)) {
+              const dryWeight = r.data.find(q => q.name?.toLowerCase().includes('dry weight'));
+              if (dryWeight && dryWeight.response) {
+                combinedInfo.push(`Dry Weight (${ailmentNames[idx]}): ${dryWeight.response} kg`);
+              }
+            }
+          });
+        } catch (e) {
+          console.error("Error fetching multi-ailment responses:", e);
+        }
+      }
+
+      // 3. Update form state
+      setCreateForm(prev => ({
+        ...prev,
+        patient_ailments: fetchedAilments,
+        reason: prev.reason || combinedInfo.join(' | '),
+        doctor_id: prev.doctor_id || patientData?.primary_doctor_id || ''
+      }));
     })();
   }, [createForm.patient_id]);
+
+  // --- Auto-select first available slot when date/clinic changes ---
+  useEffect(() => {
+    if (!createForm.clinic_id || !createForm.appointment_date || isEditOpen) return;
+
+    const autoSelectSlot = async () => {
+      try {
+        const from = `${createForm.appointment_date}T00:00:00Z`;
+        const to = `${createForm.appointment_date}T23:59:59Z`;
+        const res = await getAvailableSlots(createForm.clinic_id, from, to);
+
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          const firstSlot = res.data[0];
+          // Check if already selected or different
+          const currentSlots = createForm.slotTemplates;
+          if (currentSlots.length === 0 || currentSlots[0].startTime !== firstSlot.start_time) {
+            setCreateForm(prev => ({
+              ...prev,
+              slotTemplates: [{
+                id: `slot-${firstSlot.id || Date.now()}`,
+                frequency: 'weekly',
+                daysOfWeek: [getDayOfWeek(createForm.appointment_date)],
+                dayOfMonth: null,
+                startTime: firstSlot.start_time || firstSlot.startTime,
+                endTime: addMinutesToTime(firstSlot.start_time || firstSlot.startTime, Number(createForm.duration || 4) * 60),
+                maxPatientsPerSlot: firstSlot.maxPatientsPerSlot || 1,
+                bufferMinutes: 30,
+                price: firstSlot.price || 0,
+                slot_id: firstSlot.id
+              }]
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Error auto-selecting slot:", err);
+      }
+    };
+
+    autoSelectSlot();
+  }, [createForm.clinic_id, createForm.appointment_date, isEditOpen, createForm.duration]);
+
+  // --- Update slot end times when duration changes ---
+  useEffect(() => {
+    if (createForm.slotTemplates.length === 0) return;
+
+    setCreateForm(prev => {
+      const updated = prev.slotTemplates.map(slot => {
+        if (!slot.startTime) return slot;
+        const newEndTime = addMinutesToTime(slot.startTime, Number(prev.duration || 4) * 60);
+        if (slot.endTime === newEndTime) return slot;
+        return { ...slot, endTime: newEndTime };
+      });
+
+      // Check if actually changed to avoid infinite loop
+      const changed = updated.some((s, i) => s.endTime !== prev.slotTemplates[i].endTime);
+      if (!changed) return prev;
+
+      return { ...prev, slotTemplates: updated };
+    });
+  }, [createForm.duration]);
 
   // --- Calculate total bill from added services ---
   useEffect(() => {
@@ -374,31 +533,20 @@ const DialysisAppointments = () => {
   const fetchInitialData = useCallback(async () => {
     setClinicsLoading(true);
     try {
-      const [clinicsResult, orgsResult] = await Promise.all([
+      const [orgsResult, clinicsResult, patientsResult] = await Promise.all([
+        getOrganizations(),
         getClinics(),
-        getOrganizations()
+        getPatients(),
       ]);
 
       if (orgsResult.success) {
         const orgList = Array.isArray(orgsResult.data?.data) ? orgsResult.data.data : (orgsResult.data || []);
         setOrganizations(orgList);
-        if (orgList.length > 0 && !selectedOrgId) {
-          setSelectedOrgId(String(orgList[0].id));
-        }
       }
 
       if (clinicsResult.success) {
         const list = Array.isArray(clinicsResult.data?.data) ? clinicsResult.data.data : (clinicsResult.data || []);
         setClinics(list);
-        if (list.length > 0 && !selectedClinicId) {
-          const firstId = String(list[0].id);
-          setSelectedClinicId(firstId);
-          setCreateForm((prev) => ({
-            ...prev,
-            clinic_id: firstId,
-            clinic_name: list[0].name || `Clinic #${firstId}`,
-          }));
-        }
       }
     } catch (err) {
       console.warn('Could not fetch initial data:', err);
@@ -411,6 +559,23 @@ const DialysisAppointments = () => {
     fetchInitialData();
   }, [fetchInitialData]);
 
+  // Handle clinic reset when organization changes
+  useEffect(() => {
+    if (selectedOrgId && clinics.length > 0) {
+      const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
+      if (orgClinics.length > 0) {
+        const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(selectedClinicId));
+        if (!isCurrentInOrg) {
+          setSelectedClinicId(String(orgClinics[0].id));
+        }
+      } else {
+        setSelectedClinicId('');
+      }
+    } else {
+      setSelectedClinicId('');
+    }
+  }, [selectedOrgId, clinics, selectedClinicId]);
+
   // ─── Fetch appointments ───────────────────────────────
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
@@ -420,6 +585,7 @@ const DialysisAppointments = () => {
         from: `${fromDate}T00:00:00Z`,
         to: `${toDate}T23:59:59Z`,
         clinicId: selectedClinicId || undefined,
+        orgid: selectedOrgId || undefined,
       });
       if (result.success) {
         const rows = Array.isArray(result.data?.data)
@@ -427,7 +593,7 @@ const DialysisAppointments = () => {
           : Array.isArray(result.data)
           ? result.data
           : [];
-        setAppointments(rows.map(normalizeAppointment));
+        setAppointments(rows.map(apt => normalizeAppointment(apt, patients)));
       } else {
         const msg = result.data?.message || 'Failed to load appointments';
         setError(msg);
@@ -440,86 +606,7 @@ const DialysisAppointments = () => {
     } finally {
       setLoading(false);
     }
-  }, [fromDate, toDate, selectedClinicId, showToast]);
-
-  // ─── Fetch slots for selected clinic + date ────────────
-  useEffect(() => {
-    if (!createForm.clinic_id || !createForm.appointment_date) {
-      setSlots([]);
-      return;
-    }
-
-    let cancelled = false;
-    setSlotsLoading(true);
-
-    (async () => {
-      try {
-        const result = await getClinicAppointments(createForm.clinic_id);
-        if (!cancelled) {
-          if (result.success) {
-            const bookedSlots = new Set();
-            const aptList = Array.isArray(result.data?.data)
-              ? result.data.data
-              : Array.isArray(result.data)
-                ? result.data
-                : [];
-
-            // Collect booked start times for selected date
-            aptList.forEach((a) => {
-              if (
-                a.appointment_date === createForm.appointment_date &&
-                ['BOOKED', 'SCHEDULED', 'ARRIVED', 'IN_PROGRESS'].includes(
-                  String(a.status).toUpperCase()
-                )
-              ) {
-                if (a.start_time) bookedSlots.add(a.start_time.slice(0, 5));
-              }
-            });
-
-            // Generate 30-min slots from 08:00 to 18:00
-            const generated = [];
-            for (let h = 8; h < 18; h++) {
-              for (let m = 0; m < 60; m += 30) {
-                const hh = String(h).padStart(2, '0');
-                const mm = String(m).padStart(2, '0');
-                const key = `${hh}:${mm}`;
-                const ampm = h >= 12 ? 'PM' : 'AM';
-                const displayH = h % 12 || 12;
-                const label = `${String(displayH).padStart(2, '0')}:${mm} ${ampm}`;
-                generated.push({ label, value: key, booked: bookedSlots.has(key) });
-              }
-            }
-            setSlots(generated);
-          } else {
-            // Fallback mock slots
-            setSlots([
-              { label: '09:00 AM', value: '09:00', booked: false },
-              { label: '10:00 AM', value: '10:00', booked: false },
-              { label: '11:00 AM', value: '11:00', booked: false },
-              { label: '12:00 PM', value: '12:00', booked: false },
-              { label: '02:00 PM', value: '14:00', booked: false },
-              { label: '04:00 PM', value: '16:00', booked: false },
-              { label: '06:00 PM', value: '18:00', booked: false },
-            ]);
-          }
-        }
-      } catch {
-        if (!cancelled) {
-          setSlots([
-            { label: '09:00 AM', value: '09:00', booked: false },
-            { label: '10:00 AM', value: '10:00', booked: false },
-            { label: '11:00 AM', value: '11:00', booked: false },
-            { label: '02:00 PM', value: '14:00', booked: false },
-            { label: '04:00 PM', value: '16:00', booked: false },
-          ]);
-        }
-      } finally {
-        if (!cancelled) setSlotsLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [createForm.clinic_id, createForm.appointment_date]);
+  }, [fromDate, toDate, selectedClinicId, selectedOrgId, patients, showToast]);
 
   useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
@@ -536,14 +623,34 @@ const DialysisAppointments = () => {
     processRefund,
     pdfLoading,
   } = usePaymentFlow({
-    onPaymentAdded: async (apptId, amount, method, billPDFUrl) => {
-      const result = await addAppointmentPayment(apptId, {
+    onPaymentAdded: async (appt, amount, method, billPDFUrl) => {
+      // 1. Fetch fresh details first to ensure we have current balance
+      const freshRes = await getAppointmentById(appt.id);
+      const freshAppt = freshRes.success ? (freshRes.data?.data || freshRes.data) : appt;
+
+      // 2. Record the payment
+      const result = await addAppointmentPayment(appt.id, {
         amount: Number(amount),
         method: String(method || 'cash').toUpperCase(),
         receiptUrl: billPDFUrl || undefined,
       });
 
       if (result.success) {
+        // 3. If not fully paid, update appointment metadata
+        const updatedPaid = Number(freshAppt.amountPaid || freshAppt.received_amt || 0) + Number(amount);
+        const totalDue = Number(freshAppt.totalAmount || freshAppt.amountDue || 0);
+
+        if (updatedPaid < totalDue) {
+          await updateAppointment(appt.id, {
+            metadata: {
+              ...(freshAppt.metadata || {}),
+              payment_status: 'PENDING',
+              last_payment_date: new Date().toISOString(),
+              outstanding_balance: totalDue - updatedPaid
+            }
+          });
+        }
+
         showToast(`Payment of ₹${amount} recorded successfully`, 'success');
         fetchAppointments();
       } else {
@@ -588,9 +695,13 @@ const DialysisAppointments = () => {
   const total = filtered.length;
   const pending = filtered.filter((a) => ['BOOKED', 'ARRIVED', 'SCHEDULED'].includes(a.status)).length;
   const completed = filtered.filter((a) => a.status === 'COMPLETED').length;
-  const unpaidCount = filtered.filter((a) =>
-    getPaymentStatus(a.totalAmount, a.amountPaid) !== 'PAID'
-  ).length;
+  const unpaidCount = filtered.filter((a) => {
+    let payStatus = String(a._raw?.payment_action || a._raw?.paymentAction || '').toUpperCase();
+    if (!payStatus || payStatus === 'UNDEFINED') {
+      payStatus = getPaymentStatus(a.totalAmount, a.amountPaid);
+    }
+    return payStatus !== 'PAID';
+  }).length;
 
   // ─── Status update ────────────────────────────────────
   const handleStatusUpdate = useCallback(
@@ -633,12 +744,22 @@ const DialysisAppointments = () => {
     setCreateFieldErrors({});
     setCreateErrorMessage('');
     setIsEditOpen(false);
-    // Keep clinic pre-selected if only one exists
-    const preClinic = clinics.length === 1
-      ? { clinic_id: String(clinics[0].id), clinic_name: clinics[0].name || `Clinic #${clinics[0].id}` }
-      : { clinic_id: '', clinic_name: '' };
+
+    // Auto-select clinic from filter if available, else if only one exists
+    let preClinic = { clinic_id: '', clinic_name: '' };
+    if (selectedClinicId) {
+      const chosen = clinics.find((c) => String(c.id) === String(selectedClinicId));
+      if (chosen) {
+        preClinic = { clinic_id: String(chosen.id), clinic_name: chosen.name || 'Clinic' };
+      }
+    } else if (clinics.length === 1) {
+      preClinic = { clinic_id: String(clinics[0].id), clinic_name: clinics[0].name || 'Clinic' };
+    }
+
     setCreateForm({ ...defaultForm, appointment_date: today, ...preClinic });
-  }, [clinics, today, defaultForm]);
+    setAddedServices([]);
+    setCurrentService({ name: '', price: 0, discount: 0 });
+  }, [clinics, today, defaultForm, selectedClinicId]);
 
   // ─── Edit Open ────────────────────────────────────────
   const handleEditOpen = useCallback((apt) => {
@@ -675,6 +796,7 @@ const DialysisAppointments = () => {
       payment_option: amountPaid >= totalAmount ? 'full' : 'partial',
       payment_method: String(paymentMethod).toLowerCase(),
       receipt_file: null,
+      duration: raw.metadata?.dialysisDuration || '4',
     });
 
     setAddedServices(raw.metadata?.services || raw.services || []);
@@ -733,6 +855,7 @@ const DialysisAppointments = () => {
           notes_brief: createForm.reason,
           patientAilments: createForm.patient_ailments,
           services: addedServices,
+          dialysisDuration: createForm.duration,
         },
       };
 
@@ -804,6 +927,7 @@ const DialysisAppointments = () => {
     { key: 'sex',             label: 'SEX',       type: 'text', width: '70px'  },
     { key: 'mobile_no',       label: 'MOBILE NO.',type: 'text', width: '120px' },
     { key: 'appointment_time',label: 'APPOINTMENT TIME', type: 'text', width: '130px'  },
+    { key: 'duration', label: 'DURATION', type: 'text', width: '100px' },
     {
       key: 'payment_receipt',
       label: 'PAYMENT RECEIPT',
@@ -825,16 +949,22 @@ const DialysisAppointments = () => {
       type: 'custom',
       width: '130px',
       render: (row) => {
-        const payStatus = getPaymentStatus(row.totalAmount, row.amountPaid);
+        let payStatus = String(row._raw?.payment_action || row._raw?.paymentAction || '').toUpperCase();
+        if (!payStatus || payStatus === 'UNDEFINED') {
+          payStatus = getPaymentStatus(row.totalAmount, row.amountPaid);
+        }
         const config = 
           payStatus === 'PAID' ? { label: 'Paid', color: '#10B981' } :
-          payStatus === 'PARTIAL' ? { label: 'Partial', color: '#F59E0B' } :
           { label: 'Pending', color: '#EF4444' };
 
         return (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <button
-              onClick={() => openPaymentModal(row)}
+              onClick={() => {
+                if (payStatus !== 'PAID') {
+                  openPaymentModal(row);
+                }
+              }}
               style={{
                 background: 'transparent',
                 color: config.color,
@@ -843,7 +973,7 @@ const DialysisAppointments = () => {
                 padding: '4px 12px',
                 fontSize: '12px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: payStatus === 'PAID' ? 'default' : 'pointer',
                 minWidth: '80px'
               }}
             >
@@ -873,29 +1003,25 @@ const DialysisAppointments = () => {
       type: 'custom',
       width: '130px',
       render: (row, value) => {
-        const payStatus = getPaymentStatus(row.totalAmount, row.amountPaid);
-        const isArrived = value === 'ARRIVED';
-        const isBooked = value === 'BOOKED' || value === 'SCHEDULED';
-        
+        let payStatus = String(row._raw?.payment_action || row._raw?.paymentAction || '').toUpperCase();
+        if (!payStatus || payStatus === 'UNDEFINED') {
+          payStatus = getPaymentStatus(row.totalAmount, row.amountPaid);
+        }
         const handleClick = () => {
-          if (isBooked) {
-             handleStatusUpdate(row, 'ARRIVED');
-             return;
-          }
-          if (isArrived) {
-            if (payStatus !== 'PAID') {
-              showToast('Payment must be fully completed before proceeding to Diagnosis.', 'warning');
-              openPaymentModal(row);
-            } else {
-              window.location.hash = '/dialysis/sessions';
-            }
+          if (value === 'BOOKED' || value === 'SCHEDULED') {
+            handleStatusUpdate(row, 'ARRIVED');
+          } else if (value === 'ARRIVED') {
+            handleStatusUpdate(row, 'BOOKED');
           }
         };
+
+        const isClickable = ['BOOKED', 'SCHEDULED', 'ARRIVED'].includes(value);
 
         return (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <button
               onClick={handleClick}
+              disabled={!isClickable}
               style={{
                 background: STATUS_COLORS[value]?.bg || '#E5E7EB',
                 color: STATUS_COLORS[value]?.text || '#374151',
@@ -904,9 +1030,10 @@ const DialysisAppointments = () => {
                 padding: '4px 12px',
                 fontSize: '11px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: isClickable ? 'pointer' : 'default',
                 textTransform: 'uppercase',
-                minWidth: '100px'
+                minWidth: '100px',
+                opacity: isClickable ? 1 : 0.7
               }}
             >
               {value}
@@ -922,7 +1049,7 @@ const DialysisAppointments = () => {
       width: '100px',
       render: (row) => {
         return (
-          <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center' }}>
             <ActionIconBtn
               icon={EditIcon}
               onClick={() => handleEditOpen(row)}
@@ -963,43 +1090,48 @@ const DialysisAppointments = () => {
               marginBottom: '16px',
             }}
           >
-            <div style={{ display: 'flex', gap: '15px', flexDirection: 'rows', alignItems: 'center', zIndex: 101 }}>
-              <OrganizationSelector
-                orgId={selectedOrgId}
-                setOrgId={setSelectedOrgId}
-                organizations={organizations}
-                label=""
-                minW="180px"
-              // className="mt-6"
-              />
-              <ClinicSelector
-                clinicId={selectedClinicId}
-                setClinicId={setSelectedClinicId}
-                clinics={clinics}
-                label=""
-                minW="180px"
-              />
+            <div style={{ display: 'flex', gap: '12px', flexDirection: 'row', alignItems: 'center', zIndex: 999, flexWrap: 'nowrap', paddingBottom: '4px' }}>
+              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <OrganizationSelector
+                  orgId={selectedOrgId}
+                  setOrgId={setSelectedOrgId}
+                  organizations={organizations}
+                  label=""
+                  minW="180px"
+                />
+              </div>
+              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <ClinicSelector
+                  orgId={selectedOrgId}
+                  clinicId={selectedClinicId}
+                  setClinicId={setSelectedClinicId}
+                  clinics={clinics}
+                  label=""
+                  minW="180px"
+                />
+              </div>
               <Input
                 type="text"
                 placeholder="Search patient…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="mt-6"
+                style={{ height: '40px', margin: 0, width: '220px', flexShrink: 0 }}
               />
               <Input
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
-                // style={{ width: '245px' }}
+                style={{ height: '40px', margin: 0, width: '160px', flexShrink: 0 }}
               />
               <Input
                 type="date"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
-                // style={{ width: '245px' }}
+                style={{ height: '40px', margin: 0, width: '160px', flexShrink: 0 }}
               />
               <Button
                 variant="primary"
+                style={{ height: '40px', display: 'flex', alignItems: 'center', margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}
                 onClick={() => {
                   resetCreateModal();
                   setIsCreateOpen(true);
@@ -1008,26 +1140,36 @@ const DialysisAppointments = () => {
                 + New Appointment
               </Button>
             </div>
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '13px' }}>
-                Total: <strong>{total}</strong>
-              </span>
-              <span style={{ fontSize: '13px', color: '#EA580C' }}>
-                Pending: <strong>{pending}</strong>
-              </span>
-              <span style={{ fontSize: '13px', color: '#16A34A' }}>
-                Completed: <strong>{completed}</strong>
-              </span>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ padding: '8px 16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total</span>
+                <strong style={{ fontSize: '20px', color: '#0f172a', lineHeight: '1.2' }}>{total}</strong>
+              </div>
+              <div style={{ padding: '8px 16px', background: '#fff7ed', borderRadius: '12px', border: '1px solid #ffedd5', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(234,88,12,0.05)' }}>
+                <span style={{ fontSize: '10px', color: '#c2410c', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending</span>
+                <strong style={{ fontSize: '20px', color: '#ea580c', lineHeight: '1.2' }}>{pending}</strong>
+              </div>
+              <div style={{ padding: '8px 16px', background: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(22,163,74,0.05)' }}>
+                <span style={{ fontSize: '10px', color: '#15803d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed</span>
+                <strong style={{ fontSize: '20px', color: '#16a34a', lineHeight: '1.2' }}>{completed}</strong>
+              </div>
               {unpaidCount > 0 && (
-                <span style={{ fontSize: '13px', color: '#DC2626' }}>
-                  Unpaid/Partial: <strong>{unpaidCount}</strong>
-                </span>
+                <div style={{ padding: '8px 16px', background: '#fef2f2', borderRadius: '12px', border: '1px solid #fee2e2', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(220,38,38,0.05)', animation: 'pulse 2s infinite' }}>
+                  <span style={{ fontSize: '10px', color: '#b91c1c', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unpaid</span>
+                  <strong style={{ fontSize: '20px', color: '#dc2626', lineHeight: '1.2' }}>{unpaidCount}</strong>
+                </div>
               )}
             </div>
           </div>
 
           {/* ─── Table ─── */}
-          <div className="">
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
+            border: '1px solid #f1f5f9',
+            overflow: 'hidden'
+          }}>
             {loading ? (
               <div className="flex items-center justify-center" style={{ minHeight: '200px' }}>
                 <p style={{ color: '#6B7280' }}>Loading appointments…</p>
@@ -1077,120 +1219,125 @@ const DialysisAppointments = () => {
               setCreateFieldErrors((prev) => ({ ...prev, [field]: undefined }))
             }
           >
+
+
+
             {({ getFieldProps, clearFieldError }) => (
               <>
                 {/* STEP 1 — Appointment Details */}
                 {createStep === 1 && (
                   <Box className="flex flex-col gap-6">
 
-                    {/* Clinic Selection */}
-                    <FormControl isRequired>
-                      <FormLabel>Clinic</FormLabel>
-                      {clinicsLoading ? (
-                        <div style={{ fontSize: '13px', color: '#6B7280' }}>Loading clinics...</div>
-                      ) : (
-                        <select
-                          value={createForm.clinic_id}
-                          onChange={(e) => {
-                            const chosen = clinics.find((c) => String(c.id) === e.target.value);
-                            setCreateForm((p) => ({
-                              ...p,
-                              clinic_id: e.target.value,
-                              clinic_name: chosen ? (chosen.name || `Clinic #${chosen.id}`) : '',
-                              start_time: '',
-                            }));
-                          }}
-                          style={{
-                            width: '100%', padding: '10px 12px',
-                            borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '14px',
-                            background: '#F9FAFB', outline: 'none'
-                          }}
-                        >
-                          <option value="">Select Clinic</option>
-                          {clinics.map((c) => (
-                            <option key={c.id} value={String(c.id)}>
-                              {c.name || `Clinic #${c.id}`}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </FormControl>
 
-                    {/* Patient Selection & Info Card */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <FormControl isRequired isInvalid={getFieldProps('patient_id').isInvalid}>
-                        <FormLabel>Patient</FormLabel>
-                        <select
-                          value={createForm.patient_id}
-                          onChange={(e) => {
-                            setCreateForm((p) => ({ ...p, patient_id: e.target.value }));
-                            clearFieldError('patient_id');
-                          }}
-                          style={{
-                            width: '100%', padding: '10px 12px',
-                            borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '14px',
-                            background: '#F9FAFB'
-                          }}
-                        >
-                          <option value="">Select Patient</option>
-                          {patients.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} (ID: {p.id})
-                            </option>
-                          ))}
-                        </select>
-                      </FormControl>
-                    </div>
-
-                    {/* <div className="flex items-center gap-2">
-                       <input
-                         type="checkbox"
-                         id="is_emergency"
-                         checked={createForm.is_emergency}
-                         onChange={(e) => setCreateForm(p => ({ ...p, is_emergency: e.target.checked }))}
-                         style={{ width: '16px', height: '16px' }}
-                       />
-                       <label htmlFor="is_emergency" style={{ fontSize: '14px', fontWeight: 600, color: '#DC2626', cursor: 'pointer' }}>
-                         Emergency Appointment
-                       </label>
-                    </div> */}
 
                     {selectedPatientData && (
                       <div
                         style={{
-                          background: '#F3F4F6',
-                          borderRadius: '12px',
-                          padding: '16px',
                           display: 'flex',
+                          flexDirection: 'row',
                           alignItems: 'center',
-                          gap: '20px',
-                          border: '1px solid #E5E7EB'
+                          justifyContent: 'center',
+                          gap: '24px',
+                          marginBottom: '32px',
+                          marginTop: '16px'
                         }}
                       >
                         <div
                           style={{
-                            width: '80px', height: '80px', borderRadius: '50%',
-                            background: '#E5E7EB', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', fontSize: '14px', color: '#9CA3AF'
+                            width: '100px', height: '100px', borderRadius: '50%',
+                            background: '#E2E8F0',
+                            display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', fontSize: '36px', color: '#64748B',
+                            fontWeight: 'bold'
                           }}
                         >
-                          No Image
+                          {selectedPatientData.name?.charAt(0)?.toUpperCase() || 'P'}
                         </div>
-                        <div>
-                          <div style={{ fontSize: '18px', fontWeight: 700, color: '#111827' }}>
-                            {selectedPatientData.name} <span style={{ color: '#6B7280', fontWeight: 400 }}>({selectedPatientData.id})</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div style={{ fontSize: '24px', fontWeight: 700, color: '#111827' }}>
+                            {selectedPatientData.name} <span style={{ color: '#6B7280', fontWeight: 400, fontSize: '18px' }}>({selectedPatientData.id})</span>
                           </div>
-                          <div style={{ fontSize: '14px', color: '#374151', marginTop: '4px' }}>
+                          <div style={{ fontSize: '15px', color: '#4B5563' }}>
                             {selectedPatientData.gender}, {selectedPatientData.age} years old
                           </div>
-                          <div style={{ fontSize: '14px', color: '#374151', marginTop: '2px' }}>
-                            Phone No: {selectedPatientData.phoneno || selectedPatientData.phone || 'N/A'}
+                          <div style={{ fontSize: '15px', color: '#4B5563', fontWeight: 700 }}>
+                            Phone No: <span style={{ fontWeight: 400 }}>{selectedPatientData.phoneno || selectedPatientData.phone || 'N/A'}</span>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-1 gap-5">
+
+
+                    {/* Organization & Clinic Selection */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <FormControl isRequired className="mt-6">
+                        <FormLabel style={{ fontSize: '13px', color: '#374151', fontWeight: 600 }}>Organization</FormLabel>
+                        <OrganizationSelector
+
+                          orgId={createForm.org_id}
+                          setOrgId={(val) => setCreateForm(p => ({ ...p, org_id: val, clinic_id: '', clinic_name: '' }))}
+                          organizations={organizations}
+                          label=""
+                          size="md"
+                        />
+                      </FormControl>
+
+                      <FormControl isRequired>
+                        <FormLabel style={{ fontSize: '13px', color: '#374151', fontWeight: 600 }}>Clinic</FormLabel>
+                        {clinicsLoading ? (
+                          <div style={{ fontSize: '13px', color: '#6B7280', padding: '10px 12px' }}>Loading clinics...</div>
+                        ) : (
+                            <ClinicSelector
+                              orgId={createForm.org_id}
+                              clinicId={createForm.clinic_id}
+                              setClinicId={(val) => {
+                                const chosen = clinics.find((c) => String(c.id) === String(val));
+                                setCreateForm(p => ({
+                                  ...p,
+                                  clinic_id: val,
+                                  clinic_name: chosen ? (chosen.name || 'Clinic') : '',
+                                  start_time: '',
+                                }));
+                              }}
+                            clinics={clinics}
+                            label=""
+                            size="md"
+                          />
+                        )}
+                      </FormControl>
+                    </div>
+
+                    {/* Patient Selection & Info Card */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="grid grid-cols-1 md:grid-cols-1 gap-5">
+                        <FormControl isRequired isInvalid={getFieldProps('patient_id').isInvalid}>
+                          <FormLabel >Patient</FormLabel>
+                          <Select
+                            value={createForm.patient_id}
+                            onChange={(e) => {
+                              setCreateForm((p) => ({ ...p, patient_id: e.target.value }));
+                              clearFieldError('patient_id');
+                            }}
+                            style={{
+                              width: '100%', padding: '10px 12px',
+                              borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '14px',
+                              outline: 'none', background: '#ffffff', height: '40px'
+                            }}
+                          >
+                            <option value="">Select Patient</option>
+                            {dialysisPatients.map((p) => {
+                              const ailmentsList = String(p.patient_ailments || p.ailments || p.medical_history || '');
+                              return (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} {ailmentsList ? `— ${ailmentsList}` : ''}
+                                </option>
+                              );
+                            })}
+                          </Select>
+                        </FormControl>
+                      </div>
+
                       <FormControl isRequired isInvalid={getFieldProps('appointment_date').isInvalid}>
                         <FormLabel>Start Date</FormLabel>
                         <Input
@@ -1204,17 +1351,41 @@ const DialysisAppointments = () => {
                         />
                       </FormControl>
 
+                      <FormControl isRequired>
+                        <FormLabel>Treatment Duration (Hrs)</FormLabel>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 4"
+                          value={createForm.duration}
+                          onChange={(e) => setCreateForm((p) => ({ ...p, duration: e.target.value }))}
+                        />
+                      </FormControl>
+                    </div>
+
+
+
+
+                    <div className="grid grid-cols-1 md:grid-cols-1 gap-5">
                       <FormControl isRequired isInvalid={getFieldProps('start_time').isInvalid}>
                         <FormLabel>Timing & Schedule</FormLabel>
-                        <Box className="p-0 border-none">
+                        <div className="p-0 border-none">
                             <ScheduleManager 
                                 slotTemplates={createForm.slotTemplates} 
+                            capacity={selectedClinicData?.capacity || 1}
+                            existingAppointments={clinicAppointments}
+                            duration={Number(createForm.duration || 4) * 60}
                                 onChange={(newTemplates) => {
-                                    setCreateForm(prev => ({ ...prev, slotTemplates: newTemplates }));
-                                    if (newTemplates.length > 0) clearFieldError('start_time');
+                                  const processed = newTemplates.map(t => {
+                                    if (t.startTime && createForm.duration) {
+                                      return { ...t, endTime: addMinutesToTime(t.startTime, Number(createForm.duration) * 60) };
+                                    }
+                                    return t;
+                                  });
+                                  setCreateForm(prev => ({ ...prev, slotTemplates: processed }));
+                                  if (processed.length > 0) clearFieldError('start_time');
                                 }}
                             />
-                        </Box>
+                        </div>
                         {getFieldProps('start_time').isInvalid && (
                             <p style={{ color: '#DC2626', fontSize: '12px', marginTop: '4px' }}>
                                 At least one schedule timing is required
@@ -1224,14 +1395,10 @@ const DialysisAppointments = () => {
                     </div>
 
                     {/* Services Selection Logic */}
-                    <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '16px' }}>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#374151', marginBottom: '12px' }}>
-                        Services
-                      </div>
-
-                      <div className="flex flex-col md:flex-row gap-3 items-end mb-4">
-                        <FormControl className="flex-1">
-                          <FormLabel style={{ fontSize: '12px' }}>Select Service</FormLabel>
+                    <div style={{ marginBottom: '24px' }}>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-4">
+                        <FormControl>
+                          <FormLabel style={{ fontSize: '13px', color: '#374151', fontWeight: 600 }}>Service</FormLabel>
                           <select
                             value={currentService.name}
                             onChange={(e) => {
@@ -1243,8 +1410,9 @@ const DialysisAppointments = () => {
                               });
                             }}
                             style={{
-                              width: '100%', padding: '8px 12px',
-                              borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '14px'
+                              width: '100%', padding: '10px 12px',
+                              borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '14px',
+                              outline: 'none', background: '#ffffff'
                             }}
                           >
                             <option value="">Select Service</option>
@@ -1254,31 +1422,45 @@ const DialysisAppointments = () => {
                           </select>
                         </FormControl>
 
-                        <FormControl style={{ width: '120px' }}>
-                          <FormLabel style={{ fontSize: '12px' }}>Unit Price</FormLabel>
+                        <FormControl>
+                          <FormLabel style={{ fontSize: '13px', color: '#374151', fontWeight: 600 }}>Unit Price</FormLabel>
                           <Input
                             type="number"
+                            placeholder="Unit Price"
                             value={currentService.price}
                             onChange={(e) => setCurrentService(p => ({ ...p, price: e.target.value }))}
+                            style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '14px' }}
                           />
                         </FormControl>
 
-                        <FormControl style={{ width: '120px' }}>
-                          <FormLabel style={{ fontSize: '12px' }}>Discount (%)</FormLabel>
+                        <FormControl>
+                          <FormLabel style={{ fontSize: '13px', color: '#374151', fontWeight: 600 }}>Discount (%)</FormLabel>
                           <Input
                             type="number"
+                            placeholder="Discount %"
                             value={currentService.discount}
                             onChange={(e) => setCurrentService(p => ({ ...p, discount: e.target.value }))}
+                            style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '14px' }}
                           />
                         </FormControl>
 
                         <Button
                           type="button"
-                          variant="primary"
                           disabled={!currentService.name}
                           onClick={() => {
+                            if (addedServices.some(s => s.name === currentService.name)) {
+                              showToast('This service has already been added', 'warning');
+                              return;
+                            }
                             setAddedServices(prev => [...prev, { ...currentService, id: Date.now() }]);
                             setCurrentService({ name: '', price: 0, discount: 0 });
+                          }}
+                          style={{
+                            background: '#2563EB', color: '#fff', borderRadius: '24px',
+                            padding: '10px 24px', fontWeight: 600, border: 'none', height: '42px',
+                            opacity: !currentService.name ? 0.6 : 1,
+                            cursor: !currentService.name ? 'not-allowed' : 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
                           }}
                         >
                           Add
@@ -1311,8 +1493,9 @@ const DialysisAppointments = () => {
                         <FormLabel>Total Bill Amount (₹)</FormLabel>
                         <div
                           style={{
-                            padding: '10px 12px', borderRadius: '8px', border: '1px solid #D1D5DB',
-                            background: '#F3F4F6', fontSize: '16px', fontWeight: 700, color: '#1E40AF'
+                            padding: '16px 20px', borderRadius: '16px', border: '1px solid rgba(37,99,235,0.2)',
+                            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', fontSize: '24px', fontWeight: 800, color: '#1e40af',
+                            boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.5), 0 4px 6px rgba(37,99,235,0.1)'
                           }}
                         >
                           ₹ {Number(createForm.total_amount || 0).toLocaleString()}
@@ -1331,6 +1514,19 @@ const DialysisAppointments = () => {
                       </FormControl>
                     </div>
 
+                    {/* Patient Questions & Answers (General Parameters) */}
+                    {createForm.patient_id && (
+                      <div style={{ marginTop: '16px', borderTop: '1px solid #E5E7EB', paddingTop: '20px' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ width: '8px', height: '8px', background: '#00A89B', borderRadius: '50%' }}></span>
+                          Patient Dialysis Details
+                        </div>
+                        <div style={{ background: '#F9FAFB', borderRadius: '12px', padding: '16px', border: '1px solid #F1F5F9' }}>
+                          <QuestionsContainer aliment="Hemo Dialysis" user_id={createForm.patient_id} />
+                        </div>
+                      </div>
+                    )}
+
                   </Box>
                 )}
 
@@ -1341,13 +1537,15 @@ const DialysisAppointments = () => {
                     {/* Bill Summary Card */}
                     <div
                       style={{
-                        background: '#F9FAFB',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: '12px',
-                        padding: '20px',
+                        background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '20px',
+                        padding: '28px',
+                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)'
                       }}
                     >
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#374151', marginBottom: '16px', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', letterSpacing: '0.05em', marginBottom: '20px', borderBottom: '2px solid #f1f5f9', paddingBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ width: '8px', height: '8px', background: '#3b82f6', borderRadius: '50%' }}></span>
                         BILL SUMMARY
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1410,10 +1608,12 @@ const DialysisAppointments = () => {
                             key={opt.value}
                             style={{
                               flex: 1, display: 'flex', flexDirection: 'column',
-                              padding: '16px', borderRadius: '12px', cursor: 'pointer',
-                              border: createForm.payment_option === opt.value ? '2px solid #2563EB' : '1px solid #E5E7EB',
-                              background: createForm.payment_option === opt.value ? '#EFF6FF' : '#FFF',
-                              transition: 'all 0.2s'
+                              padding: '20px', borderRadius: '16px', cursor: 'pointer',
+                              border: createForm.payment_option === opt.value ? '2px solid #3b82f6' : '1px solid #e2e8f0',
+                              background: createForm.payment_option === opt.value ? 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)' : '#FFF',
+                              boxShadow: createForm.payment_option === opt.value ? '0 10px 15px -3px rgba(59,130,246,0.1)' : '0 4px 6px -1px rgba(0,0,0,0.02)',
+                              transform: createForm.payment_option === opt.value ? 'translateY(-2px)' : 'none',
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                             }}
                           >
                             <input
@@ -1521,6 +1721,7 @@ const DialysisAppointments = () => {
           <InvoicePreview
             isOpen={isCreateOpen}
             onClose={() => { setIsCreateOpen(false); resetCreateModal(); }}
+            appointmentId={savedAppointment?.id}
             appointment={savedAppointment}
             clinic={clinics?.find(c => String(c.id) === String(savedAppointment?.clinic_id))}
           />
@@ -1530,14 +1731,12 @@ const DialysisAppointments = () => {
         <PaymentModal
           isOpen={paymentModal.isOpen}
           onClose={closePaymentModal}
-          appointment={paymentModal.appointment}
-          amount={paymentModal.amount}
-          method={paymentModal.method}
-          error={paymentModal.error}
-          submitting={paymentModal.submitting}
-          onAmountChange={(v) => updatePaymentField('amount', v)}
-          onMethodChange={(v) => updatePaymentField('method', v)}
-          onSubmit={submitPayment}
+          appointmentId={paymentModal.appointment?.id}
+          billId={paymentModal.appointment?.invoiceId}
+          onSuccess={async (appointmentId, amount, method, receiptUrl) => {
+            showToast(`Payment of ₹${amount} recorded`, 'success');
+            fetchAppointments();
+          }}
         />
 
         {/* ─── Refund Modal ─── */}
@@ -1555,6 +1754,7 @@ const DialysisAppointments = () => {
         <InvoicePreview
           isOpen={!!invoiceTarget}
           onClose={() => setInvoiceTarget(null)}
+          appointmentId={invoiceTarget?.id}
           appointment={invoiceTarget}
           clinic={clinics?.find(c => String(c.id) === String(invoiceTarget?.clinic_id))}
         />

@@ -66,8 +66,7 @@ export function getPaymentStatus(totalAmount, amountPaid) {
   const total = Number(totalAmount || 0);
   const paid = Number(amountPaid || 0);
 
-  if (total <= 0) return 'UNPAID';
+  if (total <= 0) return 'PAID';
   if (paid >= total) return 'PAID';
-  if (paid > 0) return 'PARTIAL';
-  return 'UNPAID';
+  return 'PENDING';
 }

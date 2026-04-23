@@ -10,7 +10,7 @@ export function newQuestionReducer(state, action) {
     }
     case "type": {
       if (
-        action.payload !== "MultipleChoice" ||
+        action.payload !== "MultipleChoice" &&
         action.payload !== "SelectAnyOne"
       ) {
         return {

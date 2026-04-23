@@ -13,7 +13,7 @@
  * - Post-dialysis notes
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Box,
   Button,
@@ -50,14 +50,29 @@ import {
   submitSessionPreReadings,
   submitSessionReadings,
   submitSessionAction,
-  getHemoDialysisParameters,
+  updateSessionParameters,
 } from '../../../ApiCalls/dialysisSessionApis';
 import {
   getPatientById,
+  getGeneralParameterResponse,
 } from '../../../ApiCalls/patientAPis';
+import {
+  getDialysisParameterQuestions,
+  saveDialysisParameterReading
+} from '../../../ApiCalls/questionApis';
+import { getSystolicIdByTitle, getDialysisSystolicIdByTitle } from '../../../ApiCalls/readingsApis';
+import { FaSave, FaChartLine, FaTable } from 'react-icons/fa';
 import PatientProfileCard from '../../../components/PatientProfileCard';
+import PaymentModal from '../../../components/PaymentModal';
+import ParameterSection from '../../../components/ParameterSection';
+import DialysisTable from '../../../components/table/DialysisTable';
+import LineChartDialysis from '../../../components/Linechart/Linechart_Dialysis/LineChartDialysis';
+import LineChartDialyisisSys from '../../../components/Linechart/Linechart_Dialysis/LineChartDialyisisSys';
 import {
   getOrganizationById,
+  getAppointmentById,
+  updateAppointment,
+  addAppointmentPayment
 } from '../../../ApiCalls/clinicApis';
 import './DialysisParametersModal.css';
 import { calculateHeparinDose } from '../../../utils/heparinDosage';
@@ -69,6 +84,88 @@ import {
   useInventoryDialyzer as recordDialyzerUsage,
 } from '../../../ApiCalls/inventoryApis';
 import { updateBedStatus } from '../../../ApiCalls/bedManagementApis';
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const buildCombinedTitle = (baseTitle, keyword, insertText) => {
+  if (!baseTitle) return baseTitle;
+  const lower = baseTitle.toLowerCase();
+  const index = lower.indexOf(keyword);
+  if (index === -1) return baseTitle;
+  const endIndex = index + keyword.length;
+  return baseTitle.slice(0, endIndex) + insertText + baseTitle.slice(endIndex);
+};
+
+const normalizeQuestionTitle = (title = "") => title.toLowerCase().replace(/[\s_-]/g, "");
+
+const SystolicDiastolicGraph = ({
+  question,
+  userId,
+  isDialysis,
+  aspect,
+}) => {
+  const [systolicId, setSystolicId] = useState(question?.id ?? null);
+  const [loading, setLoading] = useState(false);
+
+  const title = question?.title || "";
+  const titleLower = title.toLowerCase();
+  const isSystolic = titleLower.includes("systolic");
+  const isDiastolic = titleLower.includes("diastolic");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSystolicId = async () => {
+      if (!isDiastolic || isSystolic) {
+        setSystolicId(question?.id ?? null);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const response = isDialysis
+          ? await getDialysisSystolicIdByTitle(title)
+          : await getSystolicIdByTitle(title);
+
+        if (isMounted) {
+          setSystolicId(response?.data ?? null);
+        }
+      } catch (error) {
+        console.error("Error fetching systolic ID:", error);
+        if (isMounted) setSystolicId(null);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchSystolicId();
+    return () => {
+      isMounted = false;
+    };
+  }, [isDialysis, isDiastolic, isSystolic, question?.id, title]);
+
+  if (isDiastolic && loading) {
+    return <Box className="text-sm text-muted">Loading...</Box>;
+  }
+
+  if (isDiastolic && !systolicId) {
+    return <Box className="text-sm text-muted">No systolic ID found.</Box>;
+  }
+
+  const chartTitle = isSystolic
+    ? buildCombinedTitle(title, "systolic", " and Diastolic")
+    : buildCombinedTitle(title, "diastolic", " and Systolic");
+
+  return (
+    <LineChartDialyisisSys
+      aspect={aspect}
+      questionId={isSystolic ? question?.id : systolicId}
+      user_id={userId}
+      title={chartTitle}
+      unit={question?.unit}
+    />
+  );
+};
 
 /**
  * DialysisParametersModal Component
@@ -93,61 +190,54 @@ export default function DialysisParametersModal({
   const [completePatientData, setCompletePatientData] = useState(null);
   const [dialysisReadings, setDialysisReadings] = useState(null);
   const [loadingData, setLoadingData] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savingMessage, setSavingMessage] = useState('');
+
+  // Billing & Payment State
+  const [billModalOpen, setBillModalOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [currentAppointment, setCurrentAppointment] = useState(null);
   const [sessionId, setSessionId] = useState(null);
+
+  // Timer State
+  const [manualDuration, setManualDuration] = useState(''); // Default 4 hours
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [timerActive, setTimerActive] = useState(false);
+  const timerRef = useRef(null);
 
   // Guidelines & Checklist state
   const [orgGuidelines, setOrgGuidelines] = useState([]);
   const [orgChecklists, setOrgChecklists] = useState([]);
+  const [orgConfig, setOrgConfig] = useState({ hasGuidelines: false, hasChecklists: false });
   const [dynamicChecklist, setDynamicChecklist] = useState({});
 
-  // Before Dialysis state
-  const [beforeChecklist, setBeforeChecklist] = useState({
-    physical_exam_done: false,
-    vital_signs_recorded: false,
-    blood_access_checked: false,
-    medication_given: false,
-    consent_obtained: false,
-  });
   const [beforeNotes, setBeforeNotes] = useState('');
-  const [measuredWeight, setMeasuredWeight] = useState('');
-  const [estimatedDuration, setEstimatedDuration] = useState(''); // minutes
-  const [targetUltrafiltration, setTargetUltrafiltration] = useState(''); // ml
 
   // Heparin dosage state
   const [heparinOverride, setHeparinOverride] = useState('auto'); // 'auto' | 'low' | 'standard' | 'high'
   const [selectedAilment, setSelectedAilment] = useState('');
 
   const heparinInfo = useMemo(() => {
-    // Prefer dry_weight; fall back to measured or body_weight
-    const dry = Number(completePatientData?.dry_weight) || Number(measuredWeight) || Number(completePatientData?.body_weight);
+    // Prefer dry_weight; fall back to body_weight
+    const dry = Number(completePatientData?.dry_weight) || Number(completePatientData?.body_weight);
     return calculateHeparinDose(dry, heparinOverride || 'auto', selectedAilment || null);
-  }, [completePatientData?.dry_weight, completePatientData?.body_weight, measuredWeight, heparinOverride, selectedAilment]);
+  }, [completePatientData?.dry_weight, completePatientData?.body_weight, heparinOverride, selectedAilment]);
 
-  // During Dialysis state
-  const [duringReadings, setDuringReadings] = useState({
-    blood_flow_rate: '',
-    dialysate_flow_rate: '',
-    arterial_pressure: '',
-    venous_pressure: '',
-    transmembrane_pressure: '',
-    ultrafiltration_rate: '',
-    temperature: '',
-    conductivity: '',
-  });
   const [duringNotes, setDuringNotes] = useState('');
 
   // After Dialysis state
   const [afterNotes, setAfterNotes] = useState('');
 
-  // Blood Samples state
-  const [bloodSamples, setBloodSamples] = useState({
-    samples_taken: false,
-    samples_sent_to_lab: false,
-  });
-
   // Hemo Dialysis Parameters from API
   const [hemoParams, setHemoParams] = useState([]);
   const [hemoParamsResponses, setHemoParamsResponses] = useState({});
+  const [showEntryFor, setShowEntryFor] = useState({}); // { [questionId]: boolean }
+
+  const hasDialysisSystolic = useMemo(() => {
+    return hemoParams.some((q) => q.title?.toLowerCase().includes("systolic"));
+  }, [hemoParams]);
 
   // Inventory & Supplies state
   const [inventoryItems, setInventoryItems] = useState([]);
@@ -215,25 +305,42 @@ export default function DialysisParametersModal({
         const orgId = finalData.organization_id || bed?.organization_id;
         if (orgId) {
           const orgResult = await getOrganizationById(orgId);
-          if (orgResult.success && orgResult.data) {
-            const guidelines = orgResult.data.guidelines || [];
-            const checklists = orgResult.data.checklists || [];
+          if (orgResult.success && orgResult.data.data) {
+            const orgData = orgResult.data.data;
+            const guidelines = orgData.hasGuidelines ? (orgData.guidelines || []) : [];
+            const checklists = orgData.hasChecklists ? (orgData.checklists || []) : [];
             
+            setOrgConfig({ hasGuidelines: !!orgData.hasGuidelines, hasChecklists: !!orgData.hasChecklists });
             setOrgGuidelines(guidelines);
             setOrgChecklists(checklists);
             
-            // Initialize dynamic checklist for items that need checking in the "Before" stage
-            // We include "Pre-dialysis" guidelines and "Preparation" checklists as interactive items
-            const preGuidelines = guidelines.filter(g => g.type === 'Pre-dialysis');
-            const prepChecklists = checklists.filter(c => c.type === 'Preparation');
-            
+            // Initialize dynamic checklist for items that need checking across all stages
             const initialChecklist = {};
-            preGuidelines.forEach((item, idx) => {
-              initialChecklist[`guideline_${idx}`] = false;
+
+            // 1. Before Stage: Pre-dialysis Guidelines & Preparation Checklists
+            guidelines.filter(g => g.type === 'Pre-dialysis').forEach((_, i) => {
+              initialChecklist[`pre_guideline_${i}`] = false;
             });
-            prepChecklists.forEach((item, idx) => {
-              initialChecklist[`checklist_${idx}`] = false;
+            checklists.filter(c => c.type === 'Preparation').forEach((_, i) => {
+              initialChecklist[`prep_checklist_${i}`] = false;
             });
+
+            // 2. During Stage: During-dialysis Guidelines & Monitoring Checklists
+            guidelines.filter(g => g.type === 'During-dialysis').forEach((_, i) => {
+              initialChecklist[`during_guideline_${i}`] = false;
+            });
+            checklists.filter(c => c.type === 'Monitoring').forEach((_, i) => {
+              initialChecklist[`mon_checklist_${i}`] = false;
+            });
+
+            // 3. After Stage: Post-dialysis Guidelines & Cleaning Checklists
+            guidelines.filter(g => g.type === 'Post-dialysis').forEach((_, i) => {
+              initialChecklist[`post_guideline_${i}`] = false;
+            });
+            checklists.filter(c => c.type === 'Cleaning').forEach((_, i) => {
+              initialChecklist[`clean_checklist_${i}`] = false;
+            });
+
             setDynamicChecklist(initialChecklist);
           }
         }
@@ -248,20 +355,41 @@ export default function DialysisParametersModal({
       // 3. Fetch recent readings
       if (initialData?.readings) {
         setDialysisReadings(initialData.readings);
-      } else {
-        const readingsResult = await getDialysisReadings();
-        if (readingsResult.success) {
-          const patientReadings = readingsResult.data?.filter(
-            (r) => r.patient_id === patient.patient_id
-          );
-          setDialysisReadings(patientReadings);
-        }
       }
 
-      // 4. Fetch Hemo Dialysis specific parameters
-      const hemoRes = await getHemoDialysisParameters(patient.patient_id);
-      if (hemoRes.success) {
-        setHemoParams(hemoRes.data || []);
+      // 4. Fetch Hemo Dialysis specific parameters & their last responses
+      const [readingsResult, responsesRes] = await Promise.all([
+        getDialysisReadings(),
+        getGeneralParameterResponse("Hemo Dialysis", patient.patient_id)
+      ]);
+
+      if (readingsResult.success && Array.isArray(readingsResult.data)) {
+        const params = readingsResult.data.filter(q =>
+          q.ailments && q.ailments.some(a => a.name && a.name.toLowerCase() === 'hemo dialysis')
+        );
+        setHemoParams(params);
+      }
+
+      if (responsesRes.success && Array.isArray(responsesRes.data)) {
+        const prefilled = {};
+        responsesRes.data.forEach(q => {
+          if (q.response) {
+            prefilled[q.id] = q.response;
+          }
+        });
+        setHemoParamsResponses(prev => ({ ...prefilled, ...prev }));
+      }
+
+      // 5. Fetch appointment for duration
+      if (patient?.appointment_id) {
+        const aptRes = await getAppointmentById(patient.appointment_id);
+        if (aptRes.success) {
+          const apt = aptRes.data?.data || aptRes.data;
+          setCurrentAppointment(apt);
+          if (apt.metadata?.dialysisDuration) {
+            setManualDuration(apt.metadata.dialysisDuration);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to fetch patient data:', err);
@@ -272,11 +400,16 @@ export default function DialysisParametersModal({
 
   const handleStartDialysis = useCallback(async () => {
     try {
-      const allChecklistDone = Object.values(beforeChecklist).every((v) => v);
-      const allDynamicDone = Object.values(dynamicChecklist).every((v) => v);
+      setIsSaving(true);
+      setSavingMessage('Validating preparation checklists...');
 
-      if (!allChecklistDone || !allDynamicDone) {
-        alert('Please complete all pre-dialysis checks and organization guidelines before starting');
+      // Only check dynamic items relevant to the "Before" stage
+      const preGuidelineKeys = orgGuidelines.filter(g => g.type === 'Pre-dialysis').map((_, i) => `pre_guideline_${i}`);
+      const prepChecklistKeys = orgChecklists.filter(c => c.type === 'Preparation').map((_, i) => `prep_checklist_${i}`);
+      const allPreDynamicDone = [...preGuidelineKeys, ...prepChecklistKeys].every(key => dynamicChecklist[key]);
+
+      if (!allPreDynamicDone) {
+        alert('Please complete all preparation checklists and organization guidelines before starting');
         return;
       }
 
@@ -292,20 +425,22 @@ export default function DialysisParametersModal({
 
       // Construct planned parameters from current session state and patient profile
       const plannedParameters = {
-        session_duration_minutes: Number(estimatedDuration) || 240,
-        ultrafiltration_target_ml: Number(targetUltrafiltration) || 2000,
-        target_dry_weight_kg: Number(completePatientData?.dry_weight) || undefined,
+        session_duration_minutes: Number(manualDuration) * 60 || 240,
         heparin_dose_units: heparinInfo?.doseIU || undefined,
+        heparin_strategy: heparinInfo?.strategy || undefined,
         ailments: completePatientData?.ailments || [],
         notes: beforeNotes,
+        pre_readings: hemoParamsResponses,
       };
 
+      setSavingMessage('Initializing session record...');
       const startSessionRes = await startDialysisSession({
         patient_id: Number(patient.patient_id),
         bed_id: Number(bed?.id),
         appointment_id: patient?.appointment_id ? Number(patient.appointment_id) : undefined,
         planned_parameters: plannedParameters,
-        patient_name: completePatientData?.name || patient?.patient_name, // Optional enrichment
+        dt_dialysis_session: dynamicChecklist,
+        patient_name: completePatientData?.name || patient?.patient_name,
       });
 
       if (!startSessionRes.success) {
@@ -317,32 +452,51 @@ export default function DialysisParametersModal({
         startSessionRes.data?.session_id;
       setSessionId(startedSessionId || null);
 
+      // Increase delay for backend synchronization
+      setSavingMessage('Synchronizing clinical data...');
+      await sleep(1000);
+
+      setSavingMessage('Uploading pre-dialysis readings...');
       await submitSessionPreReadings(startedSessionId, {
-        weight_kg: Number(measuredWeight) || undefined,
         notes: beforeNotes,
-        access_assessment: beforeChecklist.blood_access_checked ? 'Checked & patent' : 'Pending check',
         custom_parameters: hemoParamsResponses,
         labs: {
           is_infectious: completePatientData?.is_infectious || false,
         }
       });
 
+      setSavingMessage('Finalizing clinical assessment...');
+      await sleep(500);
+
       const result = await submitDialysisHealthParams({
         patient_id: patient.patient_id,
         bed_id: bed?.id,
         stage: 'before',
-        checklist: beforeChecklist,
         notes: beforeNotes,
         heparin: heparinPayload,
-        planned_parameters: plannedParameters,
         custom_readings: hemoParamsResponses,
         timestamp: new Date().toISOString(),
       });
 
       if (result.success || startedSessionId) {
+        setSavingMessage('Session started successfully!');
         // compute dialysis start and duration
         const startIso = new Date().toISOString();
-        const durationMin = Number(estimatedDuration) || 0;
+        let durationMin = parseInt(manualDuration, 10) * 60 || 0;
+
+        if (!durationMin && currentAppointment?.start_time && currentAppointment?.end_time) {
+          const s = currentAppointment.start_time.split(':');
+          const e = currentAppointment.end_time.split(':');
+          durationMin = (parseInt(e[0], 10) * 60 + parseInt(e[1], 10)) - (parseInt(s[0], 10) * 60 + parseInt(s[1], 10));
+          if (durationMin < 0) durationMin += 24 * 60;
+        }
+
+        // Initialize Timer
+        if (durationMin > 0) {
+          setTimeLeft(durationMin * 60);
+          setTimerActive(true);
+        }
+
         // compute time range string
         let timeRange = null;
         if (durationMin > 0) {
@@ -355,7 +509,6 @@ export default function DialysisParametersModal({
         setStage('during');
         if (onStageChange) {
           onStageChange('during', {
-            checklist: beforeChecklist,
             notes: beforeNotes,
             dialysis_start: startIso,
             dialysis_duration_minutes: durationMin,
@@ -368,8 +521,35 @@ export default function DialysisParametersModal({
       }
     } catch (err) {
       console.error('Failed to start dialysis:', err);
+      alert(err.message || 'Failed to start dialysis session');
+    } finally {
+      setIsSaving(false);
+      setSavingMessage('');
     }
-  }, [beforeChecklist, beforeNotes, patient?.patient_id, patient?.appointment_id, bed?.id, measuredWeight, estimatedDuration, targetUltrafiltration, heparinInfo, selectedAilment, onStageChange]);
+  }, [beforeNotes, patient?.patient_id, patient?.appointment_id, bed?.id, currentAppointment, heparinInfo, selectedAilment, onStageChange, orgGuidelines, orgChecklists, dynamicChecklist, completePatientData, hemoParamsResponses]);
+
+  const handleSaveReading = useCallback(async (questionId, value) => {
+    if (!value) return;
+    try {
+      setIsSaving(true);
+      const res = await saveDialysisParameterReading({
+        user_id: patient.patient_id,
+        date: new Date().toISOString().split('T')[0],
+        question_id: questionId,
+        readings: value,
+      });
+      if (res.success) {
+        // Optional: refresh to show updated responseCount if UI depends on it
+        fetchPatientData();
+      } else {
+        alert('Failed to save reading: ' + (res.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Error saving reading:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [patient?.patient_id, fetchPatientData]);
 
   const handleIssueItem = useCallback(async (itemId, qty) => {
     if (!itemId || !qty || qty <= 0) return;
@@ -384,10 +564,15 @@ export default function DialysisParametersModal({
       
       if (result.success) {
         const item = inventoryItems.find(i => i.id === Number(itemId));
+        // Take unit price from the item stock ID
+        const stockItem = inventoryStock.find(s => s.item_id === Number(itemId));
+        const unitPrice = Number(stockItem?.unit_price || stockItem?.price || item?.unit_price || item?.price || 0);
+
         setConsumedItems(prev => [...prev, { 
           id: Date.now(), 
           name: item?.name || `Item ${itemId}`, 
-          quantity: qty 
+          quantity: qty,
+          price: unitPrice
         }]);
       } else {
         alert(`Failed to issue item: ${result.data?.message || 'Stock not available'}`);
@@ -395,7 +580,7 @@ export default function DialysisParametersModal({
     } catch (err) {
       console.error('Error issuing stock:', err);
     }
-  }, [patient, inventoryItems]);
+  }, [patient, inventoryItems, inventoryStock]);
 
   const handleUseDialyzer = useCallback(async () => {
     if (!selectedDialyzerId) return;
@@ -405,10 +590,12 @@ export default function DialysisParametersModal({
       });
       if (result.success) {
         const d = dialyzers.find(dia => dia.id === Number(selectedDialyzerId));
+        const unitPrice = Number(d?.unit_price || d?.price || 0);
         setConsumedItems(prev => [...prev, { 
           id: Date.now(), 
           name: `Dialyzer Usage: ${d?.id || selectedDialyzerId}`, 
-          quantity: 1 
+          quantity: 1,
+          price: unitPrice
         }]);
         setSelectedDialyzerId('');
         // Refresh dialyzers
@@ -427,14 +614,6 @@ export default function DialysisParametersModal({
         await submitSessionReadings(sessionId, {
           timestamp: new Date().toISOString(),
           reading: {
-            blood_flow_rate: Number(duringReadings.blood_flow_rate) || undefined,
-            dialysate_flow_rate: Number(duringReadings.dialysate_flow_rate) || undefined,
-            arterial_pressure: Number(duringReadings.arterial_pressure) || undefined,
-            venous_pressure: Number(duringReadings.venous_pressure) || undefined,
-            transmembrane_pressure: Number(duringReadings.transmembrane_pressure) || undefined,
-            ultrafiltration_rate: Number(duringReadings.ultrafiltration_rate) || undefined,
-            temperature: Number(duringReadings.temperature) || undefined,
-            conductivity: Number(duringReadings.conductivity) || undefined,
             notes: duringNotes || undefined,
           },
         });
@@ -443,27 +622,31 @@ export default function DialysisParametersModal({
           action: 'stop',
           reason: duringNotes || 'Dialysis session stopped from UI',
         });
+
+        await updateSessionParameters(sessionId, {
+          duringDialysisNotes: duringNotes
+        });
       }
 
       const result = await submitDialysisHealthParams({
         patient_id: patient.patient_id,
         bed_id: bed?.id,
         stage: 'during',
-        readings: duringReadings,
         notes: duringNotes,
         timestamp: new Date().toISOString(),
       });
 
       if (result.success) {
         setStage('after');
+        setTimerActive(false);
         if (onStageChange) {
-          onStageChange('after', { readings: duringReadings, notes: duringNotes });
+          onStageChange('after', { notes: duringNotes });
         }
       }
     } catch (err) {
       console.error('Failed to stop dialysis:', err);
     }
-  }, [sessionId, duringReadings, duringNotes, patient?.patient_id, bed?.id, onStageChange]);
+  }, [sessionId, duringNotes, patient?.patient_id, bed?.id, onStageChange]);
 
   const handleCloseDialysis = useCallback(async () => {
     try {
@@ -471,26 +654,92 @@ export default function DialysisParametersModal({
         patient_id: patient.patient_id,
         bed_id: bed?.id,
         stage: 'after',
-        blood_samples: bloodSamples,
         notes: afterNotes,
         timestamp: new Date().toISOString(),
       });
 
+      if (sessionId) {
+        await updateSessionParameters(sessionId, {
+          postDialysisNotes: afterNotes,
+          inventoryItemsUsed: consumedItems
+        });
+      }
+
       if (result.success) {
-        if (onStageChange) {
-          onStageChange('completed', { notes: afterNotes, bloodSamples });
+        if (patient?.appointment_id) {
+          const extraCost = consumedItems.reduce((acc, c) => acc + ((c.quantity || 1) * (Number(c.price) || 0)), 0);
+          let finalAppt = patient;
+
+          const freshRes = await getAppointmentById(patient.appointment_id);
+          if (freshRes.success && freshRes.data) {
+            finalAppt = freshRes.data.data || freshRes.data;
+            if (extraCost > 0) {
+              const currentTotal = Number(finalAppt.totalAmount || finalAppt.amountDue || finalAppt.total_amt || 0);
+              const newTotal = currentTotal + extraCost;
+              await updateAppointment(patient.appointment_id, {
+                totalAmount: newTotal
+              });
+              finalAppt.totalAmount = newTotal;
+            }
+          }
+          setCurrentAppointment(finalAppt);
+          const totalAmt = Number(finalAppt.totalAmount || finalAppt.total_amt || finalAppt.amountDue || 0);
+          const paidAmt = Number(finalAppt.amountPaid || finalAppt.received_amt || finalAppt.paidAmount || 0);
+          const outstanding = Math.max(0, totalAmt - paidAmt);
+          setPaymentAmount(outstanding > 0 ? String(outstanding) : '');
+          setBillModalOpen(true);
+        } else {
+          if (onStageChange) {
+            onStageChange('completed', { notes: afterNotes });
+          }
+          onClose();
         }
-        onClose();
       }
     } catch (err) {
       console.error('Failed to close dialysis:', err);
     }
-  }, [bloodSamples, afterNotes, patient?.patient_id, bed?.id, onStageChange, onClose]);
+  }, [afterNotes, patient, bed?.id, onStageChange, onClose, consumedItems]);
+
+  const handlePaymentSuccess = () => {
+    setBillModalOpen(false);
+    if (onStageChange) {
+      onStageChange('completed', { notes: afterNotes });
+    }
+    onClose();
+  };
+
+  const handlePaymentClose = () => {
+    setBillModalOpen(false);
+    if (onStageChange) {
+      onStageChange('completed', { notes: afterNotes });
+    }
+    onClose();
+  };
+
+  // Timer Effect
+  useEffect(() => {
+    if (timerActive && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => Math.max(0, prev - 1));
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+
+    return () => clearInterval(timerRef.current);
+  }, [timerActive, timeLeft]);
+
+  const formatTimeLeft = (seconds) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="8xl" isCentered scrollBehavior="inside">
+    <Modal isOpen={isOpen} onClose={onClose} size="full" isCentered scrollBehavior="inside">
       <ModalOverlay />
-      <ModalContent maxH="88vh" className="dialysis-modal__content" style={{ width: '80vw', maxWidth: '80vw' }}>
+      <ModalContent maxH="88vh" className="dialysis-modal__content" style={{ width: '95vw', maxWidth: '100vw' }}>
         <ModalHeader className="dialysis-modal__header">
           <VStack align="start" spacing={3} width="100%">
             <Box className="dialysis-modal__title-group">
@@ -504,7 +753,29 @@ export default function DialysisParametersModal({
               <div className="dialysis-modal__summary-pill">
                 <span className="dialysis-modal__summary-label">Patient</span>
                 <span className="dialysis-modal__summary-value">
-                  {patient?.patient_name || patient?.patient_id || '—'}
+                  {completePatientData?.name || patient?.patient_id || '—'}
+                </span>
+              </div>
+              <div className="dialysis-modal__summary-pill">
+                <span className="dialysis-modal__summary-label">Duration</span>
+                <span className="dialysis-modal__summary-value">
+                  {stage === 'during' ? (
+                    <span style={{ color: timeLeft < 300 ? '#ef4444' : '#f59e0b', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                      {formatTimeLeft(timeLeft)}
+                    </span>
+                  ) : (
+                    currentAppointment?.start_time && currentAppointment?.end_time
+                      ? (() => {
+                        const s = currentAppointment.start_time.split(':');
+                        const e = currentAppointment.end_time.split(':');
+                        let diff = (parseInt(e[0], 10) * 60 + parseInt(e[1], 10)) - (parseInt(s[0], 10) * 60 + parseInt(s[1], 10));
+                        if (diff < 0) diff += 24 * 60;
+                        const h = Math.floor(diff / 60);
+                        const m = diff % 60;
+                        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                      })()
+                      : '—'
+                  )}
                 </span>
               </div>
               <div className="dialysis-modal__summary-pill">
@@ -551,118 +822,160 @@ export default function DialysisParametersModal({
 
                 {/* CENTER AREA: Session Stages */}
                 <VStack flex={6.5} align="stretch" spacing={6} className="dialysis-modal__center-content">
-                  {/* BEFORE DIALYSIS - STATIC PANEL (NOT ACCORDION ITEM YET, OR TOP ACCORDION OPEN) */}
-                  <Card variant="outline" className="dialysis-modal__stage-panel dialysis-modal__stage-panel--before" borderRadius="24px" border="1px solid" borderColor="info.200" shadow="sm">
-                    <CardHeader bg="info.50" py={3} px={6} borderTopRadius="24px">
-                      <HStack justify="space-between">
-                        <Heading as="h3" size="md" color="info.800">BEFORE Dialysis</Heading>
-                        <Badge colorScheme="info">STEP 1</Badge>
-                      </HStack>
-                    </CardHeader>
-                    <CardBody p={6}>
-                      <VStack spacing={6} align="stretch">
-                        {/* Top row with 3 sub-columns: Checklist, Readings, Guidelines */}
+                    {/* SESSION STAGES ACCORDION */}
+                    <Accordion defaultIndex={stage === 'before' ? [0] : stage === 'during' ? [1] : [2]} allowMultiple>
+                      {/* BEFORE DIALYSIS */}
+                      <AccordionItem
+                        title="Before Dialysis Assessment"
+                        badge="STEP 1"
+                        badgeColor="info"
+                        className="dialysis-modal__accordion-item"
+                      >
+                        <VStack spacing={6} align="stretch">
                         <HStack align="start" spacing={6}>
                           {/* 1. Checklist (Actual API Data) */}
-                          <VStack flex={1} align="stretch" spacing={3}>
-                            <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Checklist</Heading>
-                            <Box className="dialysis-modal__checklist-container" p={4} bg="slate.50" borderRadius="xl" border="1px solid" borderColor="slate.100">
-                              <VStack align="start" spacing={3}>
-                                {/* Standard Checklist Items */}
-                                {[
-                                  { key: 'physical_exam_done', label: 'Physical Exam' },
-                                  { key: 'vital_signs_recorded', label: 'Vitals Recorded' },
-                                  { key: 'blood_access_checked', label: 'Access Checked' },
-                                  { key: 'medication_given', label: 'Medications' },
-                                  { key: 'consent_obtained', label: 'Consent' }
-                                ].map(item => (
-                                  <Checkbox
-                                    key={item.key}
-                                    checked={beforeChecklist[item.key]}
-                                    onChange={(e) => setBeforeChecklist({ ...beforeChecklist, [item.key]: e.target.checked })}
-                                    disabled={stage !== 'before'}
-                                    size="sm"
-                                    colorScheme="info"
-                                  >
-                                    <Text fontSize="xs" fontWeight="500">{item.label}</Text>
-                                  </Checkbox>
-                                ))}
-                                {/* Actual Org API Checklist Items (Preparation) */}
-                                {orgChecklists.filter(c => c.type === 'Preparation').map((gl, i) => (
-                                  <Checkbox
-                                    key={`org_checklist_${i}`}
-                                    checked={dynamicChecklist[`checklist_${i}`]}
-                                    onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`checklist_${i}`]: e.target.checked }))}
-                                    disabled={stage !== 'before'}
-                                    size="sm"
-                                    colorScheme="info"
-                                  >
-                                    <Text fontSize="xs" fontWeight="500">{gl.text}</Text>
-                                  </Checkbox>
-                                ))}
-                              </VStack>
-                            </Box>
-                          </VStack>
+                            {orgConfig.hasChecklists && (
+                              <VStack flex={1} align="stretch" spacing={3}>
+                                <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Checklist</Heading>
+                                <Box className="dialysis-modal__checklist-container" p={4} bg="slate.50" borderRadius="xl" border="1px solid" borderColor="slate.100">
+                                  <VStack align="start" spacing={3}>
+                                    {/* Actual Org API Checklist Items (Preparation) */}
+                                    {orgChecklists.filter(c => c.type === 'Preparation').map((gl, i) => (
+                                      <Checkbox
+                                        key={`org_checklist_${i}`}
+                                        checked={dynamicChecklist[`prep_checklist_${i}`]}
+                                        onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`prep_checklist_${i}`]: e.target.checked }))}
+                                        disabled={stage !== 'before'}
+                                        size="sm"
+                                        colorScheme="info"
+                                      >
+                                        <Text fontSize="xs" fontWeight="500">{gl.text}</Text>
+                                      </Checkbox>
+                                    ))}
+                                    {orgChecklists.filter(c => c.type === 'Preparation').length === 0 && (
+                                      <Text fontSize="xs" color="slate.400 italic">No preparation checklist items.</Text>
+                                    )}
+                                  </VStack>
+                                </Box>
 
-                          {/* 2. Readings (Actual API Parameters) */}
+                                {stage === 'before' && (
+                                  <Box mt={4}>
+                                    <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500" mb={2}>Planned Duration</Heading>
+                                    <HStack>
+                                      <Input
+                                        type="number"
+                                        size="sm"
+                                        value={manualDuration}
+                                        onChange={(e) => setManualDuration(e.target.value)}
+                                        placeholder="Duration in hours"
+                                        maxW="120px"
+                                      />
+                                      <Text fontSize="xs" color="slate.500">Hours</Text>
+                                    </HStack>
+                                    <Text fontSize="xs" color="slate.400" mt={1}>Defaults to appointment duration if empty</Text>
+                                  </Box>
+                                )}
+                              </VStack>
+                            )}
+
+                            {/* 2. Readings & Parameters (with charts) */}
                           <VStack flex={2} align="stretch" spacing={3}>
                             <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Readings & Parameters</Heading>
-                            <Box className="dialysis-modal__readings-container" p={4} bg="white" borderRadius="xl" border="1px solid" borderColor="slate.200">
-                              <Box className="grid grid-cols-2 gap-x-4 gap-y-3">
-                                {/* Hemo Params from API */}
-                                {hemoParams.map((param) => (
-                                  <FormControl key={param.id}>
-                                    <FormLabel fontSize="xs" mb={1} fontWeight="700" color="slate.600">
-                                      {param.title} {param.unit ? `(${param.unit})` : ''}
-                                    </FormLabel>
-                                    <Input
-                                      type={param.type === 'Numeric' ? 'number' : param.type === 'Date' ? 'datetime-local' : 'text'}
-                                      placeholder={param.title}
-                                      value={hemoParamsResponses[param.id] || ''}
-                                      onChange={(e) => setHemoParamsResponses({ ...hemoParamsResponses, [param.id]: e.target.value })}
-                                      size="xs"
-                                      borderRadius="md"
-                                      disabled={stage !== 'before'}
-                                    />
-                                  </FormControl>
-                                ))}
-                                {/* Standard Planning Inputs */}
-                                <FormControl>
-                                  <FormLabel fontSize="xs" mb={1} fontWeight="700">Measured Weight (kg)</FormLabel>
-                                  <Input size="xs" type="number" value={measuredWeight} onChange={(e) => setMeasuredWeight(e.target.value)} disabled={stage !== 'before'} />
-                                </FormControl>
-                                <FormControl>
-                                  <FormLabel fontSize="xs" mb={1} fontWeight="700">Target UF (ml)</FormLabel>
-                                  <Input size="xs" type="number" value={targetUltrafiltration} onChange={(e) => setTargetUltrafiltration(e.target.value)} disabled={stage !== 'before'} />
-                                </FormControl>
-                              </Box>
-                            </Box>
+                              {hemoParams.length > 0 ? (
+                                <Box className="space-y-6">
+                                  {hemoParams.map((question, index) => {
+                                    const questionTitle = question.title || '';
+                                    const normalizedTitle = normalizeQuestionTitle(questionTitle);
+                                    const isWeightAfter = normalizedTitle === 'weightafter';
+
+                                    return (
+                                      <ParameterSection
+                                        key={index}
+                                        title={questionTitle}
+                                        noResponse={question.responseCount === 0}
+                                        onEnterReading={() => setShowEntryFor(prev => ({ ...prev, [question.id]: !prev[question.id] }))}
+                                      >
+                                        <VStack spacing={4} align="stretch" mt={4}>
+                                          {/* Inline save-reading input - Toggled by Enter Reading button */}
+                                          {showEntryFor[question.id] && (
+                                            <Box p={3} bg="slate.50" borderRadius="xl" border="1px solid" borderColor="slate.200">
+                                              <HStack spacing={3} justify="flex-end">
+                                                <Input
+                                                  type={question.type === 'Numeric' ? 'number' : question.type === 'Date' ? 'date' : 'text'}
+                                                  placeholder={`Enter value for ${questionTitle}...`}
+                                                  value={hemoParamsResponses[question.id] || ''}
+                                                  onChange={(e) => setHemoParamsResponses(prev => ({ ...prev, [question.id]: e.target.value }))}
+                                                  size="sm"
+                                                  borderRadius="lg"
+                                                  bg="white"
+                                                  flex={1}
+                                                />
+                                                <Button
+                                                  size="sm"
+                                                  colorScheme="info"
+                                                  leftIcon={<FaSave />}
+                                                  onClick={async () => {
+                                                    await handleSaveReading(question.id, hemoParamsResponses[question.id]);
+                                                    setShowEntryFor(prev => ({ ...prev, [question.id]: false }));
+                                                  }}
+                                                  isDisabled={!hemoParamsResponses[question.id]}
+                                                  isLoading={isSaving}
+                                                  px={8}
+                                                  borderRadius="lg"
+                                                >
+                                                  Save
+                                                </Button>
+                                              </HStack>
+                                            </Box>
+                                          )}
+
+                                          {/* Table only for technicians */}
+                                          <Box className="w-full overflow-hidden rounded-xl border border-slate-200">
+                                            <DialysisTable
+                                              questionId={question.id}
+                                              user_id={patient.patient_id}
+                                              title={questionTitle}
+                                              question={question}
+                                              highlightThreshold={isWeightAfter ? completePatientData?.dry_weight : null}
+                                              highlightComparator="gt"
+                                            />
+                                          </Box>
+                                        </VStack>
+                                      </ParameterSection>
+                                    );
+                                  })}
+                                </Box>
+                              ) : (
+                                <Text fontSize="xs" color="slate.400 italic">No specific parameters configured.</Text>
+                              )}
                           </VStack>
 
                           {/* 3. Guidelines (Actual API Data) */}
-                          <VStack flex={1} align="stretch" spacing={3}>
-                            <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Guidelines</Heading>
-                            <Box className="dialysis-modal__guidelines-container" p={4} bg="slate.50" borderRadius="xl" border="1px solid" borderColor="slate.100">
-                              <VStack align="start" spacing={3}>
-                                {/* Pre-dialysis Guidelines */}
-                                {orgGuidelines.filter(g => g.type === 'Pre-dialysis').map((gl, i) => (
-                                  <Checkbox
-                                    key={`org_guideline_${i}`}
-                                    checked={dynamicChecklist[`guideline_${i}`]}
-                                    onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`guideline_${i}`]: e.target.checked }))}
-                                    disabled={stage !== 'before'}
-                                    size="sm"
-                                    colorScheme="info"
-                                  >
-                                    <Text fontSize="xs" fontWeight="500" color="slate.700">{gl.text}</Text>
-                                  </Checkbox>
-                                ))}
-                                {orgGuidelines.filter(g => g.type === 'Pre-dialysis').length === 0 && (
-                                  <Text fontSize="xs" color="slate.400 italic">No specific pre-dialysis instructions.</Text>
-                                )}
+                            {orgConfig.hasGuidelines && (
+                              <VStack flex={1} align="stretch" spacing={3}>
+                                <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Guidelines</Heading>
+                                <Box className="dialysis-modal__guidelines-container" p={4} bg="slate.50" borderRadius="xl" border="1px solid" borderColor="slate.100">
+                                  <VStack align="start" spacing={3}>
+                                    {/* Pre-dialysis Guidelines */}
+                                    {orgGuidelines.filter(g => g.type === 'Pre-dialysis').map((gl, i) => (
+                                      <Checkbox
+                                        key={`org_guideline_${i}`}
+                                        checked={dynamicChecklist[`pre_guideline_${i}`]}
+                                        onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`pre_guideline_${i}`]: e.target.checked }))}
+                                        disabled={stage !== 'before'}
+                                        size="sm"
+                                        colorScheme="info"
+                                      >
+                                        <Text fontSize="xs" fontWeight="500" color="slate.700">{gl.text}</Text>
+                                      </Checkbox>
+                                    ))}
+                                    {orgGuidelines.filter(g => g.type === 'Pre-dialysis').length === 0 && (
+                                      <Text fontSize="xs" color="slate.400 italic">No specific pre-dialysis instructions.</Text>
+                                    )}
+                                  </VStack>
+                                </Box>
                               </VStack>
-                            </Box>
-                          </VStack>
+                            )}
                         </HStack>
 
                         {/* Heparin Calculations Row */}
@@ -710,28 +1023,31 @@ export default function DialysisParametersModal({
                               borderRadius="xl"
                             />
                           </FormControl>
-                          <Button
-                            colorScheme="success"
-                            size="lg"
-                            onClick={handleStartDialysis}
-                            isLoading={isLoading}
-                            isDisabled={stage !== 'before'}
-                            height="60px"
-                            px={12}
-                            borderRadius="xl"
-                            shadow="lg"
-                            _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-                            transition="all 0.2s"
-                          >
-                            START SESSION →
-                          </Button>
+                            <VStack align="end" spacing={2} flex={1}>
+                              {isSaving && (
+                                <Text fontSize="xs" color="info.600" fontWeight="bold" animate="pulse">
+                                  {savingMessage}
+                                </Text>
+                              )}
+                              <Button
+                                colorScheme="success"
+                                size="lg"
+                                onClick={handleStartDialysis}
+                                isLoading={isSaving}
+                                isDisabled={stage !== 'before'}
+                                height="60px"
+                                px={12}
+                                borderRadius="xl"
+                                shadow="lg"
+                                _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
+                                transition="all 0.2s"
+                              >
+                                START SESSION →
+                              </Button>
+                            </VStack>
                         </HStack>
                       </VStack>
-                    </CardBody>
-                  </Card>
-
-                  {/* DURING & AFTER ACCORDIONS */}
-                  <Accordion defaultIndex={stage === 'before' ? [] : stage === 'during' ? [0] : [1]} allowMultiple>
+                      </AccordionItem>
                     <AccordionItem
                       title="During Dialysis Monitoring"
                       badge="STEP 2"
@@ -739,19 +1055,43 @@ export default function DialysisParametersModal({
                       className="dialysis-modal__accordion-item"
                     >
                       <VStack spacing={4} align="stretch">
-                        <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
-                          <CardHeader><Heading as="h4" size="sm">Machine Readings</Heading></CardHeader>
-                          <CardBody>
-                            <Box className="grid grid-cols-2 gap-4">
-                              <FormControl><FormLabel fontSize="xs">BFR (mL/min)</FormLabel><Input size="sm" type="number" value={duringReadings.blood_flow_rate} onChange={(e) => setDuringReadings({ ...duringReadings, blood_flow_rate: e.target.value })} disabled={stage !== 'during'} /></FormControl>
-                              <FormControl><FormLabel fontSize="xs">DFR (mL/min)</FormLabel><Input size="sm" type="number" value={duringReadings.dialysate_flow_rate} onChange={(e) => setDuringReadings({ ...duringReadings, dialysate_flow_rate: e.target.value })} disabled={stage !== 'during'} /></FormControl>
-                              <FormControl><FormLabel fontSize="xs">Arterial (mmHg)</FormLabel><Input size="sm" type="number" value={duringReadings.arterial_pressure} onChange={(e) => setDuringReadings({ ...duringReadings, arterial_pressure: e.target.value })} disabled={stage !== 'during'} /></FormControl>
-                              <FormControl><FormLabel fontSize="xs">Venous (mmHg)</FormLabel><Input size="sm" type="number" value={duringReadings.venous_pressure} onChange={(e) => setDuringReadings({ ...duringReadings, venous_pressure: e.target.value })} disabled={stage !== 'during'} /></FormControl>
-                              <FormControl><FormLabel fontSize="xs">TMP (mmHg)</FormLabel><Input size="sm" type="number" value={duringReadings.transmembrane_pressure} onChange={(e) => setDuringReadings({ ...duringReadings, transmembrane_pressure: e.target.value })} disabled={stage !== 'during'} /></FormControl>
-                              <FormControl><FormLabel fontSize="xs">UF Rate (mL/hr)</FormLabel><Input size="sm" type="number" value={duringReadings.ultrafiltration_rate} onChange={(e) => setDuringReadings({ ...duringReadings, ultrafiltration_rate: e.target.value })} disabled={stage !== 'during'} /></FormControl>
-                            </Box>
-                          </CardBody>
-                        </Card>
+                          {/* Machine Readings & During-dialysis Protocol */}
+                          {(orgConfig.hasGuidelines || orgConfig.hasChecklists) && (
+                            <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
+                              <CardHeader py={2}><Heading as="h4" size="xs" color="slate.500" textTransform="uppercase">Protocol & Monitoring</Heading></CardHeader>
+                              <CardBody>
+                                <VStack align="start" spacing={3}>
+                                  {orgConfig.hasGuidelines && orgGuidelines.filter(g => g.type === 'During-dialysis').map((gl, i) => (
+                                    <Checkbox
+                                      key={`during_gl_${i}`}
+                                      checked={dynamicChecklist[`during_guideline_${i}`]}
+                                      onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`during_guideline_${i}`]: e.target.checked }))}
+                                      disabled={stage !== 'during'}
+                                      size="sm"
+                                    >
+                                      <Text fontSize="xs">{gl.text}</Text>
+                                    </Checkbox>
+                                  ))}
+                                  {orgConfig.hasChecklists && orgChecklists.filter(c => c.type === 'Monitoring').map((cl, i) => (
+                                    <Checkbox
+                                      key={`mon_cl_${i}`}
+                                      checked={dynamicChecklist[`mon_checklist_${i}`]}
+                                      onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`mon_checklist_${i}`]: e.target.checked }))}
+                                      disabled={stage !== 'during'}
+                                      size="sm"
+                                      colorScheme="warning"
+                                    >
+                                      <Text fontSize="xs">Monitor: {cl.text}</Text>
+                                    </Checkbox>
+                                  ))}
+                                  {((orgConfig.hasGuidelines && orgGuidelines.filter(g => g.type === 'During-dialysis').length === 0) &&
+                                    (orgConfig.hasChecklists && orgChecklists.filter(c => c.type === 'Monitoring').length === 0)) && (
+                                      <Text fontSize="xs" color="slate.400 italic">No monitoring protocols configured for this session.</Text>
+                                    )}
+                                </VStack>
+                              </CardBody>
+                            </Card>
+                          )}
 
                         <FormControl>
                           <FormLabel fontSize="xs">Monitoring Notes</FormLabel>
@@ -771,38 +1111,46 @@ export default function DialysisParametersModal({
                       className="dialysis-modal__accordion-item"
                     >
                       <VStack spacing={4} align="stretch">
-                        <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
-                          <CardHeader><Heading as="h4" size="sm">Post-Session Checks</Heading></CardHeader>
-                          <CardBody>
-                            <VStack align="start" spacing={2}>
-                              <Checkbox checked={bloodSamples.samples_taken} onChange={(e) => setBloodSamples({ ...bloodSamples, samples_taken: e.target.checked })} disabled={stage !== 'after'} size="sm">Samples taken</Checkbox>
-                              <Checkbox checked={bloodSamples.samples_sent_to_lab} onChange={(e) => setBloodSamples({ ...bloodSamples, samples_sent_to_lab: e.target.checked })} disabled={stage !== 'after'} size="sm">Sent to lab</Checkbox>
-                              
-                              {/* Post-dialysis Guidelines */}
-                              {orgGuidelines.filter(g => g.type === 'Post-dialysis').map((gl, i) => (
-                                <Checkbox
-                                  key={`post_gl_${i}`}
-                                  size="sm"
-                                  disabled={stage !== 'after'}
-                                >
-                                  <Text fontSize="xs">{gl.text}</Text>
-                                </Checkbox>
-                              ))}
+                          {(orgConfig.hasGuidelines || orgConfig.hasChecklists) && (
+                            <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
+                              <CardHeader><Heading as="h4" size="sm">Post-Session Checks</Heading></CardHeader>
+                              <CardBody>
+                                <VStack align="start" spacing={2}>
 
-                              {/* Cleaning Checklists */}
-                              {orgChecklists.filter(c => c.type === 'Cleaning').map((cl, i) => (
-                                <Checkbox
-                                  key={`clean_cl_${i}`}
-                                  size="sm"
-                                  disabled={stage !== 'after'}
-                                  colorScheme="warning"
-                                >
-                                  <Text fontSize="xs">Cleaning: {cl.text}</Text>
-                                </Checkbox>
-                              ))}
-                            </VStack>
-                          </CardBody>
-                        </Card>
+                                  {/* Post-dialysis Guidelines */}
+                                  {orgConfig.hasGuidelines && orgGuidelines.filter(g => g.type === 'Post-dialysis').map((gl, i) => (
+                                    <Checkbox
+                                      key={`post_gl_${i}`}
+                                      checked={dynamicChecklist[`post_guideline_${i}`]}
+                                      onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`post_guideline_${i}`]: e.target.checked }))}
+                                      size="sm"
+                                      disabled={stage !== 'after'}
+                                    >
+                                      <Text fontSize="xs">{gl.text}</Text>
+                                    </Checkbox>
+                                  ))}
+
+                                  {/* Cleaning Checklists */}
+                                  {orgConfig.hasChecklists && orgChecklists.filter(c => c.type === 'Cleaning').map((cl, i) => (
+                                    <Checkbox
+                                      key={`clean_cl_${i}`}
+                                      checked={dynamicChecklist[`clean_checklist_${i}`]}
+                                      onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`clean_checklist_${i}`]: e.target.checked }))}
+                                      size="sm"
+                                      disabled={stage !== 'after'}
+                                      colorScheme="warning"
+                                    >
+                                      <Text fontSize="xs">Cleaning: {cl.text}</Text>
+                                    </Checkbox>
+                                  ))}
+                                  {((orgConfig.hasGuidelines && orgGuidelines.filter(g => g.type === 'Post-dialysis').length === 0) &&
+                                    (orgConfig.hasChecklists && orgChecklists.filter(c => c.type === 'Cleaning').length === 0)) && (
+                                      <Text fontSize="xs" color="slate.400 italic">No post-dialysis protocols configured.</Text>
+                                    )}
+                                </VStack>
+                              </CardBody>
+                            </Card>
+                          )}
                         <FormControl>
                           <FormLabel fontSize="xs">Post-Dialysis Notes</FormLabel>
                           <Textarea value={afterNotes} onChange={(e) => setAfterNotes(e.target.value)} disabled={stage !== 'after'} rows={2} size="sm" />
@@ -841,6 +1189,8 @@ export default function DialysisParametersModal({
                       </VStack>
                     </AccordionItem>
                   </Accordion>
+
+
                 </VStack>
 
                 {/* RIGHT SIDEBAR: Supplies & Inventory */}
@@ -927,13 +1277,21 @@ export default function DialysisParametersModal({
             <Button
               variant="outline"
               onClick={onClose}
-              isDisabled={isLoading || loadingData}
+              isDisabled={isLoading}
+              size="sm"
             >
-              Close
+              Cancel
             </Button>
           </HStack>
         </ModalFooter>
       </ModalContent>
+
+      <PaymentModal
+        isOpen={billModalOpen}
+        onClose={handlePaymentClose}
+        appointmentId={currentAppointment?.id}
+        onSuccess={handlePaymentSuccess}
+      />
     </Modal>
   );
 }
