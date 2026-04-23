@@ -63,6 +63,67 @@ const getSearchBlob = (alert) => {
   return norm(parts.filter(Boolean).join(" "));
 };
 
+const getAlertType0 = (alert) => norm(alert?.type0);
+
+const isChatAlert = (alert) => {
+  const type0 = getAlertType0(alert);
+  const blob = getSearchBlob(alert);
+
+  return (
+    type0.includes("chat") ||
+    hasText(blob, "/admin-chat") ||
+    hasText(blob, "/doctor-chat") ||
+    hasText(blob, "doctor message to admin") ||
+    hasText(blob, "admin chat") ||
+    hasText(blob, "doctor chat") ||
+    hasText(blob, "consult doctor") ||
+    hasText(blob, "send message")
+  );
+};
+
+const getDashboardAlertSide = (alert) => {
+  if (isChatAlert(alert)) return "chat";
+
+  const type0 = getAlertType0(alert);
+  const blob = getSearchBlob(alert);
+
+  if (type0.includes("doctor")) return "doctor";
+  if (type0.includes("patient")) return "patient";
+  if (type0.includes("admin")) return "doctor";
+
+  if (hasText(blob, "doctor")) return "doctor";
+  if (hasText(blob, "patient")) return "patient";
+
+  return null;
+};
+
+const partitionDashboardAlerts = (alerts) => {
+  const partitions = {
+    doctor: [],
+    patient: [],
+    other: [],
+  };
+
+  sortAlertsNewestFirst(toArray(alerts)).forEach((alert) => {
+    if (isChatAlert(alert)) return;
+
+
+    const side = getDashboardAlertSide(alert);
+    if (side === "doctor") {
+      partitions.doctor.push(alert);
+      return;
+    }
+    if (side === "patient") {
+      partitions.patient.push(alert);
+      return;
+    }
+
+    partitions.other.push(alert);
+  });
+
+  return partitions;
+};
+
 const titleCase = (value = "") => value
   .split(/\s+/)
   .filter(Boolean)
@@ -70,6 +131,13 @@ const titleCase = (value = "") => value
   .join(" ");
 
 const getChatType = (alert) => {
+  const type0 = getAlertType0(alert);
+
+  if (type0.includes("chat")) {
+    if (type0.includes("doctor")) return "doctor";
+    if (type0.includes("admin") || type0.includes("patient")) return "admin";
+  }
+
   const type = norm(alert?.type);
   if (type === "doctor") return "doctor";
   if (type === "admin") return "admin";
@@ -127,6 +195,7 @@ const getStaffIdentityFromAlert = (alert) => {
 
 const classifyAlert = (alert) => {
   const blob = getSearchBlob(alert);
+  const type0 = getAlertType0(alert);
   const chatType = getChatType(alert);
 
   if (chatType) {
@@ -139,6 +208,18 @@ const classifyAlert = (alert) => {
   }
 
   if (
+    type0.includes("prescription") ||
+    hasText(blob, "prescription")
+  ) {
+    return {
+      bucket: "prescription",
+      categoryKey: "prescription",
+      categoryLabel: "Prescription",
+    };
+  }
+
+  if (
+    type0.includes("comment") ||
     hasText(blob, "comment") ||
     (alert?.fileId && alert?.fileType) ||
     alert?.url
@@ -150,15 +231,9 @@ const classifyAlert = (alert) => {
     };
   }
 
-  if (hasText(blob, "prescription")) {
-    return {
-      bucket: "prescription",
-      categoryKey: "prescription",
-      categoryLabel: "Prescription",
-    };
-  }
-
   if (
+    type0.includes("dialysis") ||
+    type0.includes("daily") ||
     hasText(blob, "dialysis") ||
     hasText(blob, "daily reading") ||
     hasText(blob, "reading alert") ||
@@ -193,6 +268,7 @@ const groupAlertsByPatient = (alerts, options = {}) => {
   };
 
   sortAlertsNewestFirst(toArray(alerts)).forEach((alert) => {
+
     const patientId = getPatientId(alert);
     if (!patientId) return;
 
@@ -299,6 +375,7 @@ const groupChatAlertsByStaff = (alerts) => {
   };
 
   sortAlertsNewestFirst(toArray(alerts)).forEach((alert) => {
+
     const chatType = getChatType(alert);
     const patientId = getPatientId(alert);
     if (!chatType || !patientId) return;
@@ -366,6 +443,8 @@ const groupDoctorAlertsByPatient = (alerts) => {
   const patients = new Map();
 
   sortAlertsNewestFirst(toArray(alerts)).forEach((alert) => {
+    if (isChatAlert(alert)) return;
+
     const patientId = getPatientId(alert);
     if (!patientId) return;
 
@@ -426,13 +505,17 @@ const extractChatSummary = (summaryResponse) => {
 export {
   classifyAlert,
   extractChatSummary,
+  getAlertType0,
   getChatType,
+  getDashboardAlertSide,
   getPatientId,
   getPatientName,
   getStaffIdentityFromAlert,
   groupAlertsByPatient,
   groupChatAlertsByStaff,
   groupDoctorAlertsByPatient,
+  isChatAlert,
   isUnreadAlert,
+  partitionDashboardAlerts,
   toArray,
 };
