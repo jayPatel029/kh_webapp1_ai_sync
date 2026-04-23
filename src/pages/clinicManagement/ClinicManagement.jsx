@@ -351,10 +351,15 @@ const ClinicManagement = () => {
         return {
           frequency: st.frequency || 'weekly',
           daysOfWeek: Array.isArray(st.daysOfWeek) ? st.daysOfWeek : [st.daysOfWeek].filter(Boolean),
-          timings: [{
-            startTime: formatTime(st.startTime),
-            endTime: formatTime(st.endTime)
-          }],
+          timings: (st.timings && st.timings.length > 0)
+            ? st.timings.map(t => ({
+              startTime: formatTime(t.startTime),
+              endTime: formatTime(t.endTime)
+            }))
+            : [{
+              startTime: formatTime(st.startTime),
+              endTime: formatTime(st.endTime)
+            }],
           maxPatientsPerSlot: Number(st.maxPatientsPerSlot) || 1,
           bufferMinutes: Number(st.bufferMinutes) || 30,
           price: Number(st.price) || 0,

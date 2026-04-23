@@ -911,7 +911,7 @@ function UserProfile() {
           )}
 
               {/* Demo: Dummy patient & immunization chart */}
-              <Box className="space-y-4 mt-8">
+              {/* <Box className="space-y-4 mt-8">
                 <Box className="flex items-center justify-between">
                   <Box as="h2" className="text-xl font-bold">Demo — Dummy Patient</Box>
                 </Box>
@@ -930,7 +930,7 @@ function UserProfile() {
                   <Box className="mt-4">
                     <ImmunizationChart items={demoPatient.immunizations} />
                   </Box>
-              </Box>
+              </Box> */}
 
 
         </Flex>

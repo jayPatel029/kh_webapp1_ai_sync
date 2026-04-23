@@ -8,11 +8,14 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Box, Input } from '../../component-library';
+import { Box, Input, Button, Flex } from '../../component-library';
+import { BaseModal } from '../../component-library/modals/BaseModal';
+import DialysisAppointmentsDashboard from '../adminDashboard/components/DialysisAppointmentsDashboard';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import UnifiedListTable from '../../components/table/UnifiedListTable';
+import PatientAppointmentTimeline from '../../components/PatientAppointmentTimeline';
 import { getPatients } from '../../ApiCalls/patientAPis';
 import { useAdminToast } from '../../components/AdminToast';
 
@@ -23,7 +26,28 @@ const DialysisPatients = () => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [selectedPatientName, setSelectedPatientName] = useState('');
+
+  const calculateAgeFromDOB = (dobString) => {
+    if (!dobString) return '—';
+    const today = new Date();
+    const birthDate = new Date(dobString);
+
+    if (isNaN(birthDate.getTime())) return '—';
+
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    return age < 0 ? 0 : age;
+  };
 
   const fetchPatients = useCallback(async () => {
     setLoading(true);
@@ -32,26 +56,21 @@ const DialysisPatients = () => {
       const result = await getPatients();
       if (result.success) {
         const allPatients = result.data?.data || result.data || [];
-        // Filter for patients with "Dialysis" in ailments or reason if provided by backend
-        // For now, if we don't have a specific field, we show all since this is the Dialysis view
-        // But the requirement says "only patient with dialysis in ailement"
-        const dialysisPatients = allPatients.filter(p => {
-          const ailments = String(p.ailments || p.patient_ailments || p.aliments || '').toLowerCase();
-          return ailments.includes('hemo dialysis') || ailments.includes('hemodialysis');
-        });
-        
         // Map to table shape
-        const mapped = dialysisPatients.map(p => ({
-          id: p.id,
-          name: p.name || p.patient_name || `Patient #${p.id}`,
-          age: p.age || p.patient_age || '—',
-          gender: p.gender || p.patient_gender || '—',
-          phone: p.phone || p.phone_number || '—',
-          email: p.email || '—',
-          ailment: 'Dialysis',
-          lastVisit: p.last_visit || p.updated_at ? new Date(p.updated_at).toLocaleDateString() : '—',
-          _raw: p
-        }));
+        const mapped = allPatients.map(p => {
+          const actualAilments = p.ailments || p.patient_ailments || p.aliments || '—';
+          return {
+            id: p.id,
+            name: p.name || p.patient_name || `Patient #${p.id}`,
+            age: calculateAgeFromDOB(p.dob) || p.patient_age || p.age || '—',
+            gender: p.gender || p.patient_gender || p.sex || '—',
+            phone: p.number || p.phone_number || p.phone || p.mobile_no || p.phone_no || '—',
+            email: p.email || '—',
+            ailment: Array.isArray(actualAilments) ? actualAilments.join(', ') : actualAilments,
+            lastVisit: p.last_visit || p.updated_at ? new Date(p.updated_at).toLocaleDateString() : '—',
+            _raw: p
+          };
+        });
         setPatients(mapped);
       } else {
         setError(result.error || 'Failed to fetch patients');
@@ -79,12 +98,12 @@ const DialysisPatients = () => {
   }, [patients, searchQuery]);
 
   const columns = [
-    { key: 'name', label: 'Patient Name', type: 'text', width: '180px' },
-    { key: 'age', label: 'Age', type: 'text', width: '70px' },
-    { key: 'gender', label: 'Sex', type: 'text', width: '80px' },
-    { key: 'phone', label: 'Phone', type: 'text', width: '140px' },
-    { key: 'email', label: 'Email', type: 'text', width: '200px' },
-    { key: 'ailment', label: 'Ailment', type: 'custom', width: '120px',
+    { key: 'name',      label: 'PATIENT NAME', type: 'text', width: '180px' },
+    { key: 'age',       label: 'AGE',          type: 'text', width: '70px' },
+    { key: 'gender',    label: 'SEX',          type: 'text', width: '80px' },
+    { key: 'phone',     label: 'PHONE',        type: 'text', width: '140px' },
+    { key: 'email',     label: 'EMAIL',        type: 'text', width: '200px' },
+    { key: 'ailment',   label: 'AILMENT',      type: 'custom', width: '150px',
       render: (_row, value) => (
         <span
           style={{
@@ -100,7 +119,28 @@ const DialysisPatients = () => {
         </span>
       ),
     },
-    { key: 'lastVisit', label: 'Last Visit', type: 'text', width: '120px' },
+    { key: 'lastVisit', label: 'LAST VISIT', type: 'text', width: '120px' },
+    {
+      key: 'actions',
+      label: 'ACTIONS',
+      type: 'custom',
+      width: '120px',
+      render: (row) => (
+        <Button
+          size="xs"
+          variant="outline"
+          colorScheme="blue"
+          onClick={() => {
+            setSelectedPatientId(row.id);
+            setSelectedPatientName(row.name);
+            setIsTimelineOpen(true);
+          }}
+          style={{ padding: '4px 10px', fontSize: '12px' }}
+        >
+          Timeline
+        </Button>
+      )
+    }
   ];
 
   return (
@@ -113,6 +153,18 @@ const DialysisPatients = () => {
               { label: 'Dashboard', path: '/' },
               { label: 'Dialysis Patients', active: true },
             ]}
+            actions={
+              <Button
+                variant="solid"
+                colorScheme="blue"
+                leftIcon={<span>📅</span>}
+                onClick={() => setIsDashboardOpen(true)}
+                size="sm"
+                style={{ borderRadius: '8px', fontWeight: 700 }}
+              >
+                Overall Calendar View
+              </Button>
+            }
           />
         </Box>
 
@@ -166,6 +218,26 @@ const DialysisPatients = () => {
             )}
           </div>
         </div>
+        <BaseModal
+          isOpen={isDashboardOpen}
+          onClose={() => setIsDashboardOpen(false)}
+          title="Dialysis Booking Dashboard"
+          size="full"
+        >
+          <DialysisAppointmentsDashboard clinicId={1} />
+        </BaseModal>
+
+        <BaseModal
+          isOpen={isTimelineOpen}
+          onClose={() => setIsTimelineOpen(false)}
+          title={`${selectedPatientName} - Appointment Timeline`}
+          size="xl"
+        >
+          {selectedPatientId && (
+            <PatientAppointmentTimeline patientId={selectedPatientId} />
+          )}
+        </BaseModal>
+
         <ToastContainer />
       </Box>
     </ThemeProvider>

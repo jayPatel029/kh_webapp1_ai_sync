@@ -19,8 +19,7 @@ const APPT_COLORS = {
 
 const PAYMENT_COLORS = {
   PAID:    { bg: '#D1FAE5', text: '#065F46' },
-  PARTIAL: { bg: '#FEF3C7', text: '#92400E' },
-  UNPAID:  { bg: '#FEE2E2', text: '#991B1B' },
+  PENDING: { bg: '#FEE2E2', text: '#991B1B' },
 };
 
 const badgeStyle = (colors) => ({
@@ -46,7 +45,8 @@ const badgeStyle = (colors) => ({
  */
 const AppointmentStatusBadge = ({ status, paymentStatus, showBoth = false }) => {
   const apptKey = String(status || '').toUpperCase().replace(/\s+/g, '_');
-  const payKey  = String(paymentStatus || '').toUpperCase();
+  let payKey  = String(paymentStatus || '').toUpperCase();
+  if (payKey === 'PARTIAL' || payKey === 'UNPAID') payKey = 'PENDING';
 
   const apptColors    = APPT_COLORS[apptKey]    || { bg: '#FED7AA', text: '#9A3412' };
   const paymentColors = PAYMENT_COLORS[payKey]   || { bg: '#F3F4F6', text: '#374151' };

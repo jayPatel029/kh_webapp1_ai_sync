@@ -34,6 +34,7 @@ import { getDoctorSortAlerts } from '../ApiCalls/doctorAlert';
 
 // Patient APIs
 import { getPatients } from '../ApiCalls/patientAPis';
+import { isChatAlert } from '../helpers/alertGrouping';
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -65,6 +66,8 @@ function safeNumber(val) {
 }
 
 const ALERTS_REFETCH_MS = 60_000; // 60 seconds
+
+const stripChatAlerts = (alerts = []) => alerts.filter((alert) => !isChatAlert(alert));
 
 // ─── useAdminDashboardData ──────────────────────────────────
 
@@ -100,21 +103,21 @@ export function useAdminDashboardData() {
           : null;
         if (doctorId) {
           const res = await getDoctorSortAlerts(doctorId);
-          alertsRaw = res.success ? safeArray(res.data) : [];
+          alertsRaw = stripChatAlerts(res.success ? safeArray(res.data) : []);
         }
       } else if (String(adminId) === '1') {
         // Super admin
         try {
           const superRes = await getSuperAdminAlerts(adminId);
-          alertsRaw = safeArray(superRes?.data ?? superRes);
+          alertsRaw = stripChatAlerts(safeArray(superRes?.data ?? superRes));
         } catch {
           const res = await getAlerts();
-          alertsRaw = safeArray(res?.data ?? res).reverse();
+          alertsRaw = stripChatAlerts(safeArray(res?.data ?? res).reverse());
         }
       } else {
         // Regular admin
         const res = await getAlerts();
-        alertsRaw = safeArray(res?.data ?? res).reverse();
+        alertsRaw = stripChatAlerts(safeArray(res?.data ?? res).reverse());
       }
 
       setData((prev) => ({ ...prev, alerts: alertsRaw }));
@@ -196,19 +199,19 @@ export function useAdminDashboardData() {
             : null;
           if (doctorId) {
             const res = await getDoctorSortAlerts(doctorId);
-            alerts = res.success ? safeArray(res.data) : [];
+            alerts = stripChatAlerts(res.success ? safeArray(res.data) : []);
           }
         } else if (String(adminId) === '1') {
           try {
             const superRes = await getSuperAdminAlerts(adminId);
-            alerts = safeArray(superRes?.data ?? superRes);
+            alerts = stripChatAlerts(safeArray(superRes?.data ?? superRes));
           } catch {
             const res = await getAlerts();
-            alerts = safeArray(res?.data ?? res).reverse();
+            alerts = stripChatAlerts(safeArray(res?.data ?? res).reverse());
           }
         } else {
           const res = await getAlerts();
-          alerts = safeArray(res?.data ?? res).reverse();
+          alerts = stripChatAlerts(safeArray(res?.data ?? res).reverse());
         }
       } catch (err) {
         console.error('Error fetching alerts:', err);
@@ -268,12 +271,12 @@ export function useDoctorDashboardData() {
   const fetchAlerts = useCallback(async (doctorId) => {
     try {
       const res = await getDoctorSortAlerts(doctorId);
-      let alerts = res.success ? safeArray(res.data) : [];
+      let alerts = stripChatAlerts(res.success ? safeArray(res.data) : []);
 
       // Fallback to /api/alerts when doctor endpoint is empty/unavailable
       if (!alerts.length) {
         const allAlertsRes = await getAlerts();
-        alerts = safeArray(allAlertsRes?.data ?? allAlertsRes);
+        alerts = stripChatAlerts(safeArray(allAlertsRes?.data ?? allAlertsRes));
       }
 
       setData((prev) => ({ ...prev, alerts }));
@@ -316,9 +319,9 @@ export function useDoctorDashboardData() {
       ]);
 
       const alertsRaw = settled(alertsRes);
-      const doctorAlerts = alertsRaw?.success ? safeArray(alertsRaw.data) : [];
+      const doctorAlerts = alertsRaw?.success ? stripChatAlerts(safeArray(alertsRaw.data)) : [];
       const allAlertsRaw = settled(allAlertsRes);
-      const fallbackAlerts = safeArray(allAlertsRaw?.data ?? allAlertsRaw);
+      const fallbackAlerts = stripChatAlerts(safeArray(allAlertsRaw?.data ?? allAlertsRaw));
       const alerts = doctorAlerts.length ? doctorAlerts : fallbackAlerts;
 
       const patientsRaw = settled(patientsRes);
@@ -369,3 +372,4 @@ export function useDoctorDashboardData() {
 // ─── sendAlertEmails wrapper ────────────────────────────────
 
 export { sendAlertEmails };
+

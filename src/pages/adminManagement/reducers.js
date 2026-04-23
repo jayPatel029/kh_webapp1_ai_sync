@@ -194,6 +194,7 @@ export function newDoctorReducer(state, action) {
       return {
         ...state,
         org_id: action.payload,
+        clinic_id: null,
       };
     }
     case "clinic_id": {

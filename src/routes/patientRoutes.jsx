@@ -32,7 +32,11 @@ export const getPatientRoutes = ({ guard, ROUTE_NAMES }) => [
   },
   {
     path: "userProfile/:id",
-    element: <PatientProfileRouteLayout />,
+    element: (
+      <React.Suspense fallback={<div className="p-6">Loading Profile...</div>}>
+        <PatientProfileRouteLayout />
+      </React.Suspense>
+    ),
     children: [
       { index: true, element: guard(<UserProfile />, ROUTE_NAMES.PATIENTS) },
       { path: "alarms", element: guard(<ShowAlarms />, ROUTE_NAMES.ALARMS) },
