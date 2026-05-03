@@ -354,7 +354,7 @@ const DialysisDashboard = () => {
           />
         </Box>
 
-        <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : ''}`}>
+        <div className={`admin-page-content items-start${isMobile ? 'px-3 pb-20' : ''}`}>
           {loading ? (
             <div
               className="admin-card flex items-center justify-center"
@@ -385,7 +385,7 @@ const DialysisDashboard = () => {
                     display: 'grid',
                     gridTemplateColumns: isMobile
                       ? '1fr'
-                      : 'repeat(3, 1fr)',
+                        : 'repeat(4, 1fr)',
                       gap: '12px',
                   }}
                 >
@@ -433,7 +433,7 @@ const DialysisDashboard = () => {
                       gap: '12px',
                   }}
                 >
-                  <StatCard
+                    <StatCard
                     label="Total Beds"
                     value={stats.totalBeds}
                     color="#1F2937"
@@ -480,7 +480,7 @@ const DialysisDashboard = () => {
                         display: 'grid',
                         gridTemplateColumns: isMobile
                           ? '1fr'
-                          : 'repeat(3, 1fr)',
+                          : 'repeat(4, 1fr)',
                         gap: '12px',
                       }}
                     >
@@ -529,7 +529,7 @@ const DialysisDashboard = () => {
                         display: 'grid',
                         gridTemplateColumns: isMobile
                           ? '1fr'
-                          : 'repeat(3, 1fr)',
+                          : 'repeat(4, 1fr)',
                         gap: '12px',
                       }}
                     >
