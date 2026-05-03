@@ -927,10 +927,7 @@ function UserProfile() {
                     </div>
                   </Box>
 
-                  <Box className="mt-4">
-                    <ImmunizationChart items={demoPatient.immunizations} />
-                  </Box>
-              </Box>
+              </Box> */}
 
 
         </Flex>
