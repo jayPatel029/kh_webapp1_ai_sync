@@ -67,7 +67,7 @@ import { getDoctors } from '../../ApiCalls/doctorApis';
 import { jsPDF } from 'jspdf';
 import ClinicSelector from '../../components/ClinicSelector';
 import OrganizationSelector from '../../components/OrganizationSelector';
-import QuestionsContainer from '../../components/questions/QuestionsContainer';
+// import QuestionsContainer from '../../components/questions/QuestionsContainer';
 
 
 // ─── Status colors ──────────────────────────────────────────
@@ -112,6 +112,16 @@ function toUtcIso(dateStr, timeStr) {
 const normalizeAppointment = (apt, patients) => {
   const patientData = patients.find(p => String(p.patient_id || p.id) === String(apt.patient_id));
 
+  let parsedAilments = apt.patient_ailments || '';
+  let metadata = {};
+  if (typeof parsedAilments === 'string' && parsedAilments.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(parsedAilments);
+      metadata = parsed;
+      parsedAilments = parsed.ailments || parsed.patientAilments || parsed.patient_ailments || '';
+    } catch (e) { }
+  }
+
   return {
     id: apt.id,
     created_date: (apt.appointment_date || apt.startUTC)
@@ -121,14 +131,7 @@ const normalizeAppointment = (apt, patients) => {
     name: (() => {
       const directName = apt.patient_name || apt.patientName || patientData?.name;
       if (directName && directName !== '—') return directName;
-
-      try {
-        if (apt.patient_ailments && apt.patient_ailments.startsWith('{')) {
-          const parsed = JSON.parse(apt.patient_ailments);
-          if (parsed.patientName) return parsed.patientName;
-        }
-      } catch (e) { }
-
+      if (metadata.patientName) return metadata.patientName;
       return apt.patient_id ? `Patient #${apt.patient_id}` : '—';
     })(),
     doctor_name:
@@ -151,8 +154,8 @@ const normalizeAppointment = (apt, patients) => {
       ? formatTime12Hour(apt.start_time)
       : (apt.startUTC ? formatTime12Hour(String(apt.startUTC).split('T')[1]?.slice(0, 8)) : '—'),
     status: normalizeStatus(apt.status || apt.appointmentStatus),
-    reason: apt.reason || apt.metadata?.notes || '',
-    patient_ailments: apt.patient_ailments || '',
+    reason: apt.reason || metadata.notes || metadata.notes_brief || '',
+    patient_ailments: parsedAilments,
     patient_id: apt.patient_id,
     clinic_id: apt.clinic_id,
     clinic_name: apt.clinic_name || apt.clinic?.name || '',
@@ -169,6 +172,7 @@ const normalizeAppointment = (apt, patients) => {
     services: apt.services || [],
     bill_id: apt.bill_id || apt.billId || apt.invoice_id || apt.invoiceId,
     invoice_id: apt.bill_id || apt.billId || apt.invoice_id || apt.invoiceId,
+    metadata: metadata,
     _raw: apt,
   };
 };
@@ -838,15 +842,38 @@ const DialysisAppointments = () => {
   }, [clinics, today, defaultForm, selectedClinicId]);
 
   // ─── Edit Open ────────────────────────────────────────
-  const handleEditOpen = useCallback((apt) => {
-    const raw = apt._raw || apt;
+  const handleEditOpen = useCallback(async (apt) => {
+    const aptId = apt.id;
+    if (!aptId) return;
+
+    setLoading(true);
+    const res = await getAppointmentById(aptId);
+    setLoading(false);
+
+    if (!res.success) {
+      showToast('Failed to fetch appointment details', 'error');
+      return;
+    }
+
+    const fullAppt = res.data?.appointment || res.data?.data || res.data;
+    const raw = fullAppt;
+
+    // Parse metadata from patient_ailments if it's JSON
+    let metadata = {};
+    let displayAilments = raw.patient_ailments || '';
+    if (typeof displayAilments === 'string' && displayAilments.startsWith('{')) {
+      try {
+        metadata = JSON.parse(displayAilments);
+        displayAilments = metadata.ailments || metadata.patientAilments || '';
+      } catch (e) { }
+    }
+
     const slotTemplates = raw.slotTemplates || buildSlotTemplates(raw);
-    const patientAilments = raw.patient_ailments || raw.metadata?.patientAilments || raw.metadata?.patientAilments || '';
-    const reason = raw.reason || raw.metadata?.notes || raw.metadata?.notes_brief || '';
-    const totalAmount = raw.totalAmount || raw.amountDue || raw.total_amt || raw.amount || 0;
-    const amountPaid = raw.amountPaid || raw.paidAmount || raw.received_amt || 0;
-    const paymentMethod = raw.paymentMethod || raw.payment_method || raw.metadata?.paymentMethod || 'cash';
-    const doctorId = raw.doctor_id || raw.doctorId || raw.primary_doctor_id || raw.doctor?.id || '';
+    const reason = raw.reason || metadata.notes || metadata.notes_brief || '';
+    const totalAmount = raw.total_amount || raw.amountDue || raw.total_amt || 0;
+    const amountPaid = raw.amount_paid || raw.paidAmount || raw.received_amt || 0;
+    const paymentMethod = raw.paymentMethod || raw.payment_method || metadata.paymentMethod || 'cash';
+    const doctorId = raw.doctor_id || raw.doctorId || raw.primary_doctor_id || '';
 
     setCreateFieldErrors({});
     setCreateErrorMessage('');
@@ -854,35 +881,42 @@ const DialysisAppointments = () => {
 
     setCreateForm({
       ...defaultForm,
-      id: raw.id || apt.id,
-      patient_id: raw.patient_id || raw.patientId || '',
-      clinic_id: String(raw.clinic_id || raw.clinicId || ''),
-      clinic_name: raw.clinic_name || raw.clinic?.name || '',
+      id: raw.id,
+      patient_id: String(raw.patient_id || ''),
+      org_id: String(raw.organization_id || raw.org_id || ''),
+      clinic_id: String(raw.clinic_id || ''),
+      clinic_name: raw.clinic_name || clinics.find(c => String(c.id) === String(raw.clinic_id))?.clinic_name || '',
       appointment_date: raw.appointment_date || (raw.startUTC ? String(raw.startUTC).split('T')[0] : today),
       start_time: raw.start_time || (raw.startUTC ? String(raw.startUTC).split('T')[1]?.slice(0, 5) : ''),
       end_time: raw.end_time || '',
-      appointment_type: raw.appointment_type || raw.treatment_type || raw.bookingType || defaultForm.appointment_type,
+      appointment_type: raw.appointment_type || raw.treatment_type || 'in_clinic',
       doctor_id: doctorId,
-      is_emergency: Boolean(raw.is_emergency || raw.emergency),
+      is_emergency: Boolean(raw.is_emergency),
       reason,
-      patient_ailments: patientAilments,
+      patient_ailments: displayAilments,
       slotTemplates,
       total_amount: totalAmount,
       amount_paid: amountPaid,
       payment_option: amountPaid >= totalAmount ? 'full' : 'partial',
       payment_method: String(paymentMethod).toLowerCase(),
       receipt_file: null,
-      duration: raw.metadata?.dialysisDuration || '4',
+      duration: metadata.dialysisDuration || '4',
     });
 
-    setAddedServices((raw.metadata?.services || raw.services || []).map((s, idx) => ({ 
-      ...s, 
-      ui_key: s.ui_key || s.id || `old-${idx}` 
-    })));
+    const fetchedServices = (raw.services || []).map((s, idx) => ({
+      name: s.service_name || s.name,
+      price: s.amount || s.price,
+      discount: s.discount || 0,
+      service_id: s.service_id || s.id,
+      id: s.id,
+      ui_key: `old-${idx}`
+    }));
+    
+    setAddedServices(fetchedServices);
     setCreateStep(1);
     setIsEditOpen(true);
     setIsCreateOpen(true);
-  }, [today, defaultForm]);
+  }, [today, defaultForm, showToast]);
 
   // ─── Step 1 → Step 2 ─────────────────────────────────
   const handleNextStep1 = () => {
@@ -974,6 +1008,7 @@ const DialysisAppointments = () => {
           ...payload,
           startUTC: sessions[0].startUTC,
           endUTC: sessions[0].endUTC,
+          slotId: sessions[0].slotId,
           patient_ailments: createForm.patient_ailments,
         });
       } else {
@@ -1071,7 +1106,7 @@ const DialysisAppointments = () => {
     },
     {
       key: 'payment_action',
-      label: 'PAYMENT ACTION',
+      label: 'PAYMENT STATUS',
       type: 'custom',
       width: '130px',
       render: (row) => {
@@ -1740,7 +1775,7 @@ const DialysisAppointments = () => {
                         </div>
                       </FormControl>
 
-                      <FormControl>
+                      {/* <FormControl>
                         <FormLabel>Patient Ailments</FormLabel>
                         <Textarea
                           placeholder="Ailments from patient record"
@@ -1749,11 +1784,11 @@ const DialysisAppointments = () => {
                           rows={2}
                           style={{ fontSize: '13px' }}
                         />
-                      </FormControl>
+                      </FormControl> */}
                     </div>
 
                     {/* Patient Questions & Answers (General Parameters) */}
-                    {createForm.patient_id && (
+                    {/* {createForm.patient_id && (
                       <div style={{ marginTop: '16px', borderTop: '1px solid #E5E7EB', paddingTop: '20px' }}>
                         <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ width: '8px', height: '8px', background: '#00A89B', borderRadius: '50%' }}></span>
@@ -1763,7 +1798,7 @@ const DialysisAppointments = () => {
                           <QuestionsContainer aliment="Hemo Dialysis" user_id={createForm.patient_id} />
                         </div>
                       </div>
-                    )}
+                    )} */}
 
                   </Box>
                 )}

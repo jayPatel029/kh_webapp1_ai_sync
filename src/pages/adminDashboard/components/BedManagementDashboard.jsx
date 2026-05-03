@@ -1103,7 +1103,7 @@ export default function BedManagementDashboard(props) {
               clinics={clinics}
             />
 
-            <Button
+            {/* <Button
               variant="outline"
               onClick={() => {
                 fetchAllBeds();
@@ -1115,7 +1115,7 @@ export default function BedManagementDashboard(props) {
               leftIcon={<span className="refresh-icon">↻</span>}
             >
               Sync
-            </Button>
+            </Button> */}
           </HStack>
         </HStack>
 

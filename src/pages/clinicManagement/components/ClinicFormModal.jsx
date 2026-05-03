@@ -365,7 +365,7 @@ export function ClinicFormModal({ open, onClose, onSave, initial = null, organiz
 
           {/* Slot Templates Section */}
           <div>
-            <h4 className="text-lg font-semibold mb-4 border-b pb-2 text-[#2c3e50]">Slot Templates</h4>
+            <h4 className="text-lg font-semibold mb-4 border-b pb-2 text-[#2c3e50]">Working Days</h4>
             <ScheduleManager 
               clinicId={initial?.id}
               slotTemplates={form.slotTemplates} 

@@ -107,7 +107,7 @@ export async function getClinicById(clinicId, config = {}) {
  */
 export async function createClinic(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/dt/clinics`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/clinics`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -154,7 +154,7 @@ export async function deleteClinic(clinicId, config = {}) {
  */
 export async function getOrganizations(config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/dt/organizations`, config);
+    const response = await axiosInstance.get(`${server_url}/org/`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -169,7 +169,7 @@ export async function getOrganizations(config = {}) {
  */
 export async function getOrganizationById(orgId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/dt/organizations/${orgId}`, config);
+    const response = await axiosInstance.get(`${server_url}/org/${orgId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -184,7 +184,7 @@ export async function getOrganizationById(orgId, config = {}) {
  */
 export async function createOrganization(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/dt/organizations`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/org/`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -200,7 +200,7 @@ export async function createOrganization(payload, config = {}) {
  */
 export async function updateOrganization(orgId, payload, config = {}) {
   try {
-    const response = await axiosInstance.put(`${server_url}/dt/organizations/${orgId}`, payload, config);
+    const response = await axiosInstance.put(`${server_url}/org/organizations/${orgId}`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

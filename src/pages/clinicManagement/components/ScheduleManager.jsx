@@ -311,7 +311,7 @@ export function ScheduleManager({
 
         {frequency !== 'monthly' ? (
           <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Select Weekdays</label>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Select days</label>
             <div className="flex flex-wrap gap-2">
               {DAYS.map((day) => {
                 const isSelected = selectedDays.includes(day.value);
@@ -391,7 +391,7 @@ export function ScheduleManager({
         <div className="border-t border-gray-100 pt-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-tight">
-              {clinicId ? 'Available Sessions' : 'Define Session Timings'}
+              {clinicId ? 'Available Sessions' : 'Session Timings'}
             </h4>
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-bold px-2 py-1 bg-gray-50 text-gray-500 rounded border border-gray-100 uppercase">

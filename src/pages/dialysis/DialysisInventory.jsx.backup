@@ -241,7 +241,7 @@ const DialysisInventory = () => {
   const [stockSearch, setStockSearch] = useState('');
 
   // Add stock modal
-  const [isIssueStockModalOpen, setIsIssueStockModalOpen] = useState(false);
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [stockModalMode, setStockModalMode] = useState('add'); // 'add' | 'issue'
   const [stockForm, setStockForm] = useState({
     mode: 'add',
@@ -289,7 +289,7 @@ const DialysisInventory = () => {
     }
     setStockFieldErrors({});
     setStockErrorMsg('');
-    setIsIssueStockModalOpen(true);
+    setIsStockModalOpen(true);
   };
 
   const handleStockSubmit = async () => {
@@ -324,7 +324,7 @@ const DialysisInventory = () => {
           });
         }
         showToast('Stock order placed successfully!', 'success');
-        setIsIssueStockModalOpen(false);
+        setIsStockModalOpen(false);
         fetchRestock(); // Refresh restock requests
         fetchPO(); // Refresh POs
         fetchStock(); // Refresh stock view
@@ -356,7 +356,7 @@ const DialysisInventory = () => {
 
       if (result.success) {
         showToast('Stock issued!', 'success');
-        setIsIssueStockModalOpen(false);
+        setIsStockModalOpen(false);
         fetchStock();
       } else {
         showToast(result.data?.message || 'Operation failed', 'error');
@@ -1329,8 +1329,8 @@ const DialysisInventory = () => {
 
         {/* ═══ STOCK FORM MODAL ═════════════════════════ */}
         <FormModal
-          isOpen={isIssueStockModalOpen}
-          onClose={() => setIsIssueStockModalOpen(false)}
+          isOpen={isStockModalOpen}
+          onClose={() => setIsStockModalOpen(false)}
           onSubmit={handleStockSubmit}
           title={stockModalMode === 'add' ? 'Add Stock' : 'Issue Stock'}
           submitText={stockModalMode === 'add' ? 'Add' : 'Issue'}
