@@ -1,14 +1,9 @@
-/**
- * PaymentModal Component
- * Records a payment (full or partial) for an appointment.
- *
- * @file src/components/PaymentModal.jsx
- */
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BaseModal } from '../component-library/modals/BaseModal';
 import { Button } from '../component-library';
-import { getOutstandingBalance, getPaymentStatus } from '../utils/refundCalculator';
+import { getOutstandingBalance } from '../utils/refundCalculator';
+import { getAppointmentById, addAppointmentPayment, updateAppointment } from '../ApiCalls/clinicApis';
+import { uploadFile } from '../ApiCalls/dataUpload';
 
 const PAYMENT_METHODS = ['cash', 'card', 'upi', 'bank_transfer', 'cheque'];
 
@@ -44,38 +39,172 @@ const selectStyle = {
 
 /**
  * PaymentModal
+ * Autonomous component that fetches appointment data and records a payment.
  *
  * @param {object} props
  * @param {boolean}  props.isOpen
  * @param {Function} props.onClose
- * @param {object}   props.appointment - The appointment being paid for.
- * @param {string}   props.amount      - Controlled amount input value.
- * @param {string}   props.method      - Payment method.
- * @param {string|null} props.error    - Error message.
- * @param {boolean}  props.submitting
- * @param {Function} props.onAmountChange
- * @param {Function} props.onMethodChange
- * @param {Function} props.onSubmit
+ * @param {string|number} props.appointmentId
+ * @param {string|number} [props.billId]
+ * @param {Function} [props.onSuccess] - Called when payment succeeds (appointmentId, amount, method, receiptUrl)
  */
 const PaymentModal = ({
   isOpen,
   onClose,
-  appointment,
-  amount,
-  method,
-  error,
-  submitting,
-  onAmountChange,
-  onMethodChange,
-  onSubmit,
+  appointmentId,
+  billId,
+  onSuccess,
 }) => {
-  if (!appointment) return null;
+  const [loading, setLoading] = useState(false);
+  const [appointment, setAppointment] = useState(null);
 
-  const totalDue    = Number(appointment.totalAmount || appointment.total_amt || 0);
-  const alreadyPaid = Number(appointment.amountPaid  || appointment.received_amt || 0);
+  const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState('cash');
+  const [receiptFile, setReceiptFile] = useState(null);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (isOpen && appointmentId) {
+      fetchAppointmentData();
+    } else {
+      // Reset state when closed
+      setAppointment(null);
+      setAmount('');
+      setMethod('cash');
+      setReceiptFile(null);
+      setError(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, appointmentId]);
+
+  const fetchAppointmentData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getAppointmentById(appointmentId);
+      if (res.success && (res.data?.data || res.data)) {
+        const payload = res.data?.data || res.data;
+        
+        // The API might return { appointment, invoice, payments } or just the appointment directly.
+        const appt = payload.appointment || payload;
+        const invoice = payload.invoice || {};
+        const payments = payload.payments || [];
+
+        // Calculate total due from invoice or appointment
+        const totalDue = Number(invoice.total_amt || appt.totalAmount || appt.total_amt || appt.amountDue || appt.amount_due || 0);
+        
+        // Calculate already paid from payments if available, else fallback to appointment
+        let alreadyPaid = Number(appt.amountPaid || appt.received_amt || appt.paidAmount || appt.amount_paid || 0);
+        if (payments && payments.length > 0) {
+          alreadyPaid = payments
+            .filter(p => p.status === 'CAPTURED' || p.status === 'SUCCESS' || p.status === 'PAID')
+            .reduce((sum, p) => sum + Number(p.amount || p.raw?.initialAmountPaid || p.raw?.amount || 0), 0);
+        }
+
+        // Try to parse patient name from patient_ailments if standard name fields are missing
+        let pName = appt.name || appt.patient_name;
+        if (!pName && appt.patient_ailments) {
+          try {
+            const parsed = JSON.parse(appt.patient_ailments);
+            pName = parsed.patientName || parsed.name;
+          } catch (e) {
+            // Ignore parse error
+          }
+        }
+
+        const mergedAppt = {
+          ...appt,
+          totalAmount: totalDue,
+          amountPaid: alreadyPaid,
+          name: pName || 'Patient'
+        };
+
+        setAppointment(mergedAppt);
+
+        const outstanding = getOutstandingBalance(totalDue, alreadyPaid);
+
+        if (outstanding > 0) {
+          setAmount(String(outstanding));
+        }
+      } else {
+        setError(res.data?.message || 'Failed to fetch appointment details');
+      }
+    } catch (err) {
+      setError(err?.message || 'Error fetching data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      setError('Please enter a valid amount.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      // 1. Upload receipt if any
+      let receiptUrl = null;
+      if (receiptFile) {
+        const formData = new FormData();
+        formData.append('file', receiptFile);
+        const uploadRes = await uploadFile(formData);
+        if (uploadRes.success) {
+          receiptUrl = uploadRes.data?.url || uploadRes.data?.file_url;
+        } else {
+          console.warn('Failed to upload receipt file');
+        }
+      }
+
+      // 2. Add Payment via API
+      const paymentRes = await addAppointmentPayment(appointmentId, {
+        amount: Number(amount),
+        method: method,
+        receiptUrl: receiptUrl || undefined,
+        billId: billId || undefined,
+      });
+
+      if (!paymentRes.success) {
+        throw new Error(paymentRes.data?.message || 'Payment failed to process');
+      }
+
+      // 3. Update appointment metadata if partial payment
+      const updatedPaid = Number(appointment?.amountPaid || appointment?.received_amt || 0) + Number(amount);
+      const totalDue = Number(appointment?.totalAmount || appointment?.total_amt || appointment?.amountDue || 0);
+
+      if (updatedPaid < totalDue) {
+        await updateAppointment(appointmentId, {
+          metadata: {
+            ...(appointment?.metadata || {}),
+            payment_status: 'PENDING',
+            last_payment_date: new Date().toISOString(),
+            outstanding_balance: totalDue - updatedPaid
+          }
+        });
+      }
+
+      if (onSuccess) {
+        onSuccess(appointmentId, Number(amount), method, receiptUrl);
+      }
+      onClose();
+    } catch (err) {
+      setError(err?.message || 'An error occurred while processing payment');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const totalDue = appointment ? Number(appointment.totalAmount || appointment.total_amt || appointment.amountDue || 0) : 0;
+  const alreadyPaid = appointment ? Number(appointment.amountPaid || appointment.received_amt || appointment.paidAmount || 0) : 0;
   const outstanding = getOutstandingBalance(totalDue, alreadyPaid);
-  const payStatus   = getPaymentStatus(totalDue, alreadyPaid);
-  const patientName = appointment.name || appointment.patient_name || 'Patient';
+  const patientName = appointment ? (appointment.name || appointment.patient_name || 'Patient') : 'Loading...';
 
   return (
     <BaseModal
@@ -88,137 +217,165 @@ const PaymentModal = ({
           <Button variant="outline" onClick={onClose} disabled={submitting}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={onSubmit} disabled={submitting || !amount}>
+          <Button variant="primary" onClick={handleSubmit} disabled={submitting || !amount || loading}>
             {submitting ? 'Processing…' : 'Record Payment'}
           </Button>
         </div>
       }
     >
-      {/* Patient Summary */}
-      <div
-        style={{
-          background: '#F9FAFB',
-          borderRadius: '10px',
-          padding: '16px',
-          marginBottom: '20px',
-          border: '1px solid #E5E7EB',
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: '15px', color: '#111827', marginBottom: '12px' }}>
-          {patientName}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#6B7280' }}>
+          Loading details...
         </div>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-            <span style={{ color: '#6B7280' }}>Total Bill:</span>
-            <span style={{ fontWeight: 600 }}>₹{totalDue.toLocaleString()}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-            <span style={{ color: '#6B7280' }}>Amount Paid:</span>
-            <span style={{ fontWeight: 600, color: '#16A34A' }}>₹{alreadyPaid.toLocaleString()}</span>
-          </div>
-          <div style={{ height: '1px', background: '#E5E7EB', margin: '4px 0' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-            <span style={{ color: '#111827', fontWeight: 600 }}>Remaining Balance:</span>
-            <span style={{ fontWeight: 800, color: '#DC2626' }}>₹{outstanding.toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Amount Field */}
-      <div style={fieldStyle}>
-        <label style={labelStyle}>Payment Amount (₹) *</label>
-        <input
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder={outstanding > 0 ? `Outstanding: ₹${outstanding}` : 'Enter amount'}
-          value={amount}
-          onChange={(e) => {
-            let val = Number(e.target.value);
-            if (outstanding > 0 && val > outstanding) val = outstanding;
-            onAmountChange(String(val));
-          }}
-          style={inputStyle}
-          autoFocus
-        />
-        {outstanding > 0 && (
-          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-            <button
-              type="button"
-              onClick={() => onAmountChange(String(outstanding))}
+      ) : appointment ? (
+        <>
+            {/* Patient Summary */}
+            <div
               style={{
-                padding: '4px 12px',
-                fontSize: '11px',
-                fontWeight: 600,
-                border: '1px solid #3B82F6',
-                borderRadius: '6px',
-                background: '#EFF6FF',
-                color: '#1E40AF',
-                cursor: 'pointer',
-              }}
-            >
-              Pay Full (₹{outstanding})
-            </button>
-            <button
-              type="button"
-              onClick={() => onAmountChange(String(Math.floor(outstanding / 2)))}
-              style={{
-                padding: '4px 12px',
-                fontSize: '11px',
-                fontWeight: 600,
-                border: '1px solid #D1D5DB',
-                borderRadius: '6px',
                 background: '#F9FAFB',
-                color: '#4B5563',
-                cursor: 'pointer',
+                borderRadius: '10px',
+                padding: '16px',
+                marginBottom: '20px',
+                border: '1px solid #E5E7EB',
               }}
             >
-              Pay Half
-            </button>
-          </div>
-        )}
-      </div>
+              <div style={{ fontWeight: 700, fontSize: '15px', color: '#111827', marginBottom: '12px' }}>
+                {patientName} {billId && <span style={{ fontSize: '12px', color: '#6B7280', fontWeight: 'normal' }}> (Bill: {billId})</span>}
+              </div>
 
-      {/* Receipt Upload */}
-      <div style={fieldStyle}>
-        <label style={labelStyle}>Upload Receipt (Optional)</label>
-        <div
-          style={{
-            border: '2px dashed #D1D5DB',
-            borderRadius: '12px',
-            padding: '20px',
-            textAlign: 'center',
-            cursor: 'pointer',
-            background: '#F9FAFB',
-            transition: 'border-color 0.15s'
-          }}
-          onClick={() => document.getElementById('receipt-upload-input').click()}
-        >
-          <span style={{ fontSize: '13px', color: '#6B7280' }}>
-            {method === 'receipt_included' ? 'File selected' : 'Click to upload receipt (PDF/Image)'}
-          </span>
-          <input
-            id="receipt-upload-input"
-            type="file"
-            accept="image/*,application/pdf"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-               const file = e.target.files[0];
-               if (file) onMethodChange('receipt_file', file);
-            }}
-          />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#6B7280' }}>Total Bill:</span>
+                  <span style={{ fontWeight: 600 }}>₹{totalDue.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                  <span style={{ color: '#6B7280' }}>Amount Paid:</span>
+                  <span style={{ fontWeight: 600, color: '#16A34A' }}>₹{alreadyPaid.toLocaleString()}</span>
+                </div>
+                <div style={{ height: '1px', background: '#E5E7EB', margin: '4px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                  <span style={{ color: '#111827', fontWeight: 600 }}>Remaining Balance:</span>
+                  <span style={{ fontWeight: 800, color: '#DC2626' }}>₹{outstanding.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Amount Field */}
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Payment Amount (₹) *</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder={outstanding > 0 ? `Outstanding: ₹${outstanding}` : 'Enter amount'}
+                value={amount}
+                onChange={(e) => {
+                  let val = Number(e.target.value);
+                  if (outstanding > 0 && val > outstanding) val = outstanding;
+                  setAmount(String(val));
+                }}
+                style={inputStyle}
+                autoFocus
+              />
+              {outstanding > 0 && (
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setAmount(String(outstanding))}
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      border: '1px solid #3B82F6',
+                      borderRadius: '6px',
+                      background: '#EFF6FF',
+                      color: '#1E40AF',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Pay Full (₹{outstanding})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAmount(String(Math.floor(outstanding / 2)))}
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      border: '1px solid #D1D5DB',
+                      borderRadius: '6px',
+                      background: '#F9FAFB',
+                      color: '#4B5563',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Pay Half
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Payment Method Field */}
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Payment Method *</label>
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                style={selectStyle}
+              >
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m} value={m}>
+                    {m.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Receipt Upload */}
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Upload Receipt (Optional)</label>
+              <div
+                style={{
+                  border: '2px dashed #D1D5DB',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  background: '#F9FAFB',
+                  transition: 'border-color 0.15s'
+                }}
+                onClick={() => document.getElementById('receipt-upload-input').click()}
+              >
+                <span style={{ fontSize: '13px', color: '#6B7280' }}>
+                  {receiptFile ? `File selected: ${receiptFile.name}` : 'Click to upload receipt (PDF/Image)'}
+                </span>
+                <input
+                  id="receipt-upload-input"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) setReceiptFile(file);
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <p style={{ color: '#DC2626', fontSize: '13px', marginTop: '4px' }}>{error}</p>
+            )}
+
+            <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '8px' }}>
+              Payment details will be securely saved to the appointment record.
+            </p>
+        </>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#DC2626' }}>
+          Failed to load appointment data.
         </div>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <p style={{ color: '#DC2626', fontSize: '13px', marginTop: '4px' }}>{error}</p>
       )}
-
-      <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '8px' }}>
-        An invoice PDF will be generated and saved automatically after recording the payment.
-      </p>
     </BaseModal>
   );
 };

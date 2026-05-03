@@ -208,6 +208,15 @@ export async function getPatientAilments(id) {
   }
 }
 
+export async function getGeneralParameterResponse(ailment, userId) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/questions/generalParameter/fetchResponse/?ailment=${ailment}&user_id=${userId}`);
+    return { success: true, data: response.data?.data || response.data || [] };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
 export async function getDeletedPatients() {
   try {
     const response = await axiosInstance.get(server_url + "/patient/getDeletdPatients");

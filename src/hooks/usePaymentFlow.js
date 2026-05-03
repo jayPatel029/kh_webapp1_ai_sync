@@ -43,10 +43,14 @@ export default function usePaymentFlow({ onPaymentAdded, onRefundProcessed } = {
 
   // ─── Payment modal helpers ───────────────────────────
   const openPaymentModal = useCallback((appointment) => {
+    const totalDue = Number(appointment?.totalAmount || appointment?.total_amt || 0);
+    const alreadyPaid = Number(appointment?.amountPaid || appointment?.received_amt || 0);
+    const outstanding = getOutstandingBalance(totalDue, alreadyPaid);
+
     setPaymentModal({
       isOpen: true,
       appointment,
-      amount: '',
+      amount: outstanding > 0 ? String(outstanding) : '',
       method: 'cash',
       receipt_file: null,
       submitting: false,
@@ -133,7 +137,7 @@ export default function usePaymentFlow({ onPaymentAdded, onRefundProcessed } = {
       }
 
       // Prioritize manual receipt URL over auto-generated PDF for receipt_url
-      onPaymentAdded?.(appointment.id, paidAmount, method, manualReceiptUrl || billPDFUrl);
+      onPaymentAdded?.(appointment, paidAmount, method, billPDFUrl || manualReceiptUrl);
       closePaymentModal();
     } catch (err) {
       setPaymentModal((prev) => ({

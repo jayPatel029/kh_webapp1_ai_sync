@@ -3,6 +3,9 @@
  * Renders a formal, professional dialysis invoice with data fetched from Clinic and Organization APIs.
  * Supports Print and PDF Download (via html2canvas & jsPDF).
  *
+ * Now accepts an optional `appointmentId` prop to autonomously fetch appointment detail
+ * (including invoice + payments) from the backend via getAppointmentById.
+ *
  * @file src/components/InvoicePreview.jsx
  */
 
@@ -10,23 +13,76 @@ import React, { useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { BaseModal } from '../component-library/modals/BaseModal';
-import { getClinicById, getOrganizationById } from '../ApiCalls/clinicApis';
+import { getClinicById, getOrganizationById, getAppointmentById } from '../ApiCalls/clinicApis';
+import { getPatientById } from '../ApiCalls/patientAPis';
 import { getPaymentStatus, getOutstandingBalance } from '../utils/refundCalculator';
 
-const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic }) => {
+const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appointmentId: appointmentIdProp, clinic: initialClinic }) => {
   const [downloading, setDownloading] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [fetchedClinic, setFetchedClinic] = useState(null);
   const [fetchedOrg, setFetchedOrg] = useState(null);
+  const [fetchedPatient, setFetchedPatient] = useState(null);
+  const [fetchedAppointment, setFetchedAppointment] = useState(null);
+  const [fetchedInvoice, setFetchedInvoice] = useState(null);
+  const [fetchedPayments, setFetchedPayments] = useState([]);
+  const [fetchedRefunds, setFetchedRefunds] = useState([]);
+  const [loadingAppt, setLoadingAppt] = useState(false);
 
+  // Determine the effective appointmentId — prefer explicit prop, fallback to appointment.id
+  const effectiveApptId = appointmentIdProp || appointmentProp?.id;
+
+  // ── Fetch appointment detail (invoice + payments) when we have an ID ──
+  useEffect(() => {
+    if (!isOpen || !effectiveApptId) return;
+
+    const fetchApptDetail = async () => {
+      setLoadingAppt(true);
+      try {
+        const res = await getAppointmentById(effectiveApptId);
+        console.log('[InvoicePreview] getAppointmentById response:', res);
+        if (res.success && res.data) {
+          const body = res.data.data || res.data;
+          const appt = body.appointment || body;
+          setFetchedAppointment(appt);
+          setFetchedInvoice(body.invoice || null);
+          setFetchedPayments(Array.isArray(body.payments) ? body.payments : []);
+          setFetchedRefunds(Array.isArray(body.refunds) ? body.refunds : []);
+        }
+      } catch (err) {
+        console.error('[InvoicePreview] Failed to fetch appointment detail:', err);
+      } finally {
+        setLoadingAppt(false);
+      }
+    };
+    fetchApptDetail();
+  }, [isOpen, effectiveApptId]);
+
+  // The "working" appointment — fetched detail takes priority, then the prop
+  const appointment = fetchedAppointment || appointmentProp;
+
+  // ── Fetch patient + clinic/org (existing logic) ──
   useEffect(() => {
     const fetchData = async () => {
-      const clinicIdProp = appointment?.clinic_id || appointment?.clinicId;
-      if (isOpen && clinicIdProp) {
+      const clinicIdVal = appointment?.clinic_id || appointment?.clinicId;
+      const patientIdVal = appointment?.patient_id || appointment?.patientId;
+
+      if (isOpen && patientIdVal) {
         try {
-          const res = await getClinicById(clinicIdProp);
+          const res = await getPatientById(patientIdVal);
+          if (res.success && res.data) {
+             const patientData = res.data.patient || res.data.data || res.data;
+             setFetchedPatient(patientData);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch patient details:', err);
+        }
+      }
+
+      if (isOpen && clinicIdVal) {
+        try {
+          const res = await getClinicById(clinicIdVal);
           if (res && res.success && res.data) {
-            // The API response might wrap the record in a 'data' property
             const clinic = res.data.data || res.data;
             setFetchedClinic(clinic);
 
@@ -43,21 +99,32 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
           console.error('Error fetching clinic/org details for invoice:', e);
         }
       }
+
     };
-    fetchData();
-  }, [isOpen, appointment?.clinic_id, appointment?.clinicId]);
+    if (isOpen && appointment) fetchData();
+  }, [isOpen, appointment?.clinic_id, appointment?.clinicId, appointment?.patient_id, appointment?.patientId]);
 
-  if (!appointment) return null;
+  if (!appointment && !loadingAppt) return null;
 
-  const totalDue = Number(appointment.totalAmount || appointment.total_amt || 0);
-  const amountPaid = Number(appointment.amountPaid || appointment.received_amt || 0);
+  // ── Derive billing amounts from fetched invoice or appointment fields ──
+  const invoice = fetchedInvoice;
+  const totalDue = Number(invoice?.total_amt || appointment?.total_amount || appointment?.totalAmount || appointment?.total_amt || 0);
+  const amountPaidFromLedger = Number(appointment?.amount_paid || 0);
+  const amountPaidFallback = Number(appointment?.amountPaid || appointment?.received_amt || 0);
+  const amountPaid = amountPaidFromLedger || amountPaidFallback;
   const outstanding = getOutstandingBalance(totalDue, amountPaid);
 
   let payStatus = getPaymentStatus(totalDue, amountPaid);
-  if (appointment.status === 'CANCELLED') payStatus = 'CANCELLED';
+  if (String(appointment?.status).toUpperCase() === 'CANCELLED' || String(appointment?.status).toUpperCase() === 'MISSED') payStatus = 'CANCELLED';
 
-  const invoiceId = `INV-${appointment.id || Date.now()}`;
-  const patientName = appointment.name || appointment.patient_name || 'Patient';
+  const invoiceId = invoice?.id ? `INV-${invoice.id}` : `INV-${appointment?.id || Date.now()}`;
+
+  // Use fetched patient data with fallbacks to appointment data
+  const pName = fetchedPatient?.name || fetchedPatient?.patient_name || appointment?.patient_name || appointment?.name;
+  const patientName = pName && pName !== '—' ? pName : 'Patient';
+  const patientAge = fetchedPatient?.age || fetchedPatient?.patient_age || appointment?.age || appointment?.patient_age || '-';
+  const patientGender = fetchedPatient?.gender || fetchedPatient?.sex || fetchedPatient?.patient_gender || appointment?.gender || appointment?.sex || appointment?.patient_gender || '-';
+  const patientPhone = fetchedPatient?.phoneNumber || fetchedPatient?.phone || fetchedPatient?.phone_number || appointment?.phoneNumber || appointment?.phone || appointment?.patient_phone || '-';
 
   const activeClinic = fetchedClinic || initialClinic || {};
   const activeOrg = fetchedOrg || {};
@@ -113,7 +180,7 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
     orgAddress = activeOrg.address || activeOrg.org_address || '';
   }
 
-  const clinicName = activeClinic.clinicName || activeClinic.clinic_name || activeClinic.name || appointment.clinic_name || 'Clinic';
+  const clinicName = activeClinic.clinicName || activeClinic.clinic_name || activeClinic.name || (appointment?.clinic_name && appointment.clinic_name !== '—' ? appointment.clinic_name : 'Clinic');
 
   const addrObj = activeClinic.address;
   let clinicAddress = '';
@@ -124,7 +191,7 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
   }
 
   const contactObj = activeClinic.contact;
-  const clinicPhone = contactObj?.phone || contactObj?.whatsapp || activeClinic.phone || activeClinic.phoneNumber || activeClinic.phone_number || appointment.phoneNumber || '';
+  const clinicPhone = contactObj?.phone || contactObj?.whatsapp || activeClinic.phone || activeClinic.phoneNumber || activeClinic.phone_number || appointment?.phoneNumber || '';
 
   let clinicIcon = activeClinic.clinicIconURL || activeClinic.clinic_icon || activeClinic.clinic_icon_url || activeClinic.logo || activeClinic.icon || 'https://via.placeholder.com/100?text=Clinic';
   if (clinicIcon && clinicIcon.includes('Endpoint not found')) {
@@ -139,6 +206,24 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
     dangerDark: "#b91c1c",
     warning: "#c2410c"
   };
+
+  // ── Build services list from invoice or appointment metadata ──
+  const buildServicesList = () => {
+    // 1. From invoice record (fetched from API)
+    if (invoice) {
+      const svcName = invoice.service || invoice.bill_description || 'Dialysis Session';
+      const unitPrice = Number(invoice.unit_price || invoice.total_amt || 0);
+      const discount = Number(invoice.discount || 0);
+      return [{ name: svcName, price: unitPrice, discount }];
+    }
+    // 2. From appointment metadata services array
+    const services = appointment?.metadata?.services || appointment?.services || [];
+    if (services.length > 0) return services;
+    // 3. Fallback single-line
+    return [];
+  };
+
+  const servicesList = buildServicesList();
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -155,7 +240,6 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
 
       const pdf = new jsPDF("p", "pt", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 24;
       const imgWidth = pageWidth - margin * 2;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -183,6 +267,16 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
     setTimeout(() => { w.print(); w.close(); setPrinting(false); }, 500);
   };
 
+  // ── Parse individual payment records for display ──
+  const parsePaymentForDisplay = (p) => {
+    // Payments from getAppointmentById come as parsed receipt objects
+    const amt = Number(p.amount || 0);
+    const method = p.method || 'N/A';
+    const status = p.status || 'CAPTURED';
+    const date = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '-';
+    return { id: p.id, amount: amt, method, status, date };
+  };
+
   return (
     <BaseModal
       isOpen={isOpen}
@@ -191,6 +285,12 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
       size="4xl"
       footer={null}
     >
+      {loadingAppt ? (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+          <p style={{ color: '#6B7280', fontSize: '14px' }}>Loading invoice data…</p>
+        </div>
+      ) : (
+      <>
       <div id="invoice-render-node" style={{
         backgroundColor: '#fff', padding: '24px', fontSize: '13px',
         lineHeight: '1.4', color: '#111', fontFamily: 'sans-serif'
@@ -198,7 +298,6 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '16px', marginBottom: '16px' }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{orgName}</div>
-            {/* {activeOrg.id && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '11px', fontWeight: 600 }}>Org ID: #{activeOrg.id}</div>} */}
             {orgAddress && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '12px' }}>{orgAddress}</div>}
             {activeOrg.email && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '11px' }}>Email: {activeOrg.email}</div>}
             {activeOrg.phone && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '11px' }}>Ph: {activeOrg.phone}</div>}
@@ -231,23 +330,41 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
         <div style={{ border: '1px solid #E5E7EB', borderRadius: '4px', padding: '16px', marginBottom: '16px' }}>
           <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>Patient Info</div>
           <div>Name: {patientName}</div>
-          <div>Age: {appointment.age || '-'}</div>
-          <div>Phone: {appointment.phoneNumber || appointment.phone || '-'}</div>
+          <div>Age: {patientAge}</div>
+          <div>Phone: {patientPhone}</div>
         </div>
 
         <div style={{ border: '1px solid #E5E7EB', borderRadius: '4px', padding: '16px', marginBottom: '16px' }}>
           <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>Appointment Info</div>
           <div>Invoice No: {invoiceId}</div>
-          <div>Date: {appointment.appointment_date || '-'}</div>
-          <div>Time: {appointment.booking_time || appointment.start_time || '-'}</div>
+          <div>Date: {appointment?.appointment_date || '-'}</div>
+          <div>Time: {appointment?.booking_time || appointment?.start_time || '-'}</div>
+          <div>Duration: {appointment?.duration || appointment?.dialysisDuration || '-'}</div>
         </div>
 
+        {/* ── Services & Bill Summary (from invoice / API) ── */}
         <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '16px', marginBottom: '16px' }}>
           <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '12px' }}>Services and Bill Summary</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span>{appointment.reason ? `Dialysis Session — ${appointment.reason}` : 'Dialysis Session'}</span>
-            <span>₹{(totalDue || amountPaid).toLocaleString()}</span>
-          </div>
+          
+          {servicesList.length > 0 ? (
+            servicesList.map((s, idx) => {
+              const price = Number(s.price || 0);
+              const discount = Number(s.discount || 0);
+              const finalPrice = price - (price * discount / 100);
+              return (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span>{s.name} {discount > 0 ? `(${discount}% off)` : ''}</span>
+                  <span>₹{finalPrice.toLocaleString()}</span>
+                </div>
+              );
+            })
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span>{appointment?.reason ? `Dialysis Session — ${appointment.reason}` : 'Dialysis Session'}</span>
+              <span>₹{(totalDue || amountPaid).toLocaleString()}</span>
+            </div>
+          )}
+
           <div style={{ height: '1px', backgroundColor: BILL_COLORS.divider, margin: '12px 0' }} />
 
           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginTop: '8px' }}>
@@ -256,6 +373,58 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
           </div>
         </div>
 
+        {/* ── Payment Records (from API payments array) ── */}
+        {fetchedPayments.length > 0 && (
+          <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '16px', marginBottom: '16px' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '12px' }}>Payment Records</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '50px 1fr 100px 80px 90px', gap: '4px 8px', fontSize: '12px' }}>
+              <div style={{ fontWeight: 700, color: '#6B7280', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px' }}>#</div>
+              <div style={{ fontWeight: 700, color: '#6B7280', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px' }}>Date</div>
+              <div style={{ fontWeight: 700, color: '#6B7280', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px', textAlign: 'right' }}>Amount</div>
+              <div style={{ fontWeight: 700, color: '#6B7280', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px' }}>Method</div>
+              <div style={{ fontWeight: 700, color: '#6B7280', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px' }}>Status</div>
+
+              {fetchedPayments.map((p, idx) => {
+                const parsed = parsePaymentForDisplay(p);
+                return (
+                  <React.Fragment key={parsed.id || idx}>
+                    <div style={{ padding: '4px 0' }}>{idx + 1}</div>
+                    <div style={{ padding: '4px 0' }}>{parsed.date}</div>
+                    <div style={{ padding: '4px 0', textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>₹{parsed.amount.toLocaleString()}</div>
+                    <div style={{ padding: '4px 0', textTransform: 'capitalize' }}>{parsed.method}</div>
+                    <div style={{ padding: '4px 0' }}>
+                      <span style={{
+                        fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px',
+                        background: parsed.status === 'CAPTURED' ? '#DCFCE7' : '#FEF9C3',
+                        color: parsed.status === 'CAPTURED' ? '#166534' : '#854D0E',
+                      }}>{parsed.status}</span>
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+            <div style={{ height: '1px', backgroundColor: BILL_COLORS.divider, margin: '12px 0' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700 }}>
+              <span>Total Paid</span>
+              <span style={{ color: BILL_COLORS.success }}>₹{amountPaid.toLocaleString()}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Refund Records ── */}
+        {fetchedRefunds.length > 0 && (
+          <div style={{ border: '1px solid #fecaca', borderRadius: '4px', padding: '16px', marginBottom: '16px', background: '#fef2f2' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px', color: BILL_COLORS.dangerDark }}>Refunds</div>
+            {fetchedRefunds.map((r, idx) => (
+              <div key={r.id || idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '12px' }}>
+                <span>Refund #{idx + 1} — {r.method || 'manual'}</span>
+                <span style={{ color: BILL_COLORS.dangerDark, fontWeight: 600 }}>-₹{Number(r.requestedRefund || r.amount || 0).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Payment Status Summary ── */}
         <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '16px', marginBottom: '16px' }}>
           <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>Payment Status</div>
           {(() => {
@@ -271,15 +440,6 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
                   <div style={{ marginTop: '4px' }}>Amount Received: ₹{rcvdFixed}</div>
                 </div>
               );
-            } else if (payStatus === 'PARTIAL') {
-              return (
-                <div>
-                  <div style={{ color: BILL_COLORS.warning, fontWeight: 'bold' }}>Status: PARTIAL</div>
-                  <div style={{ marginTop: '4px' }}>Paid: ₹{rcvdFixed}</div>
-                  <div style={{ marginTop: '4px' }}>Pending: ₹{pendFixed}</div>
-                  <div style={{ marginTop: '4px' }}>Net Amount: ₹{netFixed}</div>
-                </div>
-              );
             } else if (payStatus === 'CANCELLED') {
               return (
                 <div>
@@ -289,10 +449,13 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
                 </div>
               );
             } else {
+              // Unified PENDING status for both PARTIAL and UNPAID
               return (
                 <div>
-                  <div style={{ color: BILL_COLORS.dangerDark, fontWeight: 'bold' }}>Status: UNPAID</div>
-                  <div style={{ marginTop: '4px', color: BILL_COLORS.dangerDark }}>Pending Amount: ₹{netFixed}</div>
+                  <div style={{ color: BILL_COLORS.warning, fontWeight: 'bold' }}>Status: PENDING</div>
+                  {amountPaid > 0 && <div style={{ marginTop: '4px' }}>Paid: ₹{rcvdFixed}</div>}
+                  <div style={{ marginTop: '4px' }}>Pending: ₹{pendFixed}</div>
+                  <div style={{ marginTop: '4px' }}>Net Amount: ₹{netFixed}</div>
                 </div>
               );
             }
@@ -318,6 +481,8 @@ const InvoicePreview = ({ isOpen, onClose, appointment, clinic: initialClinic })
           Close
         </button>
       </div>
+      </>
+      )}
     </BaseModal>
   );
 };

@@ -10,7 +10,8 @@ import {
   getAppointments, 
   createAppointment as createAppointmentApi, 
   updateAppointment as updateAppointmentApi, 
-  cancelAppointment as cancelAppointmentApi 
+  cancelAppointment as cancelAppointmentApi,
+  getAvailableSlots
 } from '../ApiCalls/clinicApis';
 
 const STATUS_FLOW = {
@@ -49,6 +50,9 @@ export default function useDialysisAppointments(options = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [settings, setSettings] = useState(options.settings || DEFAULT_SETTINGS);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [dashboardAppointments, setDashboardAppointments] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
@@ -127,8 +131,11 @@ export default function useDialysisAppointments(options = {}) {
         endUTC: end.toISOString(),
         bookingType: data.bookingType || 'offline',
         amountDue: Number(data.amountDue || data.totalAmount || 0),
+        slotId: data.slotId,
         metadata: {
           notes: data.title || data.reason,
+          dialysisDuration: data.duration,
+          ...data.metadata
         },
       };
 
@@ -314,6 +321,23 @@ export default function useDialysisAppointments(options = {}) {
     [appointments, updateAppointment]
   );
 
+  const fetchSlots = useCallback(async (clinicId, from, to) => {
+    setSlotsLoading(true);
+    try {
+      const result = await getAvailableSlots(clinicId, from, to);
+      if (result.success) {
+        setAvailableSlots(result.data?.data || result.data?.slots || []);
+        setDashboardAppointments(result.data?.appointments || []);
+      } else {
+        console.warn('Failed to fetch slots:', result.data?.message);
+      }
+    } catch (err) {
+      console.error('Error fetching slots:', err);
+    } finally {
+      setSlotsLoading(false);
+    }
+  }, []);
+
   return {
     appointments: sortedAppointments,
     loading,
@@ -330,5 +354,9 @@ export default function useDialysisAppointments(options = {}) {
     payments,
     isSlotAvailable,
     generateSlotsForRange,
+    availableSlots,
+    dashboardAppointments,
+    slotsLoading,
+    fetchSlots,
   };
 }

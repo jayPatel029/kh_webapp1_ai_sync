@@ -64,32 +64,106 @@ import OrganizationSelector from '../../../components/OrganizationSelector';
 import './BedManagementDashboard.css';
 
 // Bed statuses
-// Bed statuses for Legend
-const BED_STATUS_COLOR = {
-  OCCUPIED: '#3B82F6',   // Blue
-  EMPTY: '#10B981',      // Green (Available)
-  AVAILABLE: '#10B981',
-  QUARANTINE: '#FACC15', // Yellow (ISO)
-  CLEANING: '#F97316',   // Orange
-  MAINTENANCE: '#94A3B8', // Slate
+// ---------------------------------------------------------------------------
+// Bed Status Configuration
+// Centralized system for colors, labels, and theme schemes
+// ---------------------------------------------------------------------------
+const BED_STATUS_CONFIG = {
+  AVAILABLE: {
+    color: '#10B981', // Emerald 500
+    scheme: 'green',
+    label: 'Available',
+    dotColor: '#10B981'
+  },
+  EMPTY: {
+    color: '#10B981',
+    scheme: 'green',
+    label: 'Available',
+    dotColor: '#10B981'
+  },
+  OCCUPIED: {
+    color: '#3B82F6', // Blue 500
+    scheme: 'blue',
+    label: 'Occupied',
+    dotColor: '#3B82F6'
+  },
+  QUARANTINE: {
+    color: '#F43F5E', // Rose 500 (Better for Isolation/Danger)
+    scheme: 'red',
+    label: 'Isolated',
+    dotColor: '#F43F5E'
+  },
+  ISOLATED: {
+    color: '#F43F5E',
+    scheme: 'red',
+    label: 'Isolated',
+    dotColor: '#F43F5E'
+  },
+  CLEANING: {
+    color: '#F97316', // Orange 500
+    scheme: 'orange',
+    label: 'Cleaning',
+    dotColor: '#F97316'
+  },
+  MAINTENANCE: {
+    color: '#64748B', // Slate 500
+    scheme: 'gray',
+    label: 'Maintenance',
+    dotColor: '#64748B'
+  },
+  IN_PROGRESS: {
+    color: '#8B5CF6', // Violet 500
+    scheme: 'purple',
+    label: 'In Progress',
+    dotColor: '#8B5CF6'
+  },
 };
+
+/**
+ * Robust helper to get status configuration
+ * Handles case-insensitivity and provides fallbacks
+ */
+const getStatusConfig = (status) => {
+  const normalizedStatus = String(status || '').toUpperCase();
+  return BED_STATUS_CONFIG[normalizedStatus] || {
+    color: '#94A3B8',
+    scheme: 'gray',
+    label: status || 'Unknown',
+    dotColor: '#94A3B8'
+  };
+};
+
+// Legacy support for older code if any
+const BED_STATUS_COLOR = Object.keys(BED_STATUS_CONFIG).reduce((acc, key) => {
+  acc[key] = BED_STATUS_CONFIG[key].color;
+  return acc;
+}, {});
 
 // Helper for status dot legend
-const StatusDot = ({ color, label }) => (
-  <HStack spacing={2}>
-    <Box w={3} h={3} borderRadius="full" bg={color} />
-    <Text fontSize="xs" fontWeight="600" color="gray.600">{label}</Text>
-  </HStack>
-);
-
-const BED_STATUS_LABEL = {
-  OCCUPIED: 'Occupied',
-  EMPTY: 'Available',
-  AVAILABLE: 'Available',
-  QUARANTINE: 'Isolated',
-  CLEANING: 'Cleaning',
-  MAINTENANCE: 'Maintenance',
+const StatusDot = ({ status }) => {
+  const config = getStatusConfig(status);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div
+        style={{
+          width: '10px',
+          height: '10px',
+          borderRadius: '50%',
+          backgroundColor: config.color,
+          border: '2.5px solid white',
+          boxShadow: `0 0 0 1px ${config.color}`
+        }}
+      />
+      <Text fontSize="xs" fontWeight="600" color="gray.600">{config.label}</Text>
+    </div>
+  );
 };
+
+// Labels mapping is now part of getStatusConfig, but keeping this for any legacy lookups
+const BED_STATUS_LABEL = Object.keys(BED_STATUS_CONFIG).reduce((acc, key) => {
+  acc[key] = BED_STATUS_CONFIG[key].label;
+  return acc;
+}, {});
 
 // ---------------------------------------------------------------------------
 // Dummy data for local testing (used when hook/API returns empty)
@@ -118,8 +192,9 @@ const BedCard = ({
   onCardClick,
   isDragOver = false,
 }) => {
-  const statusColor = BED_STATUS_COLOR[bed.status] || 'gray';
-  const statusLabel = BED_STATUS_LABEL[bed.status] || 'Unknown';
+  const config = getStatusConfig(bed.status);
+  const statusScheme = config.scheme;
+  const statusLabel = config.label;
   const [remainingMs, setRemainingMs] = useState(null);
 
   useEffect(() => {
@@ -174,8 +249,10 @@ const BedCard = ({
               Bed {bed.bed_number}
             </Heading>
             <Badge
-              colorScheme={statusColor}
+              colorScheme={statusScheme}
               variant="solid"
+              borderRadius="full"
+              px={2}
             >
               {statusLabel}
             </Badge>
@@ -337,8 +414,8 @@ const AppointmentTableComponent = ({ appointments = [] }) => {
 const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => {
   const handleDragStart = (e, apt) => {
     const status = String(apt.status).toLowerCase();
-    // Allow assignment for READY statuses: awaiting, arrived, waiting, confirmed, pending
-    const canAssign = ['awaiting', 'arrived', 'waiting', 'confirmed', 'pending'].includes(status);
+    // Only allow arrived appointments to be assigned to a bed
+    const canAssign = ['arrived'].includes(status);
 
     if (!canAssign) {
       e.preventDefault();
@@ -378,7 +455,7 @@ const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => 
           </thead>
           <tbody>
             {(Array.isArray(appointments) ? appointments : []).map((apt) => {
-              const isEligible = String(apt.status).toLowerCase() === 'awaiting' || String(apt.status).toLowerCase() === 'arrived' || String(apt.status).toLowerCase() === 'waiting' || String(apt.status).toLowerCase() === 'confirmed' || String(apt.status).toLowerCase() === 'pending';
+              const isEligible = String(apt.status).toLowerCase() === 'arrived';
               const isInfectious = apt.patient_ailments?.toLowerCase().includes('infectious') || apt.is_infectious;
 
               return (
@@ -439,8 +516,13 @@ const BedGridHorizontal = ({
   onBedDrop,
   onBedClick,
 }) => {
-  const statusBeds = beds.filter((b) => b.status === status);
-  const statusLabel = BED_STATUS_LABEL[status] || 'Unknown';
+  const statusBeds = beds.filter((b) => {
+    const normalizedBedStatus = String(b.status || '').toUpperCase();
+    const normalizedTargetStatus = String(status || '').toUpperCase();
+    return normalizedBedStatus === normalizedTargetStatus;
+  });
+  const config = getStatusConfig(status);
+  const statusLabel = config.label;
 
   if (statusBeds.length === 0) {
     return (
@@ -495,8 +577,13 @@ const BedGridGrid = ({
   onBedDrop,
   onBedClick,
 }) => {
-  const statusBeds = beds.filter((b) => b.status === status);
-  const statusLabel = BED_STATUS_LABEL[status] || 'Unknown';
+  const statusBeds = beds.filter((b) => {
+    const normalizedBedStatus = String(b.status || '').toUpperCase();
+    const normalizedTargetStatus = String(status || '').toUpperCase();
+    return normalizedBedStatus === normalizedTargetStatus;
+  });
+  const config = getStatusConfig(status);
+  const statusLabel = config.label;
 
   if (statusBeds.length === 0) {
     return (
@@ -529,13 +616,15 @@ const BedGridGrid = ({
 // Helper function - Map bed status to DialysisBedSeat status
 // ============================================================================
 const mapBedStatusToDialysisSeatStatus = (bedStatus) => {
-  switch (bedStatus) {
+  const normalized = String(bedStatus || '').toUpperCase();
+  switch (normalized) {
     case 'EMPTY':
     case 'AVAILABLE':
       return 'AVAILABLE';
     case 'OCCUPIED':
       return 'OCCUPIED';
     case 'QUARANTINE':
+    case 'ISOLATED':
       return 'QUARANTINE';
     case 'CLEANING':
       return 'CLEANING';
@@ -556,8 +645,13 @@ const BedGridCompact = ({
   onBedClick,
   onBedDragOver = null,
 }) => {
-  const statusBeds = (Array.isArray(beds) ? beds : []).filter((b) => b.status === status);
-  const statusLabel = BED_STATUS_LABEL[status] || 'Unknown';
+  const statusBeds = (Array.isArray(beds) ? beds : []).filter((b) => {
+    const normalizedBedStatus = String(b.status || '').toUpperCase();
+    const normalizedTargetStatus = String(status || '').toUpperCase();
+    return normalizedBedStatus === normalizedTargetStatus;
+  });
+  const config = getStatusConfig(status);
+  const statusLabel = config.label;
 
   if (statusBeds.length === 0) {
     return (
@@ -774,18 +868,12 @@ export default function BedManagementDashboard(props) {
         if (orgsResult.success) {
           const orgList = Array.isArray(orgsResult.data?.data) ? orgsResult.data.data : (orgsResult.data || []);
           setOrganizations(orgList);
-          if (orgList.length > 0 && !selectedOrgId) {
-            setSelectedOrgId(String(orgList[0].id));
-          }
         }
 
         if (clinicsResult.success) {
           const rawData = clinicsResult.data || [];
           const dataList = Array.isArray(rawData) ? rawData : (rawData.data || []);
           setClinics(dataList);
-          if (dataList.length > 0 && !clinicId) {
-            setClinicId(String(dataList[0].id));
-          }
         }
       } catch (err) {
         console.error('Failed to fetch initial data:', err);
@@ -794,7 +882,25 @@ export default function BedManagementDashboard(props) {
       }
     };
     fetchInitialData();
-  }, [setClinicId, selectedOrgId, clinicId]);
+  }, []);
+
+  // Reset clinic when org changes and auto-select first clinic of new org
+  useEffect(() => {
+    if (selectedOrgId && clinics.length > 0) {
+      const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
+      if (orgClinics.length > 0) {
+        // If current clinic is not in the new org's list, reset to first clinic of new org
+        const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(clinicId));
+        if (!isCurrentInOrg) {
+          setClinicId(String(orgClinics[0].id));
+        }
+      } else {
+        setClinicId('');
+      }
+    } else {
+      setClinicId('');
+    }
+  }, [selectedOrgId, clinics, setClinicId, clinicId]);
 
   // Fetch Appointments for clinic (filter for arrived)
   const loadAppointments = useCallback(async (cid) => {
@@ -972,25 +1078,28 @@ export default function BedManagementDashboard(props) {
       <VStack spacing={4} align="stretch">
 
         {/* Command Center Header */}
-        <HStack 
-          justify="space-between" 
-          align="center" 
-          bg="white" 
-          borderRadius="xl" 
-          shadow="sm" 
-          p={4} 
-          position="relative" 
+        <HStack
+          justify="space-between"
+          align="center"
+          bg="white"
+          borderRadius="xl"
+          shadow="sm"
+          p={4}
+          position="relative"
           zIndex={100}
         >
-          <HStack spacing={4} flexWrap="wrap">
+          <HStack spacing={8} flexWrap="wrap">
             <OrganizationSelector
+              className='mt-6'
               orgId={selectedOrgId}
               setOrgId={setSelectedOrgId}
               organizations={organizations}
+              label="ORG"
             />
-            <ClinicSelector 
+            <ClinicSelector
               clinicId={clinicId}
               setClinicId={setClinicId}
+              orgId={selectedOrgId}
               clinics={clinics}
             />
 
@@ -1002,6 +1111,7 @@ export default function BedManagementDashboard(props) {
               }}
               isLoading={bedsLoading || appointmentsLoading}
               size="md"
+              className="mt-6 min-w-fit"
               leftIcon={<span className="refresh-icon">↻</span>}
             >
               Sync
@@ -1082,7 +1192,7 @@ export default function BedManagementDashboard(props) {
                   <Badge variant="solid" colorScheme="brand" borderRadius="full">
                     {(Array.isArray(appointments) ? appointments : []).filter(a => {
                       const s = String(a.status).toLowerCase();
-                      return s === 'awaiting' || s === 'arrived' || s === 'confirmed' || s === 'pending';
+                      return s === 'arrived';
                     }).length} READY
                   </Badge>
                 </HStack>
@@ -1103,11 +1213,12 @@ export default function BedManagementDashboard(props) {
               <CardHeader borderBottom="1px solid" borderColor="gray.100">
                 <HStack justify="space-between">
                   <Heading as="h3" size="sm">Clinical Bed Map</Heading>
-                  <HStack spacing={3}>
-                    <StatusDot color={BED_STATUS_COLOR.EMPTY} label="Free" />
-                    <StatusDot color={BED_STATUS_COLOR.OCCUPIED} label="In-use" />
-                    <StatusDot color={BED_STATUS_COLOR.QUARANTINE} label="Isolated" />
-                    <StatusDot color={BED_STATUS_COLOR.CLEANING} label="Cleaning" />
+                  <HStack spacing={4} flexWrap="wrap">
+                    <StatusDot status="AVAILABLE" />
+                    <StatusDot status="OCCUPIED" />
+                    <StatusDot status="QUARANTINE" />
+                    <StatusDot status="CLEANING" />
+                    <StatusDot status="MAINTENANCE" />
                   </HStack>
                 </HStack>
               </CardHeader>
@@ -1115,7 +1226,16 @@ export default function BedManagementDashboard(props) {
                 <VStack spacing={8} align="stretch">
 
                   {/* Normal / Available Section */}
-                  <Box border="2px solid" borderColor={BED_STATUS_COLOR.EMPTY} p={4} borderRadius="xl">
+                  <Box
+                    p={4}
+                    borderRadius="xl"
+                    style={{
+                      borderRadius: '12px',
+                      padding: '4px',
+                      border: `2.5px solid ${getStatusConfig('AVAILABLE').color}`,
+                      background: 'transparent'
+                    }}
+                  >
                     <Heading as="h4" size="xs" mb={4} color="gray.600" textTransform="uppercase" letterSpacing="wider">
                       Standard Units
                     </Heading>
@@ -1128,7 +1248,16 @@ export default function BedManagementDashboard(props) {
                   </Box>
 
                   {/* Occupied Section */}
-                  <Box border="2px solid" borderColor={BED_STATUS_COLOR.OCCUPIED} p={4} borderRadius="xl">
+                  <Box
+                    p={4}
+                    borderRadius="xl"
+                    style={{
+                      borderRadius: '12px',
+                      padding: '4px',
+                      border: `2.5px solid ${getStatusConfig('OCCUPIED').color}`,
+                      background: 'transparent'
+                    }}
+                  >
                     <Heading as="h4" size="xs" mb={4} color="gray.600" textTransform="uppercase" letterSpacing="wider">
                       Active Sessions
                     </Heading>
@@ -1142,7 +1271,16 @@ export default function BedManagementDashboard(props) {
 
                   {/* Special Management: Isolated & Cleaning */}
                   <Grid templateColumns={{ base: '1fr', xl: '1fr 1fr' }} gap={6}>
-                    <Box border="2px solid" borderColor={BED_STATUS_COLOR.QUARANTINE} p={4} borderRadius="xl">
+                    <Box
+                      p={4}
+                      borderRadius="xl"
+                      style={{
+                        borderRadius: '12px',
+                        padding: '4px',
+                        border: `2.5px solid ${getStatusConfig('QUARANTINE').color}`,
+                        background: 'transparent'
+                      }}
+                    >
                       <Heading as="h4" size="xs" mb={3} color="gray.600">ISO / QUARANTINE</Heading>
                       <BedGridCompact
                         beds={beds}
@@ -1152,7 +1290,16 @@ export default function BedManagementDashboard(props) {
                       />
                     </Box>
 
-                    <Box border="2px solid" borderColor={BED_STATUS_COLOR.CLEANING} p={4} borderRadius="xl">
+                    <Box
+                      p={4}
+                      borderRadius="xl"
+                      style={{
+                        borderRadius: '12px',
+                        padding: '4px',
+                        border: `2.5px solid ${getStatusConfig('CLEANING').color}`,
+                        background: 'transparent'
+                      }}
+                    >
                       <Heading as="h4" size="xs" mb={3} color="gray.600">CLEANING COOLDOWN</Heading>
                       <BedGridCompact
                         beds={beds}

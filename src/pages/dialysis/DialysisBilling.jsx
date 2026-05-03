@@ -18,28 +18,37 @@ import PaymentModal from '../../components/PaymentModal';
 import InvoicePreview from '../../components/InvoicePreview';
 import usePaymentFlow from '../../hooks/usePaymentFlow';
 import { getPaymentStatus } from '../../utils/refundCalculator';
-import { getAppointments, addAppointmentPayment, getClinics, getOrganizations } from '../../ApiCalls/clinicApis';
+import { getAppointments, addAppointmentPayment, getClinics, getOrganizations, getAppointmentById, updateAppointment } from '../../ApiCalls/clinicApis';
+import { getPatients } from '../../ApiCalls/patientAPis';
 import ClinicSelector from '../../components/ClinicSelector';
 import OrganizationSelector from '../../components/OrganizationSelector';
 
-const normalizeBillingRow = (apt) => ({
-  id: apt.id,
-  appointment_date: apt.appointment_date || (apt.startUTC ? String(apt.startUTC).split('T')[0] : '—'),
-  name: apt.patient_name || apt.patientName || (apt.patient_id ? `Patient #${apt.patient_id}` : '—'),
-  patient_id: apt.patient_id || apt.patientId,
-  phoneNumber: apt.phoneNumber || apt.phone_number || apt.patient_phone || apt.phone || '—',
-  consultation_type: apt.bookingType || apt.appointment_type || 'In Clinic',
-  service: apt.reason || apt.metadata?.notes || 'Dialysis Session',
-  totalAmount: Number(apt.totalAmount || apt.total_amt || apt.amountDue || 0),
-  amountPaid: Number(apt.amountPaid || apt.received_amt || apt.paidAmount || 0),
-  status: String(apt.status || apt.appointmentStatus || 'BOOKED').toUpperCase(),
-  billPDFUrl: apt.billPDFUrl || apt.billUrl || null,
-});
+const normalizeBillingRow = (apt, patients) => {
+  const patientData = patients.find(p => String(p.patient_id || p.id) === String(apt.patient_id));
+  
+  return {
+    id: apt.id,
+    appointment_date: apt.appointment_date || (apt.startUTC ? String(apt.startUTC).split('T')[0] : '—'),
+    name: apt.patient_name || apt.patientName || patientData?.name || (apt.patient_id ? `Patient #${apt.patient_id}` : '—'),
+    age: apt.age || apt.patient_age || patientData?.age || '—',
+    sex: apt.gender || apt.patient_gender || patientData?.gender || patientData?.sex || '—',
+    mobile_no: apt.phoneNumber || apt.phone_number || apt.patient_phone || apt.phone || patientData?.phone_no || patientData?.mobile_no || '—',
+    patient_id: apt.patient_id || apt.patientId,
+    phoneNumber: apt.phoneNumber || apt.phone_number || apt.patient_phone || apt.phone || patientData?.phone_no || patientData?.mobile_no || '—',
+    consultation_type: apt.bookingType || apt.appointment_type || 'In Clinic',
+    service: apt.reason || apt.metadata?.notes || 'Dialysis Session',
+    totalAmount: Number(apt.totalAmount || apt.total_amt || apt.amountDue || 0),
+    amountPaid: Number(apt.amountPaid || apt.received_amt || apt.paidAmount || 0),
+    status: String(apt.status || apt.appointmentStatus || 'BOOKED').toUpperCase(),
+    billPDFUrl: apt.billPDFUrl || apt.billUrl || null,
+    payment_action: String(apt.payment_action || apt.paymentAction || '').toUpperCase(),
+    _raw: apt
+  };
+};
 
 const PAYMENT_COLORS = {
   PAID:    { bg: '#DCFCE7', text: '#166534' },
-  PARTIAL: { bg: '#FEF9C3', text: '#854D0E' },
-  UNPAID:  { bg: '#FEE2E2', text: '#991B1B' },
+  PENDING: { bg: '#FEE2E2', text: '#991B1B' },
 };
 
 const ActionBtn = ({ label, bg, color, onClick }) => (
@@ -66,6 +75,7 @@ const DialysisBilling = () => {
   const { showToast, ToastContainer } = useAdminToast();
 
   const [bills, setBills]             = useState([]);
+  const [patients, setPatients]       = useState([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,7 +98,7 @@ const DialysisBilling = () => {
           : Array.isArray(result.data)
             ? result.data
             : [];
-        setBills(list.map(normalizeBillingRow));
+        setBills(list.map(apt => normalizeBillingRow(apt, patients)));
       } else {
         const msg = result.data?.message || 'Failed to load billing records';
         setError(msg);
@@ -101,30 +111,30 @@ const DialysisBilling = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedClinicId, showToast]);
+  }, [selectedClinicId, patients, showToast]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [clinicsResult, orgsResult] = await Promise.all([
+        const [clinicsResult, orgsResult, patientsResult] = await Promise.all([
           getClinics(),
-          getOrganizations()
+          getOrganizations(),
+          getPatients()
         ]);
 
         if (orgsResult.success) {
           const orgList = Array.isArray(orgsResult.data?.data) ? orgsResult.data.data : (orgsResult.data || []);
           setOrganizations(orgList);
-          if (orgList.length > 0 && !selectedOrgId) {
-            setSelectedOrgId(String(orgList[0].id));
-          }
         }
 
         if (clinicsResult.success) {
           const list = Array.isArray(clinicsResult.data?.data) ? clinicsResult.data.data : (clinicsResult.data || []);
           setClinics(list);
-          if (list.length > 0 && !selectedClinicId) {
-            setSelectedClinicId(String(list[0].id));
-          }
+        }
+
+        if (patientsResult.success) {
+          const pList = Array.isArray(patientsResult.data?.data) ? patientsResult.data.data : (patientsResult.data || []);
+          setPatients(pList);
         }
       } catch (err) {
         console.error('Failed to fetch initial data:', err);
@@ -132,6 +142,23 @@ const DialysisBilling = () => {
     };
     fetchInitialData();
   }, []);
+
+  // Handle clinic reset when organization changes
+  useEffect(() => {
+    if (selectedOrgId && clinics.length > 0) {
+      const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
+      if (orgClinics.length > 0) {
+        const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(selectedClinicId));
+        if (!isCurrentInOrg) {
+          setSelectedClinicId(String(orgClinics[0].id));
+        }
+      } else {
+        setSelectedClinicId('');
+      }
+    } else {
+      setSelectedClinicId('');
+    }
+  }, [selectedOrgId, clinics, selectedClinicId]);
 
   useEffect(() => {
     fetchBills();
@@ -145,14 +172,34 @@ const DialysisBilling = () => {
     updatePaymentField,
     submitPayment,
   } = usePaymentFlow({
-    onPaymentAdded: async (apptId, amount, method, billPDFUrl) => {
-      const result = await addAppointmentPayment(apptId, {
+    onPaymentAdded: async (appt, amount, method, billPDFUrl) => {
+      // 1. Fetch fresh details first to ensure we have current balance
+      const freshRes = await getAppointmentById(appt.id);
+      const freshAppt = freshRes.success ? (freshRes.data?.data || freshRes.data) : appt;
+
+      // 2. Record the payment
+      const result = await addAppointmentPayment(appt.id, {
         amount: Number(amount),
         method: String(method || 'cash').toUpperCase(),
         receiptUrl: billPDFUrl || undefined,
       });
 
       if (result.success) {
+        // 3. If not fully paid, update appointment metadata
+        const updatedPaid = Number(freshAppt.amountPaid || freshAppt.received_amt || 0) + Number(amount);
+        const totalDue = Number(freshAppt.totalAmount || freshAppt.amountDue || 0);
+
+        if (updatedPaid < totalDue) {
+          await updateAppointment(appt.id, {
+            metadata: {
+              ...(freshAppt.metadata || {}),
+              payment_status: 'PENDING',
+              last_payment_date: new Date().toISOString(),
+              outstanding_balance: totalDue - updatedPaid
+            }
+          });
+        }
+
         showToast(`Payment of ₹${amount} recorded`, 'success');
         fetchBills();
       } else {
@@ -174,26 +221,38 @@ const DialysisBilling = () => {
 
   // ─── Stats ─────────────────────────────────────────────
   const totalRevenue  = bills.reduce((s, b) => s + Number(b.amountPaid || 0), 0);
-  const paidCount     = bills.filter((b) => getPaymentStatus(b.totalAmount, b.amountPaid) === 'PAID').length;
-  const partialCount  = bills.filter((b) => getPaymentStatus(b.totalAmount, b.amountPaid) === 'PARTIAL').length;
-  const unpaidCount   = bills.filter((b) => getPaymentStatus(b.totalAmount, b.amountPaid) === 'UNPAID').length;
+  
+  const getDerivedPayStatus = (b) => {
+    let ps = b.payment_action;
+    if (!ps || ps === 'UNDEFINED') ps = getPaymentStatus(b.totalAmount, b.amountPaid);
+    return ps;
+  };
+
+  const paidCount     = bills.filter((b) => getDerivedPayStatus(b) === 'PAID').length;
+  const pendingCount  = bills.filter((b) => {
+    const ps = getDerivedPayStatus(b);
+    return ps === 'UNPAID' || ps === 'PENDING' || ps === 'PARTIAL';
+  }).length;
   const outstanding   = bills.reduce((s, b) => s + Math.max(0, Number(b.totalAmount || 0) - Number(b.amountPaid || 0)), 0);
 
   // ─── Columns ──────────────────────────────────────────
   const columns = [
-    { key: 'appointment_date', label: 'Date',    type: 'text', width: '110px' },
-    { key: 'name',             label: 'Patient', type: 'text', width: '150px' },
-    { key: 'service',          label: 'Service', type: 'text', width: '160px' },
+    { key: 'appointment_date', label: 'DATE',    type: 'text', width: '110px' },
+    { key: 'name',             label: 'PATIENT', type: 'text', width: '150px' },
+    { key: 'age',              label: 'AGE',     type: 'text', width: '60px'  },
+    { key: 'sex',              label: 'SEX',     type: 'text', width: '80px'  },
+    { key: 'mobile_no',        label: 'MOBILE',  type: 'text', width: '120px' },
+    { key: 'service',          label: 'SERVICE', type: 'text', width: '160px' },
     {
       key: 'totalAmount',
-      label: 'Total',
+      label: 'TOTAL',
       type: 'custom',
       width: '100px',
       render: (_row, value) => <span style={{ fontWeight: 600 }}>₹{Number(value).toLocaleString()}</span>,
     },
     {
       key: 'amountPaid',
-      label: 'Received',
+      label: 'RECEIVED',
       type: 'custom',
       width: '100px',
       render: (_row, value) => (
@@ -202,7 +261,7 @@ const DialysisBilling = () => {
     },
     {
       key: 'pending',
-      label: 'Pending',
+      label: 'PENDING',
       type: 'custom',
       width: '100px',
       render: (row) => {
@@ -216,47 +275,65 @@ const DialysisBilling = () => {
     },
     {
       key: 'payStatus',
-      label: 'Pay Status',
+      label: 'PAYMENT',
       type: 'custom',
       width: '115px',
       render: (row) => {
-        const ps = getPaymentStatus(row.totalAmount, row.amountPaid);
-        const colors = PAYMENT_COLORS[ps] || PAYMENT_COLORS.UNPAID;
+        let ps = row.payment_action;
+        if (!ps || ps === 'UNDEFINED') ps = getPaymentStatus(row.totalAmount, row.amountPaid);
+        if (ps === 'PENDING') ps = 'UNPAID';
+        
+        const config = 
+          ps === 'PAID' ? { label: 'Paid', color: '#10B981' } :
+          { label: 'Pending', color: '#EF4444' };
+
         return (
-          <span
-            style={{
-              backgroundColor: colors.bg,
-              color: colors.text,
-              padding: '3px 10px',
-              borderRadius: '9999px',
-              fontSize: '11px',
-              fontWeight: 700,
-            }}
-          >
-            {ps}
-          </span>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <button
+              onClick={() => {
+                if (ps !== 'PAID') {
+                  openPaymentModal(row);
+                }
+              }}
+              style={{
+                background: 'transparent',
+                color: config.color,
+                border: `1px solid ${config.color}`,
+                borderRadius: '4px',
+                padding: '4px 12px',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: ps === 'PAID' ? 'default' : 'pointer',
+                minWidth: '80px',
+                textTransform: 'uppercase'
+              }}
+            >
+              {config.label}
+            </button>
+          </div>
         );
       },
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: 'ACTIONS',
       type: 'custom',
-      width: '200px',
+      width: '180px',
       render: (row) => {
-        const ps = getPaymentStatus(row.totalAmount, row.amountPaid);
+        let ps = row.payment_action;
+        if (!ps || ps === 'UNDEFINED') ps = getPaymentStatus(row.totalAmount, row.amountPaid);
         return (
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
             {ps !== 'PAID' && (
               <ActionBtn
-                label="₹ Pay"
+                label="Pay"
                 bg="#D1FAE5"
                 color="#065F46"
                 onClick={() => openPaymentModal(row)}
               />
             )}
             <ActionBtn
-              label="🧾 Invoice"
+              label="Invoice"
               bg="#EFF6FF"
               color="#1D4ED8"
               onClick={() => setInvoiceTarget(row)}
@@ -285,7 +362,7 @@ const DialysisBilling = () => {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5, 1fr)',
+              gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
               gap: '14px',
               marginBottom: '16px',
             }}
@@ -294,8 +371,7 @@ const DialysisBilling = () => {
               { label: 'Total Collected', value: `₹${totalRevenue.toLocaleString()}`, color: '#16A34A' },
               { label: 'Outstanding',     value: `₹${outstanding.toLocaleString()}`,  color: '#DC2626' },
               { label: 'Paid',            value: paidCount,                           color: '#1E40AF' },
-              { label: 'Partial',         value: partialCount,                        color: '#D97706' },
-              { label: 'Unpaid',          value: unpaidCount,                         color: '#991B1B' },
+              { label: 'Pending',         value: pendingCount,                        color: '#EF4444' },
             ].map(({ label, value, color }) => (
               <div
                 key={label}
@@ -336,6 +412,7 @@ const DialysisBilling = () => {
                 <ClinicSelector
                   clinicId={selectedClinicId}
                   setClinicId={setSelectedClinicId}
+                  orgId={selectedOrgId}
                   clinics={clinics}
                   label=""
                   minW="180px"
@@ -375,20 +452,19 @@ const DialysisBilling = () => {
         <PaymentModal
           isOpen={paymentModal.isOpen}
           onClose={closePaymentModal}
-          appointment={paymentModal.appointment}
-          amount={paymentModal.amount}
-          method={paymentModal.method}
-          error={paymentModal.error}
-          submitting={paymentModal.submitting}
-          onAmountChange={(v) => updatePaymentField('amount', v)}
-          onMethodChange={(v) => updatePaymentField('method', v)}
-          onSubmit={submitPayment}
+          appointmentId={paymentModal.appointment?.id}
+          billId={paymentModal.appointment?.invoiceId}
+          onSuccess={async (appointmentId, amount, method, receiptUrl) => {
+            showToast(`Payment of ₹${amount} recorded`, 'success');
+            fetchBills();
+          }}
         />
 
         {/* ─── Invoice Preview ─── */}
         <InvoicePreview
           isOpen={!!invoiceTarget}
           onClose={() => setInvoiceTarget(null)}
+          appointmentId={invoiceTarget?.id}
           appointment={invoiceTarget}
         />
 

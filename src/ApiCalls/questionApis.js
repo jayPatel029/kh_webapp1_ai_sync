@@ -127,3 +127,16 @@ export async function getGeneralParameterResponses() {
     return { success: false, error: error?.response?.data?.error || error.message };
   }
 }
+export async function saveDialysisParameterReading(data) {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axiosInstance.post(`${server_url}/dialysisReading/add`, data, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, error: error?.response?.data?.error || error.message };
+  }
+}
