@@ -911,7 +911,7 @@ function UserProfile() {
           )}
 
               {/* Demo: Dummy patient & immunization chart */}
-              <Box className="space-y-4 mt-8">
+              {/* <Box className="space-y-4 mt-8">
                 <Box className="flex items-center justify-between">
                   <Box as="h2" className="text-xl font-bold">Demo — Dummy Patient</Box>
                 </Box>
@@ -921,16 +921,13 @@ function UserProfile() {
                     <div className="space-y-2">
                       {demoPatient.immunizations.map((it) => (
                         <Box key={it.id} className="text-sm">
-                          <strong>{it.vaccine}</strong> — {new Date(it.date).toLocaleDateString()} • {it.administeredBy}
+                          <strong>{it.vaccine}</strong> — {new Date(it.date).toLocaleDateString()} verified by {it.administeredBy}
                         </Box>
                       ))}
                     </div>
                   </Box>
 
-                  <Box className="mt-4">
-                    <ImmunizationChart items={demoPatient.immunizations} />
-                  </Box>
-              </Box>
+              </Box> */}
 
 
         </Flex>
