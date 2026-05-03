@@ -13,7 +13,7 @@ import { notifyError } from "./helpers/notify";
 
 /** Rate-limiter: show at most 1 generic toast per 3 seconds */
 let lastGlobalToast = 0;
-const TOAST_COOLDOWN = 3000;
+const TOAST_COOLDOWN = 2000;
 
 function handleGlobalError(error) {
   reportError(error, { source: 'global-listener' });

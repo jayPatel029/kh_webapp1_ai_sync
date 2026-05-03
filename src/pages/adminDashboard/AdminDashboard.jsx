@@ -234,12 +234,7 @@ const AdminDashboard = () => {
         : await getAlerts();
 
       const rawAlerts = extractAlerts(alertsRes);
-      const partitions = partitionDashboardAlerts(rawAlerts);
-      const nonChatAlerts = [
-        ...partitions.doctor,
-        ...partitions.patient,
-        ...partitions.other,
-      ];
+      const nonChatAlerts = rawAlerts.filter((alert) => !isChatAlert(alert));
 
       const grouped = groupAlertsByPatient(nonChatAlerts, { includeChats: false });
       const namedPatients = grouped.patients.map(enrichName);
@@ -367,13 +362,51 @@ const AdminDashboard = () => {
               <Text size="md">No alerts in this category</Text>
             </Flex>
           ) : (
-            <Flex direction="column" gap={0}>
-              {visiblePatients.map((patient) => (
-                <React.Fragment key={patient.id}>
-                  <PatientAlertCard patient={patient} onAction={handleAction} />
-                  <Box className={`h-[2px] bg-gray-200 ${isMobile ? "my-3" : "my-6"}`} />
-                </React.Fragment>
-              ))}
+            <Flex direction={isMobile ? "column" : "row"} gap={isMobile ? 0 : 8}>
+              {/* Left Column: Admin Alerts (Regular Alerts, Dialysis) */}
+              <Box className="flex-1">
+                {!isMobile && (activeCategory === "all" || activeCategory === "alert" || activeCategory === "dialysis") && (
+                  <Heading as="h3" size="lg" className="mb-4 text-[#3F6B85] font-bold border-b pb-2">
+                    Patient Alerts
+                  </Heading>
+                )}
+                <Flex direction="column" gap={0}>
+                  {visiblePatients
+                    .filter((p) => {
+                      if (activeCategory !== "all") return true; // Tab filtering already handled
+                      // In "All" view, split by type
+                      return (p.prescriptionCount === 0 && p.commentCount === 0);
+                    })
+                    .map((patient) => (
+                      <React.Fragment key={`admin-${patient.id}`}>
+                        <PatientAlertCard patient={patient} onAction={handleAction} />
+                        <Box className={`h-[2px] bg-gray-200 ${isMobile ? "my-3" : "my-6"}`} />
+                      </React.Fragment>
+                    ))}
+                </Flex>
+              </Box>
+
+              {/* Right Column: Doctor Alerts (Prescriptions, Comments) */}
+              {!isMobile && (activeCategory === "all" || activeCategory === "prescription" || activeCategory === "comment") && (
+                <Box className="flex-1 border-l pl-8 border-gray-100">
+                  <Heading as="h3" size="lg" className="mb-4 text-[#3F6B85] font-bold border-b pb-2">
+                    Doctor Alerts
+                  </Heading>
+                  <Flex direction="column" gap={0}>
+                    {visiblePatients
+                      .filter((p) => {
+                        if (activeCategory !== "all") return true;
+                        return (p.prescriptionCount > 0 || p.commentCount > 0);
+                      })
+                      .map((patient) => (
+                        <React.Fragment key={`doctor-${patient.id}`}>
+                          <PatientAlertCard patient={patient} onAction={handleAction} />
+                          <Box className={`h-[2px] bg-gray-200 ${isMobile ? "my-3" : "my-6"}`} />
+                        </React.Fragment>
+                      ))}
+                  </Flex>
+                </Box>
+              )}
             </Flex>
           )}
         </Box>

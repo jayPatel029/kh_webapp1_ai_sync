@@ -694,6 +694,140 @@ export async function performInventoryCycleCount(payload, config = {}) {
   }
 }
 
+// --- Suppliers ---
+
+export async function getSuppliers(config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/suppliers`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function createSupplier(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/dt/suppliers`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updateSupplier(id, payload, config = {}) {
+  try {
+    const response = await axiosInstance.put(`${server_url}/dt/suppliers/${id}`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+// --- Restock Requests ---
+
+export async function getRestockRequests(config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/restock`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function createRestockRequest(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/dt/restock`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getRestockRequestById(id, config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/restock/${id}`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+// --- Procurement Orders (PO) ---
+
+export async function getProcurementOrders(config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/po`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getProcurementOrderById(id, config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/po/${id}`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function createProcurementOrder(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/dt/po`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function updateProcurementOrder(id, payload, config = {}) {
+  try {
+    const response = await axiosInstance.put(`${server_url}/dt/po/${id}`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+// --- Deliveries ---
+
+export async function getDeliveries(config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/deliveries`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function getDeliveryById(id, config = {}) {
+  try {
+    const response = await axiosInstance.get(`${server_url}/dt/deliveries/${id}`, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function createDelivery(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(`${server_url}/dt/deliveries`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+export async function validateDelivery(id, payload, config = {}) {
+  try {
+    const response = await axiosInstance.put(`${server_url}/dt/deliveries/${id}/validate`, payload, config);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
 export default {
   getInventoryItems,
   getInventoryItemById,
@@ -730,4 +864,18 @@ export default {
   dispenseInventoryToPatient,
   dispenseInventoryToDepartment,
   performInventoryCycleCount,
+  getSuppliers,
+  createSupplier,
+  updateSupplier,
+  getRestockRequests,
+  createRestockRequest,
+  getRestockRequestById,
+  getProcurementOrders,
+  getProcurementOrderById,
+  createProcurementOrder,
+  updateProcurementOrder,
+  getDeliveries,
+  getDeliveryById,
+  createDelivery,
+  validateDelivery,
 };

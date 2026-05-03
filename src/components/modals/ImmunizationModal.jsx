@@ -224,7 +224,7 @@ const ImmunizationModal = ({
         </FormControl>
 
         <FormControl>
-          <FormLabel>Administered by</FormLabel>
+          <FormLabel>Entered by</FormLabel>
           <Input value={administeredBy} onChange={(e) => setAdministeredBy(e.target.value)} placeholder="Doctor / Clinic" />
         </FormControl>
 

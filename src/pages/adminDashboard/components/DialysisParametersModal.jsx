@@ -247,6 +247,8 @@ export default function DialysisParametersModal({
   const [selectedDialyzerId, setSelectedDialyzerId] = useState('');
   const [markBedForCleaning, setMarkBedForCleaning] = useState(true);
   const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [appointmentServices, setAppointmentServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
 
   // Fetch patient parameters, readings and inventory
   useEffect(() => {
@@ -380,16 +382,20 @@ export default function DialysisParametersModal({
         setHemoParamsResponses(prev => ({ ...prefilled, ...prev }));
       }
 
-      // 5. Fetch appointment for duration
+      // 5. Fetch appointment for duration and services
       if (patient?.appointment_id) {
+        setServicesLoading(true);
         const aptRes = await getAppointmentById(patient.appointment_id);
         if (aptRes.success) {
           const apt = aptRes.data?.data || aptRes.data;
-          setCurrentAppointment(apt);
-          if (apt.metadata?.dialysisDuration) {
-            setManualDuration(apt.metadata.dialysisDuration);
+          const details = aptRes.data?.appointment || apt;
+          setCurrentAppointment(details);
+          setAppointmentServices(details.services || []);
+          if (details.metadata?.dialysisDuration) {
+            setManualDuration(details.metadata.dialysisDuration);
           }
         }
+        setServicesLoading(false);
       }
     } catch (err) {
       console.error('Failed to fetch patient data:', err);
@@ -607,6 +613,27 @@ export default function DialysisParametersModal({
       console.error('Error recording dialyzer use:', err);
     }
   }, [selectedDialyzerId, patient, dialyzers, fetchInventoryData]);
+
+  const handleConsumeService = useCallback(async (serviceId) => {
+    if (!patient?.appointment_id) return;
+    try {
+      setServicesLoading(true);
+      const { consumeAppointmentServices } = await import('../../../ApiCalls/clinicApis');
+      const result = await consumeAppointmentServices(patient.appointment_id, { serviceId });
+      
+      if (result.success) {
+        setAppointmentServices(prev => prev.map(s => 
+          (s.id === serviceId || s.service_id === serviceId) ? { ...s, status: 'USED' } : s
+        ));
+      } else {
+        alert('Failed to update service status: ' + (result.data?.message || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Error consuming service:', err);
+    } finally {
+      setServicesLoading(false);
+    }
+  }, [patient?.appointment_id]);
 
   const handleStopDialysis = useCallback(async () => {
     try {
@@ -1204,6 +1231,57 @@ export default function DialysisParametersModal({
                     </CardHeader>
                     <CardBody p={4}>
                       <VStack spacing={4} align="stretch">
+                        {/* APPOINTMENT SERVICES SECTION */}
+                        <Box borderBottom="1px solid" borderColor="slate.100" pb={4} mb={2}>
+                          <HStack justify="space-between" mb={3}>
+                            <Text fontSize="xs" fontWeight="bold" color="slate.600">Appointment Services</Text>
+                            {servicesLoading && <Text fontSize="10px" color="info.500">Updating...</Text>}
+                          </HStack>
+                          <VStack align="stretch" spacing={2}>
+                            {appointmentServices.length > 0 ? (
+                              appointmentServices.map((svc, idx) => {
+                                const isUsed = String(svc.status).toUpperCase() === 'USED';
+                                return (
+                                  <HStack 
+                                    key={svc.id || idx} 
+                                    justify="space-between" 
+                                    p={3} 
+                                    bg={isUsed ? "slate.50" : "info.50"} 
+                                    borderRadius="xl" 
+                                    border="1px solid" 
+                                    borderColor={isUsed ? "slate.200" : "info.100"}
+                                    transition="all 0.2s"
+                                  >
+                                    <VStack align="start" spacing={0} flex={1}>
+                                      <Text fontSize="xs" fontWeight="700" color={isUsed ? "slate.500" : "info.800"}>
+                                        {svc.service_name || svc.name || 'Dialysis Session'}
+                                      </Text>
+                                      <Text fontSize="10px" color={isUsed ? "slate.400" : "info.600"}>
+                                        Status: {svc.status || 'PENDING'}
+                                      </Text>
+                                    </VStack>
+                                    <Button
+                                      size="xs"
+                                      colorScheme={isUsed ? "slate" : "info"}
+                                      variant={isUsed ? "ghost" : "solid"}
+                                      onClick={() => handleConsumeService(svc.id || svc.service_id)}
+                                      isDisabled={isUsed || stage === 'before' || servicesLoading}
+                                      px={4}
+                                      borderRadius="full"
+                                    >
+                                      {isUsed ? 'Consumed' : 'Mark Used'}
+                                    </Button>
+                                  </HStack>
+                                );
+                              })
+                            ) : (
+                              <Box p={4} textAlign="center" border="1px dashed" borderColor="slate.200" borderRadius="lg">
+                                <Text fontSize="xs" color="slate.400 italic">No services listed</Text>
+                              </Box>
+                            )}
+                          </VStack>
+                        </Box>
+
                         <FormControl>
                           <FormLabel fontSize="xs" fontWeight="bold">Select Item</FormLabel>
                           <Select

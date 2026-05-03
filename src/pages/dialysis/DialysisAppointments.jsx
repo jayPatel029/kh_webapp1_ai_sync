@@ -60,13 +60,14 @@ import {
   getOrganizationById,
   getOrganizations,
   getAvailableSlots,
+  consumeAppointmentServices
 } from '../../ApiCalls/clinicApis';
 import { getPatients, getPatientAilments, getPatientById, getGeneralParameterResponse } from '../../ApiCalls/patientAPis';
 import { getDoctors } from '../../ApiCalls/doctorApis';
 import { jsPDF } from 'jspdf';
 import ClinicSelector from '../../components/ClinicSelector';
 import OrganizationSelector from '../../components/OrganizationSelector';
-import QuestionsContainer from '../../components/questions/QuestionsContainer';
+// import QuestionsContainer from '../../components/questions/QuestionsContainer';
 
 
 // ─── Status colors ──────────────────────────────────────────
@@ -111,6 +112,16 @@ function toUtcIso(dateStr, timeStr) {
 const normalizeAppointment = (apt, patients) => {
   const patientData = patients.find(p => String(p.patient_id || p.id) === String(apt.patient_id));
 
+  let parsedAilments = apt.patient_ailments || '';
+  let metadata = {};
+  if (typeof parsedAilments === 'string' && parsedAilments.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(parsedAilments);
+      metadata = parsed;
+      parsedAilments = parsed.ailments || parsed.patientAilments || parsed.patient_ailments || '';
+    } catch (e) { }
+  }
+
   return {
     id: apt.id,
     created_date: (apt.appointment_date || apt.startUTC)
@@ -120,14 +131,7 @@ const normalizeAppointment = (apt, patients) => {
     name: (() => {
       const directName = apt.patient_name || apt.patientName || patientData?.name;
       if (directName && directName !== '—') return directName;
-
-      try {
-        if (apt.patient_ailments && apt.patient_ailments.startsWith('{')) {
-          const parsed = JSON.parse(apt.patient_ailments);
-          if (parsed.patientName) return parsed.patientName;
-        }
-      } catch (e) { }
-
+      if (metadata.patientName) return metadata.patientName;
       return apt.patient_id ? `Patient #${apt.patient_id}` : '—';
     })(),
     doctor_name:
@@ -150,8 +154,8 @@ const normalizeAppointment = (apt, patients) => {
       ? formatTime12Hour(apt.start_time)
       : (apt.startUTC ? formatTime12Hour(String(apt.startUTC).split('T')[1]?.slice(0, 8)) : '—'),
     status: normalizeStatus(apt.status || apt.appointmentStatus),
-    reason: apt.reason || apt.metadata?.notes || '',
-    patient_ailments: apt.patient_ailments || '',
+    reason: apt.reason || metadata.notes || metadata.notes_brief || '',
+    patient_ailments: parsedAilments,
     patient_id: apt.patient_id,
     clinic_id: apt.clinic_id,
     clinic_name: apt.clinic_name || apt.clinic?.name || '',
@@ -165,6 +169,10 @@ const normalizeAppointment = (apt, patients) => {
       : (apt.startUTC && apt.endUTC)
         ? calculateDuration(String(apt.startUTC).split('T')[1]?.slice(0, 5), String(apt.endUTC).split('T')[1]?.slice(0, 5))
         : '—',
+    services: apt.services || [],
+    bill_id: apt.bill_id || apt.billId || apt.invoice_id || apt.invoiceId,
+    invoice_id: apt.bill_id || apt.billId || apt.invoice_id || apt.invoiceId,
+    metadata: metadata,
     _raw: apt,
   };
 };
@@ -319,6 +327,7 @@ const DialysisAppointments = () => {
   const [createStep, setCreateStep] = useState(1); // 1, 2, or 3
   const [savedAppointment, setSavedAppointment] = useState(null); // for step 3 preview
   const [doctors, setDoctors] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
 
   const defaultForm = {
     patient_id: '1',
@@ -524,26 +533,29 @@ const DialysisAppointments = () => {
         const to = `${createForm.appointment_date}T23:59:59Z`;
         const res = await getAvailableSlots(createForm.clinic_id, from, to);
 
-        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-          const firstSlot = res.data[0];
-          // Check if already selected or different
-          const currentSlots = createForm.slotTemplates;
-          if (currentSlots.length === 0 || currentSlots[0].startTime !== firstSlot.start_time) {
-            setCreateForm(prev => ({
-              ...prev,
-              slotTemplates: [{
-                id: `slot-${firstSlot.id || Date.now()}`,
-                frequency: 'weekly',
-                daysOfWeek: [getDayOfWeek(createForm.appointment_date)],
-                dayOfMonth: null,
-                startTime: firstSlot.start_time || firstSlot.startTime,
-                endTime: addMinutesToTime(firstSlot.start_time || firstSlot.startTime, Number(createForm.duration || 4) * 60),
-                maxPatientsPerSlot: firstSlot.maxPatientsPerSlot || 1,
-                bufferMinutes: 30,
-                price: firstSlot.price || 0,
-                slot_id: firstSlot.id
-              }]
-            }));
+        if (res.success && Array.isArray(res.data)) {
+          setAvailableSlots(res.data);
+          if (res.data.length > 0) {
+            const firstSlot = res.data[0];
+            // Check if already selected or different
+            const currentSlots = createForm.slotTemplates;
+            if (currentSlots.length === 0 || currentSlots[0].startTime !== firstSlot.start_time) {
+              setCreateForm(prev => ({
+                ...prev,
+                slotTemplates: [{
+                  id: `slot-${firstSlot.id || Date.now()}`,
+                  frequency: 'weekly',
+                  daysOfWeek: [getDayOfWeek(createForm.appointment_date)],
+                  dayOfMonth: null,
+                  startTime: firstSlot.start_time || firstSlot.startTime,
+                  endTime: addMinutesToTime(firstSlot.start_time || firstSlot.startTime, Number(createForm.duration || 4) * 60),
+                  maxPatientsPerSlot: firstSlot.maxPatientsPerSlot || 1,
+                  bufferMinutes: 30,
+                  price: firstSlot.price || 0,
+                  slot_id: firstSlot.id
+                }]
+              }));
+            }
           }
         }
       } catch (err) {
@@ -574,15 +586,26 @@ const DialysisAppointments = () => {
     });
   }, [createForm.duration]);
 
-  // --- Calculate total bill from added services ---
+  // --- Calculate total bill from added services and sessions ---
   useEffect(() => {
-    const total = addedServices.reduce((sum, s) => {
+    const sessionCount = Math.max(createForm.slotTemplates.length, 1);
+    const servicesTotal = addedServices.reduce((sum, s) => {
       const price = Number(s.price) || 0;
       const discount = Number(s.discount) || 0;
       return sum + (price - (price * discount / 100));
     }, 0);
-    setCreateForm(prev => ({ ...prev, total_amount: total }));
-  }, [addedServices]);
+    
+    // Total amount is services per session * number of sessions
+    const total = servicesTotal * sessionCount;
+    setCreateForm(prev => {
+      const updates = { total_amount: total };
+      // If payment option is full, automatically sync amount_paid
+      if (prev.payment_option === 'full' || !prev.amount_paid) {
+        updates.amount_paid = total;
+      }
+      return { ...prev, ...updates };
+    });
+  }, [addedServices, createForm.slotTemplates.length, createForm.payment_option]);
 
   // ─── Standalone invoice preview state ─────────────────
   const [invoiceTarget, setInvoiceTarget] = useState(null);
@@ -708,10 +731,10 @@ const DialysisAppointments = () => {
           });
         }
 
-        showToast(`Payment of ₹${amount} recorded successfully`, 'success');
+        showToast(`Payment of ₹${amount} successful`, 'success');
         fetchAppointments();
       } else {
-        showToast(result.data?.message || 'Failed to record payment', 'error');
+        showToast(result.data?.message || 'Failed to process dialysis billing', 'error');
       }
     },
     onRefundProcessed: async (apptId, refundAmount, refundPDFUrl) => {
@@ -819,15 +842,38 @@ const DialysisAppointments = () => {
   }, [clinics, today, defaultForm, selectedClinicId]);
 
   // ─── Edit Open ────────────────────────────────────────
-  const handleEditOpen = useCallback((apt) => {
-    const raw = apt._raw || apt;
+  const handleEditOpen = useCallback(async (apt) => {
+    const aptId = apt.id;
+    if (!aptId) return;
+
+    setLoading(true);
+    const res = await getAppointmentById(aptId);
+    setLoading(false);
+
+    if (!res.success) {
+      showToast('Failed to fetch appointment details', 'error');
+      return;
+    }
+
+    const fullAppt = res.data?.appointment || res.data?.data || res.data;
+    const raw = fullAppt;
+
+    // Parse metadata from patient_ailments if it's JSON
+    let metadata = {};
+    let displayAilments = raw.patient_ailments || '';
+    if (typeof displayAilments === 'string' && displayAilments.startsWith('{')) {
+      try {
+        metadata = JSON.parse(displayAilments);
+        displayAilments = metadata.ailments || metadata.patientAilments || '';
+      } catch (e) { }
+    }
+
     const slotTemplates = raw.slotTemplates || buildSlotTemplates(raw);
-    const patientAilments = raw.patient_ailments || raw.metadata?.patientAilments || raw.metadata?.patientAilments || '';
-    const reason = raw.reason || raw.metadata?.notes || raw.metadata?.notes_brief || '';
-    const totalAmount = raw.totalAmount || raw.amountDue || raw.total_amt || raw.amount || 0;
-    const amountPaid = raw.amountPaid || raw.paidAmount || raw.received_amt || 0;
-    const paymentMethod = raw.paymentMethod || raw.payment_method || raw.metadata?.paymentMethod || 'cash';
-    const doctorId = raw.doctor_id || raw.doctorId || raw.primary_doctor_id || raw.doctor?.id || '';
+    const reason = raw.reason || metadata.notes || metadata.notes_brief || '';
+    const totalAmount = raw.total_amount || raw.amountDue || raw.total_amt || 0;
+    const amountPaid = raw.amount_paid || raw.paidAmount || raw.received_amt || 0;
+    const paymentMethod = raw.paymentMethod || raw.payment_method || metadata.paymentMethod || 'cash';
+    const doctorId = raw.doctor_id || raw.doctorId || raw.primary_doctor_id || '';
 
     setCreateFieldErrors({});
     setCreateErrorMessage('');
@@ -835,32 +881,42 @@ const DialysisAppointments = () => {
 
     setCreateForm({
       ...defaultForm,
-      id: raw.id || apt.id,
-      patient_id: raw.patient_id || raw.patientId || '',
-      clinic_id: String(raw.clinic_id || raw.clinicId || ''),
-      clinic_name: raw.clinic_name || raw.clinic?.name || '',
+      id: raw.id,
+      patient_id: String(raw.patient_id || ''),
+      org_id: String(raw.organization_id || raw.org_id || ''),
+      clinic_id: String(raw.clinic_id || ''),
+      clinic_name: raw.clinic_name || clinics.find(c => String(c.id) === String(raw.clinic_id))?.clinic_name || '',
       appointment_date: raw.appointment_date || (raw.startUTC ? String(raw.startUTC).split('T')[0] : today),
       start_time: raw.start_time || (raw.startUTC ? String(raw.startUTC).split('T')[1]?.slice(0, 5) : ''),
       end_time: raw.end_time || '',
-      appointment_type: raw.appointment_type || raw.treatment_type || raw.bookingType || defaultForm.appointment_type,
+      appointment_type: raw.appointment_type || raw.treatment_type || 'in_clinic',
       doctor_id: doctorId,
-      is_emergency: Boolean(raw.is_emergency || raw.emergency),
+      is_emergency: Boolean(raw.is_emergency),
       reason,
-      patient_ailments: patientAilments,
+      patient_ailments: displayAilments,
       slotTemplates,
       total_amount: totalAmount,
       amount_paid: amountPaid,
       payment_option: amountPaid >= totalAmount ? 'full' : 'partial',
       payment_method: String(paymentMethod).toLowerCase(),
       receipt_file: null,
-      duration: raw.metadata?.dialysisDuration || '4',
+      duration: metadata.dialysisDuration || '4',
     });
 
-    setAddedServices(raw.metadata?.services || raw.services || []);
+    const fetchedServices = (raw.services || []).map((s, idx) => ({
+      name: s.service_name || s.name,
+      price: s.amount || s.price,
+      discount: s.discount || 0,
+      service_id: s.service_id || s.id,
+      id: s.id,
+      ui_key: `old-${idx}`
+    }));
+    
+    setAddedServices(fetchedServices);
     setCreateStep(1);
     setIsEditOpen(true);
     setIsCreateOpen(true);
-  }, [today, defaultForm]);
+  }, [today, defaultForm, showToast]);
 
   // ─── Step 1 → Step 2 ─────────────────────────────────
   const handleNextStep1 = () => {
@@ -887,27 +943,49 @@ const DialysisAppointments = () => {
       return;
     }
 
-    setSubmitting(true);
-    setCreateErrorMessage('');
-
     try {
-      const primarySlot = createForm.slotTemplates[0] || {};
-      const startTime24 = primarySlot.startTime ? (primarySlot.startTime.length === 5 ? primarySlot.startTime + ':00' : primarySlot.startTime) : '00:00:00';
-      const startUTC = toUtcIso(createForm.appointment_date, startTime24);
-
-      const finalPaid = createForm.payment_option === 'full'
-        ? Number(createForm.total_amount)
-        : Number(createForm.amount_paid) || 0;
+      setSubmitting(true);
+      setCreateErrorMessage('');
 
       const servicesSummary = addedServices.map(s => `${s.name} (₹${s.price - (s.price * s.discount / 100)})`).join(', ');
+      const finalPaid = createForm.payment_status === 'paid' 
+        ? Number(createForm.total_amount) 
+        : Number(createForm.amount_paid) || 0;
+
+      const sessions = createForm.slotTemplates.map(slot => {
+        let slotId = slot.slot_id;
+        if (!slotId && availableSlots.length > 0) {
+          const match = availableSlots.find(s => s.startTime === (slot.startTime));
+          if (match) slotId = match.id;
+        }
+
+        const sDate = slot.date || createForm.appointment_date;
+        const sStart = slot.startTime || '09:00';
+        const sEnd = slot.endTime || '13:00';
+
+        return {
+          startUTC: `${sDate}T${sStart}:00.000Z`,
+          endUTC: `${sDate}T${sEnd}:00.000Z`,
+          slotId: slotId && !String(slotId).startsWith('slot-') ? slotId : undefined,
+        };
+      });
 
       const payload = {
         clinicId: Number(createForm.clinic_id),
         patientId: Number(createForm.patient_id),
-        startUTC,
-        slotId: primarySlot.slot_id || primarySlot.id?.split('-')[1],
+        sessions,
+        services: addedServices.map(s => ({
+          ...s,
+          amount: s.price - (s.price * s.discount / 100)
+        })),
         bookingType: 'offline',
-        amountDue: Number(createForm.total_amount) || 0,
+        amountDue: Number(createForm.total_amount),
+        recurrence: createForm.slotTemplates[0] ? {
+          frequency: createForm.slotTemplates[0].frequency,
+          daysOfWeek: createForm.slotTemplates[0].daysOfWeek,
+          dayOfMonth: createForm.slotTemplates[0].dayOfMonth,
+          endDate: null
+        } : undefined,
         metadata: {
           notes: servicesSummary,
           notes_brief: createForm.reason,
@@ -928,6 +1006,9 @@ const DialysisAppointments = () => {
       if (isEditOpen) {
         result = await updateAppointment(createForm.id, {
           ...payload,
+          startUTC: sessions[0].startUTC,
+          endUTC: sessions[0].endUTC,
+          slotId: sessions[0].slotId,
           patient_ailments: createForm.patient_ailments,
         });
       } else {
@@ -935,21 +1016,43 @@ const DialysisAppointments = () => {
       }
 
       if (result.success) {
-        showToast(isEditOpen ? 'Appointment updated!' : 'Appointment booked!', 'success');
+        showToast(isEditOpen ? 'Appointment updated!' : 'Appointments booked!', 'success');
         fetchAppointments();
 
         if (isEditOpen) {
           setIsCreateOpen(false);
           resetCreateModal();
         } else {
-          const saved = result.data?.data || result.data || {};
-          setSavedAppointment(normalizeAppointment(saved));
+          const firstAppt = result.data?.data || result.data || {};
+          const saved = {
+            ...firstAppt,
+            patient_id: createForm.patient_id,
+            clinic_id: createForm.clinic_id,
+            appointment_date: createForm.appointment_date,
+            start_time: createForm.slotTemplates[0]?.startTime || '00:00',
+            duration: createForm.duration,
+            metadata: payload.metadata,
+          };
+          setSavedAppointment(normalizeAppointment(saved, patients));
           setCreateStep(3);
         }
       } else {
-        setCreateErrorMessage(result.data?.message || 'Transaction failed');
+        const errorResult = result;
+        const code = errorResult?.data?.code;
+        if (code === 'APPT_CONFLICT') {
+          const conflictList = errorResult?.data?.details?.conflicts || [];
+          const conflictMsg = conflictList.length > 0 
+            ? `Time conflict: Patient already has an appointment on this date at ${new Date(conflictList[0].startUTC).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
+            : (errorResult?.data?.message || 'Slot capacity reached. Please select a different timing.');
+          setCreateErrorMessage(conflictMsg);
+        } else if (code === 'ERR_IDEMPOTENCY_KEY_REUSED') {
+          setCreateErrorMessage('This appointment request was already submitted. Please refresh and try again.');
+        } else {
+          setCreateErrorMessage(errorResult?.data?.message || 'Transaction failed');
+        }
       }
     } catch (err) {
+      console.error("Error in handleCreate:", err);
       setCreateErrorMessage('Network error, please try again');
     } finally {
       setSubmitting(false);
@@ -1003,7 +1106,7 @@ const DialysisAppointments = () => {
     },
     {
       key: 'payment_action',
-      label: 'PAYMENT ACTION',
+      label: 'PAYMENT STATUS',
       type: 'custom',
       width: '130px',
       render: (row) => {
@@ -1050,10 +1153,74 @@ const DialysisAppointments = () => {
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <ActionIconBtn
             icon={DownloadIcon}
-            onClick={() => setInvoiceTarget(row)}
+            onClick={() => {
+              const billId = row.bill_id || row._raw?.bill_id || row.invoice_id || row._raw?.invoice_id;
+              setInvoiceTarget({ ...row, bill_id: billId });
+            }}
           />
         </div>
       )
+    },
+    {
+      key: 'services',
+      label: 'SERVICES',
+      type: 'custom',
+      width: '180px',
+      render: (row) => {
+        const services = row.services || row._raw?.services || [];
+        if (!services.length) return <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No services</span>;
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {services.map((s, idx) => (
+              <div key={s.id || idx} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '10px',
+                background: s.status === 'USED' ? '#F0FDF4' : '#F9FAFB',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                border: `1px solid ${s.status === 'USED' ? '#DCFCE7' : '#F3F4F6'}`
+              }}>
+                <span style={{
+                  color: s.status === 'USED' ? '#166534' : '#374151',
+                  textDecoration: s.status === 'USED' ? 'line-through' : 'none',
+                  maxWidth: '100px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {s.service_name || s.name || 'Service'}
+                </span>
+                {s.status !== 'USED' ? (
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        const res = await consumeAppointmentServices(row.id, { serviceId: s.id });
+                        if (res.success) {
+                          showToast('Service marked as used', 'success');
+                          fetchAppointments();
+                        } else {
+                          showToast(res.data?.message || 'Failed to consume service', 'error');
+                        }
+                      } catch (err) {
+                        showToast('Error consuming service', 'error');
+                      }
+                    }}
+                    style={{ background: '#2563EB', color: '#fff', border: 'none', borderRadius: '3px', padding: '1px 6px', fontSize: '9px', cursor: 'pointer' }}
+                  >
+                    Use
+                  </button>
+                ) : (
+                  <span style={{ color: '#16A34A', fontWeight: 700 }}>✓</span>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      }
     },
     {
       key: 'status',
@@ -1468,10 +1635,13 @@ const DialysisAppointments = () => {
 
 
                     <div className="grid grid-cols-1 md:grid-cols-1 gap-5">
-                      <FormControl isRequired isInvalid={getFieldProps('start_time').isInvalid}>
+                       <FormControl isRequired isInvalid={getFieldProps('start_time').isInvalid}>
                         <FormLabel>Timing & Schedule</FormLabel>
+                        
                         <div className="p-0 border-none">
                           <ScheduleManager
+                            clinicId={createForm.clinic_id}
+                            date={createForm.appointment_date}
                             slotTemplates={createForm.slotTemplates}
                             capacity={selectedClinicData?.capacity || 1}
                             existingAppointments={clinicAppointments}
@@ -1508,7 +1678,8 @@ const DialysisAppointments = () => {
                               setCurrentService({
                                 name: e.target.value,
                                 price: s ? s.amount : 0,
-                                discount: 0
+                                discount: 0,
+                                service_id: s ? (s.id || s.service_id) : null
                               });
                             }}
                             style={{
@@ -1554,8 +1725,8 @@ const DialysisAppointments = () => {
                               showToast('This service has already been added', 'warning');
                               return;
                             }
-                            setAddedServices(prev => [...prev, { ...currentService, id: Date.now() }]);
-                            setCurrentService({ name: '', price: 0, discount: 0 });
+                            setAddedServices(prev => [...prev, { ...currentService, ui_key: Date.now() }]);
+                            setCurrentService({ name: '', price: 0, discount: 0, service_id: null });
                           }}
                           style={{
                             background: '#2563EB', color: '#fff', borderRadius: '24px',
@@ -1572,7 +1743,7 @@ const DialysisAppointments = () => {
                       {addedServices.length > 0 && (
                         <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: '12px' }}>
                           {addedServices.map((s, idx) => (
-                            <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: '13px' }}>
+                            <div key={s.ui_key || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', fontSize: '13px' }}>
                               <span>{s.name}</span>
                               <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                 <span style={{ color: '#6B7280' }}>₹{s.price} - {s.discount}% = <strong>₹{s.price - (s.price * s.discount / 100)}</strong></span>
@@ -1604,7 +1775,7 @@ const DialysisAppointments = () => {
                         </div>
                       </FormControl>
 
-                      <FormControl>
+                      {/* <FormControl>
                         <FormLabel>Patient Ailments</FormLabel>
                         <Textarea
                           placeholder="Ailments from patient record"
@@ -1613,11 +1784,11 @@ const DialysisAppointments = () => {
                           rows={2}
                           style={{ fontSize: '13px' }}
                         />
-                      </FormControl>
+                      </FormControl> */}
                     </div>
 
                     {/* Patient Questions & Answers (General Parameters) */}
-                    {createForm.patient_id && (
+                    {/* {createForm.patient_id && (
                       <div style={{ marginTop: '16px', borderTop: '1px solid #E5E7EB', paddingTop: '20px' }}>
                         <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ width: '8px', height: '8px', background: '#00A89B', borderRadius: '50%' }}></span>
@@ -1627,7 +1798,7 @@ const DialysisAppointments = () => {
                           <QuestionsContainer aliment="Hemo Dialysis" user_id={createForm.patient_id} />
                         </div>
                       </div>
-                    )}
+                    )} */}
 
                   </Box>
                 )}
@@ -1659,7 +1830,7 @@ const DialysisAppointments = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               {createForm.slotTemplates.map((s, i) => (
                                 <span key={i} style={{ fontSize: '12px' }}>
-                                  {s.daysOfWeek[0]} {s.startTime}-{s.endTime} ({s.frequency.replace('-', ' ')})
+                                  {s.date ? formatDateDisplay(s.date) : s.daysOfWeek[0]} {s.startTime}-{s.endTime} ({s.frequency.replace('-', ' ')})
                                 </span>
                               ))}
                             </div>
@@ -1723,11 +1894,14 @@ const DialysisAppointments = () => {
                               name="payment_option"
                               value={opt.value}
                               checked={createForm.payment_option === opt.value}
-                              onChange={() => setCreateForm((p) => ({
-                                ...p,
-                                payment_option: opt.value,
-                                amount_paid: opt.value === 'full' ? p.total_amount : '',
-                              }))}
+                              onChange={() => setCreateForm((p) => {
+                                const total = Number(p.total_amount || 0);
+                                return {
+                                  ...p,
+                                  payment_option: opt.value,
+                                  amount_paid: opt.value === 'full' ? total : Math.floor(total / 2),
+                                };
+                              })}
                               style={{ display: 'none' }}
                             />
                             <span style={{ fontWeight: 700, fontSize: '14px', color: createForm.payment_option === opt.value ? '#1E40AF' : '#374151' }}>
@@ -1741,20 +1915,41 @@ const DialysisAppointments = () => {
 
                     {/* Partial Amount */}
                     {createForm.payment_option === 'partial' && (
-                      <FormControl>
-                        <FormLabel>Amount to Pay Now (₹)</FormLabel>
-                        <Input
-                          type="number"
-                          placeholder={`Enter amount (Max: ₹${createForm.total_amount || 0})`}
-                          value={createForm.amount_paid}
-                          onChange={(e) => {
-                            let val = Number(e.target.value);
-                            const max = Number(createForm.total_amount || 0);
-                            if (val > max) val = max;
-                            setCreateForm((p) => ({ ...p, amount_paid: val }));
-                          }}
-                        />
-                      </FormControl>
+                      <div
+                        style={{
+                          background: '#FEF2F2',
+                          border: '1px solid #FECACA',
+                          borderRadius: '16px',
+                          padding: '20px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px'
+                        }}
+                      >
+                        <FormControl>
+                          <FormLabel style={{ fontSize: '13px', fontWeight: 600, color: '#991B1B' }}>Amount to Pay Now (₹)</FormLabel>
+                          <Input
+                            type="number"
+                            variant="filled"
+                            placeholder={`Enter amount (Max: ₹${createForm.total_amount || 0})`}
+                            value={createForm.amount_paid}
+                            onChange={(e) => {
+                              let val = Number(e.target.value);
+                              const max = Number(createForm.total_amount || 0);
+                              if (val > max) val = max;
+                              setCreateForm((p) => ({ ...p, amount_paid: val }));
+                            }}
+                            style={{ background: '#FFF', borderRadius: '10px' }}
+                          />
+                        </FormControl>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px dashed #FECACA' }}>
+                          <span style={{ fontSize: '13px', color: '#991B1B' }}>Remaining Balance</span>
+                          <span style={{ fontSize: '18px', fontWeight: 800, color: '#DC2626' }}>
+                            ₹{Math.max(0, Number(createForm.total_amount || 0) - Number(createForm.amount_paid || 0)).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
                     )}
 
                     {/* Payment Method */}
@@ -1824,6 +2019,7 @@ const DialysisAppointments = () => {
             isOpen={isCreateOpen}
             onClose={() => { setIsCreateOpen(false); resetCreateModal(); }}
             appointmentId={savedAppointment?.id}
+            billId={savedAppointment?.bill_id || savedAppointment?.invoice_id}
             appointment={savedAppointment}
             clinic={clinics?.find(c => String(c.id) === String(savedAppointment?.clinic_id))}
           />
@@ -1836,7 +2032,7 @@ const DialysisAppointments = () => {
           appointmentId={paymentModal.appointment?.id}
           billId={paymentModal.appointment?.invoiceId}
           onSuccess={async (appointmentId, amount, method, receiptUrl) => {
-            showToast(`Payment of ₹${amount} recorded`, 'success');
+            showToast(`Payment of ₹${amount} successful`, 'success');
             fetchAppointments();
           }}
         />
@@ -1857,6 +2053,7 @@ const DialysisAppointments = () => {
           isOpen={!!invoiceTarget}
           onClose={() => setInvoiceTarget(null)}
           appointmentId={invoiceTarget?.id}
+          billId={invoiceTarget?.bill_id || invoiceTarget?.invoice_id}
           appointment={invoiceTarget}
           clinic={clinics?.find(c => String(c.id) === String(invoiceTarget?.clinic_id))}
         />

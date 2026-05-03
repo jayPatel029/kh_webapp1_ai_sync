@@ -13,11 +13,11 @@ import React, { useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { BaseModal } from '../component-library/modals/BaseModal';
-import { getClinicById, getOrganizationById, getAppointmentById } from '../ApiCalls/clinicApis';
+import { getClinicById, getOrganizationById, getAppointmentById, getBillDetails, getBillingBillById } from '../ApiCalls/clinicApis';
 import { getPatientById } from '../ApiCalls/patientAPis';
 import { getPaymentStatus, getOutstandingBalance } from '../utils/refundCalculator';
 
-const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appointmentId: appointmentIdProp, clinic: initialClinic }) => {
+const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appointmentId: appointmentIdProp, billId: billIdProp, clinic: initialClinic }) => {
   const [downloading, setDownloading] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [fetchedClinic, setFetchedClinic] = useState(null);
@@ -27,36 +27,69 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
   const [fetchedInvoice, setFetchedInvoice] = useState(null);
   const [fetchedPayments, setFetchedPayments] = useState([]);
   const [fetchedRefunds, setFetchedRefunds] = useState([]);
+  const [fetchedBill, setFetchedBill] = useState(null);
+  const [fetchedBillAppointments, setFetchedBillAppointments] = useState([]);
   const [loadingAppt, setLoadingAppt] = useState(false);
 
   // Determine the effective appointmentId — prefer explicit prop, fallback to appointment.id
   const effectiveApptId = appointmentIdProp || appointmentProp?.id;
+  const effectiveBillId = billIdProp || appointmentProp?.bill_id || appointmentProp?.invoice_id || appointmentProp?.billId || appointmentProp?.invoiceId;
 
-  // ── Fetch appointment detail (invoice + payments) when we have an ID ──
+  // ── Fetch data (consolidated bill OR single appointment) ──
   useEffect(() => {
-    if (!isOpen || !effectiveApptId) return;
+    if (!isOpen) return;
 
-    const fetchApptDetail = async () => {
+    const fetchData = async () => {
       setLoadingAppt(true);
       try {
-        const res = await getAppointmentById(effectiveApptId);
-        console.log('[InvoicePreview] getAppointmentById response:', res);
-        if (res.success && res.data) {
-          const body = res.data.data || res.data;
-          const appt = body.appointment || body;
-          setFetchedAppointment(appt);
-          setFetchedInvoice(body.invoice || null);
-          setFetchedPayments(Array.isArray(body.payments) ? body.payments : []);
-          setFetchedRefunds(Array.isArray(body.refunds) ? body.refunds : []);
+        if (effectiveBillId) {
+          // Fetch Consolidated Bill from the specialized dialysis billing API
+          const res = await getBillDetails(effectiveBillId);
+          if (res.success && res.data) {
+            const body = res.data.data || res.data;
+            setFetchedBill(body.bill || body);
+            setFetchedBillAppointments(body.appointments || []);
+
+            // Parse receipts/ledger entries
+            const ledger = body.ledger || body.receipts || [];
+            const parsedReceipts = ledger.map(r => {
+              try {
+                const p = typeof r.payment_receipt === 'string'
+                  ? JSON.parse(r.payment_receipt)
+                  : r.payment_receipt || r;
+                return { ...p, createdAt: p.createdAt || r.created_at || r.createdAt };
+              } catch (e) {
+                return r;
+              }
+            });
+
+            setFetchedPayments(parsedReceipts.filter(r => r.type === 'PAYMENT' || r.amount > 0));
+            setFetchedRefunds(parsedReceipts.filter(r => r.type === 'REFUND' || r.amount < 0));
+            
+            if (body.appointments?.length > 0) {
+              setFetchedAppointment(body.appointments[0]);
+            }
+          }
+        } else if (effectiveApptId) {
+          // Fetch Single Appointment
+          const res = await getAppointmentById(effectiveApptId);
+          if (res.success && res.data) {
+            const body = res.data.data || res.data;
+            const appt = body.appointment || body;
+            setFetchedAppointment(appt);
+            setFetchedInvoice(body.invoice || null);
+            setFetchedPayments(Array.isArray(body.payments) ? body.payments : []);
+            setFetchedRefunds(Array.isArray(body.refunds) ? body.refunds : []);
+          }
         }
       } catch (err) {
-        console.error('[InvoicePreview] Failed to fetch appointment detail:', err);
+        console.error('[InvoicePreview] Failed to fetch bill/appointment detail:', err);
       } finally {
         setLoadingAppt(false);
       }
     };
-    fetchApptDetail();
-  }, [isOpen, effectiveApptId]);
+    fetchData();
+  }, [isOpen, effectiveApptId, effectiveBillId]);
 
   // The "working" appointment — fetched detail takes priority, then the prop
   const appointment = fetchedAppointment || appointmentProp;
@@ -107,14 +140,13 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
   if (!appointment && !loadingAppt) return null;
 
   // ── Derive billing amounts from fetched invoice or appointment fields ──
-  const invoice = fetchedInvoice;
+  const invoice = fetchedInvoice || fetchedBill;
   const totalDue = Number(invoice?.total_amt || appointment?.total_amount || appointment?.totalAmount || appointment?.total_amt || 0);
-  const amountPaidFromLedger = Number(appointment?.amount_paid || 0);
-  const amountPaidFallback = Number(appointment?.amountPaid || appointment?.received_amt || 0);
-  const amountPaid = amountPaidFromLedger || amountPaidFallback;
-  const outstanding = getOutstandingBalance(totalDue, amountPaid);
+  
+  const amountPaid = fetchedBill ? Number(fetchedBill.paid_amt || 0) : (Number(appointment?.amount_paid || 0) || Number(appointment?.amountPaid || appointment?.received_amt || 0));
+  const outstanding = Math.max(0, totalDue - amountPaid);
 
-  let payStatus = getPaymentStatus(totalDue, amountPaid);
+  let payStatus = fetchedBill ? fetchedBill.payment_status : getPaymentStatus(totalDue, amountPaid);
   if (String(appointment?.status).toUpperCase() === 'CANCELLED' || String(appointment?.status).toUpperCase() === 'MISSED') payStatus = 'CANCELLED';
 
   const invoiceId = invoice?.id ? `INV-${invoice.id}` : `INV-${appointment?.id || Date.now()}`;
@@ -209,21 +241,43 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
 
   // ── Build services list from invoice or appointment metadata ──
   const buildServicesList = () => {
-    // 1. From invoice record (fetched from API)
+    if (fetchedBill && fetchedBillAppointments.length > 0) {
+      // Find the first appointment that actually has services
+      const apptWithServices = fetchedBillAppointments.find(a => a.services && a.services.length > 0);
+      const apptServices = apptWithServices ? apptWithServices.services : (fetchedBillAppointments[0].services || []);
+
+      if (apptServices.length > 0) {
+        return apptServices.map(s => ({
+          name: (s.service_name || s.name || 'Service').trim(),
+          price: Number(s.amount || s.price || 0),
+          discount: Number(s.discount || 0)
+        }));
+      }
+    }
+
     if (invoice) {
       const svcName = invoice.service || invoice.bill_description || 'Dialysis Session';
       const unitPrice = Number(invoice.unit_price || invoice.total_amt || 0);
       const discount = Number(invoice.discount || 0);
-      return [{ name: svcName, price: unitPrice, discount }];
+      const count = fetchedBillAppointments.length || 1;
+      // If it's a single price for the whole bill, but multiple appts, we might need to divide
+      return [{ name: svcName, price: unitPrice / count, discount }];
     }
-    // 2. From appointment metadata services array
-    const services = appointment?.metadata?.services || appointment?.services || [];
-    if (services.length > 0) return services;
-    // 3. Fallback single-line
     return [];
   };
 
   const servicesList = buildServicesList();
+  const grossAmount = servicesList.reduce((acc, s) => acc + (s.price - (s.price * s.discount / 100)), 0);
+
+  function calculateDurationHours(start, end) {
+    if (!start || !end) return '3'; // Default to 3 as shown in image
+    try {
+      const s = start.split(':');
+      const e = end.split(':');
+      const diff = (parseInt(e[0]) * 60 + parseInt(e[1])) - (parseInt(s[0]) * 60 + parseInt(s[1]));
+      return Math.round(diff / 60) || '3';
+    } catch { return '3'; }
+  }
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -272,7 +326,7 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
     // Payments from getAppointmentById come as parsed receipt objects
     const amt = Number(p.amount || 0);
     const method = p.method || 'N/A';
-    const status = p.status || 'CAPTURED';
+    const status = p.status || 'RECEIVED';
     const date = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '-';
     return { id: p.id, amount: amt, method, status, date };
   };
@@ -292,19 +346,16 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
       ) : (
       <>
       <div id="invoice-render-node" style={{
-        backgroundColor: '#fff', padding: '24px', fontSize: '13px',
-        lineHeight: '1.4', color: '#111', fontFamily: 'sans-serif'
+              backgroundColor: '#fff', padding: '40px', fontSize: '13px',
+              lineHeight: '1.5', color: '#111', fontFamily: '"Inter", sans-serif'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '16px', marginBottom: '16px' }}>
+              {/* --- HEADER: ORG & CLINIC --- */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px', borderBottom: '1px solid #eee', paddingBottom: '20px' }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{orgName}</div>
-            {orgAddress && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '12px' }}>{orgAddress}</div>}
-            {activeOrg.email && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '11px' }}>Email: {activeOrg.email}</div>}
-            {activeOrg.phone && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '11px' }}>Ph: {activeOrg.phone}</div>}
-          </div>
-
-          <div style={{ flexShrink: 0, width: '100px', display: 'flex', justifyContent: 'center' }}>
-            <img src={clinicIcon} alt="Clinic Logo" crossOrigin="anonymous" style={{ maxWidth: '100%', maxHeight: '60px', objectFit: 'contain' }} />
+                  <div style={{ fontSize: '12px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Organization</div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#1E40AF' }}>{orgName}</div>
+                  {orgAddress && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '12px', marginTop: '4px', maxWidth: '250px' }}>{orgAddress}</div>}
+                  {activeOrg.phone && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '11px', marginTop: '2px' }}>Ph: {activeOrg.phone}</div>}
           </div>
 
           <div style={{ flex: 1, textAlign: 'right' }}>
@@ -325,159 +376,161 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
           </div>
         </div>
 
-        <div style={{ fontSize: '20px', fontWeight: 'bold', textAlign: 'center', marginBottom: '20px' }}>Bill / Invoice</div>
-
-        <div style={{ border: '1px solid #E5E7EB', borderRadius: '4px', padding: '16px', marginBottom: '16px' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>Patient Info</div>
-          <div>Name: {patientName}</div>
-          <div>Age: {patientAge}</div>
-          <div>Phone: {patientPhone}</div>
+              {/* --- PATIENT DETAILS --- */}
+              <div style={{ marginBottom: '30px', background: '#F8FAFC', padding: '20px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', fontWeight: 700 }}>Patient Details</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px' }}>
+                  <div>
+                    <div style={{ color: '#6B7280', fontSize: '11px' }}>Name</div>
+                    <div style={{ fontWeight: 600 }}>{patientName}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#6B7280', fontSize: '11px' }}>Age / Gender</div>
+                    <div style={{ fontWeight: 600 }}>{patientAge} / {patientGender}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#6B7280', fontSize: '11px' }}>Phone</div>
+                    <div style={{ fontWeight: 600 }}>{patientPhone}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#6B7280', fontSize: '11px' }}>Invoice ID</div>
+                    <div style={{ fontWeight: 600 }}>{invoiceId}</div>
+                  </div>
+                </div>
         </div>
 
-        <div style={{ border: '1px solid #E5E7EB', borderRadius: '4px', padding: '16px', marginBottom: '16px' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>Appointment Info</div>
-          <div>Invoice No: {invoiceId}</div>
-          <div>Date: {appointment?.appointment_date || '-'}</div>
-          <div>Time: {appointment?.booking_time || appointment?.start_time || '-'}</div>
-          <div>Duration: {appointment?.duration || appointment?.dialysisDuration || '-'}</div>
-        </div>
-
-        {/* ── Services & Bill Summary (from invoice / API) ── */}
-        <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '16px', marginBottom: '16px' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '12px' }}>Services and Bill Summary</div>
+              {/* --- THREE MAIN SECTIONS (TABLES) --- */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '35px' }}>
           
-          {servicesList.length > 0 ? (
-            servicesList.map((s, idx) => {
-              const price = Number(s.price || 0);
-              const discount = Number(s.discount || 0);
-              const finalPrice = price - (price * discount / 100);
-              return (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span>{s.name} {discount > 0 ? `(${discount}% off)` : ''}</span>
-                  <span>₹{finalPrice.toLocaleString()}</span>
+                {/* Section 1: List of Appointments */}
+                <div>
+                  <div style={{ fontSize: '14px', color: '#1E40AF', marginBottom: '12px', fontWeight: 800 }}>List of Appointments</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px dashed #CBD5E1' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'center', borderBottom: '1px dashed #CBD5E1', background: '#F8FAFC' }}>
+                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>SR no.</th>
+                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Appt Date</th>
+                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Day</th>
+                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>start time</th>
+                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>end time</th>
+                        <th style={{ padding: '10px 5px' }}>Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fetchedBillAppointments.length > 0 ? (
+                        fetchedBillAppointments.map((appt, idx) => {
+                          const dateObj = new Date(appt.appointment_date);
+                          const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                          return (
+                      <tr key={appt.id || idx} style={{ borderBottom: '1px dashed #CBD5E1', textAlign: 'center' }}>
+                        <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{idx + 1}</td>
+                        <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{dateObj.toLocaleDateString('en-GB').replace(/\//g, '-')}</td>
+                        <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#1E40AF', fontWeight: 700 }}>{days[dateObj.getDay()]}</td>
+                        <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{to12Hour(appt.start_time)}</td>
+                        <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{to12Hour(appt.end_time)}</td>
+                        <td style={{ padding: '8px', fontWeight: 800, fontSize: '14px' }}>{calculateDurationHours(appt.start_time, appt.end_time)}</td>
+                      </tr>
+                    );
+                  })
+                      ) : (
+                        <tr><td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No appointments linked to this bill.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              );
-            })
-          ) : (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span>{appointment?.reason ? `Dialysis Session — ${appointment.reason}` : 'Dialysis Session'}</span>
-              <span>₹{(totalDue || amountPaid).toLocaleString()}</span>
-            </div>
-          )}
 
-          <div style={{ height: '1px', backgroundColor: BILL_COLORS.divider, margin: '12px 0' }} />
+                {/* Section 2: List of Services */}
+                <div>
+                  <div style={{ fontSize: '14px', color: '#1E40AF', marginBottom: '12px', fontWeight: 800 }}>List of Services</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px dashed #CBD5E1' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'center', borderBottom: '1px dashed #CBD5E1', background: '#F8FAFC' }}>
+                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>SR no.</th>
+                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Service Name</th>
+                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Unit Price</th>
+                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Discount</th>
+                        <th style={{ padding: '10px 5px' }}>price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {servicesList.length > 0 ? servicesList.map((s, idx) => {
+                        const final = s.price - (s.price * s.discount / 100);
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px dashed #CBD5E1', textAlign: 'center' }}>
+                            <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{idx + 1}</td>
+                            <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#3b82f6', fontWeight: 700 }}>{s.name}</td>
+                            <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{s.price}</td>
+                            <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#f59e0b', fontWeight: 700 }}>{s.discount} %</td>
+                            <td style={{ padding: '8px', fontWeight: 800, fontSize: '14px', color: '#1e3a8a' }}>{final.toFixed(2)}</td>
+                          </tr>
+                        );
+                      }) : (
+                        <tr style={{ borderBottom: '1px dashed #CBD5E1', textAlign: 'center' }}>
+                          <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>1</td>
+                          <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#3b82f6', fontWeight: 700 }}>Dialysis</td>
+                          <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{(totalDue / (fetchedBillAppointments.length || 1)).toFixed(2)}</td>
+                          <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#f59e0b', fontWeight: 700 }}>0 %</td>
+                          <td style={{ padding: '8px', fontWeight: 800, fontSize: '14px', color: '#1e3a8a' }}>{(totalDue / (fetchedBillAppointments.length || 1)).toFixed(2)}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginTop: '8px' }}>
-            <span>Net Amount</span>
-            <span>₹{(totalDue || amountPaid).toLocaleString()}</span>
-          </div>
-        </div>
+                {/* Section 3: Payment amount breakdown */}
+                <div style={{ marginTop: '10px' }}>
+                  <div style={{ fontSize: '13px', color: '#1E40AF', marginBottom: '15px', fontWeight: 800 }}>Payment amount breakdown by services and appts</div>
 
-        {/* ── Payment Records (from API payments array) ── */}
-        {fetchedPayments.length > 0 && (
-          <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '16px', marginBottom: '16px' }}>
-            <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '12px' }}>Payment Records</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '50px 1fr 100px 80px 90px', gap: '4px 8px', fontSize: '12px' }}>
-              <div style={{ fontWeight: 700, color: '#6B7280', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px' }}>#</div>
-              <div style={{ fontWeight: 700, color: '#6B7280', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px' }}>Date</div>
-              <div style={{ fontWeight: 700, color: '#6B7280', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px', textAlign: 'right' }}>Amount</div>
-              <div style={{ fontWeight: 700, color: '#6B7280', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px' }}>Method</div>
-              <div style={{ fontWeight: 700, color: '#6B7280', borderBottom: '1px solid #E5E7EB', paddingBottom: '4px' }}>Status</div>
-
-              {fetchedPayments.map((p, idx) => {
-                const parsed = parsePaymentForDisplay(p);
-                return (
-                  <React.Fragment key={parsed.id || idx}>
-                    <div style={{ padding: '4px 0' }}>{idx + 1}</div>
-                    <div style={{ padding: '4px 0' }}>{parsed.date}</div>
-                    <div style={{ padding: '4px 0', textAlign: 'right', fontWeight: 600, color: '#16a34a' }}>₹{parsed.amount.toLocaleString()}</div>
-                    <div style={{ padding: '4px 0', textTransform: 'capitalize' }}>{parsed.method}</div>
-                    <div style={{ padding: '4px 0' }}>
-                      <span style={{
-                        fontSize: '10px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px',
-                        background: parsed.status === 'CAPTURED' ? '#DCFCE7' : '#FEF9C3',
-                        color: parsed.status === 'CAPTURED' ? '#166534' : '#854D0E',
-                      }}>{parsed.status}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '16px', fontWeight: 800 }}>
+                    <div style={{ color: '#1e3a8a' }}>
+                      gross amount: {grossAmount.toFixed(2)}
                     </div>
-                  </React.Fragment>
-                );
-              })}
-            </div>
-            <div style={{ height: '1px', backgroundColor: BILL_COLORS.divider, margin: '12px 0' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 700 }}>
-              <span>Total Paid</span>
-              <span style={{ color: BILL_COLORS.success }}>₹{amountPaid.toLocaleString()}</span>
-            </div>
-          </div>
-        )}
+                    <div style={{ color: '#1e3a8a', marginTop: '10px' }}>
+                      Final Amount: gross amount X no. of appt = {grossAmount.toFixed(2)} x {fetchedBillAppointments.length} = <span style={{ fontSize: '22px', borderBottom: '2px solid #1E40AF' }}>{totalDue.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
 
-        {/* ── Refund Records ── */}
-        {fetchedRefunds.length > 0 && (
-          <div style={{ border: '1px solid #fecaca', borderRadius: '4px', padding: '16px', marginBottom: '16px', background: '#fef2f2' }}>
-            <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px', color: BILL_COLORS.dangerDark }}>Refunds</div>
-            {fetchedRefunds.map((r, idx) => (
-              <div key={r.id || idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '12px' }}>
-                <span>Refund #{idx + 1} — {r.method || 'manual'}</span>
-                <span style={{ color: BILL_COLORS.dangerDark, fontWeight: 600 }}>-₹{Number(r.requestedRefund || r.amount || 0).toLocaleString()}</span>
               </div>
-            ))}
-          </div>
-        )}
 
-        {/* ── Payment Status Summary ── */}
-        <div style={{ border: '1px solid #ddd', borderRadius: '4px', padding: '16px', marginBottom: '16px' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>Payment Status</div>
-          {(() => {
-            const netFixed = (totalDue || amountPaid).toFixed(2);
-            const rcvdFixed = amountPaid.toFixed(2);
-            const pendFixed = outstanding.toFixed(2);
-
-            if (payStatus === 'PAID') {
-              return (
-                <div>
-                  <div style={{ color: BILL_COLORS.success, fontWeight: 'bold' }}>Status: PAID</div>
-                  <div style={{ marginTop: '4px' }}>Net Amount: ₹{netFixed}</div>
-                  <div style={{ marginTop: '4px' }}>Amount Received: ₹{rcvdFixed}</div>
+              {/* --- RECEIPT HISTORY & STATUS --- */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '40px', borderTop: '1px dashed #CBD5E1', paddingTop: '20px' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, marginBottom: '10px' }}>RECENT RECEIPTS</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {fetchedPayments.map((p, idx) => (
+                      <div key={idx} style={{ fontSize: '11px', color: '#16A34A', fontWeight: 600 }}>
+                        • {new Date(p.createdAt || Date.now()).toLocaleDateString()} - {p.method || 'cash'} - ₹{p.amount} RECEIVED
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              );
-            } else if (payStatus === 'CANCELLED') {
-              return (
-                <div>
-                  <div style={{ color: BILL_COLORS.dangerDark, fontWeight: 'bold' }}>Status: CANCELLED / REFUND PENDING</div>
-                  <div style={{ marginTop: '4px' }}>Paid: ₹{rcvdFixed}</div>
-                  <div style={{ marginTop: '4px', color: BILL_COLORS.dangerDark }}>Refund Amount: ₹{rcvdFixed}</div>
+                <div style={{ width: '250px', textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', color: '#64748B' }}>Amount Paid: <strong style={{ color: '#16A34A' }}>₹{amountPaid}</strong></div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Balance Due: <strong style={{ color: '#DC2626' }}>₹{outstanding}</strong></div>
+                  <div style={{ marginTop: '10px', fontSize: '14px', fontWeight: 900, color: payStatus === 'PAID' ? '#16A34A' : '#DC2626' }}>{payStatus}</div>
                 </div>
-              );
-            } else {
-              // Unified PENDING status for both PARTIAL and UNPAID
-              return (
-                <div>
-                  <div style={{ color: BILL_COLORS.warning, fontWeight: 'bold' }}>Status: PENDING</div>
-                  {amountPaid > 0 && <div style={{ marginTop: '4px' }}>Paid: ₹{rcvdFixed}</div>}
-                  <div style={{ marginTop: '4px' }}>Pending: ₹{pendFixed}</div>
-                  <div style={{ marginTop: '4px' }}>Net Amount: ₹{netFixed}</div>
-                </div>
-              );
-            }
-          })()}
         </div>
 
-        <div style={{ fontSize: '11px', color: BILL_COLORS.textMuted }}>
-          By accepting this e-prescription & invoice printout and receiving care, you consent to the processing and secure storage of your health data by authorized third-party technology providers (including Kifayti Health), solely for medical and lawful purposes, in compliance with Indian data protection laws.
-        </div>
-        <div style={{ textAlign: 'center', fontSize: '12px', color: BILL_COLORS.textMuted, marginTop: '24px' }}>
-          This Bill is electronically Generated No Signature is Required
+              {/* --- FOOTER --- */}
+              <div style={{ marginTop: '50px', borderTop: '1px solid #F1F5F9', paddingTop: '20px' }}>
+                <div style={{ fontSize: '10px', color: '#94A3B8', textAlign: 'center', marginBottom: '15px' }}>
+                  This is an electronically generated invoice. No signature is required.
+                </div>
+                <div style={{ fontSize: '9px', color: '#94A3B8', lineHeight: '1.4', textAlign: 'justify' }}>
+                  Notice: By receiving care, you consent to the processing and secure storage of your health data by authorized third-party technology providers (including Kifayti Health), solely for medical and lawful purposes, in compliance with Indian data protection laws.
+                </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
-        <button onClick={handlePrint} disabled={printing} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, border: '1px solid #D1D5DB', borderRadius: '8px', background: '#F9FAFB', color: '#374151', cursor: 'pointer' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px', padding: '0 40px 40px' }}>
+              <button onClick={handlePrint} disabled={printing} style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 600, border: '1px solid #E2E8F0', borderRadius: '6px', background: '#fff', color: '#475569', cursor: 'pointer' }}>
           {printing ? 'Opening...' : 'Print'}
         </button>
-        <button onClick={handleDownload} disabled={downloading} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, border: 'none', borderRadius: '8px', background: 'linear-gradient(135deg,#1E40AF,#3B82F6)', color: '#fff', cursor: 'pointer' }}>
-          {downloading ? 'Downloading...' : 'Download PDF'}
+              <button onClick={handleDownload} disabled={downloading} style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 600, border: 'none', borderRadius: '6px', background: '#1E40AF', color: '#fff', cursor: 'pointer' }}>
+                {downloading ? 'Download PDF' : 'Download PDF'}
         </button>
-        <button onClick={onClose} style={{ padding: '9px 18px', fontSize: '13px', fontWeight: 600, border: '1px solid #E5E7EB', borderRadius: '8px', background: '#fff', color: '#111', cursor: 'pointer' }}>
+              <button onClick={onClose} style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 600, border: '1px solid #E2E8F0', borderRadius: '6px', background: '#fff', color: '#111', cursor: 'pointer' }}>
           Close
         </button>
       </div>

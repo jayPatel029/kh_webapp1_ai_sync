@@ -43,7 +43,7 @@ export function SlotRow({ slot, onChange, onRemove }) {
       </button>
 
       <div className="mb-4">
-        <label className="block text-sm font-semibold text-[#3b4b60] mb-3">Select Weekdays</label>
+        <label className="block text-sm font-semibold text-[#3b4b60] mb-3">Select days</label>
         <div className="flex flex-wrap gap-x-6 gap-y-3">
           {DAYS.map((day) => (
             <label key={day.value} className="flex items-center gap-2 cursor-pointer text-[#1f2937]">
