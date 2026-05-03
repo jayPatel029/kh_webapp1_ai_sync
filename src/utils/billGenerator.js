@@ -51,37 +51,72 @@ export async function generateBillPDF(billData, opts = {}) {
   doc.setFontSize(10);
   doc.setTextColor(55, 65, 81); // gray
   doc.text(`Invoice #: ${invoiceId}`, margin, y);
-  doc.text(`Date: ${new Date(date).toLocaleDateString()}`, margin, y + 14);
-  if (dueDate) doc.text(`Due: ${new Date(dueDate).toLocaleDateString()}`, margin, y + 28);
+  doc.text(`Bill Date: ${new Date(date).toLocaleDateString('en-GB')}`, margin, y + 14);
+  if (dueDate) doc.text(`Due: ${new Date(dueDate).toLocaleDateString('en-GB')}`, margin, y + 28);
 
   // Customer info
   const custX = 360;
+  let custY = y + 8;
   doc.setFontSize(11);
   doc.setTextColor(17, 24, 39);
   doc.text('Bill To:', custX, y - 6);
   doc.setFontSize(10);
   doc.setTextColor(55, 65, 81);
-  doc.text(customer.name || '-', custX, y + 8);
-  if (customer.id)    doc.text(`ID: ${customer.id}`, custX, y + 22);
-  if (customer.email) doc.text(customer.email, custX, y + 36);
-  if (customer.phone) doc.text(customer.phone, custX, y + 50);
+  doc.text(customer.name || '-', custX, custY);
+  const ageGen = [customer.age ? `${customer.age} Yrs` : null, customer.gender].filter(Boolean).join(' / ');
+  if (ageGen) {
+    custY += 14;
+    doc.text(ageGen, custX, custY);
+  }
+  if (customer.phone) {
+    custY += 14;
+    doc.text(customer.phone, custX, custY);
+  }
+  if (customer.id) {
+    custY += 14;
+    doc.text(`ID: ${customer.id}`, custX, custY);
+  }
+  if (customer.email) {
+    custY += 14;
+    doc.text(customer.email, custX, custY);
+  }
   y += 70;
 
   // Items table
+  const hasDuration = items.some(it => it.duration && it.duration !== '—' && it.duration !== '0' && it.duration !== 0);
+  const hasDiscount = items.some(it => it.discount && Number(it.discount) > 0);
+
+  const headRow = ['Description'];
+  if (hasDuration) {
+    headRow.push('Start Time', 'End Time', 'Duration');
+  }
+  headRow.push('Qty', 'Unit Price');
+  if (hasDiscount) {
+    headRow.push('Discount');
+  }
+  headRow.push('Total');
+
   const tableBody = items.map((it) => {
     const qty   = Number(it.qty || 1);
     const unit  = Number(it.unitPrice || 0);
-    const total = qty * unit;
-    return [
-      it.description || 'Service',
-      String(qty),
-      `${currency} ${unit.toFixed(2)}`,
-      `${currency} ${total.toFixed(2)}`,
-    ];
+    const discount = Number(it.discount || 0);
+    const total = (qty * unit) - discount;
+
+    const row = [it.description || 'Service'];
+    if (hasDuration) {
+      row.push(it.startTime || '-', it.endTime || '-', it.duration || '-');
+    }
+    row.push(String(qty), `${currency} ${unit.toFixed(2)}`);
+    if (hasDiscount) {
+      row.push(`${currency} ${discount.toFixed(2)}`);
+    }
+    row.push(`${currency} ${total.toFixed(2)}`);
+    
+    return row;
   });
 
   autoTable(doc, {
-    head: [['Description', 'Qty', 'Unit Price', 'Total']],
+    head: [headRow],
     body: tableBody,
     startY: y,
     margin: { left: margin, right: margin },
@@ -93,7 +128,7 @@ export async function generateBillPDF(billData, opts = {}) {
   y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 16 : y + 120;
 
   // Totals
-  const totalDue    = Number(amountDue || items.reduce((s, it) => s + Number(it.qty || 1) * Number(it.unitPrice || 0), 0));
+  const totalDue    = Number(amountDue || items.reduce((s, it) => s + ((Number(it.qty || 1) * Number(it.unitPrice || 0)) - Number(it.discount || 0)), 0));
   const paid        = Number(amountPaid || 0);
   const outstanding = Math.max(0, totalDue - paid);
   const status      = paid >= totalDue ? 'PAID' : 'PENDING';
@@ -187,17 +222,36 @@ export async function generateRefundPDF(refundData, opts = {}) {
   doc.setFontSize(10);
   doc.setTextColor(55, 65, 81);
   doc.text(`Refund #: ${refundId}`, margin, y);
-  doc.text(`Date: ${new Date(date).toLocaleDateString()}`, margin, y + 14);
+  doc.text(`Bill Date: ${new Date(date).toLocaleDateString('en-GB')}`, margin, y + 14);
   if (originalInvoiceId) doc.text(`Original Invoice #: ${originalInvoiceId}`, margin, y + 28);
 
   // Customer
   const custX = 360;
+  let custY = y + 8;
   doc.setFontSize(11);
   doc.setTextColor(17, 24, 39);
   doc.text('Customer:', custX, y - 6);
   doc.setFontSize(10);
   doc.setTextColor(55, 65, 81);
-  doc.text(customer.name || '-', custX, y + 8);
+  doc.text(customer.name || '-', custX, custY);
+  const ageGen = [customer.age ? `${customer.age} Yrs` : null, customer.gender].filter(Boolean).join(' / ');
+  if (ageGen) {
+    custY += 14;
+    doc.text(ageGen, custX, custY);
+  }
+  if (customer.phone) {
+    custY += 14;
+    doc.text(customer.phone, custX, custY);
+  }
+  if (customer.id) {
+    custY += 14;
+    doc.text(`ID: ${customer.id}`, custX, custY);
+  }
+  if (customer.email) {
+    custY += 14;
+    doc.text(customer.email, custX, custY);
+  }
+  y += 70;
   if (customer.id) doc.text(`ID: ${customer.id}`, custX, y + 22);
   y += 70;
 

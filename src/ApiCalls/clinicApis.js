@@ -107,7 +107,7 @@ export async function getClinicById(clinicId, config = {}) {
  */
 export async function createClinic(payload, config = {}) {
   try {
-    const response = await axiosInstance.post(`${server_url}/clinics`, payload, config);
+    const response = await axiosInstance.post(`${server_url}/dt/clinics`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

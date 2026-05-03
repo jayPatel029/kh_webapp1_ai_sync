@@ -35,6 +35,16 @@ export function ScheduleManager({
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [pendingSlots, setPendingSlots] = useState([]); // Slots selected but not yet "Added"
 
+  // Pre-select the day of the week if a specific date is provided
+  useEffect(() => {
+    if (date && !isManagementMode) {
+      const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+      if (!selectedDays.includes(dayName)) {
+        setSelectedDays(prev => Array.from(new Set([...prev, dayName])));
+      }
+    }
+  }, [date, isManagementMode]);
+
   // Helper to add minutes to time
   const addMinutes = (timeStr, minutes) => {
     if (!timeStr || !minutes) return '';

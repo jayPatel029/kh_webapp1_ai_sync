@@ -16,6 +16,7 @@ export function ClinicFormModal({ open, onClose, onSave, initial = null, organiz
     normalBeds: 0,
     isolatedBeds: 0,
     cleaningTimeMinutes: 30,
+    defaultDuration: 4,
     services: [],
     slotTemplates: [],
     status: 'active',
@@ -62,6 +63,7 @@ export function ClinicFormModal({ open, onClose, onSave, initial = null, organiz
         normalBeds: initial.normalBeds || 0,
         isolatedBeds: initial.isolatedBeds || 0,
         cleaningTimeMinutes: initial.cleaningTimeMinutes || 30,
+        defaultDuration: initial.defaultDuration || 4,
         upiId: initial.upiDetails || initial.upiId || '',
         accountHolder: initial.accountHolder || parseBankField('Holder:'),
         accountNumber: initial.accountNumber || parseBankField('Account No:'),
@@ -280,6 +282,10 @@ export function ClinicFormModal({ open, onClose, onSave, initial = null, organiz
               <FormControl>
                 <FormLabel>Cleaning Time</FormLabel>
                 <Input type="number" value={form.cleaningTimeMinutes} onChange={e => updateField('cleaningTimeMinutes', Number(e.target.value))} min={0} className="w-full" />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Duration (Hrs)</FormLabel>
+                <Input type="number" value={form.defaultDuration} onChange={e => updateField('defaultDuration', Number(e.target.value))} min={1} className="w-full" />
               </FormControl>
             </Box>
           </div>

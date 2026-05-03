@@ -270,14 +270,22 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
   const grossAmount = servicesList.reduce((acc, s) => acc + (s.price - (s.price * s.discount / 100)), 0);
 
   function calculateDurationHours(start, end) {
-    if (!start || !end) return '3'; // Default to 3 as shown in image
+    if (!start || !end) return '—';
     try {
       const s = start.split(':');
       const e = end.split(':');
       const diff = (parseInt(e[0]) * 60 + parseInt(e[1])) - (parseInt(s[0]) * 60 + parseInt(s[1]));
-      return Math.round(diff / 60) || '3';
-    } catch { return '3'; }
+      const hrs = Math.round(diff / 60);
+      return isNaN(hrs) ? '—' : String(hrs);
+    } catch { return '—'; }
   }
+
+  const showDuration = fetchedBillAppointments.some(appt => {
+    const dur = calculateDurationHours(appt.start_time, appt.end_time);
+    return dur !== '0' && dur !== '—';
+  });
+
+  const showDiscount = servicesList.some(s => s.discount > 0) || (invoice?.discount && Number(invoice.discount) > 0);
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -379,14 +387,14 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
               {/* --- PATIENT DETAILS --- */}
               <div style={{ marginBottom: '30px', background: '#F8FAFC', padding: '20px', borderRadius: '8px' }}>
                 <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', fontWeight: 700 }}>Patient Details</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px' }}>
                   <div>
                     <div style={{ color: '#6B7280', fontSize: '11px' }}>Name</div>
                     <div style={{ fontWeight: 600 }}>{patientName}</div>
                   </div>
                   <div>
                     <div style={{ color: '#6B7280', fontSize: '11px' }}>Age / Gender</div>
-                    <div style={{ fontWeight: 600 }}>{patientAge} / {patientGender}</div>
+                    <div style={{ fontWeight: 600 }}>{patientAge}{patientAge !== '-' ? ' Yrs' : ''} / {patientGender}</div>
                   </div>
                   <div>
                     <div style={{ color: '#6B7280', fontSize: '11px' }}>Phone</div>
@@ -395,6 +403,10 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                   <div>
                     <div style={{ color: '#6B7280', fontSize: '11px' }}>Invoice ID</div>
                     <div style={{ fontWeight: 600 }}>{invoiceId}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: '#6B7280', fontSize: '11px' }}>Bill Date</div>
+                    <div style={{ fontWeight: 600 }}>{new Date(invoice?.created_at || appointment?.appointment_date || Date.now()).toLocaleDateString('en-GB')}</div>
                   </div>
                 </div>
         </div>
@@ -411,9 +423,9 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                         <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>SR no.</th>
                         <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Appt Date</th>
                         <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Day</th>
-                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>start time</th>
-                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>end time</th>
-                        <th style={{ padding: '10px 5px' }}>Duration</th>
+                        <th style={{ padding: '10px 5px', borderRight: showDuration ? '1px dashed #CBD5E1' : 'none' }}>start time</th>
+                        {showDuration && <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>end time</th>}
+                        {showDuration && <th style={{ padding: '10px 5px' }}>Duration</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -426,14 +438,14 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                         <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{idx + 1}</td>
                         <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{dateObj.toLocaleDateString('en-GB').replace(/\//g, '-')}</td>
                         <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#1E40AF', fontWeight: 700 }}>{days[dateObj.getDay()]}</td>
-                        <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{to12Hour(appt.start_time)}</td>
-                        <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{to12Hour(appt.end_time)}</td>
-                        <td style={{ padding: '8px', fontWeight: 800, fontSize: '14px' }}>{calculateDurationHours(appt.start_time, appt.end_time)}</td>
+                        <td style={{ padding: '8px', borderRight: showDuration ? '1px dashed #CBD5E1' : 'none' }}>{to12Hour(appt.start_time)}</td>
+                        {showDuration && <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{to12Hour(appt.end_time)}</td>}
+                        {showDuration && <td style={{ padding: '8px', fontWeight: 800, fontSize: '14px' }}>{calculateDurationHours(appt.start_time, appt.end_time)}</td>}
                       </tr>
                     );
                   })
                       ) : (
-                        <tr><td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No appointments linked to this bill.</td></tr>
+                        <tr><td colSpan={showDuration ? 6 : 4} style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No appointments linked to this bill.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -447,8 +459,8 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                       <tr style={{ textAlign: 'center', borderBottom: '1px dashed #CBD5E1', background: '#F8FAFC' }}>
                         <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>SR no.</th>
                         <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Service Name</th>
-                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Unit Price</th>
-                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Discount</th>
+                        <th style={{ padding: '10px 5px', borderRight: showDiscount ? '1px dashed #CBD5E1' : 'none' }}>Unit Price</th>
+                        {showDiscount && <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Discount</th>}
                         <th style={{ padding: '10px 5px' }}>price</th>
                       </tr>
                     </thead>
@@ -459,8 +471,8 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                           <tr key={idx} style={{ borderBottom: '1px dashed #CBD5E1', textAlign: 'center' }}>
                             <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{idx + 1}</td>
                             <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#3b82f6', fontWeight: 700 }}>{s.name}</td>
-                            <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{s.price}</td>
-                            <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#f59e0b', fontWeight: 700 }}>{s.discount} %</td>
+                            <td style={{ padding: '8px', borderRight: showDiscount ? '1px dashed #CBD5E1' : 'none' }}>{s.price}</td>
+                            {showDiscount && <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#f59e0b', fontWeight: 700 }}>{s.discount} %</td>}
                             <td style={{ padding: '8px', fontWeight: 800, fontSize: '14px', color: '#1e3a8a' }}>{final.toFixed(2)}</td>
                           </tr>
                         );
@@ -468,8 +480,8 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                         <tr style={{ borderBottom: '1px dashed #CBD5E1', textAlign: 'center' }}>
                           <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>1</td>
                           <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#3b82f6', fontWeight: 700 }}>Dialysis</td>
-                          <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{(totalDue / (fetchedBillAppointments.length || 1)).toFixed(2)}</td>
-                          <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#f59e0b', fontWeight: 700 }}>0 %</td>
+                          <td style={{ padding: '8px', borderRight: showDiscount ? '1px dashed #CBD5E1' : 'none' }}>{(totalDue / (fetchedBillAppointments.length || 1)).toFixed(2)}</td>
+                          {showDiscount && <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#f59e0b', fontWeight: 700 }}>0 %</td>}
                           <td style={{ padding: '8px', fontWeight: 800, fontSize: '14px', color: '#1e3a8a' }}>{(totalDue / (fetchedBillAppointments.length || 1)).toFixed(2)}</td>
                         </tr>
                       )}

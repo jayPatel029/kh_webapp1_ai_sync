@@ -458,6 +458,10 @@ const DialysisAppointments = () => {
         const fullClinic = clinicRes.data?.data || clinicRes.data;
         setClinicServices(fullClinic.services || []);
         setSelectedClinicData(fullClinic);
+        setCreateForm(prev => ({
+          ...prev,
+          duration: String(fullClinic.defaultDuration || 4)
+        }));
       }
       if (aptsRes.success) {
         setClinicAppointments(aptsRes.data?.data || aptsRes.data || []);
@@ -1006,9 +1010,6 @@ const DialysisAppointments = () => {
       if (isEditOpen) {
         result = await updateAppointment(createForm.id, {
           ...payload,
-          startUTC: sessions[0].startUTC,
-          endUTC: sessions[0].endUTC,
-          slotId: sessions[0].slotId,
           patient_ailments: createForm.patient_ailments,
         });
       } else {
@@ -1619,16 +1620,18 @@ const DialysisAppointments = () => {
                           }}
                         />
                       </FormControl>
-
-                      <FormControl isRequired>
-                        <FormLabel>Treatment Duration (Hrs)</FormLabel>
-                        <Input
-                          type="number"
-                          placeholder="e.g. 4"
-                          value={createForm.duration}
-                          onChange={(e) => setCreateForm((p) => ({ ...p, duration: e.target.value }))}
-                        />
-                      </FormControl>
+                      
+                      {isEditOpen && (
+                        <FormControl isRequired>
+                          <FormLabel>Treatment Duration (Hrs)</FormLabel>
+                          <Input
+                            type="number"
+                            placeholder="e.g. 4"
+                            value={createForm.duration}
+                            onChange={(e) => setCreateForm((p) => ({ ...p, duration: e.target.value }))}
+                          />
+                        </FormControl>
+                      )}
                     </div>
 
 

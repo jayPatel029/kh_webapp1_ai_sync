@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useReducer, useMemo } from "react";
 // import Select from 'react-select';
-import { practicingAtList, doctorSpeciality, staffSpeciality } from "../consts";
+import { doctorSpeciality, staffSpeciality } from "../consts";
 import { newDoctorReducer } from "../reducers";
 import { REPORT_OPTIONS } from "./reportOptions";
 import {
@@ -74,12 +74,6 @@ function AdminManagement() {
     )
   );
 
-  const practicingAtOptions = practicingAtList.map((pat, index) => (
-    <option key={index} value={pat}>
-      {pat}
-    </option>
-  ));
-
   const [doctorsList, setDoctorsList] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -132,8 +126,6 @@ function AdminManagement() {
     specialities: [],
     email: "",
     phoneNo: "",
-    practicingAt: practicingAtList[0],
-    institute: "",
     licenseNo: "",
     doctorsCode: "",
     yearsOfExperience: 0,
@@ -171,7 +163,6 @@ function AdminManagement() {
       email,
       licenseNo,
       doctorsCode,
-      practicingAt,
       phoneNo,
       specialities,
     } = doctorData;
@@ -189,9 +180,6 @@ function AdminManagement() {
       return false;
     }
     if (!doctorsCode || typeof doctorsCode !== "string") {
-      return false;
-    }
-    if (!practicingAt || typeof practicingAt !== "string") {
       return false;
     }
     const phoneRegex = /^[0-9]{10}$/;
@@ -253,10 +241,6 @@ function AdminManagement() {
     if (doctorData.role === "Doctor") {
       if (!doctorData.licenseNo || typeof doctorData.licenseNo !== "string") errors.licenseNo = true;
       if (!doctorData.doctorsCode || typeof doctorData.doctorsCode !== "string") errors.doctorsCode = true;
-      if (!doctorData.practicingAt || typeof doctorData.practicingAt !== "string") errors.practicingAt = true;
-    } else {
-      // for other roles ensure practicingAt exists
-      if (!doctorData.practicingAt || typeof doctorData.practicingAt !== "string") errors.practicingAt = true;
     }
 
     if (doctorData.role === "Dialysis Technician") {
@@ -296,13 +280,13 @@ function AdminManagement() {
           name: newDoctor.name,
           role: newDoctor.role,
           email: newDoctor.email,
-          practicingAt: newDoctor.practicingAt,
           experience: newDoctor.yearsOfExperience,
           doctorsCode: newDoctor.doctorsCode,
           licenseNo: newDoctor.licenseNo,
           phoneno: newDoctor.phoneNo,
-          institute: newDoctor.institute,
           address: newDoctor.address,
+          org_id: newDoctor.org_id,
+          clinic_id: newDoctor.clinic_id,
           photo: photourl?.data?.objectUrl,
           description: newDoctor.description,
           email_notification: newDoctor.email_notification,
@@ -357,9 +341,7 @@ function AdminManagement() {
           experience: newDoctor.yearsOfExperience,
           ref: newDoctor.reference || null,
           phoneno: newDoctor.phoneNo,
-          institute: newDoctor.institute,
           address: newDoctor.address,
-          practicingAt: newDoctor.practicingAt,
           resume: resumeurl.data.objectUrl || null,
           photo: photourl?.data.objectUrl,
           description: newDoctor.description,
@@ -409,9 +391,7 @@ function AdminManagement() {
           email: newDoctor.email,
           experience: newDoctor.yearsOfExperience,
           phoneno: newDoctor.phoneNo,
-          institute: newDoctor.institute,
           address: newDoctor.address,
-          practicingAt: newDoctor.practicingAt,
           photo: photourl?.data?.objectUrl,
           description: newDoctor.description,
           dialysisCenterRole: newDoctor.dialysisCenterRole,
@@ -497,7 +477,6 @@ function AdminManagement() {
     newDoctorDispatch({
       type: "all",
       payload: {
-        practicingAt: practicingAtList[0],
         role: "Doctor",
         dialysisCenterRole: "",
         dialysisCenterRoleOther: "",
@@ -523,8 +502,6 @@ function AdminManagement() {
         specialities: Array.isArray(doctor.specialities) ? doctor.specialities : [],
         email: doctor.email,
         phoneNo: doctor.phoneno,
-        practicingAt: doctor["practicing at"] || doctor.practicingAt,
-        institute: doctor.institute,
         licenseNo: doctor["license no"] || doctor.licenseNo,
         doctorsCode: doctor["doctors code"] || doctor.doctorsCode,
         yearsOfExperience: doctor.experience,
@@ -675,27 +652,25 @@ function AdminManagement() {
           fieldErrors={fieldErrors}
           onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
         >
-          {/* Org and Clinic Selection - Only for Dialysis Technician */}
-          {newDoctor.role === "Dialysis Technician" && (
-            <Box className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-4">
-              <Box>
-                <OrganizationSelector
-                  orgId={newDoctor.org_id}
-                  setOrgId={(val) => newDoctorDispatch({ type: 'org_id', payload: val })}
-                  label="ORGANIZATION"
-                  isDisabled={editMode}
-                />
-              </Box>
-              <Box>
-                <ClinicSelector
-                  clinicId={newDoctor.clinic_id}
-                  setClinicId={(val) => newDoctorDispatch({ type: 'clinic_id', payload: val })}
-                  orgId={newDoctor.org_id}
-                  label="CLINIC"
-                />
-              </Box>
+          {/* Org and Clinic Selection - Applicable for all roles */}
+          <Box className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-4">
+            <Box>
+              <OrganizationSelector
+                orgId={newDoctor.org_id}
+                setOrgId={(val) => newDoctorDispatch({ type: 'org_id', payload: val })}
+                label="ORGANIZATION"
+                isDisabled={editMode}
+              />
             </Box>
-          )}
+            <Box>
+              <ClinicSelector
+                clinicId={newDoctor.clinic_id}
+                setClinicId={(val) => newDoctorDispatch({ type: 'clinic_id', payload: val })}
+                orgId={newDoctor.org_id}
+                label="CLINIC"
+              />
+            </Box>
+          </Box>
 
           {/* User Role */}
           <Box className="w-full md:w-1/2 mb-4 flex flex-row gap-8">
@@ -870,25 +845,6 @@ function AdminManagement() {
 
             <Box>
               <FormControl>
-                <FormLabel>Practicing At<span className="text-red-500">*</span></FormLabel>
-                <Select
-                  value={newDoctor.practicingAt}
-                  isInvalid={Boolean(fieldErrors.practicingAt)}
-                  onChange={(event) => {
-                    newDoctorDispatch({
-                      type: "practicingAt",
-                      payload: event.target.value,
-                    });
-                    setFieldErrors((prev) => ({ ...prev, practicingAt: false }));
-                  }}
-                >
-                  {practicingAtOptions}
-                </Select>
-              </FormControl>
-            </Box>
-
-            <Box>
-              <FormControl>
                 <FormLabel>Years Of Experience</FormLabel>
                 <Input
                   type="number"
@@ -1046,24 +1002,6 @@ function AdminManagement() {
                 </FormControl>
               </Box>
             )}
-
-            <Box>
-              <FormControl>
-                <FormLabel isTruncated >Institute/Hospital/Clinic</FormLabel>
-                <Input
-                  type="text"
-                  placeholder="Institute/Hospital/Clinic"
-                  value={newDoctor.institute}
-                  onChange={(event) => {
-                    newDoctorDispatch({
-                      type: "institute",
-                      payload: event.target.value,
-                    });
-                    setFieldErrors((prev) => ({ ...prev, institute: false }));
-                  }}
-                />
-              </FormControl>
-            </Box>
 
             <Box>
               <FormControl>
