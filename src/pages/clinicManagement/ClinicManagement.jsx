@@ -333,6 +333,7 @@ const ClinicManagement = () => {
       normalBeds: Number(clinicPayloadFromModal.normalBeds) || 0,
       isolatedBeds: Number(clinicPayloadFromModal.isolatedBeds) || 0,
       cleaningTimeMinutes: Number(clinicPayloadFromModal.cleaningTimeMinutes) || 30,
+      duration: Number(clinicPayloadFromModal.duration) || 4,
       
       upiDetails: clinicPayloadFromModal.upiId || '',
       bankDetails: buildBankDetailsString(clinicPayloadFromModal),

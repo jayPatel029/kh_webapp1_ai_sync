@@ -86,84 +86,156 @@ export function ScheduleManager({
     fetchInstances();
   }, [clinicId, date]);
 
-  // Determine which days of the week have any availability within the 14-day range
+  // Determine which days of the week have any availability
   const dayAvailability = useMemo(() => {
     const availability = {};
     DAYS.forEach(d => { availability[d.value] = false; });
 
-    if (!availableInstances.length) return availability;
-
-    availableInstances.forEach(instance => {
-      const dayName = new Date(instance.instance.startUTC).toLocaleDateString('en-US', { weekday: 'long' });
-      // If there's any capacity left in this wide range, mark the day as available
-      if (instance.instance.bookedCount < instance.instance.capacity) {
-        availability[dayName] = true;
-      }
-    });
-    return availability;
-  }, [availableInstances]);
-
-
-  // Materialize specific slots from wide instance ranges for the SELECTED day
-  const materializedSlots = useMemo(() => {
-    if (!availableInstances.length || !duration || (frequency !== 'monthly' && selectedDays.length === 0)) return [];
-
-    const slots = [];
-    const sessionDurationMin = Number(duration);
-    const allRelevantAppts = [...existingAppointments, ...activeAppointments];
-
-    availableInstances.forEach(instance => {
-      const instStart = new Date(instance.instance.startUTC);
-      const dayName = instStart.toLocaleDateString('en-US', { weekday: 'long' });
-      
-      // Filter by selected day if not monthly
-      if (frequency !== 'monthly' && !selectedDays.includes(dayName)) return;
-
-      const start = new Date(instance.instance.startUTC);
-      const end = new Date(instance.instance.endUTC);
-      const buffer = Number(instance.slotPattern?.bufferMinutes || 30);
-      const slotCap = Number(instance.instance.capacity || capacity);
-
-      let current = new Date(start);
-      while (new Date(current.getTime() + sessionDurationMin * 60000) <= end) {
-        const sessionStartStr = current.toISOString().slice(11, 16); 
-        const sessionEndTime = new Date(current.getTime() + sessionDurationMin * 60000);
-        const sessionEndStr = sessionEndTime.toISOString().slice(11, 16);
-
-        const overlaps = allRelevantAppts.filter(appt => {
-          if (!appt.startTime || !appt.endTime || ['CANCELLED', 'MISSED', 'REJECTED'].includes(appt.status?.toUpperCase())) return false;
-          
-          const aDate = new Date(appt.date).toISOString().split('T')[0];
-          const sDate = instStart.toISOString().split('T')[0];
-          if (aDate !== sDate) return false;
-
-          const aStart = appt.startTime.slice(0, 5);
-          const aEnd = appt.endTime.slice(0, 5);
-          return (aStart < sessionEndStr && aEnd > sessionStartStr);
-        });
-
-        const remaining = slotCap - overlaps.length;
-
-        if (remaining > 0) {
-          slots.push({
-            id: `materialized-${instance.id}-${sessionStartStr}`,
-            dayName,
-            date: instStart.toISOString().split('T')[0],
-            startTime: sessionStartStr,
-            endTime: sessionEndStr,
-            remainingCapacity: remaining,
-            totalCapacity: slotCap,
-            originalSlotId: instance.id,
-            templateId: instance.slotId,
-            price: instance.pricing?.sessionCost || 0
+    if (availableInstances.length > 0) {
+      availableInstances.forEach(instance => {
+        const dayName = new Date(instance.instance.startUTC).toLocaleDateString('en-US', { weekday: 'long' });
+        if (instance.instance.bookedCount < instance.instance.capacity) {
+          availability[dayName] = true;
+        }
+      });
+    } else if (slotTemplates.length > 0) {
+      slotTemplates.forEach(template => {
+        if (template.status !== 'inactive' && template.daysOfWeek) {
+          template.daysOfWeek.forEach(day => {
+            availability[day] = true;
           });
         }
-        current = new Date(current.getTime() + (sessionDurationMin + buffer) * 60000);
-      }
-    });
+      });
+    }
+    return availability;
+  }, [availableInstances, slotTemplates]);
+
+
+  // Materialize specific slots from slotTemplates or wide instance ranges
+  const materializedSlots = useMemo(() => {
+    const sessionDurationMin = Number(duration);
+    if (!sessionDurationMin) return [];
+
+    const slots = [];
+    const allRelevantAppts = [...existingAppointments, ...activeAppointments];
+
+    // Case 1: Use availableInstances from API (if not in management mode)
+    if (availableInstances.length > 0 && !isManagementMode) {
+      availableInstances.forEach(instance => {
+        const instStart = new Date(instance.instance.startUTC);
+        const dayName = instStart.toLocaleDateString('en-US', { weekday: 'long' });
+        
+        if (frequency !== 'monthly' && selectedDays.length > 0 && !selectedDays.includes(dayName)) return;
+
+        const start = new Date(instance.instance.startUTC);
+        const end = new Date(instance.instance.endUTC);
+        const buffer = Number(instance.slotPattern?.bufferMinutes || 30);
+        const slotCap = Number(instance.instance.capacity || capacity);
+
+        let current = new Date(start);
+        while (new Date(current.getTime() + sessionDurationMin * 60000) <= end) {
+          const sessionStartStr = current.toISOString().slice(11, 16); 
+          const sessionEndTime = new Date(current.getTime() + sessionDurationMin * 60000);
+          const sessionEndStr = sessionEndTime.toISOString().slice(11, 16);
+
+          const overlaps = allRelevantAppts.filter(appt => {
+            if (!appt.startTime || !appt.endTime || ['CANCELLED', 'MISSED', 'REJECTED'].includes(appt.status?.toUpperCase())) return false;
+            const aDate = new Date(appt.date).toISOString().split('T')[0];
+            const sDate = instStart.toISOString().split('T')[0];
+            if (aDate !== sDate) return false;
+            const aStart = appt.startTime.slice(0, 5);
+            const aEnd = appt.endTime.slice(0, 5);
+            return (aStart < sessionEndStr && aEnd > sessionStartStr);
+          });
+
+          const remaining = slotCap - overlaps.length;
+          if (remaining > 0) {
+            slots.push({
+              id: `materialized-${instance.id}-${sessionStartStr}`,
+              dayName,
+              date: instStart.toISOString().split('T')[0],
+              startTime: sessionStartStr,
+              endTime: sessionEndStr,
+              remainingCapacity: remaining,
+              totalCapacity: slotCap,
+              originalSlotId: instance.id,
+              templateId: instance.slotId,
+              price: instance.pricing?.sessionCost || 0
+            });
+          }
+          current = new Date(current.getTime() + (sessionDurationMin + buffer) * 60000);
+        }
+      });
+    } 
+    // Case 2: Use slotTemplates directly (useful for management/preview or when API data is not yet fetched)
+    else if (slotTemplates.length > 0) {
+      const relevantDays = (frequency !== 'monthly' && selectedDays.length > 0) 
+        ? selectedDays 
+        : (isManagementMode ? DAYS.map(d => d.value) : []);
+
+      relevantDays.forEach(dayName => {
+        const matchingTemplates = slotTemplates.filter(t => 
+          (t.daysOfWeek?.includes(dayName) || (t.frequency === 'monthly' && frequency === 'monthly')) && 
+          t.status !== 'inactive'
+        );
+
+        matchingTemplates.forEach(template => {
+          const timings = (template.timings && template.timings.length > 0) 
+            ? template.timings 
+            : [{ startTime: template.startTime, endTime: template.endTime }];
+          
+          const buffer = Number(template.bufferMinutes || bufferMinutes);
+          const slotCap = Number(template.maxPatientsPerSlot || capacity);
+
+          timings.forEach(timing => {
+            if (!timing.startTime || !timing.endTime) return;
+
+            // Use a dummy date for time calculation
+            let current = new Date(`1970-01-01T${timing.startTime}:00`);
+            const end = new Date(`1970-01-01T${timing.endTime}:00`);
+
+            while (new Date(current.getTime() + sessionDurationMin * 60000) <= end) {
+              const sStr = current.toTimeString().slice(0, 5);
+              const endTimeObj = new Date(current.getTime() + sessionDurationMin * 60000);
+              const eStr = endTimeObj.toTimeString().slice(0, 5);
+
+              // Basic overlap check if a date is provided
+              let remaining = slotCap;
+              if (date) {
+                const sDate = new Date(date).toISOString().split('T')[0];
+                const overlaps = allRelevantAppts.filter(appt => {
+                  if (!appt.startTime || !appt.endTime || ['CANCELLED', 'MISSED', 'REJECTED'].includes(appt.status?.toUpperCase())) return false;
+                  const aDate = new Date(appt.date).toISOString().split('T')[0];
+                  if (aDate !== sDate) return false;
+                  const aStart = appt.startTime.slice(0, 5);
+                  const aEnd = appt.endTime.slice(0, 5);
+                  return (aStart < eStr && aEnd > sStr);
+                });
+                remaining = slotCap - overlaps.length;
+              }
+
+              if (remaining > 0 || isManagementMode) {
+                slots.push({
+                  id: `tpl-${template.id}-${sStr}-${dayName}`,
+                  dayName,
+                  date: date || '',
+                  startTime: sStr,
+                  endTime: eStr,
+                  remainingCapacity: remaining,
+                  totalCapacity: slotCap,
+                  templateId: template.id,
+                  price: template.price || 0
+                });
+              }
+              current = new Date(current.getTime() + (sessionDurationMin + buffer) * 60000);
+            }
+          });
+        });
+      });
+    }
 
     return slots;
-  }, [availableInstances, activeAppointments, existingAppointments, duration, capacity, selectedDays, frequency]);
+  }, [availableInstances, activeAppointments, existingAppointments, duration, capacity, selectedDays, frequency, slotTemplates, isManagementMode, date, bufferMinutes]);
 
   // Group slots for the table view: rows = times, cols = days
   const slotGrid = useMemo(() => {
@@ -413,7 +485,56 @@ export function ScheduleManager({
             </div>
           </div>
 
-          {clinicId ? (
+          {/* Manual Entry Form - only in management mode or if starting from scratch */}
+          {(!clinicId || isManagementMode) && (
+            <div className="flex flex-wrap items-center gap-4 bg-gray-50/50 p-4 rounded-xl border border-dashed border-gray-200 mb-6">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Start Time</label>
+                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-2 bg-white">
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="py-2 border-none text-sm focus:outline-none focus:ring-0 bg-transparent"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">End Time</label>
+                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-2 bg-white">
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="py-2 border-none text-sm focus:outline-none focus:ring-0 bg-transparent"
+                  />
+                </div>
+              </div>
+              <div className="ml-auto flex items-center gap-4">
+                 <div className="text-right">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase">Preview</div>
+                    <div className="text-xs font-bold text-blue-600">
+                      {selectedDays.length || selectedDates.length || 0} {frequency === 'monthly' ? 'Day(s)' : 'Weekday(s)'}
+                    </div>
+                 </div>
+                 <button
+                   type="button"
+                   onClick={() => handleAdd({ startTime, endTime })}
+                   disabled={!startTime || !endTime || (frequency !== 'monthly' && selectedDays.length === 0) || (frequency === 'monthly' && selectedDates.length === 0)}
+                   className={`text-white text-sm font-bold py-2.5 px-6 rounded-lg transition-all shadow-md ${
+                     !startTime || !endTime || (frequency !== 'monthly' && selectedDays.length === 0) || (frequency === 'monthly' && selectedDates.length === 0)
+                       ? 'bg-gray-300 cursor-not-allowed shadow-none' 
+                       : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5'
+                   }`}
+                 >
+                   Add to Schedule
+                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Table Preview / Booking Grid */}
+          {(clinicId || isManagementMode) && (
             isLoadingSlots ? (
               <div className="flex items-center gap-3 py-6 text-sm text-blue-500 italic bg-blue-50 rounded-xl px-4 border border-blue-100">
                 <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -444,10 +565,10 @@ export function ScheduleManager({
                             if (!slot) return <td key={day} className="p-2 border-b border-gray-50 text-center text-gray-200">--</td>;
 
                             const isFull = slot.remainingCapacity <= 0;
-                            const isAlreadyAdded = slotTemplates.some(t => 
-                              t.startTime === slot.startTime && 
+                            const isAlreadyAdded = !!slot.templateId || slotTemplates.some(t => 
                               t.daysOfWeek?.includes(day) &&
-                              t.frequency === frequency
+                              t.frequency === frequency &&
+                              (t.startTime === slot.startTime || (t.timings && t.timings.some(tm => (tm.startTime <= slot.startTime && tm.endTime > slot.startTime) || (tm.startTime < slot.endTime && tm.endTime >= slot.endTime))))
                             );
                             const isPending = pendingSlots.some(s => s.id === slot.id);
 
@@ -522,51 +643,6 @@ export function ScheduleManager({
                 </p>
               </div>
             )
-          ) : (
-            <div className="flex flex-wrap items-center gap-4 bg-gray-50/50 p-4 rounded-xl border border-dashed border-gray-200">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">Start Time</label>
-                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-2 bg-white">
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="py-2 border-none text-sm focus:outline-none focus:ring-0 bg-transparent"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase">End Time</label>
-                <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-2 bg-white">
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="py-2 border-none text-sm focus:outline-none focus:ring-0 bg-transparent"
-                  />
-                </div>
-              </div>
-              <div className="ml-auto flex items-center gap-4">
-                 <div className="text-right">
-                    <div className="text-[10px] font-bold text-gray-400 uppercase">Preview</div>
-                    <div className="text-xs font-bold text-blue-600">
-                      {selectedDays.length || selectedDates.length || 0} {frequency === 'monthly' ? 'Day(s)' : 'Weekday(s)'}
-                    </div>
-                 </div>
-                 <button
-                   type="button"
-                   onClick={() => handleAdd({ startTime, endTime })}
-                   disabled={!startTime || !endTime || (frequency !== 'monthly' && selectedDays.length === 0) || (frequency === 'monthly' && selectedDates.length === 0)}
-                   className={`text-white text-sm font-bold py-2.5 px-6 rounded-lg transition-all shadow-md ${
-                     !startTime || !endTime || (frequency !== 'monthly' && selectedDays.length === 0) || (frequency === 'monthly' && selectedDates.length === 0)
-                       ? 'bg-gray-300 cursor-not-allowed shadow-none' 
-                       : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5'
-                   }`}
-                 >
-                   Add to Schedule
-                 </button>
-              </div>
-            </div>
           )}
         </div>
       </Box>
