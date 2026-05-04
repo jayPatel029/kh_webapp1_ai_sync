@@ -65,6 +65,9 @@ import {
   getRestockRequests,
   createRestockRequest,
 } from '../../ApiCalls/inventoryApis';
+import { getClinics, getOrganizations } from '../../ApiCalls/clinicApis';
+import ClinicSelector from '../../components/ClinicSelector';
+import OrganizationSelector from '../../components/OrganizationSelector';
 
 // ─── Tabs ──────────────────────────────────────────────────
 const TABS = [
@@ -105,6 +108,57 @@ const DialysisInventory = () => {
   const [activeTab, setActiveTab] = useState('items');
   const [procurementSubTab, setProcurementSubTab] = useState('orders'); // 'orders' | 'deliveries'
 
+  const [organizations, setOrganizations] = useState([]);
+  const [clinics, setClinics] = useState([]);
+  const [selectedOrgId, setSelectedOrgId] = useState('');
+  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [clinicsLoading, setClinicsLoading] = useState(false);
+
+  const selectionParams = useMemo(() => ({
+    params: {
+      clinic_id: selectedClinicId || undefined,
+      organization_id: selectedOrgId || undefined,
+    },
+  }), [selectedClinicId, selectedOrgId]);
+
+  useEffect(() => {
+    const fetchSelectionData = async () => {
+      setClinicsLoading(true);
+      try {
+        const [orgsRes, clinicsRes] = await Promise.all([getOrganizations(), getClinics()]);
+        if (orgsRes.success) {
+          const orgList = Array.isArray(orgsRes.data?.data) ? orgsRes.data.data : (orgsRes.data || []);
+          setOrganizations(orgList);
+        }
+        if (clinicsRes.success) {
+          const clinicList = Array.isArray(clinicsRes.data?.data) ? clinicsRes.data.data : (clinicsRes.data || []);
+          setClinics(clinicList);
+        }
+      } catch (err) {
+        console.warn('Error loading organizations or clinics:', err);
+      } finally {
+        setClinicsLoading(false);
+      }
+    };
+    fetchSelectionData();
+  }, []);
+
+  useEffect(() => {
+    if (selectedOrgId && clinics.length > 0) {
+      const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
+      if (orgClinics.length > 0) {
+        const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(selectedClinicId));
+        if (!isCurrentInOrg) {
+          setSelectedClinicId(String(orgClinics[0].id));
+        }
+      } else {
+        setSelectedClinicId('');
+      }
+    } else {
+      setSelectedClinicId('');
+    }
+  }, [selectedOrgId, clinics, selectedClinicId]);
+
   // ═══════════════════════════════════════════════════════
   //  ITEMS TAB
   // ═══════════════════════════════════════════════════════
@@ -128,12 +182,12 @@ const DialysisInventory = () => {
 
   const fetchItems = useCallback(async () => {
     setItemsLoading(true);
-    const result = await getInventoryItems();
+    const result = await getInventoryItems(selectionParams);
     setItems(unwrapData(result));
     if (!result.success)
       showToast(result.data?.message || 'Failed to fetch items', 'error');
     setItemsLoading(false);
-  }, [showToast]);
+  }, [selectionParams, showToast]);
 
   useEffect(() => {
     if (activeTab === 'items') fetchItems();
@@ -258,12 +312,12 @@ const DialysisInventory = () => {
 
   const fetchStock = useCallback(async () => {
     setStockLoading(true);
-    const result = await getInventoryStock();
+    const result = await getInventoryStock(selectionParams);
     setStock(unwrapData(result));
     if (!result.success)
       showToast(result.data?.message || 'Failed to fetch stock', 'error');
     setStockLoading(false);
-  }, [showToast]);
+  }, [selectionParams, showToast]);
 
 
 
@@ -310,8 +364,8 @@ const DialysisInventory = () => {
       // Create a restock request which marks it as 'ORDER_PLACED' or similar
       const result = await createRestockRequest({
         items: stockForm.items,
-        organization_id: 1,
-        clinic_id: 1,
+        organization_id: Number(selectedOrgId) || undefined,
+        clinic_id: Number(selectedClinicId) || undefined,
         status: 'ORDER_PLACED'
       });
 
@@ -408,13 +462,13 @@ const DialysisInventory = () => {
   const fetchAlerts = useCallback(async () => {
     setAlertsLoading(true);
     const result = await getInventoryAlerts({
-      params: { status: alertFilter },
+      params: { status: alertFilter, ...selectionParams.params },
     });
     setAlerts(unwrapData(result));
     if (!result.success)
       showToast(result.data?.message || 'Failed to fetch alerts', 'error');
     setAlertsLoading(false);
-  }, [alertFilter, showToast]);
+  }, [alertFilter, selectionParams, showToast]);
 
   useEffect(() => {
     if (activeTab === 'alerts') fetchAlerts();
@@ -530,12 +584,12 @@ const DialysisInventory = () => {
 
   const fetchDialyzers = useCallback(async () => {
     setDialyzersLoading(true);
-    const result = await getInventoryDialyzers();
+    const result = await getInventoryDialyzers(selectionParams);
     setDialyzers(unwrapData(result));
     if (!result.success)
       showToast(result.data?.message || 'Failed to fetch dialyzers', 'error');
     setDialyzersLoading(false);
-  }, [showToast]);
+  }, [selectionParams, showToast]);
 
   useEffect(() => {
     if (activeTab === 'dialyzers') fetchDialyzers();
@@ -637,14 +691,14 @@ const DialysisInventory = () => {
 
   const fetchSuppliers = useCallback(async () => {
     setSuppliersLoading(true);
-    const result = await getSuppliers();
+    const result = await getSuppliers(selectionParams);
     setSuppliers(unwrapData(result));
     setSuppliersLoading(false);
-  }, []);
+  }, [selectionParams]);
 
   const handleSupplierSubmit = async () => {
     if (!supplierForm.name) return showToast('Name is required', 'error');
-    const result = supplierEditId ? await updateSupplier(supplierEditId, supplierForm) : await createSupplier({ ...supplierForm, organization_id: 1 });
+    const result = supplierEditId ? await updateSupplier(supplierEditId, supplierForm) : await createSupplier({ ...supplierForm, organization_id: Number(selectedOrgId) || undefined });
     if (result.success) {
       showToast(supplierEditId ? 'Supplier updated' : 'Supplier created', 'success');
       setIsSupplierModalOpen(false);
@@ -670,10 +724,10 @@ const DialysisInventory = () => {
 
   const fetchPO = useCallback(async () => {
     setPoLoading(true);
-    const result = await getProcurementOrders();
+    const result = await getProcurementOrders(selectionParams);
     setProcurementOrders(unwrapData(result));
     setPoLoading(false);
-  }, []);
+  }, [selectionParams]);
 
   const handlePoSubmit = async () => {
     if (!poForm.supplier_id) return showToast('Select supplier', 'error');
@@ -735,10 +789,10 @@ const DialysisInventory = () => {
 
   const fetchDeliveries = useCallback(async () => {
     setDeliveriesLoading(true);
-    const result = await getDeliveries();
+    const result = await getDeliveries(selectionParams);
     setDeliveries(unwrapData(result));
     setDeliveriesLoading(false);
-  }, []);
+  }, [selectionParams]);
 
   const openValidateDelivery = async (delivery) => {
     const res = await getDeliveryById(delivery.id);
@@ -805,14 +859,14 @@ const DialysisInventory = () => {
 
   const fetchRestock = useCallback(async () => {
     setRestockLoading(true);
-    const res = await getRestockRequests();
+    const res = await getRestockRequests(selectionParams);
     setRestockRequests(unwrapData(res));
     setRestockLoading(false);
-  }, []);
+  }, [selectionParams]);
 
   const handleRestockSubmit = async () => {
     if (!restockForm.items.length) return showToast('Add items', 'error');
-    const res = await createRestockRequest({ ...restockForm, organization_id: 1, clinic_id: 1 });
+    const res = await createRestockRequest({ ...restockForm, organization_id: Number(selectedOrgId) || undefined, clinic_id: Number(selectedClinicId) || undefined });
     if (res.success) {
       showToast('Restock request submitted. Please finalize the auto-generated PO.', 'success');
       setIsRestockModalOpen(false);
@@ -911,6 +965,34 @@ const DialysisInventory = () => {
               { label: 'Dialysis Inventory', active: true },
             ]}
           />
+          <Box className="border-b border-gray-200" style={{ padding: '14px 16px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
+              <OrganizationSelector
+                orgId={selectedOrgId}
+                setOrgId={setSelectedOrgId}
+                organizations={organizations}
+                label=""
+                minW="220px"
+                size="sm"
+              />
+              <ClinicSelector
+                clinicId={selectedClinicId}
+                setClinicId={setSelectedClinicId}
+                orgId={selectedOrgId}
+                clinics={clinics}
+                label=""
+                minW="220px"
+                size="sm"
+              />
+              {(selectedOrgId || selectedClinicId) && (
+                <div style={{ color: '#6B7280', marginTop: '2px', fontSize: '13px' }}>
+                  {selectedOrgId ? `Organization: ${organizations.find(o => String(o.id) === String(selectedOrgId))?.name || selectedOrgId}` : ''}
+                  {selectedOrgId && selectedClinicId ? ' · ' : ''}
+                  {selectedClinicId ? `Clinic: ${clinics.find(c => String(c.id) === String(selectedClinicId))?.clinic_name || clinics.find(c => String(c.id) === String(selectedClinicId))?.name || selectedClinicId}` : ''}
+                </div>
+              )}
+            </div>
+          </Box>
         </Box>
 
         <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : ''}`}>

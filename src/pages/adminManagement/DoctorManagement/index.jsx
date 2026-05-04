@@ -517,22 +517,22 @@ function AdminManagement() {
         dailyReadingsAlerts: doctor.daily_update,
         Dialysis_updates: doctor.Dialysis_updates,
         can_export: doctor.can_export,
-            reports: Array.isArray(doctor.reports) ? doctor.reports : [],
-            dialysisCenterRole:
-              doctor["dialysis center role"] ||
-              doctor.dialysisCenterRole ||
-              doctor.dialysis_center_role ||
-              doctor.role_in_dialysis_center ||
-              doctor.dialysisRole ||
-              doctor.roleInDialysis ||
-              "",
-            dialysisCenterRoleOther:
-              doctor.dialysisCenterRoleOther ||
-              doctor.dialysis_center_role_other ||
-              doctor.dialysisRoleOther ||
-              "",
-            org_id: doctor.org_id,
-            clinic_id: doctor.clinic_id,
+        reports: Array.isArray(doctor.reports) ? doctor.reports : [],
+        dialysisCenterRole:
+          doctor["dialysis center role"] ||
+          doctor.dialysisCenterRole ||
+          doctor.dialysis_center_role ||
+          doctor.role_in_dialysis_center ||
+          doctor.dialysisRole ||
+          doctor.roleInDialysis ||
+          "",
+        dialysisCenterRoleOther:
+          doctor.dialysisCenterRoleOther ||
+          doctor.dialysis_center_role_other ||
+          doctor.dialysisRoleOther ||
+          "",
+        org_id: doctor.org_id,
+        clinic_id: doctor.clinic_id,
       },
     });
     setEditMode(true);
@@ -609,7 +609,7 @@ function AdminManagement() {
                     style={isMobile ? {} : {}}
                   />
                 </div>
-                { canEditDoctors && (
+                {canEditDoctors && (
                   <Button variant="primary" onClick={openCreateForm} className="whitespace-nowrap">
                     Add Doctor
                   </Button>
@@ -707,11 +707,11 @@ function AdminManagement() {
                 />
               </FormControl>
 
-              
-              
+
+
 
             </Box>
-            
+
           </Box>
 
           {newDoctor.role === "Dialysis Technician" && (
@@ -758,7 +758,7 @@ function AdminManagement() {
               )}
             </Box>
           )}
-          
+
           {/* Readings Modal Trigger */}
           {showReadingsModal && (
             <ReadingsModal
@@ -883,10 +883,11 @@ function AdminManagement() {
 
             {/* Right Column */}
             {/* <Box className="space-y-4"> */}
+              {newDoctor.role !== "Dialysis Technician" ? (
             <Box>
-              <FormControl isInvalid={Boolean(fieldErrors.specialities)}>
-                <FormLabel>Specialities<span className="text-red-500">*</span></FormLabel>
-                {/* <Select
+                <FormControl isInvalid={Boolean(fieldErrors.specialities)}>
+                  <FormLabel>Specialities<span className="text-red-500">*</span></FormLabel>
+                  {/* <Select
                           value={newDoctor.specialities}
                           isMulti
                           styles={{
@@ -926,7 +927,7 @@ function AdminManagement() {
                         </Select> */}
 
 
-                {/* <Select
+                  {/* <Select
                   value={newDoctor.specialities}
                   isMulti
                   className={fieldErrors.specialities ? "border border-red-500" : ""}
@@ -946,23 +947,23 @@ function AdminManagement() {
                   ))}
                 </Select> */}
 
-                <MultiSelect
-                  value={newDoctor.specialities}
-                  onChange={(vals) => {
-                    newDoctorDispatch({ type: "specialities", payload: vals });
-                    setFieldErrors((prev) => ({ ...prev, specialities: false }));
-                  }}
-                  isInvalid={Boolean(fieldErrors.specialities)}
-                >
-                  {specialitiesOptions.map((option, index) => (
-                    <option key={index} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </MultiSelect>
-              </FormControl>
+                  <MultiSelect
+                    value={newDoctor.specialities}
+                    onChange={(vals) => {
+                      newDoctorDispatch({ type: "specialities", payload: vals });
+                      setFieldErrors((prev) => ({ ...prev, specialities: false }));
+                    }}
+                    isInvalid={Boolean(fieldErrors.specialities)}
+                  >
+                    {specialitiesOptions.map((option, index) => (
+                      <option key={index} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </MultiSelect>
+                </FormControl>
             </Box>
-
+              ) : (<></>)}
             <Box>
               <FormControl isInvalid={Boolean(fieldErrors.phoneNo)}>
                 <FormLabel>Phone No<span className="text-red-500">*</span></FormLabel>
@@ -1114,7 +1115,7 @@ function AdminManagement() {
               </Box>
             )}
 
-            
+
             {/* </Box> */}
           </Box>
 

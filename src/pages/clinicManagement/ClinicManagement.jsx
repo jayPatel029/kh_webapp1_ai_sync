@@ -51,6 +51,7 @@ const normalizeClinicFromApi = (c) => ({
   clinicIconURL: c.clinicIconURL || c.clinic_icon || c.clinic_icon_url || '',
   organizationId: c.organizationId || c.organization_id || '',
   organizationName: c.organization?.name || '',
+  type: c.type || c.clinicType || 'Normal',
 });
 
 // ─── Tabs ──────────────────────────────────────────────────
@@ -75,6 +76,7 @@ const ClinicManagement = () => {
   const [orgEditMode, setOrgEditMode] = useState(false);
   const [orgFormData, setOrgFormData] = useState({ 
     name: '', email: '', phone: '', address: '',
+    type: 'NGO',
     hasGuidelines: false, guidelines: [],
     hasChecklists: false, checklists: [], 
     hasInventory: false, hasPurchaseOrder: false 
@@ -160,7 +162,7 @@ const ClinicManagement = () => {
 
   const openOrgAdd = () => {
     setOrgFormData({ 
-      name: '', email: '', phone: '', address: '',
+      name: '', email: '', phone: '', address: '', type: 'NGO',
       hasGuidelines: false, guidelines: [{ text: '', type: 'Pre-dialysis' }], 
       hasChecklists: false, checklists: [{ text: '', type: 'Pre-dialysis' }], 
       hasInventory: false, hasPurchaseOrder: false 
@@ -182,6 +184,7 @@ const ClinicManagement = () => {
           email: fullOrg.email || fullOrg.contactEmail || '',
           phone: fullOrg.phone || fullOrg.contactPhone || '',
           address: fullOrg.address || '',
+          type: fullOrg.type || 'NGO',
           hasGuidelines: fullOrg.hasGuidelines || false,
           guidelines: fullOrg.guidelines?.length > 0 ? fullOrg.guidelines : [],
           hasChecklists: fullOrg.hasChecklists || false,
@@ -338,6 +341,7 @@ const ClinicManagement = () => {
       upiDetails: clinicPayloadFromModal.upiId || '',
       bankDetails: buildBankDetailsString(clinicPayloadFromModal),
       clinicIconURL: clinicPayloadFromModal.clinicIconURL || '',
+      type: clinicPayloadFromModal.type || clinicPayloadFromModal.clinicType || 'Normal',
 
       services: (clinicPayloadFromModal.services || []).map(s => ({
         name: s.name || '',
@@ -701,6 +705,19 @@ const ClinicManagement = () => {
                       clearFieldError('address');
                     }}
                   />
+                </FormControl>
+
+                <FormControl className="mt-6">
+                  <FormLabel>Organization Type</FormLabel>
+                  <select
+                    value={orgFormData.type}
+                    onChange={(e) => setOrgFormData(prev => ({ ...prev, type: e.target.value }))}
+                    className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#004c6d] focus:border-transparent"
+                  >
+                    <option value="NGO">NGO</option>
+                    <option value="For Profit">For Profit</option>
+                    <option value="Corpo">Corpo</option>
+                  </select>
                 </FormControl>
               </div>
 

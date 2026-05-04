@@ -15,6 +15,7 @@ import { getOrganizations } from '../ApiCalls/clinicApis';
 const OrganizationSelector = ({
   orgId,
   setOrgId,
+  organizations: organizationsProp,
   label = "ORGANIZATION",
   minW = "250px",
   size = "sm",
@@ -25,6 +26,11 @@ const OrganizationSelector = ({
   const [organizations, setOrganizations] = useState([]);
 
   useEffect(() => {
+    if (Array.isArray(organizationsProp)) {
+      setOrganizations(organizationsProp);
+      return;
+    }
+
     const fetchOrgs = async () => {
       const res = await getOrganizations();
       if (res.success && Array.isArray(res.data.data)) {
@@ -32,7 +38,7 @@ const OrganizationSelector = ({
       }
     };
     fetchOrgs();
-  }, []);
+  }, [organizationsProp]);
 
   return (
     <FormControl minW={minW} className={className}>

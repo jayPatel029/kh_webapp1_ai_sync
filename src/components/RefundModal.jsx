@@ -50,6 +50,16 @@ const RefundModal = ({
   if (!appointment) return null;
 
   const patientName  = appointment.name || appointment.patient_name || 'Patient';
+  const patientIdVal = appointment.patient_id || appointment.patientId || appointment.patientId || appointment.id || null;
+  const patientAgeVal = appointment.age || appointment.patient_age || '-';
+  const patientGenderVal = appointment.gender || appointment.sex || appointment.patient_gender || '-';
+  const patientPhoneVal = appointment.phoneNumber || appointment.phone || appointment.patient_phone || appointment.mobile_no || '-';
+  const patientLine = (() => {
+    const pid = patientIdVal ? String(patientIdVal) : '';
+    const pidLabel = pid ? (pid.toUpperCase().startsWith('PAT') ? pid : `PAT${pid}`) : '';
+    const agePart = patientAgeVal && patientAgeVal !== '-' ? `${patientAgeVal} Yrs` : '-';
+    return [pidLabel, patientName, patientGenderVal, patientPhoneVal, agePart].filter(Boolean).filter(p => p !== '-').join(' / ');
+  })();
   const amountPaid   = Number(appointment.amountPaid || appointment.received_amt || 0);
   const refundAmount = refundData?.refundAmount || 0;
   const eligible     = refundData?.eligible ?? false;
@@ -117,7 +127,7 @@ const RefundModal = ({
         <p style={{ fontWeight: 700, fontSize: '14px', marginBottom: '8px', color: '#111827' }}>
           Refund Summary
         </p>
-        {infoRow('Patient', patientName)}
+        {infoRow('Patient', patientLine)}
         {infoRow('Amount Paid', `₹${amountPaid.toLocaleString()}`)}
         {infoRow(
           'Refund Amount',

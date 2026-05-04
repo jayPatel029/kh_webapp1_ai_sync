@@ -52,6 +52,7 @@ import {
   submitSessionAction,
   updateSessionParameters,
 } from '../../../ApiCalls/dialysisSessionApis';
+import { useAdminToast } from '../../../components/AdminToast';
 import {
   getPatientById,
   getGeneralParameterResponse,
@@ -68,6 +69,7 @@ import ParameterSection from '../../../components/ParameterSection';
 import DialysisTable from '../../../components/table/DialysisTable';
 import LineChartDialysis from '../../../components/Linechart/Linechart_Dialysis/LineChartDialysis';
 import LineChartDialyisisSys from '../../../components/Linechart/Linechart_Dialysis/LineChartDialyisisSys';
+import GraphModal from './graphModal';
 import {
   getOrganizationById,
   getAppointmentById,
@@ -200,6 +202,9 @@ export default function DialysisParametersModal({
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [currentAppointment, setCurrentAppointment] = useState(null);
   const [sessionId, setSessionId] = useState(null);
+  const [dischargeModal, setDischargeModal] = useState({ isOpen: false, confirmText: '' });
+  const [abortModal, setAbortModal] = useState({ isOpen: false, isEmergency: false, reason: '' });
+  const { showToast } = useAdminToast();
 
   // Timer State
   const [manualDuration, setManualDuration] = useState(''); // Default 4 hours
@@ -234,6 +239,7 @@ export default function DialysisParametersModal({
   const [hemoParams, setHemoParams] = useState([]);
   const [hemoParamsResponses, setHemoParamsResponses] = useState({});
   const [showEntryFor, setShowEntryFor] = useState({}); // { [questionId]: boolean }
+  const [graphModal, setGraphModal] = useState({ isOpen: false, questionId: null, questionTitle: '', questionUnit: '', dailyordia: 'dialysis' });
 
   const hasDialysisSystolic = useMemo(() => {
     return hemoParams.some((q) => q.title?.toLowerCase().includes("systolic"));
@@ -693,6 +699,7 @@ export default function DialysisParametersModal({
       }
 
       if (result.success) {
+        // After successfully saving post-dialysis params, prompt discharge confirmation (billing may follow)
         if (patient?.appointment_id) {
           const extraCost = consumedItems.reduce((acc, c) => acc + ((c.quantity || 1) * (Number(c.price) || 0)), 0);
           let finalAppt = patient;
@@ -715,11 +722,10 @@ export default function DialysisParametersModal({
           const outstanding = Math.max(0, totalAmt - paidAmt);
           setPaymentAmount(outstanding > 0 ? String(outstanding) : '');
           setBillModalOpen(true);
+          // billing will lead to discharge confirmation in payment handlers
         } else {
-          if (onStageChange) {
-            onStageChange('completed', { notes: afterNotes });
-          }
-          onClose();
+          // No appointment / billing step — ask for discharge confirmation
+          setDischargeModal({ isOpen: true, confirmText: '' });
         }
       }
     } catch (err) {
@@ -729,19 +735,71 @@ export default function DialysisParametersModal({
 
   const handlePaymentSuccess = () => {
     setBillModalOpen(false);
-    if (onStageChange) {
-      onStageChange('completed', { notes: afterNotes });
-    }
-    onClose();
+    // After successful payment, ask for discharge confirmation
+    setDischargeModal({ isOpen: true, confirmText: '' });
   };
 
   const handlePaymentClose = () => {
     setBillModalOpen(false);
-    if (onStageChange) {
-      onStageChange('completed', { notes: afterNotes });
-    }
-    onClose();
+    // After closing payment modal (even if skipped), ask for discharge confirmation
+    setDischargeModal({ isOpen: true, confirmText: '' });
   };
+
+  const handleConfirmDischarge = useCallback(async () => {
+    try {
+      // Optionally we could call an API to mark patient as discharged here.
+      if (onStageChange) {
+        onStageChange('completed', { notes: afterNotes, discharge_confirmed: true });
+      }
+      setDischargeModal({ isOpen: false, confirmText: '' });
+      onClose();
+    } catch (err) {
+      console.error('Error confirming discharge:', err);
+    }
+  }, [afterNotes, onStageChange, onClose]);
+
+  const handleOpenAbort = (isEmergency = false) => {
+    setAbortModal({ isOpen: true, isEmergency, reason: '' });
+  };
+
+  const handleConfirmAbort = useCallback(async () => {
+    try {
+      if (!abortModal.reason || !abortModal.reason.trim()) {
+        alert('Please provide a reason for aborting the session.');
+        return;
+      }
+
+      if (sessionId) {
+        await submitSessionReadings(sessionId, {
+          timestamp: new Date().toISOString(),
+          reading: { notes: duringNotes || '' },
+        });
+
+        await submitSessionAction(sessionId, {
+          action: 'abort',
+          reason: abortModal.reason,
+          emergency: !!abortModal.isEmergency,
+        });
+
+        await updateSessionParameters(sessionId, {
+          aborted: true,
+          abortReason: abortModal.reason,
+          emergencyAbort: !!abortModal.isEmergency,
+        });
+      }
+
+      setAbortModal({ isOpen: false, isEmergency: false, reason: '' });
+      setTimerActive(false);
+      setStage('after');
+      if (onStageChange) onStageChange('aborted', { reason: abortModal.reason, emergency: abortModal.isEmergency });
+      showToast && showToast('Session aborted', 'error');
+      // close modal if desired
+      onClose();
+    } catch (err) {
+      console.error('Error aborting session:', err);
+      alert('Failed to abort session: ' + (err?.message || 'Unknown error'));
+    }
+  }, [abortModal, sessionId, duringNotes, onStageChange, onClose, showToast]);
 
   // Timer Effect
   useEffect(() => {
@@ -958,6 +1016,15 @@ export default function DialysisParametersModal({
 
                                           {/* Table only for technicians */}
                                           <Box className="w-full overflow-hidden rounded-xl border border-slate-200">
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px' }}>
+                                              <button
+                                                title="Open readings graph"
+                                                onClick={() => setGraphModal({ isOpen: true, questionId: question.id, questionTitle, questionUnit: question.unit || '', dailyordia: 'dialysis' })}
+                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#2563EB', padding: '6px', fontSize: '16px' }}
+                                              >
+                                                <FaChartLine />
+                                              </button>
+                                            </div>
                                             <DialysisTable
                                               questionId={question.id}
                                               user_id={patient.patient_id}
@@ -1350,6 +1417,19 @@ export default function DialysisParametersModal({
           )}
         </ModalBody>
 
+        {/* Graph modal overlay for readings */}
+        {graphModal.isOpen && (
+          <GraphModal
+            closeModal={() => setGraphModal(prev => ({ ...prev, isOpen: false }))}
+            patientId={patient.patient_id}
+            questionId={graphModal.questionId}
+            dailyordia={graphModal.dailyordia}
+            isGraph={true}
+            questionTitle={graphModal.questionTitle}
+            questionUnit={graphModal.questionUnit}
+          />
+        )}
+
         <ModalFooter className="dialysis-modal__footer">
           <HStack spacing={2} justify="flex-end">
             <Button
@@ -1370,6 +1450,39 @@ export default function DialysisParametersModal({
         appointmentId={currentAppointment?.id}
         onSuccess={handlePaymentSuccess}
       />
+      {/* Discharge confirmation modal */}
+      <Modal isOpen={dischargeModal.isOpen} onClose={() => setDischargeModal({ isOpen: false, confirmText: '' })} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Confirm discharge</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text mb={3}>Are you sure you want to discharge this patient? This will complete the dialysis session.</Text>
+            <Text fontSize="sm" color="slate.500" mb={2}>Type <strong>CONFIRM</strong> to enable the Discharge button.</Text>
+            <Input
+              value={dischargeModal.confirmText}
+              onChange={(e) => setDischargeModal(prev => ({ ...prev, confirmText: e.target.value }))}
+              placeholder="Type CONFIRM to proceed"
+            />
+            {afterNotes && (
+              <Box mt={3} p={2} bg="slate.50" borderRadius="md">
+                <Text fontSize="sm" fontWeight="600">Post-dialysis notes</Text>
+                <Text fontSize="xs" color="slate.600">{afterNotes}</Text>
+              </Box>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setDischargeModal({ isOpen: false, confirmText: '' })}>Cancel</Button>
+            <Button
+              colorScheme="red"
+              onClick={handleConfirmDischarge}
+              isDisabled={(dischargeModal.confirmText || '').trim().toLowerCase() !== 'confirm'}
+            >
+              Discharge Patient
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Modal>
   );
 }

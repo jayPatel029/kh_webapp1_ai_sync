@@ -414,19 +414,37 @@ const AppointmentTableComponent = ({ appointments = [] }) => {
 const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => {
   const handleDragStart = (e, apt) => {
     const status = String(apt.status).toLowerCase();
-    // Only allow arrived appointments to be assigned to a bed
-    const canAssign = ['arrived'].includes(status);
+    // Only allow waiting appointments to be assigned to a bed
+    const canAssign = ['waiting'].includes(status);
 
     if (!canAssign) {
       e.preventDefault();
       return;
     }
 
+    // Parse patient_ailments which may be a JSON string
+    let parsedAilments = '';
+    let parsedObj = null;
+    try {
+      if (typeof apt.patient_ailments === 'string' && apt.patient_ailments.trim().startsWith('{')) {
+        parsedObj = JSON.parse(apt.patient_ailments);
+      }
+    } catch (err) { parsedObj = null; }
+
+    if (parsedObj) {
+      parsedAilments = parsedObj.ailments || parsedObj.patientAilments || parsedObj.patient_ailments || '';
+    } else if (apt.patient_ailments) {
+      parsedAilments = String(apt.patient_ailments);
+    }
+
+    const inferredInfectious = (String(parsedAilments || '').toLowerCase().includes('infectious')) || (apt.is_infectious);
+
     const dragPayload = {
       patient_id: apt.patient_id || apt.id,
       appointment_id: apt.id,
-      patient_name: apt.patient_name,
-      is_infectious: apt.patient_ailments?.toLowerCase().includes('infectious') || apt.is_infectious,
+      patient_name: apt.patient_name || (parsedObj && parsedObj.patientName) || `Patient #${apt.patient_id || apt.id}`,
+      is_infectious: inferredInfectious,
+      raw_ailments: parsedAilments,
     };
     e.dataTransfer.setData('application/json', JSON.stringify(dragPayload));
     e.dataTransfer.effectAllowed = 'move';
@@ -455,13 +473,27 @@ const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => 
           </thead>
           <tbody>
             {(Array.isArray(appointments) ? appointments : []).map((apt) => {
-              const isEligible = String(apt.status).toLowerCase() === 'arrived';
-              const isInfectious = apt.patient_ailments?.toLowerCase().includes('infectious') || apt.is_infectious;
+              // derive display name and ailments (patient_ailments may be JSON)
+              let displayName = apt.patient_name || `Patient #${apt.patient_id || apt.id}`;
+              let displayAilments = apt.patient_ailments || '';
+              try {
+                if (typeof apt.patient_ailments === 'string' && apt.patient_ailments.trim().startsWith('{')) {
+                  const parsed = JSON.parse(apt.patient_ailments);
+                  displayName = displayName === 'Patient #' + (apt.patient_id || apt.id) ? (parsed.patientName || displayName) : displayName;
+                  displayAilments = parsed.ailments || parsed.patientAilments || parsed.patient_ailments || displayAilments;
+                }
+              } catch (err) { /* ignore */ }
+
+              const isEligible = String(apt.status).toLowerCase() === 'waiting';
+              const isInfectious = String(displayAilments || '').toLowerCase().includes('infectious') || apt.is_infectious;
+
+              const rowStyle = isInfectious ? { background: '#FEF2F2' } : {};
 
               return (
                 <tr
                   key={apt.id}
                   className={`list-table__row draggable-row ${!isEligible ? 'draggable-row--disabled' : ''}`}
+                  style={rowStyle}
                   draggable={isEligible}
                   onDragStart={(e) => handleDragStart(e, apt)}
                   role="button"
@@ -469,7 +501,7 @@ const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => 
                 >
                   <td className="list-table__cell">
                     <VStack align="start" spacing={0}>
-                      <span className="list-table__text-cell" style={{ fontWeight: 600 }}>{apt.patient_name}</span>
+                      <span className="list-table__text-cell" style={{ fontWeight: 600 }}>{displayName}</span>
                       <Text fontSize="xs" color="textMuted">ID: {apt.patient_id}</Text>
                     </VStack>
                   </td>
@@ -488,7 +520,7 @@ const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => 
                         INFECTIOUS
                       </Badge>
                     )}
-                    <span className="list-table__text-cell text-xs">{apt.patient_ailments || 'None'}</span>
+                    <span className="list-table__text-cell text-xs">{displayAilments || 'None'}</span>
                   </td>
                   <td className="list-table__cell">
                     {isEligible ? (
@@ -910,7 +942,7 @@ export default function BedManagementDashboard(props) {
       // Use getAppointments with filters
       const result = await getAppointments({
         clinicId: cid,
-        status: 'ARRIVED'
+        status: 'WAITING'
       });
 
       if (result.success) {
@@ -944,6 +976,24 @@ export default function BedManagementDashboard(props) {
       try {
         const patientData = JSON.parse(draggedData);
 
+        // If patient marked infectious and target bed is not quarantine, require explicit confirmation and reason
+        if (patientData.is_infectious && String(targetBed.status).toUpperCase() !== 'QUARANTINE') {
+          const confirmed = window.confirm('Patient appears to be infectious. Assigning to a normal bed is not recommended. Do you want to proceed?');
+          if (!confirmed) {
+            showNotification('Assignment cancelled', 'Assignment aborted by user due to infectious status', 'info');
+            return;
+          }
+
+          const reason = window.prompt('Provide a reason for assigning this infectious patient to a normal bed (required):');
+          if (!reason || !reason.trim()) {
+            showNotification('Assignment cancelled', 'A reason is required to assign infectious patients to normal beds', 'error');
+            return;
+          }
+
+          // attach reason to notes parameter when assigning
+          patientData._assignment_reason = reason.trim();
+        }
+
         // Bed logic: section 2.3 - cannot assign to cleaning
         if (targetBed.status === 'CLEANING') {
           showNotification('Bed Unavailable', 'This bed is currently being cleaned.', 'error');
@@ -961,11 +1011,12 @@ export default function BedManagementDashboard(props) {
         }
 
         setIsAssigning(true);
+        const notesForAssign = patientData._assignment_reason ? patientData._assignment_reason : `Assigned via clinic command center drag-drop`;
         const result = await assignPatient(
           targetBed.id,
           patientData.patient_id,
           patientData.appointment_id,
-          `Assigned via clinic command center drag-drop`
+          notesForAssign
         );
 
         if (result.success) {
@@ -1192,7 +1243,7 @@ export default function BedManagementDashboard(props) {
                   <Badge variant="solid" colorScheme="brand" borderRadius="full">
                     {(Array.isArray(appointments) ? appointments : []).filter(a => {
                       const s = String(a.status).toLowerCase();
-                      return s === 'arrived';
+                      return s === 'waiting';
                     }).length} READY
                   </Badge>
                 </HStack>

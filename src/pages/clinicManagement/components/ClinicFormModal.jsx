@@ -6,9 +6,17 @@ import FileUploadWithCamera from '../../../components/FileUploadWithCamera';
 import { ScheduleManager } from './ScheduleManager';
 import { ServiceRow } from './ServiceRow';
 
+const createDefaultServiceRow = () => ({
+  id: `srv-dialysis-${Date.now()}`,
+  name: 'Dialysis',
+  amount: 0,
+  discount: 0,
+});
+
 export function ClinicFormModal({ open, onClose, onSave, initial = null, organizations = [] }) {
   const defaultForm = {
     clinicName: '',
+    type: 'Normal',
     address: { line1: '', city: '', state: '', postal: '', country: '' },
     contact: { phone: '', whatsapp: '', email: '' },
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -17,7 +25,7 @@ export function ClinicFormModal({ open, onClose, onSave, initial = null, organiz
     isolatedBeds: 0,
     cleaningTimeMinutes: 30,
     duration: 4,
-    services: [],
+    services: [createDefaultServiceRow()],
     slotTemplates: [],
     status: 'active',
     clinicIconURL: '',
@@ -54,7 +62,9 @@ export function ClinicFormModal({ open, onClose, onSave, initial = null, organiz
           whatsapp: initial.whatsapp || initial.contact?.whatsapp || '',
           email: initial.clinicEmail || initial.contact?.email || ''
         },
-        services: initial.services || [],
+        services: (initial.services && initial.services.length > 0)
+          ? initial.services
+          : [createDefaultServiceRow()],
         slotTemplates: (initial.slotTemplates || []).map(st => ({
           ...st,
           startTime: st.startTime || st.timings?.[0]?.startTime || '',
@@ -71,6 +81,7 @@ export function ClinicFormModal({ open, onClose, onSave, initial = null, organiz
         ifscCode: initial.ifscCode || parseBankField('IFSC:'),
         clinicIconURL: initial.clinicIconURL || initial.clinic_icon_url || initial.clinic_icon || '',
         organizationId: initial.organizationId || initial.organization_id || '',
+        type: initial.type || initial.clinicType || 'Normal',
       });
     } else {
       setForm(defaultForm);
@@ -207,6 +218,17 @@ export function ClinicFormModal({ open, onClose, onSave, initial = null, organiz
                       {org.name}
                     </option>
                   ))}
+                </select>
+              </FormControl>
+              <FormControl className="col-span-1 md:col-span-2 lg:col-span-2 mt-6">
+                <FormLabel>Clinic Type</FormLabel>
+                <select
+                  value={form.type}
+                  onChange={(e) => updateField('type', e.target.value)}
+                  className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#004c6d] focus:border-transparent"
+                >
+                  <option value="Normal">Normal</option>
+                  <option value="Dialysis">Dialysis</option>
                 </select>
               </FormControl>
               <FormControl isInvalid={getFieldProps('clinicIconURL').isInvalid} className="col-span-1 md:col-span-2 lg:col-span-2 mt-6">

@@ -4,6 +4,7 @@ import { getAvailableSlots } from '../../../ApiCalls/clinicApis';
 
 export function ScheduleManager({ 
   slotTemplates = [], 
+  availableClinicTemplates = [],
   onChange, 
   capacity = 1, 
   bufferMinutes = 30,
@@ -91,24 +92,26 @@ export function ScheduleManager({
     const availability = {};
     DAYS.forEach(d => { availability[d.value] = false; });
 
-    if (availableInstances.length > 0) {
-      availableInstances.forEach(instance => {
-        const dayName = new Date(instance.instance.startUTC).toLocaleDateString('en-US', { weekday: 'long' });
-        if (instance.instance.bookedCount < instance.instance.capacity) {
-          availability[dayName] = true;
-        }
-      });
-    } else if (slotTemplates.length > 0) {
-      slotTemplates.forEach(template => {
+    const templatesToUse = availableClinicTemplates.length > 0 ? availableClinicTemplates : slotTemplates;
+
+    if (templatesToUse.length > 0) {
+      templatesToUse.forEach(template => {
         if (template.status !== 'inactive' && template.daysOfWeek) {
           template.daysOfWeek.forEach(day => {
             availability[day] = true;
           });
         }
       });
+    } else if (availableInstances.length > 0 && isManagementMode) {
+      availableInstances.forEach(instance => {
+        const dayName = new Date(instance.instance.startUTC).toLocaleDateString('en-US', { weekday: 'long' });
+        if (instance.instance.bookedCount < instance.instance.capacity) {
+          availability[dayName] = true;
+        }
+      });
     }
     return availability;
-  }, [availableInstances, slotTemplates]);
+  }, [availableInstances, slotTemplates, availableClinicTemplates, isManagementMode]);
 
 
   // Materialize specific slots from slotTemplates or wide instance ranges
@@ -119,62 +122,17 @@ export function ScheduleManager({
     const slots = [];
     const allRelevantAppts = [...existingAppointments, ...activeAppointments];
 
-    // Case 1: Use availableInstances from API (if not in management mode)
-    if (availableInstances.length > 0 && !isManagementMode) {
-      availableInstances.forEach(instance => {
-        const instStart = new Date(instance.instance.startUTC);
-        const dayName = instStart.toLocaleDateString('en-US', { weekday: 'long' });
-        
-        if (frequency !== 'monthly' && selectedDays.length > 0 && !selectedDays.includes(dayName)) return;
+    const templatesToUse = (!isManagementMode && availableClinicTemplates.length > 0)
+      ? availableClinicTemplates
+      : slotTemplates;
 
-        const start = new Date(instance.instance.startUTC);
-        const end = new Date(instance.instance.endUTC);
-        const buffer = Number(instance.slotPattern?.bufferMinutes || 30);
-        const slotCap = Number(instance.instance.capacity || capacity);
-
-        let current = new Date(start);
-        while (new Date(current.getTime() + sessionDurationMin * 60000) <= end) {
-          const sessionStartStr = current.toISOString().slice(11, 16); 
-          const sessionEndTime = new Date(current.getTime() + sessionDurationMin * 60000);
-          const sessionEndStr = sessionEndTime.toISOString().slice(11, 16);
-
-          const overlaps = allRelevantAppts.filter(appt => {
-            if (!appt.startTime || !appt.endTime || ['CANCELLED', 'MISSED', 'REJECTED'].includes(appt.status?.toUpperCase())) return false;
-            const aDate = new Date(appt.date).toISOString().split('T')[0];
-            const sDate = instStart.toISOString().split('T')[0];
-            if (aDate !== sDate) return false;
-            const aStart = appt.startTime.slice(0, 5);
-            const aEnd = appt.endTime.slice(0, 5);
-            return (aStart < sessionEndStr && aEnd > sessionStartStr);
-          });
-
-          const remaining = slotCap - overlaps.length;
-          if (remaining > 0) {
-            slots.push({
-              id: `materialized-${instance.id}-${sessionStartStr}`,
-              dayName,
-              date: instStart.toISOString().split('T')[0],
-              startTime: sessionStartStr,
-              endTime: sessionEndStr,
-              remainingCapacity: remaining,
-              totalCapacity: slotCap,
-              originalSlotId: instance.id,
-              templateId: instance.slotId,
-              price: instance.pricing?.sessionCost || 0
-            });
-          }
-          current = new Date(current.getTime() + (sessionDurationMin + buffer) * 60000);
-        }
-      });
-    } 
-    // Case 2: Use slotTemplates directly (useful for management/preview or when API data is not yet fetched)
-    else if (slotTemplates.length > 0) {
+    if (templatesToUse.length > 0) {
       const relevantDays = (frequency !== 'monthly' && selectedDays.length > 0) 
         ? selectedDays 
-        : (isManagementMode ? DAYS.map(d => d.value) : []);
+        : (isManagementMode ? DAYS.map(d => d.value) : DAYS.map(d => d.value));
 
       relevantDays.forEach(dayName => {
-        const matchingTemplates = slotTemplates.filter(t => 
+        const matchingTemplates = templatesToUse.filter(t => 
           (t.daysOfWeek?.includes(dayName) || (t.frequency === 'monthly' && frequency === 'monthly')) && 
           t.status !== 'inactive'
         );
@@ -235,7 +193,7 @@ export function ScheduleManager({
     }
 
     return slots;
-  }, [availableInstances, activeAppointments, existingAppointments, duration, capacity, selectedDays, frequency, slotTemplates, isManagementMode, date, bufferMinutes]);
+  }, [availableInstances, activeAppointments, existingAppointments, duration, capacity, selectedDays, frequency, slotTemplates, isManagementMode, date, bufferMinutes, availableClinicTemplates]);
 
   // Group slots for the table view: rows = times, cols = days
   const slotGrid = useMemo(() => {
@@ -254,6 +212,18 @@ export function ScheduleManager({
 
     return { times: timeRanges, grid };
   }, [materializedSlots, selectedDays]);
+
+  const isBundledBookingMode = !isManagementMode && frequency !== 'monthly' && selectedDays.length > 1;
+
+  const getBundledSlotsForCell = (slot) => {
+    if (!isBundledBookingMode) return [slot];
+
+    return materializedSlots.filter(s =>
+      s.startTime === slot.startTime &&
+      s.endTime === slot.endTime &&
+      selectedDays.includes(s.dayName)
+    );
+  };
 
 
   const handleDayToggle = (day) => {
@@ -351,12 +321,20 @@ export function ScheduleManager({
   };
 
   const togglePendingSlot = (slot) => {
-    const exists = pendingSlots.find(s => s.id === slot.id);
-    if (exists) {
-      setPendingSlots(pendingSlots.filter(s => s.id !== slot.id));
-    } else {
-      setPendingSlots([...pendingSlots, slot]);
+    const bundledSlots = getBundledSlotsForCell(slot);
+
+    const selectedIds = new Set(pendingSlots.map(s => s.id));
+    const bundleIsAlreadySelected = bundledSlots.length > 0 && bundledSlots.every(s => selectedIds.has(s.id));
+
+    if (bundleIsAlreadySelected) {
+      setPendingSlots(pendingSlots.filter(s => !bundledSlots.some(bs => bs.id === s.id)));
+      return;
     }
+
+    setPendingSlots([
+      ...pendingSlots,
+      ...bundledSlots.filter(s => !selectedIds.has(s.id)),
+    ]);
   };
 
   const removeSlot = (id) => {
@@ -565,7 +543,7 @@ export function ScheduleManager({
                             if (!slot) return <td key={day} className="p-2 border-b border-gray-50 text-center text-gray-200">--</td>;
 
                             const isFull = slot.remainingCapacity <= 0;
-                            const isAlreadyAdded = !!slot.templateId || slotTemplates.some(t => 
+                            const isAlreadyAdded = (isManagementMode && !!slot.templateId) || slotTemplates.some(t => 
                               t.daysOfWeek?.includes(day) &&
                               t.frequency === frequency &&
                               (t.startTime === slot.startTime || (t.timings && t.timings.some(tm => (tm.startTime <= slot.startTime && tm.endTime > slot.startTime) || (tm.startTime < slot.endTime && tm.endTime >= slot.endTime))))
@@ -622,7 +600,7 @@ export function ScheduleManager({
                       onClick={handleBulkAdd}
                       className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-all shadow-lg hover:shadow-blue-200 hover:-translate-y-0.5 flex items-center gap-2"
                     >
-                      <span>Confirm & Add Sessions</span>
+                      <span>Add Slots</span>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>

@@ -17,13 +17,15 @@ import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { useAdminToast } from '../../components/AdminToast';
-import { getAppointments } from '../../ApiCalls/clinicApis';
+import { getAppointments, getClinics, getOrganizations, getClinicBeds } from '../../ApiCalls/clinicApis';
 import { getAllBeds } from '../../ApiCalls/bedManagementApis';
 import {
   getInventoryAlerts,
   getInventoryStock,
   getInventoryDialyzers,
 } from '../../ApiCalls/inventoryApis';
+import ClinicSelector from '../../components/ClinicSelector';
+import OrganizationSelector from '../../components/OrganizationSelector';
 import axiosInstance from '../../helpers/axios/axiosInstance';
 import { server_url } from '../../constants/constants';
 import { groupAlertsByPatient } from '../../helpers/alertGrouping';
@@ -217,6 +219,12 @@ const DialysisDashboard = () => {
   const userRole = localStorage.getItem('role');
   const isTechnician = userRole === 'Dialysis Technician';
 
+  const [organizations, setOrganizations] = useState([]);
+  const [clinics, setClinics] = useState([]);
+  const [selectedOrgId, setSelectedOrgId] = useState('');
+  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [clinicsLoading, setClinicsLoading] = useState(false);
+
   // ─── Alerts Data ───────────────────────────────────────
   const [inventoryAlerts, setInventoryAlerts] = useState([]);
   const [technicianAlerts, setTechnicianAlerts] = useState([]);
@@ -244,14 +252,31 @@ const DialysisDashboard = () => {
     setLoading(true);
 
     try {
+      const todayDate = new Date().toISOString().split('T')[0];
+
       // Fire all requests in parallel
       const [apptResult, bedResult, alertResult, stockResult, dialyzerResult, patRes] =
         await Promise.allSettled([
-          getAppointments(),
-          getAllBeds(),
-          getInventoryAlerts({ params: { status: 'ACTIVE' } }),
-          getInventoryStock(),
-          getInventoryDialyzers(),
+          getAppointments({
+            from: `${todayDate}T00:00:00Z`,
+            to: `${todayDate}T23:59:59Z`,
+            clinicId: selectedClinicId || undefined,
+            orgid: selectedOrgId || undefined,
+          }),
+          selectedClinicId ? getClinicBeds(selectedClinicId) : getAllBeds(),
+          getInventoryAlerts({ params: {
+            status: 'ACTIVE',
+            clinic_id: selectedClinicId || undefined,
+            organization_id: selectedOrgId || undefined,
+          } }),
+          getInventoryStock({ params: {
+            clinic_id: selectedClinicId || undefined,
+            organization_id: selectedOrgId || undefined,
+          } }),
+          getInventoryDialyzers({ params: {
+            clinic_id: selectedClinicId || undefined,
+            organization_id: selectedOrgId || undefined,
+          } }),
           axiosInstance.get(`${server_url}/alerts/byType/patient`)
         ]);
 
@@ -280,11 +305,10 @@ const DialysisDashboard = () => {
       setTechnicianAlerts(dialysisPatients);
 
       // Compute stats
-      const today = new Date().toISOString().split('T')[0];
       const todayAppts = appointments.filter(
         (a) =>
-          a.appointment_date === today ||
-          (a.appointment_date && a.appointment_date.startsWith(today))
+          a.appointment_date === todayDate ||
+          (a.appointment_date && a.appointment_date.startsWith(todayDate))
       );
 
       setStats({
@@ -335,7 +359,45 @@ const DialysisDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, selectedClinicId, selectedOrgId]);
+
+  useEffect(() => {
+    const fetchSelectionData = async () => {
+      setClinicsLoading(true);
+      try {
+        const [orgsRes, clinicsRes] = await Promise.all([getOrganizations(), getClinics()]);
+        if (orgsRes.success) {
+          const orgList = Array.isArray(orgsRes.data?.data) ? orgsRes.data.data : (orgsRes.data || []);
+          setOrganizations(orgList);
+        }
+        if (clinicsRes.success) {
+          const clinicList = Array.isArray(clinicsRes.data?.data) ? clinicsRes.data.data : (clinicsRes.data || []);
+          setClinics(clinicList);
+        }
+      } catch (err) {
+        console.warn('Error loading organizations or clinics:', err);
+      } finally {
+        setClinicsLoading(false);
+      }
+    };
+    fetchSelectionData();
+  }, []);
+
+  useEffect(() => {
+    if (selectedOrgId && clinics.length > 0) {
+      const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
+      if (orgClinics.length > 0) {
+        const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(selectedClinicId));
+        if (!isCurrentInOrg) {
+          setSelectedClinicId(String(orgClinics[0].id));
+        }
+      } else {
+        setSelectedClinicId('');
+      }
+    } else {
+      setSelectedClinicId('');
+    }
+  }, [selectedOrgId, clinics, selectedClinicId]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -352,6 +414,37 @@ const DialysisDashboard = () => {
               { label: isTechnician ? "Dialysis Technician Dashboard" : "Dialysis Manager Dashboard", active: true },
             ]}
           />
+          <Box
+            className="border-b border-gray-200"
+            style={{ padding: '14px 16px' }}
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
+              <OrganizationSelector
+                orgId={selectedOrgId}
+                setOrgId={setSelectedOrgId}
+                organizations={organizations}
+                label=""
+                minW="220px"
+                size="sm"
+              />
+              <ClinicSelector
+                clinicId={selectedClinicId}
+                setClinicId={setSelectedClinicId}
+                orgId={selectedOrgId}
+                clinics={clinics}
+                label=""
+                minW="220px"
+                size="sm"
+              />
+              {(selectedOrgId || selectedClinicId) && (
+                <Text size="sm" style={{ color: '#6B7280', marginTop: '2px' }}>
+                  {selectedOrgId ? `Organization: ${organizations.find(o => String(o.id) === String(selectedOrgId))?.name || selectedOrgId}` : ''}
+                  {selectedOrgId && selectedClinicId ? ' · ' : ''}
+                  {selectedClinicId ? `Clinic: ${clinics.find(c => String(c.id) === String(selectedClinicId))?.clinic_name || clinics.find(c => String(c.id) === String(selectedClinicId))?.name || selectedClinicId}` : ''}
+                </Text>
+              )}
+            </div>
+          </Box>
         </Box>
 
         <div className={`admin-page-content items-start${isMobile ? 'px-3 pb-20' : ''}`}>

@@ -41,6 +41,7 @@ import AppointmentStatusBadge from '../../components/AppointmentStatusBadge';
 import PaymentModal from '../../components/PaymentModal';
 import RefundModal from '../../components/RefundModal';
 import InvoicePreview from '../../components/InvoicePreview';
+import FileUploadWithCamera from '../../components/FileUploadWithCamera';
 import usePaymentFlow from '../../hooks/usePaymentFlow';
 import { getPaymentStatus, getOutstandingBalance } from '../../utils/refundCalculator';
 import { generateBillPDF } from '../../utils/billGenerator';
@@ -62,6 +63,7 @@ import {
   getAvailableSlots,
   consumeAppointmentServices
 } from '../../ApiCalls/clinicApis';
+import { uploadFile } from '../../ApiCalls/dataUpload';
 import { getPatients, getPatientAilments, getPatientById, getGeneralParameterResponse } from '../../ApiCalls/patientAPis';
 import { getDoctors } from '../../ApiCalls/doctorApis';
 import { jsPDF } from 'jspdf';
@@ -74,6 +76,7 @@ import OrganizationSelector from '../../components/OrganizationSelector';
 const STATUS_COLORS = {
   SCHEDULED: { bg: '#FEF9C3', text: '#854D0E' },
   BOOKED: { bg: '#FEF9C3', text: '#854D0E' },
+  WAITING: { bg: '#FEF9C3', text: '#854D0E' },
   ARRIVED: { bg: '#F3E8FF', text: '#6B21A8' },
   IN_PROGRESS: { bg: '#DBEAFE', text: '#1E40AF' },
   COMPLETED: { bg: '#DCFCE7', text: '#166534' },
@@ -84,12 +87,14 @@ const STATUS_COLORS = {
 const STATUS_FLOW = {
   SCHEDULED: 'ARRIVED',
   BOOKED: 'ARRIVED',
-  ARRIVED: 'IN_PROGRESS',
+  ARRIVED: 'WAITING',
+  WAITING: 'IN_PROGRESS',
   IN_PROGRESS: 'COMPLETED',
 };
 
 const STATUS_LABELS = {
   ARRIVED: 'Arrived',
+  WAITING: 'Waiting',
   IN_PROGRESS: 'In Progress',
   COMPLETED: 'Complete',
 };
@@ -275,6 +280,131 @@ function buildSlotTemplates(raw) {
   }];
 }
 
+const RECURRENCE_SESSION_LIMITS = {
+  weekly: 15,
+  'bi-weekly': 5,
+  monthly: 5,
+};
+
+function parseDateOnly(dateStr) {
+  if (!dateStr) return null;
+  const parsed = new Date(`${dateStr}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateOnly(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  return date.toISOString().split('T')[0];
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + Number(days || 0));
+  return next;
+}
+
+function matchesRecurringDate(template, currentDate, anchorDate) {
+  const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
+  const selectedDays = Array.isArray(template.daysOfWeek) ? template.daysOfWeek : [];
+  const templateDayOfMonth = Number(template.dayOfMonth || 0);
+  const templateFrequency = String(template.frequency || 'weekly').toLowerCase();
+
+  if (templateFrequency === 'one-time') {
+    return formatDateOnly(currentDate) === formatDateOnly(anchorDate);
+  }
+
+  if (templateFrequency === 'monthly' || templateDayOfMonth > 0) {
+    const templateDay = templateDayOfMonth || anchorDate.getDate();
+    return currentDate.getDate() === templateDay;
+  }
+
+  if (selectedDays.length > 0 && !selectedDays.includes(dayName)) {
+    return false;
+  }
+
+  if (templateFrequency === 'bi-weekly') {
+    const diffDays = Math.floor((currentDate.getTime() - anchorDate.getTime()) / 86400000);
+    if (diffDays < 0) return false;
+    const weekOffset = Number(template.weekOffset || 0);
+    return Math.floor(diffDays / 7) % 2 === weekOffset;
+  }
+
+  return true;
+}
+
+function buildPlannedSessions({
+  slotTemplates = [],
+  bookingMode = 'continuous',
+  appointmentDate,
+  customStartDate,
+  customEndDate,
+}) {
+  const templates = Array.isArray(slotTemplates) ? slotTemplates : [];
+  if (!templates.length) return [];
+
+  const normalizedMode = String(bookingMode || 'continuous').toLowerCase();
+  const sessions = [];
+
+  templates.forEach((template) => {
+    const frequency = String(template.frequency || 'weekly').toLowerCase();
+    const limit = frequency === 'one-time' ? 1 : (RECURRENCE_SESSION_LIMITS[frequency] || 15);
+    const baseDate = parseDateOnly(
+      template.date || appointmentDate || customStartDate || new Date().toISOString().split('T')[0]
+    );
+    if (!baseDate) return;
+
+    const rangeStart = normalizedMode === 'customized'
+      ? parseDateOnly(customStartDate || formatDateOnly(baseDate))
+      : baseDate;
+    const rangeEnd = normalizedMode === 'customized'
+      ? parseDateOnly(customEndDate || customStartDate || appointmentDate)
+      : null;
+
+    if (normalizedMode === 'customized' && (!rangeStart || !rangeEnd || rangeEnd < rangeStart)) {
+      return;
+    }
+
+    let current = new Date(rangeStart);
+    const safetyLimit = normalizedMode === 'customized' ? 370 : 730;
+    let safety = 0;
+
+    while (safety < safetyLimit) {
+      if (normalizedMode === 'customized' && current > rangeEnd) break;
+
+      if (matchesRecurringDate(template, current, baseDate)) {
+        const startTime = template.startTime || '09:00';
+        const endTime = template.endTime || addMinutesToTime(startTime, 30) || '09:30';
+        sessions.push({
+          templateId: template.id,
+          slotId: template.slot_id,
+          date: formatDateOnly(current),
+          startUTC: `${formatDateOnly(current)}T${startTime}:00.000Z`,
+          endUTC: `${formatDateOnly(current)}T${endTime}:00.000Z`,
+          startTime,
+          endTime,
+          frequency,
+          daysOfWeek: template.daysOfWeek || [],
+          dayOfMonth: template.dayOfMonth || null,
+          weekOffset: template.weekOffset || null,
+        });
+
+        if (normalizedMode === 'continuous' && sessions.filter((s) => s.templateId === template.id).length >= limit) {
+          break;
+        }
+      }
+
+      current = addDays(current, 1);
+      safety += 1;
+    }
+  });
+
+  return sessions;
+}
+
+function countPlannedSessions(args) {
+  return buildPlannedSessions(args).length;
+}
+
 // ─── Action Button ──────────────────────────────────────────
 const ActionIconBtn = ({ icon, onClick, disabled = false, style = {} }) => (
   <button
@@ -334,6 +464,9 @@ const DialysisAppointments = () => {
     clinic_id: '',
     clinic_name: '',
     appointment_date: today,
+    booking_mode: 'continuous',
+    custom_start_date: today,
+    custom_end_date: '',
     start_time: '',
     end_time: '',
     appointment_type: 'in_clinic',
@@ -351,6 +484,7 @@ const DialysisAppointments = () => {
   };
 
   const [createForm, setCreateForm] = useState(defaultForm);
+  const [receiptItems, setReceiptItems] = useState([]);
   const [createFieldErrors, setCreateFieldErrors] = useState({});
   const [createErrorMessage, setCreateErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -364,6 +498,7 @@ const DialysisAppointments = () => {
     patient: null,
     bed: null
   });
+  const [statusModal, setStatusModal] = useState({ isOpen: false, row: null });
 
   // --- External Data ---
   const [selectedPatientData, setSelectedPatientData] = useState(null);
@@ -372,6 +507,28 @@ const DialysisAppointments = () => {
   const [clinicServices, setClinicServices] = useState([]);
   const [addedServices, setAddedServices] = useState([]);
   const [currentService, setCurrentService] = useState({ name: '', price: 0, discount: 0 });
+
+  const plannedSessions = useMemo(() => {
+    if (isEditOpen) return createForm.slotTemplates || [];
+    return buildPlannedSessions({
+      slotTemplates: createForm.slotTemplates,
+      bookingMode: createForm.booking_mode,
+      appointmentDate: createForm.appointment_date,
+      customStartDate: createForm.custom_start_date,
+      customEndDate: createForm.custom_end_date,
+    });
+  }, [
+    createForm.slotTemplates,
+    createForm.booking_mode,
+    createForm.appointment_date,
+    createForm.custom_start_date,
+    createForm.custom_end_date,
+    isEditOpen,
+  ]);
+
+  const plannedSessionCount = isEditOpen
+    ? Math.max(createForm.slotTemplates.length, 1)
+    : plannedSessions.length;
 
   // ─── Filtered Patients for Dialysis ───────────────────
   const dialysisPatients = useMemo(() => {
@@ -430,6 +587,9 @@ const DialysisAppointments = () => {
       clinic_id: slot.clinicId,
       clinic_name: chosenClinic ? (chosenClinic.name || chosenClinic.clinic_name) : '',
       appointment_date: dateStr,
+      custom_start_date: dateStr,
+      custom_end_date: '',
+      booking_mode: 'continuous',
       slotTemplates: [{
         daysOfWeek: [new Date(dateStr).toLocaleString('default', { weekday: 'long' })],
         startTime: startTimeStr,
@@ -456,12 +616,27 @@ const DialysisAppointments = () => {
       ]);
       if (clinicRes.success) {
         const fullClinic = clinicRes.data?.data || clinicRes.data;
-        setClinicServices(fullClinic.services || []);
+        const services = fullClinic.services || [];
+        setClinicServices(services);
         setSelectedClinicData(fullClinic);
         setCreateForm(prev => ({
           ...prev,
           duration: String(fullClinic.defaultDuration || 4)
         }));
+
+        const dialysisService = services.find((s) => {
+          const serviceName = String(s.name || s.service_name || '').toLowerCase();
+          return serviceName.includes('dialysis');
+        });
+
+        if (dialysisService) {
+          setCurrentService((prev) => prev.name ? prev : ({
+            name: dialysisService.name || dialysisService.service_name || 'Dialysis',
+            price: Number(dialysisService.amount || dialysisService.price || 0),
+            discount: Number(dialysisService.discount || 0),
+            service_id: dialysisService.id || dialysisService.service_id || null,
+          }));
+        }
       }
       if (aptsRes.success) {
         setClinicAppointments(aptsRes.data?.data || aptsRes.data || []);
@@ -592,24 +767,24 @@ const DialysisAppointments = () => {
 
   // --- Calculate total bill from added services and sessions ---
   useEffect(() => {
-    const sessionCount = Math.max(createForm.slotTemplates.length, 1);
-    const servicesTotal = addedServices.reduce((sum, s) => {
+    const sessionCount = Math.max(plannedSessionCount, 1);
+    const total = addedServices.reduce((sum, s) => {
       const price = Number(s.price) || 0;
       const discount = Number(s.discount) || 0;
-      return sum + (price - (price * discount / 100));
+      const netPrice = price - (price * discount / 100);
+      const qty = s.pay_sessions !== undefined ? Number(s.pay_sessions) : sessionCount;
+      return sum + (netPrice * qty);
     }, 0);
     
-    // Total amount is services per session * number of sessions
-    const total = servicesTotal * sessionCount;
     setCreateForm(prev => {
       const updates = { total_amount: total };
       // If payment option is full, automatically sync amount_paid
-      if (prev.payment_option === 'full' || !prev.amount_paid) {
+      if (prev.payment_option === 'full' || prev.amount_paid === undefined || prev.amount_paid === '') {
         updates.amount_paid = total;
       }
       return { ...prev, ...updates };
     });
-  }, [addedServices, createForm.slotTemplates.length, createForm.payment_option]);
+  }, [addedServices, plannedSessionCount, createForm.payment_option]);
 
   // ─── Standalone invoice preview state ─────────────────
   const [invoiceTarget, setInvoiceTarget] = useState(null);
@@ -786,11 +961,19 @@ const DialysisAppointments = () => {
     }
     return payStatus !== 'PAID';
   }).length;
+  const paidCount = filtered.filter((a) => {
+    let payStatus = String(a._raw?.payment_action || a._raw?.paymentAction || '').toUpperCase();
+    if (!payStatus || payStatus === 'UNDEFINED') {
+      payStatus = getPaymentStatus(a.totalAmount, a.amountPaid);
+    }
+    return payStatus === 'PAID';
+  }).length;
 
   // ─── Status update ────────────────────────────────────
   const handleStatusUpdate = useCallback(
-    async (apt, newStatus) => {
-      if (!window.confirm(`Update appointment #${apt.id} to "${newStatus}"?`)) return;
+    async (apt, newStatus, skipConfirm = false) => {
+      // allow callers to bypass the confirm dialog by passing skipConfirm = true
+      if (!skipConfirm && !window.confirm(`Update appointment #${apt.id} to "${newStatus}"?`)) return;
       const result = await updateAppointment(apt.id, { status: newStatus });
       if (result.success) {
         showToast(`Appointment #${apt.id} → ${newStatus}`, 'success');
@@ -801,6 +984,65 @@ const DialysisAppointments = () => {
     },
     [fetchAppointments, showToast]
   );
+
+  // Auto-convert ARRIVED -> WAITING when appointment start time is reached and payment is PAID
+  useEffect(() => {
+    let mounted = true;
+    const checkAndConvert = async () => {
+      if (!mounted) return;
+      try {
+        const now = new Date();
+        for (const apt of appointments) {
+          try {
+            if (!apt) continue;
+            const status = String(apt.status || '').toUpperCase();
+            if (status !== 'ARRIVED') continue;
+
+            // determine appointment start time (prefer startUTC)
+            let startIso = null;
+            if (apt._raw && (apt._raw.startUTC || apt._raw.start_utc)) {
+              startIso = apt._raw.startUTC || apt._raw.start_utc;
+            } else if (apt.appointment_date && apt._raw && apt._raw.start_time) {
+              // combine date + start_time
+              const t24 = to24Hour(String(apt._raw.start_time || apt._raw.startTime || apt.start_time || '00:00'));
+              startIso = `${apt.appointment_date}T${t24}`;
+            }
+
+            if (!startIso) continue;
+            const startDate = new Date(startIso);
+            if (Number.isNaN(startDate.getTime())) continue;
+
+            // only convert when start time has been reached
+            if (now < startDate) continue;
+
+            // determine payment status: prefer raw.payment_action else compute
+            let payStatus = String(apt._raw?.payment_action || apt._raw?.paymentAction || '').toUpperCase();
+            if (!payStatus || payStatus === 'UNDEFINED') {
+              payStatus = getPaymentStatus(apt.totalAmount, apt.amountPaid);
+            }
+            if (String(payStatus).toUpperCase() !== 'PAID') continue;
+
+            // convert to WAITING
+            // use handleStatusUpdate to perform API update without prompting
+            await handleStatusUpdate(apt, 'WAITING', true);
+          } catch (err) {
+            console.warn('Auto-convert check failed for apt', apt?.id, err);
+          }
+        }
+      } catch (err) {
+        console.error('Auto-convert ARRIVED->WAITING error:', err);
+      }
+    };
+
+    const timer = setInterval(checkAndConvert, 30 * 1000); // every 30s
+    // run immediately on mount
+    checkAndConvert();
+
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
+  }, [appointments, handleStatusUpdate]);
 
   // ─── Simple cancel (no refund) ────────────────────────
   const handleSimpleCancel = useCallback(
@@ -841,6 +1083,7 @@ const DialysisAppointments = () => {
     }
 
     setCreateForm({ ...defaultForm, appointment_date: today, ...preClinic });
+    setReceiptItems([]);
     setAddedServices([]);
     setCurrentService({ name: '', price: 0, discount: 0 });
   }, [clinics, today, defaultForm, selectedClinicId]);
@@ -883,6 +1126,7 @@ const DialysisAppointments = () => {
     setCreateErrorMessage('');
     setSavedAppointment(null);
 
+    setReceiptItems([]);
     setCreateForm({
       ...defaultForm,
       id: raw.id,
@@ -891,6 +1135,9 @@ const DialysisAppointments = () => {
       clinic_id: String(raw.clinic_id || ''),
       clinic_name: raw.clinic_name || clinics.find(c => String(c.id) === String(raw.clinic_id))?.clinic_name || '',
       appointment_date: raw.appointment_date || (raw.startUTC ? String(raw.startUTC).split('T')[0] : today),
+      custom_start_date: raw.recurrence?.startDate || raw.appointment_date || (raw.startUTC ? String(raw.startUTC).split('T')[0] : today),
+      custom_end_date: raw.recurrence?.endDate || '',
+      booking_mode: raw.metadata?.booking_mode || raw.metadata?.slot_type || 'continuous',
       start_time: raw.start_time || (raw.startUTC ? String(raw.startUTC).split('T')[1]?.slice(0, 5) : ''),
       end_time: raw.end_time || '',
       appointment_type: raw.appointment_type || raw.treatment_type || 'in_clinic',
@@ -928,6 +1175,11 @@ const DialysisAppointments = () => {
     if (!createForm.patient_id) errors.patient_id = 'Patient ID is required';
     if (!createForm.appointment_date) errors.appointment_date = 'Start Date is required';
     if (createForm.slotTemplates.length === 0) errors.start_time = 'At least one timing slot is required';
+    if (createForm.booking_mode === 'customized' && !createForm.custom_start_date) errors.custom_start_date = 'Start date is required for customized booking';
+    if (createForm.booking_mode === 'customized' && !createForm.custom_end_date) errors.custom_end_date = 'End date is required for customized booking';
+    if (createForm.booking_mode === 'customized' && createForm.custom_start_date && createForm.custom_end_date && createForm.custom_end_date < createForm.custom_start_date) {
+      errors.custom_end_date = 'End date must be on or after start date';
+    }
     if (!createForm.total_amount) errors.total_amount = 'Bill Amount is required';
 
     if (Object.keys(errors).length > 0) {
@@ -952,12 +1204,16 @@ const DialysisAppointments = () => {
       setCreateErrorMessage('');
 
       const servicesSummary = addedServices.map(s => `${s.name} (₹${s.price - (s.price * s.discount / 100)})`).join(', ');
-      const finalPaid = createForm.payment_status === 'paid' 
+      const finalPaid = createForm.payment_option === 'full' 
         ? Number(createForm.total_amount) 
         : Number(createForm.amount_paid) || 0;
 
-      const sessions = createForm.slotTemplates.map(slot => {
-        let slotId = slot.slot_id;
+      const sessionsSource = isEditOpen
+        ? createForm.slotTemplates
+        : plannedSessions;
+
+      const sessions = sessionsSource.map(slot => {
+        let slotId = slot.slot_id || slot.slotId;
         if (!slotId && availableSlots.length > 0) {
           const match = availableSlots.find(s => s.startTime === (slot.startTime));
           if (match) slotId = match.id;
@@ -974,21 +1230,31 @@ const DialysisAppointments = () => {
         };
       });
 
+      if (!sessions.length && !isEditOpen) {
+        setCreateErrorMessage('No appointments could be generated from the selected schedule.');
+        return;
+      }
+
       const payload = {
         clinicId: Number(createForm.clinic_id),
         patientId: Number(createForm.patient_id),
         sessions,
         services: addedServices.map(s => ({
           ...s,
-          amount: s.price - (s.price * s.discount / 100)
+          amount: s.price - (s.price * s.discount / 100),
+          quantity: s.pay_sessions !== undefined ? Number(s.pay_sessions) : Math.max(sessions.length, 1)
         })),
         bookingType: 'offline',
         amountDue: Number(createForm.total_amount),
         recurrence: createForm.slotTemplates[0] ? {
+          mode: createForm.booking_mode,
           frequency: createForm.slotTemplates[0].frequency,
           daysOfWeek: createForm.slotTemplates[0].daysOfWeek,
           dayOfMonth: createForm.slotTemplates[0].dayOfMonth,
-          endDate: null
+          weekOffset: createForm.slotTemplates[0].weekOffset || null,
+          startDate: createForm.booking_mode === 'customized' ? createForm.custom_start_date : createForm.appointment_date,
+          endDate: createForm.booking_mode === 'customized' ? createForm.custom_end_date : null,
+          autoBookWhenRemaining: 5,
         } : undefined,
         metadata: {
           notes: servicesSummary,
@@ -996,13 +1262,43 @@ const DialysisAppointments = () => {
           patientAilments: createForm.patient_ailments,
           services: addedServices,
           dialysisDuration: createForm.duration,
+          booking_mode: createForm.booking_mode,
+          autoBookThreshold: 5,
+          recurrenceLimit: createForm.booking_mode === 'customized'
+            ? null
+            : RECURRENCE_SESSION_LIMITS[String(createForm.slotTemplates[0]?.frequency || 'weekly').toLowerCase()] || 15,
+        },
+        automation: {
+          autoBookWhenRemaining: 5,
         },
       };
+
+      let receiptUrl = null;
+      const receiptFile = createForm.receipt_file;
+      if (receiptFile) {
+        const formData = new FormData();
+        formData.append('file', receiptFile);
+        const uploadRes = await uploadFile(formData);
+        if (uploadRes.success) {
+          receiptUrl = uploadRes.data?.url || uploadRes.data?.file_url || uploadRes.data?.objectUrl || null;
+        } else {
+          console.warn('Appointment receipt upload failed', uploadRes.data || uploadRes);
+        }
+      }
 
       if (!isEditOpen && finalPaid > 0) {
         payload.immediatePayment = {
           amount: finalPaid,
           method: String(createForm.payment_method || 'cash').toUpperCase(),
+          ...(receiptUrl ? { receiptUrl } : {}),
+        };
+      }
+
+      if (receiptUrl) {
+        payload.receiptUrl = receiptUrl;
+        payload.metadata = {
+          ...payload.metadata,
+          receiptUrl,
         };
       }
 
@@ -1057,27 +1353,6 @@ const DialysisAppointments = () => {
       setCreateErrorMessage('Network error, please try again');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  // ─── Convert Image to PDF on Upload ─────────────────
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const imgData = event.target.result;
-        const pdf = new jsPDF();
-        pdf.addImage(imgData, 'JPEG', 10, 10, 190, 0); // basic fit
-        const pdfBlob = pdf.output('blob');
-        const pdfFile = new File([pdfBlob], file.name.replace(/\.[^/.]+$/, '') + '.pdf', { type: 'application/pdf' });
-        setCreateForm((p) => ({ ...p, receipt_file: pdfFile }));
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setCreateForm((p) => ({ ...p, receipt_file: file }));
     }
   };
 
@@ -1233,39 +1508,42 @@ const DialysisAppointments = () => {
         if (!payStatus || payStatus === 'UNDEFINED') {
           payStatus = getPaymentStatus(row.totalAmount, row.amountPaid);
         }
-        const handleClick = () => {
-          if (value === 'BOOKED' || value === 'SCHEDULED') {
-            handleStatusUpdate(row, 'ARRIVED');
-          } else if (value === 'ARRIVED') {
-            handleStatusUpdate(row, 'BOOKED');
-          }
-        };
+          const openStatusPicker = () => {
+            if (value === 'BOOKED' || value === 'SCHEDULED') {
+              handleStatusUpdate(row, 'ARRIVED');
+              return;
+            }
+            if (value === 'ARRIVED') {
+              setStatusModal({ isOpen: true, row });
+              return;
+            }
+          };
 
-        const isClickable = ['BOOKED', 'SCHEDULED', 'ARRIVED'].includes(value);
+          const isClickable = ['BOOKED', 'SCHEDULED', 'ARRIVED'].includes(value);
 
-        return (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <button
-              onClick={handleClick}
-              disabled={!isClickable}
-              style={{
-                background: STATUS_COLORS[value]?.bg || '#E5E7EB',
-                color: STATUS_COLORS[value]?.text || '#374151',
-                border: 'none',
-                borderRadius: '4px',
-                padding: '4px 12px',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: isClickable ? 'pointer' : 'default',
-                textTransform: 'uppercase',
-                minWidth: '100px',
-                opacity: isClickable ? 1 : 0.7
-              }}
-            >
-              {value}
-            </button>
-          </div>
-        );
+          return (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={openStatusPicker}
+                disabled={!isClickable}
+                style={{
+                  background: STATUS_COLORS[value]?.bg || '#E5E7EB',
+                  color: STATUS_COLORS[value]?.text || '#374151',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 14px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: isClickable ? 'pointer' : 'default',
+                  textTransform: 'uppercase',
+                  minWidth: '100px',
+                  opacity: isClickable ? 1 : 0.7
+                }}
+              >
+                {value === 'ARRIVED' ? 'Arrived' : value}
+              </button>
+            </div>
+          );
       },
     },
     {
@@ -1422,6 +1700,10 @@ const DialysisAppointments = () => {
               <div style={{ padding: '8px 16px', background: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(22,163,74,0.05)' }}>
                 <span style={{ fontSize: '10px', color: '#15803d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed</span>
                 <strong style={{ fontSize: '20px', color: '#16a34a', lineHeight: '1.2' }}>{completed}</strong>
+              </div>
+              <div style={{ padding: '8px 16px', background: '#ecfdf5', borderRadius: '12px', border: '1px solid #a7f3d0', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(16,185,129,0.05)' }}>
+                <span style={{ fontSize: '10px', color: '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Paid</span>
+                <strong style={{ fontSize: '20px', color: '#10b981', lineHeight: '1.2' }}>{paidCount}</strong>
               </div>
               {unpaidCount > 0 && (
                 <div style={{ padding: '8px 16px', background: '#fef2f2', borderRadius: '12px', border: '1px solid #fee2e2', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(220,38,38,0.05)', animation: 'pulse 2s infinite' }}>
@@ -1640,15 +1922,73 @@ const DialysisAppointments = () => {
                     <div className="grid grid-cols-1 md:grid-cols-1 gap-5">
                        <FormControl isRequired isInvalid={getFieldProps('start_time').isInvalid}>
                         <FormLabel>Timing & Schedule</FormLabel>
+
+                        <div style={{ marginBottom: '16px', padding: '16px', border: '1px solid #E5E7EB', borderRadius: '14px', background: '#F8FAFC' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            Slot Type
+                          </div>
+                          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                            {[
+                              { value: 'continuous', label: 'Continuous', help: 'Auto-books future sessions: 15 weekly, 5 bi-weekly, 5 monthly.' },
+                              { value: 'customized', label: 'Customized', help: 'Select a start date and end date, then book every checked day in that range.' },
+                            ].map((opt) => (
+                              <label key={opt.value} style={{ flex: '1 1 240px', display: 'flex', flexDirection: 'column', gap: '4px', padding: '14px', borderRadius: '12px', border: createForm.booking_mode === opt.value ? '2px solid #2563EB' : '1px solid #CBD5E1', background: createForm.booking_mode === opt.value ? '#EFF6FF' : '#FFF', cursor: 'pointer' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
+                                  <input
+                                    type="radio"
+                                    name="booking_mode"
+                                    value={opt.value}
+                                    checked={createForm.booking_mode === opt.value}
+                                    onChange={() => setCreateForm((p) => ({
+                                      ...p,
+                                      booking_mode: opt.value,
+                                      custom_start_date: p.custom_start_date || p.appointment_date,
+                                      custom_end_date: opt.value === 'customized' ? p.custom_end_date : '',
+                                    }))}
+                                  />
+                                  {opt.label}
+                                </span>
+                                <span style={{ fontSize: '12px', color: '#475569', lineHeight: 1.4 }}>{opt.help}</span>
+                              </label>
+                            ))}
+                          </div>
+
+                          {createForm.booking_mode === 'customized' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                              <FormControl isRequired isInvalid={getFieldProps('custom_start_date').isInvalid}>
+                                <FormLabel>Start Date</FormLabel>
+                                <Input
+                                  type="date"
+                                  value={createForm.custom_start_date}
+                                  onChange={(e) => setCreateForm((p) => ({ ...p, custom_start_date: e.target.value }))}
+                                />
+                              </FormControl>
+                              <FormControl isRequired isInvalid={getFieldProps('custom_end_date').isInvalid}>
+                                <FormLabel>End Date</FormLabel>
+                                <Input
+                                  type="date"
+                                  value={createForm.custom_end_date}
+                                  onChange={(e) => setCreateForm((p) => ({ ...p, custom_end_date: e.target.value }))}
+                                />
+                              </FormControl>
+                            </div>
+                          )}
+
+                          <div style={{ marginTop: '12px', fontSize: '12px', color: '#475569' }}>
+                            Planned sessions: <strong>{plannedSessionCount}</strong>
+                          </div>
+                        </div>
                         
                         <div className="p-0 border-none">
                           <ScheduleManager
                             clinicId={createForm.clinic_id}
                             date={createForm.appointment_date}
                             slotTemplates={createForm.slotTemplates}
+                            availableClinicTemplates={selectedClinicData?.slotTemplates || []}
                             capacity={selectedClinicData?.capacity || 1}
                             existingAppointments={clinicAppointments}
                             duration={Number(createForm.duration || 4) * 60}
+                            bufferMinutes={selectedClinicData?.cleaningTimeMinutes || 30}
                             onChange={(newTemplates) => {
                               const processed = newTemplates.map(t => {
                                 if (t.startTime && createForm.duration) {
@@ -1681,7 +2021,7 @@ const DialysisAppointments = () => {
                               setCurrentService({
                                 name: e.target.value,
                                 price: s ? s.amount : 0,
-                                discount: 0,
+                                discount: s ? (s.discount || 0) : 0,
                                 service_id: s ? (s.id || s.service_id) : null
                               });
                             }}
@@ -1692,8 +2032,11 @@ const DialysisAppointments = () => {
                             }}
                           >
                             <option value="">Select Service</option>
+                            {clinicServices.every((s) => !String(s.name || s.service_name || '').toLowerCase().includes('dialysis')) && (
+                              <option value="Dialysis">Dialysis</option>
+                            )}
                             {clinicServices.map(s => (
-                              <option key={s.name} value={s.name}>{s.name} (₹{s.amount})</option>
+                              <option key={s.name || s.service_id || s.id} value={s.name}>{s.name} (₹{s.amount})</option>
                             ))}
                           </select>
                         </FormControl>
@@ -1829,13 +2172,16 @@ const DialysisAppointments = () => {
                           ['Patient', selectedPatientData?.name || '—'],
                           ['Clinic', createForm.clinic_name || '—'],
                           ['Date', createForm.appointment_date],
-                          ['Schedule', createForm.slotTemplates.length > 0 ? (
+                          ['Schedule', plannedSessionCount > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               {createForm.slotTemplates.map((s, i) => (
                                 <span key={i} style={{ fontSize: '12px' }}>
                                   {s.date ? formatDateDisplay(s.date) : s.daysOfWeek[0]} {s.startTime}-{s.endTime} ({s.frequency.replace('-', ' ')})
                                 </span>
                               ))}
+                              <span style={{ fontSize: '11px', color: '#6B7280' }}>
+                                Planned sessions: {plannedSessionCount}
+                              </span>
                             </div>
                           ) : '—'],
                         ].map(([label, val]) => (
@@ -1847,13 +2193,41 @@ const DialysisAppointments = () => {
                       </div>
 
                       <div style={{ marginTop: '16px', borderTop: '1px solid #E5E7EB', paddingTop: '12px' }}>
-                        <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '4px' }}>Services</div>
-                        {addedServices.map(s => (
-                          <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '2px' }}>
-                            <span>{s.name}</span>
-                            <span>₹{s.price - (s.price * s.discount / 100)}</span>
-                          </div>
-                        ))}
+                        <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '8px' }}>Services (Select how many sessions to pay for)</div>
+                        {addedServices.map((s, idx) => {
+                          const netPrice = s.price - (s.price * s.discount / 100);
+                          const sessionCount = Math.max(plannedSessionCount, 1);
+                          const qty = s.pay_sessions !== undefined ? Number(s.pay_sessions) : sessionCount;
+                          return (
+                            <div key={s.ui_key || s.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginBottom: '8px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <span style={{ fontWeight: 600 }}>{s.name}</span>
+                                <span style={{ color: '#6B7280' }}>₹{netPrice} / session</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#F3F4F6', padding: '4px 8px', borderRadius: '8px' }}>
+                                  <span style={{ fontSize: '10px', color: '#4B5563', fontWeight: 600, textTransform: 'uppercase' }}>Qty:</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={qty}
+                                    onChange={(e) => {
+                                      let newQty = parseInt(e.target.value, 10);
+                                      if (isNaN(newQty) || newQty < 0) newQty = 0;
+                                      setAddedServices(prev => {
+                                        const updated = [...prev];
+                                        updated[idx] = { ...updated[idx], pay_sessions: newQty };
+                                        return updated;
+                                      });
+                                    }}
+                                    style={{ width: '45px', padding: '2px 4px', border: '1px solid #D1D5DB', borderRadius: '4px', textAlign: 'center', fontSize: '12px' }}
+                                  />
+                                </div>
+                                <span style={{ fontWeight: 700, minWidth: '60px', textAlign: 'right' }}>₹{(netPrice * qty).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
 
                       <div
@@ -1987,29 +2361,19 @@ const DialysisAppointments = () => {
                     {/* Receipt Upload */}
                     <FormControl>
                       <FormLabel>Receipt Upload (Optional)</FormLabel>
-                      <div
-                        style={{
-                          border: '2px dashed #D1D5DB', borderRadius: '12px',
-                          padding: '24px', textAlign: 'center', cursor: 'pointer',
-                          background: '#F9FAFB', transition: 'border-color 0.2s'
+                      <FileUploadWithCamera
+                        images={receiptItems}
+                        onChange={(items) => {
+                          setReceiptItems(items || []);
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            receipt_file: items?.[0]?.file || null,
+                          }));
                         }}
-                        onMouseOver={(e) => e.currentTarget.style.borderColor = '#9CA3AF'}
-                        onMouseOut={(e) => e.currentTarget.style.borderColor = '#D1D5DB'}
-                        onClick={() => document.getElementById('receipt-file-input').click()}
-                      >
-                        <div style={{ fontSize: '13px', color: '#6B7280' }}>
-                          {createForm.receipt_file
-                            ? `File selected: ${createForm.receipt_file.name}`
-                            : 'Click to upload receipt (PDF or Image)'}
-                        </div>
-                        <input
-                          id="receipt-file-input"
-                          type="file"
-                          accept="image/*,application/pdf"
-                          style={{ display: 'none' }}
-                          onChange={handleFileUpload}
-                        />
-                      </div>
+                        accept="image/*,.pdf"
+                        multiple={false}
+                        showCamera={true}
+                      />
                     </FormControl>
                   </Box>
                 )}
@@ -2029,6 +2393,49 @@ const DialysisAppointments = () => {
         )}
 
         {/* ─── Payment Modal ─── */}
+        {/* ─── Status Picker Modal (Arrived → Booked / Waiting) ─── */}
+        <BaseModal
+          isOpen={statusModal.isOpen}
+          onClose={() => setStatusModal({ isOpen: false, row: null })}
+          title={statusModal.row ? `Update status for ${statusModal.row.name || statusModal.row.patient_id}` : 'Update status'}
+          size="sm"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '8px 4px' }}>
+            <div style={{ fontSize: '13px', color: '#374151' }}>
+              Choose the status to convert this appointment to:
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              <button
+                onClick={async () => {
+                  if (!statusModal.row) return;
+                  await handleStatusUpdate(statusModal.row, 'BOOKED', true);
+                  setStatusModal({ isOpen: false, row: null });
+                }}
+                style={{ padding: '8px 12px', background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: '8px', cursor: 'pointer' }}
+              >
+                Mark as Booked
+              </button>
+              <button
+                onClick={async () => {
+                  if (!statusModal.row) return;
+                  await handleStatusUpdate(statusModal.row, 'WAITING', true);
+                  setStatusModal({ isOpen: false, row: null });
+                }}
+                style={{ padding: '8px 12px', background: '#FEF9E6', border: '1px solid #FEEBC8', borderRadius: '8px', cursor: 'pointer' }}
+              >
+                Mark as Waiting
+              </button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={() => setStatusModal({ isOpen: false, row: null })}
+                style={{ padding: '6px 10px', background: 'transparent', border: 'none', color: '#6B7280', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </BaseModal>
         <PaymentModal
           isOpen={paymentModal.isOpen}
           onClose={closePaymentModal}

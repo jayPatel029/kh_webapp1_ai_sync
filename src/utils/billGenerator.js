@@ -62,12 +62,12 @@ export async function generateBillPDF(billData, opts = {}) {
   doc.text('Bill To:', custX, y - 6);
   doc.setFontSize(10);
   doc.setTextColor(55, 65, 81);
-  doc.text(customer.name || '-', custX, custY);
-  const ageGen = [customer.age ? `${customer.age} Yrs` : null, customer.gender].filter(Boolean).join(' / ');
-  if (ageGen) {
-    custY += 14;
-    doc.text(ageGen, custX, custY);
-  }
+  // Show patient details in the pattern: NAME/AGE/GENDER
+  const patientName = customer.name || '-';
+  const patientAge = (customer.age ?? '-');
+  const patientGender = customer.gender || '-';
+  const patientLine = `${patientName}/${patientAge}/${patientGender}`;
+  doc.text(patientLine, custX, custY);
   if (customer.phone) {
     custY += 14;
     doc.text(customer.phone, custX, custY);
@@ -83,17 +83,11 @@ export async function generateBillPDF(billData, opts = {}) {
   y += 70;
 
   // Items table
-  const hasDuration = items.some(it => it.duration && it.duration !== '—' && it.duration !== '0' && it.duration !== 0);
+  // Do not include duration/end-time columns in PDF table (always omit)
   const hasDiscount = items.some(it => it.discount && Number(it.discount) > 0);
 
-  const headRow = ['Description'];
-  if (hasDuration) {
-    headRow.push('Start Time', 'End Time', 'Duration');
-  }
-  headRow.push('Qty', 'Unit Price');
-  if (hasDiscount) {
-    headRow.push('Discount');
-  }
+  const headRow = ['Description', 'Qty', 'Unit Price'];
+  if (hasDiscount) headRow.push('Discount');
   headRow.push('Total');
 
   const tableBody = items.map((it) => {
@@ -102,27 +96,36 @@ export async function generateBillPDF(billData, opts = {}) {
     const discount = Number(it.discount || 0);
     const total = (qty * unit) - discount;
 
-    const row = [it.description || 'Service'];
-    if (hasDuration) {
-      row.push(it.startTime || '-', it.endTime || '-', it.duration || '-');
-    }
-    row.push(String(qty), `${currency} ${unit.toFixed(2)}`);
-    if (hasDiscount) {
-      row.push(`${currency} ${discount.toFixed(2)}`);
-    }
+    const row = [it.description || 'Service', String(qty), `${currency} ${unit.toFixed(2)}`];
+    if (hasDiscount) row.push(`${currency} ${discount.toFixed(2)}`);
     row.push(`${currency} ${total.toFixed(2)}`);
-    
     return row;
   });
 
+  // Add header/footer to each page via didDrawPage
   autoTable(doc, {
     head: [headRow],
     body: tableBody,
     startY: y,
-    margin: { left: margin, right: margin },
+    margin: { left: margin, right: margin, top: 80, bottom: 60 },
     styles: { fontSize: 10, textColor: [55, 65, 81] },
     headStyles: { fillColor: [219, 234, 254], textColor: [30, 64, 175], fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [249, 250, 251] },
+    didDrawPage: (data) => {
+      // Header
+      const pageWidth = doc.internal.pageSize.getWidth();
+      doc.setFontSize(12);
+      doc.setTextColor(30, 64, 175);
+      doc.text('INVOICE', pageWidth - margin, 40, { align: 'right' });
+
+      // Footer
+      const footerY = doc.internal.pageSize.getHeight() - 30;
+      doc.setFontSize(9);
+      doc.setTextColor(156, 163, 175);
+      doc.text('Thank you for your business. This is a computer-generated invoice.', margin, footerY);
+      const pageNum = doc.internal.getNumberOfPages();
+      doc.text(`Page ${pageNum}`, pageWidth - margin, footerY, { align: 'right' });
+    }
   });
 
   y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 16 : y + 120;
@@ -233,12 +236,12 @@ export async function generateRefundPDF(refundData, opts = {}) {
   doc.text('Customer:', custX, y - 6);
   doc.setFontSize(10);
   doc.setTextColor(55, 65, 81);
-  doc.text(customer.name || '-', custX, custY);
-  const ageGen = [customer.age ? `${customer.age} Yrs` : null, customer.gender].filter(Boolean).join(' / ');
-  if (ageGen) {
-    custY += 14;
-    doc.text(ageGen, custX, custY);
-  }
+  // Show patient details in the pattern: NAME/AGE/GENDER
+  const patientName = customer.name || '-';
+  const patientAge = (customer.age ?? '-');
+  const patientGender = customer.gender || '-';
+  const patientLine = `${patientName}/${patientAge}/${patientGender}`;
+  doc.text(patientLine, custX, custY);
   if (customer.phone) {
     custY += 14;
     doc.text(customer.phone, custX, custY);
@@ -251,8 +254,6 @@ export async function generateRefundPDF(refundData, opts = {}) {
     custY += 14;
     doc.text(customer.email, custX, custY);
   }
-  y += 70;
-  if (customer.id) doc.text(`ID: ${customer.id}`, custX, y + 22);
   y += 70;
 
   // Refund summary table

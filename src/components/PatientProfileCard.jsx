@@ -240,59 +240,63 @@ export const PatientProfileCard = ({
                 </Flex>
 
                 {/* <Box className="mt-2"> */}
-                  <Flex direction="column" align="start" justify="start"  className="w-full gap-2">
-                    {infoItems.map((it, i) => (
-                      it.label?.toLowerCase().includes('ailments') ? (
-                        <Grid container key={i} alignItems="flex-start" spacing={1}>
-                          <Grid item xs={12}>
-                            <Text size="xs" weight="bold" className="text-slate-400 uppercase">{it.label}</Text>
-                          </Grid>
-
-                          {(mergedUserData?.ailments || []).length > 0 ? (
-                            (mergedUserData?.ailments || []).map((ailment, idx) => (
-                              <Grid item xs={12} sm={6} md={4} key={`${ailment}-${idx}`}>
-                                <Box className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">
-                                  {ailment}
-                                </Box>
-                              </Grid>
-                            ))
-                          ) : (
-                            <Grid item xs={12}>
-                              <Text size="sm" weight="semibold" className="text-slate-700">-</Text>
-                            </Grid>
-                          )}
+                <Flex direction="column" align="start" justify="start" className="w-full gap-2">
+                  {infoItems.map((it, i) => (
+                    it.label?.toLowerCase().includes('ailments') ? (
+                      <Grid container key={i} alignItems="flex-start" spacing={1}>
+                        <Grid item xs={12}>
+                          <Text size="xs" weight="bold" className="text-slate-400 uppercase">{it.label}</Text>
                         </Grid>
-                      ) : (
-                        <Flex key={i} className="items-center gap-2">
-                          <Text size="xs" weight="bold" className="text-slate-400 uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
-                          <Text size="sm" weight="semibold" className="text-slate-700 truncate">{it.value || '-'}</Text>
-                        </Flex>
-                      )
-                    ))}
-                  </Flex>
+
+                        {(mergedUserData?.ailments || []).length > 0 ? (
+                          (mergedUserData?.ailments || []).map((ailment, idx) => (
+                            <Grid item xs={12} sm={6} md={4} key={`${ailment}-${idx}`}>
+                              <Box className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">
+                                {ailment}
+                              </Box>
+                            </Grid>
+                          ))
+                        ) : (
+                          <Grid item xs={12}>
+                            <Text size="sm" weight="semibold" className="text-slate-700">-</Text>
+                          </Grid>
+                        )}
+                      </Grid>
+                    ) : (
+                      <Flex key={i} className="items-center gap-2">
+                        <Text size="xs" weight="bold" className="text-slate-400 uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
+                        <Text size="sm" weight="semibold" className="text-slate-700 truncate">{it.value || '-'}</Text>
+                      </Flex>
+                    )
+                  ))}
+                </Flex>
 
                 {/* </Box> */}
               </Flex>
-              {/* <hr className="border-2 w-full rotate-90 border-info self-stretch"/> */}
               {showAilmentDetails && (
                 <>
-                  <div className="w-0 self-stretch origin-top-left outline outline-[1px] outline-offset-[-0.5px] outline-info" />
-                  
+                  <div className="w-0 self-stretch " />
+
                   <Box className="flex-1 w-full">
-                    <Box className="space-y-4">
+                      <Box className="space-y-6">
                       <Heading as="h4" size="sm" weight="bold">Ailment Details</Heading>
 
                       {isFetchingProfile && mergedUserData?.ailments?.length === 0 ? (
                         <Text size="sm" className="text-slate-500">Loading profile details...</Text>
                       ) : mergedUserData?.ailments && mergedUserData.ailments.length > 0 ? (
-                        <Box className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {mergedUserData.ailments.map((ailment, idx) => (
-                            <Box key={`${ailment}-${idx}`} className="border border-slate-200 rounded-lg p-3">
-                              <Heading as="h5" size="xs" weight="bold" className="text-accent mb-2">{ailment}</Heading>
-                              <QuestionsContainer aliment={ailment} user_id={mergedUserData?.id || routePatientId} />
+                        <>
+                          <Box className="rounded-lg overflow-hidden">
+                            <Box className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                              {mergedUserData.ailments.map((ailment, idx) => (
+                                <Box key={`${ailment}-${idx}`} className={clsx('p-3', (idx % 2 === 1) && 'md:border-l md:border-info md:pl-6')}>
+                                  <Heading as="h5" size="xs" weight="bold" className="text-accent mb-2">{ailment}</Heading>
+                                  <QuestionsContainer aliment={ailment} user_id={mergedUserData?.id || routePatientId} />
+                                </Box>
+                              ))}
                             </Box>
-                          ))}
-                        </Box>
+                          </Box>
+                        </>
+
                       ) : (
                         <Text size="sm" className="text-slate-500">No ailments listed.</Text>
                       )}

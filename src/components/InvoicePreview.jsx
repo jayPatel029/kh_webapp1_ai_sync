@@ -280,10 +280,8 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
     } catch { return '—'; }
   }
 
-  const showDuration = fetchedBillAppointments.some(appt => {
-    const dur = calculateDurationHours(appt.start_time, appt.end_time);
-    return dur !== '0' && dur !== '—';
-  });
+  // Do not show end time or duration columns in the invoice PDF/table - keep layout simpler
+  const showDuration = false;
 
   const showDiscount = servicesList.some(s => s.discount > 0) || (invoice?.discount && Number(invoice.discount) > 0);
 
@@ -292,7 +290,6 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
     try {
       const node = document.getElementById("invoice-render-node");
       if (!node) throw new Error("Invoice render node not found");
-
       const canvas = await html2canvas(node, {
         scale: 2,
         backgroundColor: "#ffffff",
@@ -302,12 +299,45 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
 
       const pdf = new jsPDF("p", "pt", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 24;
       const imgWidth = pageWidth - margin * 2;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      pdf.addImage(imgData, "JPEG", margin, margin, imgWidth, imgHeight);
+
+      // Add the full canvas image across multiple pages if needed
+      let heightLeft = imgHeight;
+      let position = margin;
+      // Draw pages by shifting the source image vertically
+      let pageCount = 0;
+      while (heightLeft > 0) {
+        if (pageCount > 0) pdf.addPage();
+        pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
+        heightLeft -= (pageHeight - margin * 2);
+        position -= (pageHeight - margin * 2);
+        pageCount += 1;
+      }
+
+      // Add header/footer to each page
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        // Header
+        pdf.setFontSize(12);
+        pdf.setTextColor('#1E40AF');
+        pdf.text(orgName || clinicName || 'Clinic', pageWidth - margin, 40, { align: 'right' });
+        pdf.setFontSize(10);
+        pdf.setTextColor('#6B7280');
+        pdf.text(invoiceId, margin, 40);
+
+        // Footer
+        const footerY = pageHeight - 30;
+        pdf.setFontSize(9);
+        pdf.setTextColor('#9CA3AF');
+        pdf.text('This is an electronically generated invoice. No signature is required.', margin, footerY);
+        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - margin, footerY, { align: 'right' });
+      }
+
       pdf.save(`${invoiceId}.pdf`);
     } catch (err) {
       console.error('PDF download error:', err);
@@ -384,32 +414,22 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
           </div>
         </div>
 
-              {/* --- PATIENT DETAILS --- */}
-              <div style={{ marginBottom: '30px', background: '#F8FAFC', padding: '20px', borderRadius: '8px' }}>
-                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', fontWeight: 700 }}>Patient Details</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px' }}>
-                  <div>
-                    <div style={{ color: '#6B7280', fontSize: '11px' }}>Name</div>
-                    <div style={{ fontWeight: 600 }}>{patientName}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: '#6B7280', fontSize: '11px' }}>Age / Gender</div>
-                    <div style={{ fontWeight: 600 }}>{patientAge}{patientAge !== '-' ? ' Yrs' : ''} / {patientGender}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: '#6B7280', fontSize: '11px' }}>Phone</div>
-                    <div style={{ fontWeight: 600 }}>{patientPhone}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: '#6B7280', fontSize: '11px' }}>Invoice ID</div>
-                    <div style={{ fontWeight: 600 }}>{invoiceId}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: '#6B7280', fontSize: '11px' }}>Bill Date</div>
-                    <div style={{ fontWeight: 600 }}>{new Date(invoice?.created_at || appointment?.appointment_date || Date.now()).toLocaleDateString('en-GB')}</div>
-                  </div>
-                </div>
-        </div>
+              {/* --- PATIENT DETAILS (single-line) --- */}
+              <div style={{ marginBottom: '30px', background: '#F8FAFC', padding: '14px 20px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', fontWeight: 700 }}>Patient Details</div>
+                {/* Compose single-line: PAT<ID> / NAME / GENDER / PHONE / AGE Yrs */}
+                {(() => {
+                  const pid = fetchedPatient?.patient_id || fetchedPatient?.id || appointment?.patient_id || appointment?.patientId || appointment?.patientId || appointment?.patient_id || appointment?.patientId;
+                  const pidStr = pid ? String(pid) : '';
+                  const pidLabel = pidStr ? (pidStr.toUpperCase().startsWith('PAT') ? pidStr : `PAT${pidStr}`) : '';
+                  const agePart = patientAge && patientAge !== '-' ? `${patientAge} Yrs` : '-';
+                  const parts = [pidLabel, patientName, patientGender, patientPhone, agePart].filter(Boolean).filter(p => p !== '-');
+                  const line = parts.join(' / ');
+                  return (
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A', letterSpacing: '0.02em' }}>{line}</div>
+                  );
+                })()}
+              </div>
 
               {/* --- THREE MAIN SECTIONS (TABLES) --- */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '35px' }}>

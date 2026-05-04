@@ -4,6 +4,7 @@ import { Button } from '../component-library';
 import { getOutstandingBalance } from '../utils/refundCalculator';
 import { getAppointmentById, addAppointmentPayment, updateAppointment } from '../ApiCalls/clinicApis';
 import { uploadFile } from '../ApiCalls/dataUpload';
+import FileUploadWithCamera from './FileUploadWithCamera';
 
 const PAYMENT_METHODS = ['cash', 'card', 'upi', 'bank_transfer', 'cheque'];
 
@@ -60,7 +61,7 @@ const PaymentModal = ({
 
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
-  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptItems, setReceiptItems] = useState([]);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -73,7 +74,7 @@ const PaymentModal = ({
       setAppointment(null);
       setAmount('');
       setMethod('cash');
-      setReceiptFile(null);
+      setReceiptItems([]);
       setError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -150,12 +151,13 @@ const PaymentModal = ({
     try {
       // 1. Upload receipt if any
       let receiptUrl = null;
-      if (receiptFile) {
+      const activeReceiptFile = receiptItems?.[0]?.file || null;
+      if (activeReceiptFile) {
         const formData = new FormData();
-        formData.append('file', receiptFile);
+        formData.append('file', activeReceiptFile);
         const uploadRes = await uploadFile(formData);
         if (uploadRes.success) {
-          receiptUrl = uploadRes.data?.url || uploadRes.data?.file_url;
+          receiptUrl = uploadRes.data?.url || uploadRes.data?.file_url || uploadRes.data?.objectUrl;
         } else {
           console.warn('Failed to upload receipt file');
         }
@@ -239,8 +241,21 @@ const PaymentModal = ({
                 border: '1px solid #E5E7EB',
               }}
             >
+              {/* Single-line patient summary: PAT<ID> / NAME / GENDER / PHONE / AGE Yrs */}
               <div style={{ fontWeight: 700, fontSize: '15px', color: '#111827', marginBottom: '12px' }}>
-                {patientName} {billId && <span style={{ fontSize: '12px', color: '#6B7280', fontWeight: 'normal' }}> (Bill: {billId})</span>}
+                  {(() => {
+                    const pid = appointment?.patient_id || appointment?.patientId || appointment?.patientId || appointment?.id || '';
+                    const pidStr = pid ? String(pid) : '';
+                    const pidLabel = pidStr ? (pidStr.toUpperCase().startsWith('PAT') ? pidStr : `PAT${pidStr}`) : '';
+                    const age = appointment?.age || appointment?.patient_age || appointment?.age || '-';
+                    const gender = appointment?.gender || appointment?.patient_gender || appointment?.sex || '-';
+                    const phone = appointment?.phoneNumber || appointment?.phone || appointment?.patient_phone || appointment?.mobile_no || '-';
+                    const agePart = age && age !== '-' ? `${age} Yrs` : '-';
+                    const parts = [pidLabel, patientName, gender, phone, agePart].filter(Boolean).filter(p => p !== '-');
+                    const line = parts.join(' / ');
+                    return (<span style={{ fontSize: '15px', fontWeight: 800 }}>{line}</span>);
+                  })()}
+                  {billId && <span style={{ fontSize: '12px', color: '#6B7280', fontWeight: 'normal' }}> (Bill: {billId})</span>}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -355,32 +370,13 @@ const PaymentModal = ({
             {/* Receipt Upload */}
             <div style={fieldStyle}>
               <label style={labelStyle}>Upload Receipt (Optional)</label>
-              <div
-                style={{
-                  border: '2px dashed #D1D5DB',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  background: '#F9FAFB',
-                  transition: 'border-color 0.15s'
-                }}
-                onClick={() => document.getElementById('receipt-upload-input').click()}
-              >
-                <span style={{ fontSize: '13px', color: '#6B7280' }}>
-                  {receiptFile ? `File selected: ${receiptFile.name}` : 'Click to upload receipt (PDF/Image)'}
-                </span>
-                <input
-                  id="receipt-upload-input"
-                  type="file"
-                  accept="image/*,application/pdf"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) setReceiptFile(file);
-                  }}
-                />
-              </div>
+              <FileUploadWithCamera
+                images={receiptItems}
+                onChange={(items) => setReceiptItems(items || [])}
+                accept="image/*,.pdf"
+                multiple={false}
+                showCamera={true}
+              />
             </div>
 
             {/* Error */}
