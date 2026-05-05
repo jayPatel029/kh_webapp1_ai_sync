@@ -417,14 +417,15 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
               {/* --- PATIENT DETAILS (single-line) --- */}
               <div style={{ marginBottom: '30px', background: '#F8FAFC', padding: '14px 20px', borderRadius: '8px' }}>
                 <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', fontWeight: 700 }}>Patient Details</div>
-                {/* Compose single-line: PAT<ID> / NAME / GENDER / PHONE / AGE Yrs */}
+                {/* Compose single-line: PATIENT_CODE / PATIENT_NAME / AGE / GENDER / MOBILE_NO */}
                 {(() => {
-                  const pid = fetchedPatient?.patient_id || fetchedPatient?.id || appointment?.patient_id || appointment?.patientId || appointment?.patientId || appointment?.patient_id || appointment?.patientId;
-                  const pidStr = pid ? String(pid) : '';
-                  const pidLabel = pidStr ? (pidStr.toUpperCase().startsWith('PAT') ? pidStr : `PAT${pidStr}`) : '';
-                  const agePart = patientAge && patientAge !== '-' ? `${patientAge} Yrs` : '-';
-                  const parts = [pidLabel, patientName, patientGender, patientPhone, agePart].filter(Boolean).filter(p => p !== '-');
-                  const line = parts.join(' / ');
+                  const pid = fetchedPatient?.patient_code || fetchedPatient?.patientCode || fetchedPatient?.patient_id || fetchedPatient?.id || appointment?.patient_code || appointment?.patientCode || appointment?.patient_id || appointment?.patientId;
+                  const codePart = pid ? String(pid) : '-';
+                  const namePart = patientName && patientName !== '-' ? patientName : '-';
+                  const agePart = patientAge && patientAge !== '-' ? patientAge : '-';
+                  const genderPart = patientGender && patientGender !== '-' ? patientGender : '-';
+                  const phonePart = patientPhone && patientPhone !== '-' ? patientPhone : '-';
+                  const line = `${codePart} / ${namePart} / ${agePart} / ${genderPart} / ${phonePart}`;
                   return (
                     <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A', letterSpacing: '0.02em' }}>{line}</div>
                   );
@@ -520,6 +521,20 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                     <div style={{ color: '#1e3a8a', marginTop: '10px' }}>
                       Final Amount: gross amount X no. of appt = {grossAmount.toFixed(2)} x {fetchedBillAppointments.length} = <span style={{ fontSize: '22px', borderBottom: '2px solid #1E40AF' }}>{totalDue.toFixed(2)}</span>
                     </div>
+                    {fetchedBillAppointments.length > 0 && (
+                      <div style={{ display: 'flex', gap: '20px', marginTop: '12px', fontSize: '13px', padding: '10px', background: '#F1F5F9', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A' }}></span>
+                          <span style={{ color: '#475569' }}>Paid Sessions:</span>
+                          <span style={{ color: '#16A34A', fontWeight: 900 }}>{fetchedBillAppointments.filter(a => String(a.payment_action).toUpperCase() === 'PAID').length}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#DC2626' }}></span>
+                          <span style={{ color: '#475569' }}>Unpaid Sessions:</span>
+                          <span style={{ color: '#DC2626', fontWeight: 900 }}>{fetchedBillAppointments.filter(a => String(a.payment_action).toUpperCase() !== 'PAID').length}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

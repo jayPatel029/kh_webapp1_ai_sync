@@ -884,6 +884,16 @@ export default function DialysisParametersModal({
                     : 'After Dialysis'}
                 </Badge>
               </div>
+              {stage === 'during' && (
+                <HStack spacing={2} ml="auto">
+                  <Button size="xs" variant="outline" colorScheme="slate" onClick={() => handleOpenAbort(false)}>
+                    Abort
+                  </Button>
+                  <Button size="xs" colorScheme="red" onClick={() => handleOpenAbort(true)} fontWeight="bold">
+                    Emergency ABORT
+                  </Button>
+                </HStack>
+              )}
             </Box>
           </VStack>
         </ModalHeader>
@@ -1479,6 +1489,50 @@ export default function DialysisParametersModal({
               isDisabled={(dischargeModal.confirmText || '').trim().toLowerCase() !== 'confirm'}
             >
               Discharge Patient
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Abort confirmation modal */}
+      <Modal isOpen={abortModal.isOpen} onClose={() => setAbortModal(prev => ({ ...prev, isOpen: false }))} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader color={abortModal.isEmergency ? "red.600" : "slate.700"}>
+            {abortModal.isEmergency ? "🚨 Emergency Abort Session" : "Abort Dialysis Session"}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={4}>
+              <Text fontSize="sm" color={abortModal.isEmergency ? "red.700" : "slate.600"} fontWeight={abortModal.isEmergency ? "bold" : "normal"}>
+                {abortModal.isEmergency 
+                  ? "WARNING: You are triggering an emergency abort. This will stop the session immediately and mark it as an emergency." 
+                  : "Are you sure you want to abort this session? This action cannot be undone."}
+              </Text>
+              
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">Reason for {abortModal.isEmergency ? "Emergency " : ""}Abort</FormLabel>
+                <Textarea
+                  placeholder="Enter a detailed reason..."
+                  value={abortModal.reason}
+                  onChange={(e) => setAbortModal(prev => ({ ...prev, reason: e.target.value }))}
+                  size="sm"
+                  borderColor={abortModal.isEmergency ? "red.300" : "slate.200"}
+                  _focus={{ borderColor: abortModal.isEmergency ? "red.500" : "info.500" }}
+                />
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setAbortModal(prev => ({ ...prev, isOpen: false }))}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme={abortModal.isEmergency ? "red" : "slate"}
+              onClick={handleConfirmAbort}
+              isDisabled={!abortModal.reason || !abortModal.reason.trim()}
+            >
+              Confirm Abort
             </Button>
           </ModalFooter>
         </ModalContent>

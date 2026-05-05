@@ -26,18 +26,19 @@ const PatientListTable = ({
       minWidth: '100px'
     },
     {
-      key: 'name',
-      label: 'Name',
-      type: 'text',
-      width: '107px',
-      minWidth: '100px'
-    },
-    {
-      key: 'number',
-      label: 'Number',
-      type: 'text',
-      width: '125px',
-      minWidth: '120px'
+      key: 'patient_details',
+      label: 'PATIENT DETAILS',
+      type: 'custom',
+      width: '300px',
+      minWidth: '200px',
+      render: (row) => {
+        const code = row.patient_code || row.patientCode || row.id || '-';
+        const name = row.name || '-';
+        const age = row.age || '-';
+        const gender = row.gender || row.sex || '-';
+        const phone = row.number || row.phone || '-';
+        return <div style={{ fontSize: '13px', fontWeight: 600 }}>{`${code} / ${name} / ${age} / ${gender} / ${phone}`}</div>;
+      }
     },
     {
       key: 'registrationDate',

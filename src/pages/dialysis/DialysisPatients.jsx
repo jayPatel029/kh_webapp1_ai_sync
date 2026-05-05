@@ -98,10 +98,20 @@ const DialysisPatients = () => {
   }, [patients, searchQuery]);
 
   const columns = [
-    { key: 'name',      label: 'PATIENT NAME', type: 'text', width: '180px' },
-    { key: 'age',       label: 'AGE',          type: 'text', width: '70px' },
-    { key: 'gender',    label: 'SEX',          type: 'text', width: '80px' },
-    { key: 'phone',     label: 'PHONE',        type: 'text', width: '140px' },
+    { 
+      key: 'patient_details', 
+      label: 'PATIENT DETAILS', 
+      type: 'custom', 
+      width: '300px',
+      render: (row) => {
+        const code = row._raw?.patient_code || row._raw?.patientCode || row.id || '-';
+        const name = row.name || '-';
+        const age = row.age || '-';
+        const gender = row.gender || '-';
+        const phone = row.phone || '-';
+        return <div style={{ fontSize: '13px', fontWeight: 600 }}>{`${code} / ${name} / ${age} / ${gender} / ${phone}`}</div>;
+      }
+    },
     { key: 'email',     label: 'EMAIL',        type: 'text', width: '200px' },
     { key: 'ailment',   label: 'AILMENT',      type: 'custom', width: '150px',
       render: (_row, value) => (

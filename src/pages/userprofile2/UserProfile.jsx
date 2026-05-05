@@ -192,6 +192,8 @@ function UserProfile() {
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState({ ailments: [] });
   const [selectedReading, setSelectedReading] = useState(null);
+  const [selectedGeneralParam, setSelectedGeneralParam] = useState(null);
+  const [selectedDialysisParam, setSelectedDialysisParam] = useState(null);
 
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
@@ -718,185 +720,143 @@ function UserProfile() {
 
           {/* Ailment details are now shown inside the PatientProfileCard component */}
 
-          {/* General Parameters */}
-          {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
-            <Box className="space-y-6">
-              <Box className="flex items-center gap-4">
-                <Box as="h2" className={`${isSmall ? "text-md" : "text-xl"} font-bold mt-8`}>General Parameters</Box>
-              </Box>
+          {/* Daily Readings & Dialysis Readings - side by side tile grid */}
+          <Box className={`grid gap-4 ${isSmall ? 'grid-cols-1' : 'grid-cols-2'}`}>
 
-              <ParameterSection title="Generic Profile">
-                <QuestionsContainer aliment="Generic Profile" user_id={id} />
-              </ParameterSection>
-
-              {generalParameters.map((question, index) => {
-                const questionTitle = question.title || "";
-                const titleLower = questionTitle.toLowerCase();
-                const isSystolic = titleLower.includes("systolic");
-                const isDiastolic = titleLower.includes("diastolic");
-
-                if (isDiastolic && hasGeneralSystolic) {
-                  return null;
-                }
-
-                if (isSystolic || isDiastolic) {
-                  return (
-                    <ParameterSection
-                      key={index}
-                      title={questionTitle}
-                      noResponse={question.responseCount === 0}
-                    >
-                      <SystolicDiastolicGraph
-                        question={question}
-                        userId={userData.id}
-                        isDialysis={false}
-                        aspect={isSmall ? 2 / 1 : 3 / 1}
-                      />
-                    </ParameterSection>
-                  );
-                }
-
-                return (
-                  <ParameterSection
-                    key={index}
-                    title={questionTitle}
-                    noResponse={question.responseCount === 0}
+            {/* Daily Readings */}
+            {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
+              <Box className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                <Box as="h2" className={`${isSmall ? 'text-md' : 'text-lg'} font-bold text-[#32617d] mb-4 text-center`}>
+                  Daily Readings
+                </Box>
+                <Box className="grid grid-cols-3 gap-2">
+                  <button
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
+                    onClick={() => setSelectedGeneralParam({ type: 'generic', title: 'Generic Profile' })}
                   >
-                    {question.isGraph === 1 ? (
-                      <LineChartComponent
-                        aspect={isSmall ? 2 / 1 : 3 / 1}
-                        questionId={question.id}
-                        user_id={userData.id}
-                        title={questionTitle}
-                        unit={question.unit}
-                      />
-                    ) : (
-                      <Table
-                        questionId={question.id}
-                        user_id={userData.id}
-                        title={questionTitle}
-                        question={question}
-                      />
-                    )}
-                  </ParameterSection>
-                );
-              })}
-            </Box>
+                    Generic Profile
+                  </button>
+                  {generalParameters.map((question, index) => {
+                    if (question.title?.toLowerCase().includes('diastolic') && hasGeneralSystolic) return null;
+                    return (
+                      <button
+                        key={index}
+                        className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
+                        onClick={() => setSelectedGeneralParam({ type: 'general', question })}
+                      >
+                        {question.title}
+                      </button>
+                    );
+                  })}
+                </Box>
+              </Box>
+            )}
+
+            {/* Dialysis Readings */}
+            {userData.program !== "Basic" && dialysisParameters.length > 0 && (
+              <Box className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                <Box as="h2" className={`${isSmall ? 'text-md' : 'text-lg'} font-bold text-[#32617d] mb-4 text-center`}>
+                  Dialysis Readings
+                </Box>
+                <Box className="grid grid-cols-3 gap-2">
+                  {dialysisParameters.map((question, index) => {
+                    if (question.title?.toLowerCase().includes('diastolic') && hasDialysisSystolic) return null;
+                    return (
+                      <button
+                        key={index}
+                        className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
+                        onClick={() => setSelectedDialysisParam({ question })}
+                      >
+                        {question.title}
+                      </button>
+                    );
+                  })}
+                </Box>
+              </Box>
+            )}
+          </Box>
+
+          {/* Modal overlay: General Parameter chart */}
+          {selectedGeneralParam && (
+            <div onClick={() => setSelectedGeneralParam(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '820px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ fontWeight: '700', color: '#32617d', fontSize: '1.2rem', margin: 0 }}>
+                    {selectedGeneralParam.type === 'generic' ? 'Generic Profile' : selectedGeneralParam.question?.title}
+                  </h2>
+                  <button onClick={() => setSelectedGeneralParam(null)} style={{ background: 'none', border: 'none', fontSize: '1.6rem', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
+                </div>
+                {selectedGeneralParam.type === 'generic' ? (
+                  <QuestionsContainer aliment="Generic Profile" user_id={id} />
+                ) : (() => {
+                  const q = selectedGeneralParam.question;
+                  const t = q.title || '';
+                  const isSys = t.toLowerCase().includes('systolic');
+                  const isDia = t.toLowerCase().includes('diastolic');
+                  if (isSys || isDia) return <SystolicDiastolicGraph question={q} userId={userData.id} isDialysis={false} aspect={2/1} />;
+                  if (q.isGraph === 1) return <LineChartComponent aspect={2/1} questionId={q.id} user_id={userData.id} title={t} unit={q.unit} />;
+                  return <Table questionId={q.id} user_id={userData.id} title={t} question={q} />;
+                })()}
+              </div>
+            </div>
           )}
 
-          {/* Dialysis Parameters */}
-          {userData.program !== "Basic" && dialysisParameters.length > 0 && (
-            <Box className="space-y-6">
-              <Box className="flex items-center gap-4">
-                {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-                <Box as="h2" className={`${isSmall ? "text-md" : "text-xl"} font-bold mt-8`}>Dialysis Parameters</Box>
-              </Box>
-
-              {dialysisParameters.map((question, index) => {
-                  const questionTitle = question.title || "";
-                  const normalizedTitle = normalizeQuestionTitle(questionTitle);
-                  const isWeightAfter = normalizedTitle === "weightafter";
-                  const isWeightBefore = normalizedTitle === "weightbefore";
-                  const isInterdialyticWeight = normalizedTitle === "interdialyticweight";
-                  const isSystolic = questionTitle.toLowerCase().includes("systolic");
-                  const isDiastolic = questionTitle.toLowerCase().includes("diastolic");
-
-                  if (isDiastolic && hasDialysisSystolic) {
-                    return null;
-                  }
-
-                  if (isSystolic || isDiastolic) {
-                    return (
-                      <ParameterSection
-                        key={index}
-                        title={questionTitle}
-                        noResponse={question.responseCount === 0}
-                      >
-                        <SystolicDiastolicGraph
-                          question={question}
-                          userId={userData.id}
-                          isDialysis={true}
-                          aspect={isSmall ? 2 / 1 : 3 / 1}
-                        />
-                      </ParameterSection>
-                    );
-                  }
-
-                  const forceTable = isWeightAfter || isWeightBefore;
-                  const forceGraph = isInterdialyticWeight;
-                  const renderAsGraph = forceGraph || (!forceTable && question.isGraph === 1);
-
-                  return (
-                    <ParameterSection
-                      key={index}
-                      title={questionTitle}
-                      noResponse={question.responseCount === 0}
-                    >
-                      {renderAsGraph ? (
-                        <LineChartDialysis
-                          aspect={isSmall ? 2 / 1 : 3 / 1}
-                          questionId={question.id}
-                          user_id={userData.id}
-                          title={question.title}
-                          unit={question.unit}
-                        />
-                      ) : (
-                        <DialysisTable
-                          questionId={question.id}
-                          user_id={userData.id}
-                            title={questionTitle}
-                          question={question}
-                          highlightThreshold={isWeightAfter ? userData?.dry_weight : null}
-                          highlightComparator="gt"
-                        />
-                      )}
-                    </ParameterSection>
-                  );
-                })}
-            </Box>
+          {/* Modal overlay: Dialysis Parameter chart */}
+          {selectedDialysisParam && (
+            <div onClick={() => setSelectedDialysisParam(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '820px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ fontWeight: '700', color: '#32617d', fontSize: '1.2rem', margin: 0 }}>{selectedDialysisParam.question?.title}</h2>
+                  <button onClick={() => setSelectedDialysisParam(null)} style={{ background: 'none', border: 'none', fontSize: '1.6rem', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
+                </div>
+                {(() => {
+                  const q = selectedDialysisParam.question;
+                  const t = q.title || '';
+                  const norm = normalizeQuestionTitle(t);
+                  const isSys = t.toLowerCase().includes('systolic');
+                  const isDia = t.toLowerCase().includes('diastolic');
+                  if (isSys || isDia) return <SystolicDiastolicGraph question={q} userId={userData.id} isDialysis={true} aspect={2/1} />;
+                  const forceTable = norm === 'weightafter' || norm === 'weightbefore';
+                  const forceGraph = norm === 'interdialyticweight';
+                  const asGraph = forceGraph || (!forceTable && q.isGraph === 1);
+                  if (asGraph) return <LineChartDialysis aspect={2/1} questionId={q.id} user_id={userData.id} title={t} unit={q.unit} />;
+                  return <DialysisTable questionId={q.id} user_id={userData.id} title={t} question={q} highlightThreshold={norm === 'weightafter' ? userData?.dry_weight : null} highlightComparator="gt" />;
+                })()}
+              </div>
+            </div>
           )}
           
-          {/* Lab Reports */}
+          {/* Lab Reports - tile grid */}
           {userData.program !== "Basic" && (
-            <Box className="space-y-6">
-              <Box className="flex items-center gap-4">
-                {/* <Box className="h-8 w-1 bg-[#4164df] rounded-full" /> */}
-                <Box as="h2" className={`${isSmall ? "text-md" : "text-xl"} font-bold mt-8`}>Lab Reports</Box>
+            <Box className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <Box as="h2" className={`${isSmall ? 'text-md' : 'text-xl'} font-bold text-[#32617d] mb-6 text-center`}>
+                Lab Reports
               </Box>
-
-              {labReadings.map((reading) => (
-                <ParameterSection
-                  key={reading.id}
-                  title={reading.title}
-                  noResponse={reading.responseCount === 0}
-                >
-                  <Box className="relative">
-                    {role?.role_name === "Admin" && (
-                      <Flex gap={2} className={`absolute ${isMobile ? 'top-1 right-1' : 'top-2 left-1/2 transform -translate-x-1/2'} z-10 bg-white/70 backdrop-blur-sm rounded-md p-1`}>
+              {labReadings.length === 0 ? (
+                <Box className="text-center text-gray-400 italic py-4">No lab reports available</Box>
+              ) : (
+                <Box className={`grid gap-4 ${isSmall ? 'grid-cols-1' : 'grid-cols-3'}`}>
+                  {labReadings.map((reading) => (
+                    <Box key={reading.id} className="relative">
+                      <button
+                        className={`w-full rounded-xl border border-gray-200 bg-gray-50 ${isSmall ? 'p-4' : 'p-5'} font-bold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 hover:text-[#32617d] transition-colors cursor-pointer ${isSmall ? 'text-sm' : 'text-base'}`}
+                        onClick={() => openLabReadingModal(reading.title, reading.id)}
+                      >
+                        {reading.title}
+                      </button>
+                      {role?.role_name === "Admin" && (
                         <button
-                          className="text-[#4164df] text-xl"
-                          onClick={() => openLabReadingModal(reading.title, reading.id)}
-                        >
-                          <img src={Edit} alt="Edit" className="w-5 h-5" />
-                        </button>
-                        <button
-                          className="text-[#de425b] text-xl"
                           onClick={() => deleteLabReading(reading.id)}
+                          title="Delete reading"
+                          className="absolute top-2 right-2 opacity-60 hover:opacity-100 transition-opacity bg-white rounded p-0.5"
                         >
-                          <img src={Delete} alt="Delete" className="w-5 h-5" />
+                          <img src={Delete} alt="Delete" className="w-4 h-4" />
                         </button>
-                      </Flex>
-                    )}
-                    <LineChartComponentLab
-                      aspect={isSmall ? 2 / 1 : 3 / 1}
-                      questionId={reading.id}
-                      user_id={userData.id}
-                      title={reading.title}
-                      unit={reading.unit}
-                    />
-                  </Box>
-                </ParameterSection>
-              ))}
+                      )}
+                    </Box>
+                  ))}
+                </Box>
+              )}
 
               {selectedReading && (
                 <LabRedingUpdateModal

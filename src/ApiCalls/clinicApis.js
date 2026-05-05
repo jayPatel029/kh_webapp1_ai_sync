@@ -312,6 +312,13 @@ export async function getAppointments(params = {}, config = {}) {
 export async function createAppointment(payload, config = {}) {
   try {
     const finalConfig = withIdempotency(config);
+    // CORS FIX: Move idempotency key from header to payload to avoid preflight rejection
+    const idempotencyKey = finalConfig.headers['Idempotency-Key'] || finalConfig.headers['idempotency-key'];
+    if (idempotencyKey) {
+      payload = { ...payload, idempotencyKey };
+      delete finalConfig.headers['Idempotency-Key'];
+      delete finalConfig.headers['idempotency-key'];
+    }
     const response = await axiosInstance.post(`${server_url}/dt/appointments`, payload, finalConfig);
     return { success: true, data: response.data };
   } catch (error) {

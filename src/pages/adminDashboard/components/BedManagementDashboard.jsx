@@ -326,10 +326,18 @@ const AppointmentTableComponent = ({ appointments = [] }) => {
   const columns = useMemo(
     () => [
       {
-        key: 'patient_name',
-        label: 'Patient Name',
-        type: 'text',
-        width: '150px',
+        key: 'patient_details',
+        label: 'Patient Details',
+        type: 'custom',
+        width: '300px',
+        render: (row) => {
+          const code = row.patient_code || row.patientCode || row.patient_id || row.id || '-';
+          const name = row.patient_name || row.patientName || row.name || '-';
+          const age = row.age || row.patient_age || '-';
+          const gender = row.gender || row.patient_gender || row.sex || '-';
+          const phone = row.mobile_no || row.phone || row.patient_phone || '-';
+          return <div style={{ fontSize: '13px', fontWeight: 600 }}>{`${code} / ${name} / ${age} / ${gender} / ${phone}`}</div>;
+        }
       },
       {
         key: 'appointment_time',
@@ -500,10 +508,9 @@ const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => 
                   tabIndex={0}
                 >
                   <td className="list-table__cell">
-                    <VStack align="start" spacing={0}>
-                      <span className="list-table__text-cell" style={{ fontWeight: 600 }}>{displayName}</span>
-                      <Text fontSize="xs" color="textMuted">ID: {apt.patient_id}</Text>
-                    </VStack>
+                    <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                      {`${apt.patient_code || apt.patientCode || apt.patient_id || apt.id || '-'} / ${displayName} / ${apt.age || apt.patient_age || '-'} / ${apt.gender || apt.patient_gender || apt.sex || '-'} / ${apt.mobile_no || apt.phone || apt.patient_phone || '-'}`}
+                    </div>
                   </td>
                   <td className="list-table__cell">
                     <Badge

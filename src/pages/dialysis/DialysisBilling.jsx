@@ -239,10 +239,20 @@ const DialysisBilling = () => {
   // ─── Columns ──────────────────────────────────────────
   const columns = [
     { key: 'appointment_date', label: 'DATE',    type: 'text', width: '110px' },
-    { key: 'name',             label: 'PATIENT', type: 'text', width: '150px' },
-    { key: 'age',              label: 'AGE',     type: 'text', width: '60px'  },
-    { key: 'sex',              label: 'SEX',     type: 'text', width: '80px'  },
-    { key: 'mobile_no',        label: 'MOBILE',  type: 'text', width: '120px' },
+    { 
+      key: 'patient_details', 
+      label: 'PATIENT DETAILS', 
+      type: 'custom', 
+      width: '300px',
+      render: (row) => {
+        const code = row._raw?.patient_code || row.patient_code || row.patientCode || row.patient_id || '-';
+        const name = row.name || '-';
+        const age = row.age || '-';
+        const gender = row.sex || row.gender || '-';
+        const phone = row.mobile_no || row.phone || '-';
+        return <div style={{ fontSize: '13px', fontWeight: 600 }}>{`${code} / ${name} / ${age} / ${gender} / ${phone}`}</div>;
+      }
+    },
     { key: 'service',          label: 'SCHEDULE', type: 'text', width: '130px' },
     {
       key: 'services',

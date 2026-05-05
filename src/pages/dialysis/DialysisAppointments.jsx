@@ -768,23 +768,36 @@ const DialysisAppointments = () => {
   // --- Calculate total bill from added services and sessions ---
   useEffect(() => {
     const sessionCount = Math.max(plannedSessionCount, 1);
+    const paidSessionCount = createForm.sessions_to_pay !== undefined 
+      ? Number(createForm.sessions_to_pay) 
+      : sessionCount;
+
+    // Total bill is ALWAYS for all planned sessions
     const total = addedServices.reduce((sum, s) => {
       const price = Number(s.price) || 0;
       const discount = Number(s.discount) || 0;
       const netPrice = price - (price * discount / 100);
-      const qty = s.pay_sessions !== undefined ? Number(s.pay_sessions) : sessionCount;
-      return sum + (netPrice * qty);
+      return sum + (netPrice * sessionCount);
+    }, 0);
+
+    // Amount paid is for the selected number of sessions
+    const amountPaid = addedServices.reduce((sum, s) => {
+      const price = Number(s.price) || 0;
+      const discount = Number(s.discount) || 0;
+      const netPrice = price - (price * discount / 100);
+      return sum + (netPrice * paidSessionCount);
     }, 0);
     
     setCreateForm(prev => {
-      const updates = { total_amount: total };
-      // If payment option is full, automatically sync amount_paid
-      if (prev.payment_option === 'full' || prev.amount_paid === undefined || prev.amount_paid === '') {
-        updates.amount_paid = total;
-      }
-      return { ...prev, ...updates };
+      if (prev.total_amount === total && prev.amount_paid === amountPaid && prev.sessions_to_pay === paidSessionCount) return prev;
+      return { 
+        ...prev, 
+        total_amount: total, 
+        amount_paid: amountPaid,
+        sessions_to_pay: paidSessionCount
+      };
     });
-  }, [addedServices, plannedSessionCount, createForm.payment_option]);
+  }, [addedServices, plannedSessionCount, createForm.sessions_to_pay]);
 
   // ─── Standalone invoice preview state ─────────────────
   const [invoiceTarget, setInvoiceTarget] = useState(null);
@@ -840,18 +853,38 @@ const DialysisAppointments = () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await getAppointments({
-        from: `${fromDate}T00:00:00Z`,
-        to: `${toDate}T23:59:59Z`,
-        clinicId: selectedClinicId || undefined,
-        orgid: selectedOrgId || undefined,
-      });
+      let result;
+      if (selectedClinicId) {
+        result = await getClinicAppointments(selectedClinicId);
+      } else {
+        result = await getAppointments({
+          from: `${fromDate}T00:00:00Z`,
+          to: `${toDate}T23:59:59Z`,
+          orgid: selectedOrgId || undefined,
+        });
+      }
+
       if (result.success) {
-        const rows = Array.isArray(result.data?.data)
+        let rows = Array.isArray(result.data?.data)
           ? result.data.data
           : Array.isArray(result.data)
             ? result.data
             : [];
+            
+        // Filter by date for getClinicAppointments which returns all appointments
+        if (selectedClinicId && fromDate && toDate) {
+          const fromTime = new Date(`${fromDate}T00:00:00`).getTime();
+          const toTime = new Date(`${toDate}T23:59:59`).getTime();
+          
+          rows = rows.filter(apt => {
+            const dateStr = apt.appointment_date || apt._raw?.appointment_date || apt.startUTC?.split('T')[0] || apt._raw?.startUTC?.split('T')[0];
+            if (!dateStr) return true; // Keep if we can't determine the date
+            
+            const aptTime = new Date(`${dateStr}T00:00:00`).getTime();
+            return aptTime >= fromTime && aptTime <= toTime;
+          });
+        }
+
         setAppointments(rows.map(apt => normalizeAppointment(apt, patients)));
       } else {
         const msg = result.data?.message || 'Failed to load appointments';
@@ -1204,9 +1237,7 @@ const DialysisAppointments = () => {
       setCreateErrorMessage('');
 
       const servicesSummary = addedServices.map(s => `${s.name} (₹${s.price - (s.price * s.discount / 100)})`).join(', ');
-      const finalPaid = createForm.payment_option === 'full' 
-        ? Number(createForm.total_amount) 
-        : Number(createForm.amount_paid) || 0;
+      const finalPaid = Number(createForm.amount_paid) || 0;
 
       const sessionsSource = isEditOpen
         ? createForm.slotTemplates
@@ -1235,14 +1266,20 @@ const DialysisAppointments = () => {
         return;
       }
 
+      const sessionsToPay = createForm.sessions_to_pay !== undefined 
+        ? Number(createForm.sessions_to_pay) 
+        : Math.max(sessions.length, 1);
+
       const payload = {
         clinicId: Number(createForm.clinic_id),
         patientId: Number(createForm.patient_id),
         sessions,
+        paySessions: sessionsToPay, // Global flag for backend to mark the first N appointments as PAID
         services: addedServices.map(s => ({
           ...s,
           amount: s.price - (s.price * s.discount / 100),
-          quantity: s.pay_sessions !== undefined ? Number(s.pay_sessions) : Math.max(sessions.length, 1)
+          quantity: Math.max(sessions.length, 1), // Bill represents ALL planned sessions
+          pay_sessions: sessionsToPay // Per-service flag for backward compatibility
         })),
         bookingType: 'offline',
         amountDue: Number(createForm.total_amount),
@@ -1359,10 +1396,20 @@ const DialysisAppointments = () => {
   // ─── Columns ──────────────────────────────────────────
   const columns = [
     { key: 'created_date', label: 'DATE', type: 'text', width: '100px' },
-    { key: 'name', label: 'PATIENT', type: 'text', width: '140px' },
-    { key: 'age', label: 'AGE', type: 'text', width: '50px' },
-    { key: 'sex', label: 'SEX', type: 'text', width: '70px' },
-    { key: 'mobile_no', label: 'MOBILE NO.', type: 'text', width: '120px' },
+    { 
+      key: 'patient_details', 
+      label: 'PATIENT DETAILS', 
+      type: 'custom', 
+      width: '300px',
+      render: (row) => {
+        const code = row._raw?.patient_code || row.patient_code || row.patientCode || row.patient_id || '-';
+        const name = row.name || '-';
+        const age = row.age || '-';
+        const gender = row.sex || row.gender || '-';
+        const phone = row.mobile_no || row.phone || '-';
+        return <div style={{ fontSize: '13px', fontWeight: 600 }}>{`${code} / ${name} / ${age} / ${gender} / ${phone}`}</div>;
+      }
+    },
     { key: 'appointment_time', label: 'APPOINTMENT TIME', type: 'text', width: '130px' },
     { key: 'duration', label: 'DURATION', type: 'text', width: '100px' },
     {
@@ -2193,11 +2240,9 @@ const DialysisAppointments = () => {
                       </div>
 
                       <div style={{ marginTop: '16px', borderTop: '1px solid #E5E7EB', paddingTop: '12px' }}>
-                        <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '8px' }}>Services (Select how many sessions to pay for)</div>
+                        <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '8px' }}>Services Summary</div>
                         {addedServices.map((s, idx) => {
                           const netPrice = s.price - (s.price * s.discount / 100);
-                          const sessionCount = Math.max(plannedSessionCount, 1);
-                          const qty = s.pay_sessions !== undefined ? Number(s.pay_sessions) : sessionCount;
                           return (
                             <div key={s.ui_key || s.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', marginBottom: '8px' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -2205,25 +2250,7 @@ const DialysisAppointments = () => {
                                 <span style={{ color: '#6B7280' }}>₹{netPrice} / session</span>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#F3F4F6', padding: '4px 8px', borderRadius: '8px' }}>
-                                  <span style={{ fontSize: '10px', color: '#4B5563', fontWeight: 600, textTransform: 'uppercase' }}>Qty:</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={qty}
-                                    onChange={(e) => {
-                                      let newQty = parseInt(e.target.value, 10);
-                                      if (isNaN(newQty) || newQty < 0) newQty = 0;
-                                      setAddedServices(prev => {
-                                        const updated = [...prev];
-                                        updated[idx] = { ...updated[idx], pay_sessions: newQty };
-                                        return updated;
-                                      });
-                                    }}
-                                    style={{ width: '45px', padding: '2px 4px', border: '1px solid #D1D5DB', borderRadius: '4px', textAlign: 'center', fontSize: '12px' }}
-                                  />
-                                </div>
-                                <span style={{ fontWeight: 700, minWidth: '60px', textAlign: 'right' }}>₹{(netPrice * qty).toLocaleString()}</span>
+                                <span style={{ fontWeight: 700, minWidth: '60px', textAlign: 'right' }}>₹{(netPrice * Math.max(plannedSessionCount, 1)).toLocaleString()}</span>
                               </div>
                             </div>
                           );
@@ -2244,90 +2271,52 @@ const DialysisAppointments = () => {
                       </div>
                     </div>
 
-                    {/* Payment Option */}
+                    {/* Payment Option - Sessions to pay */}
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>
-                        Payment Options
+                        Payment
                       </div>
-                      <div style={{ display: 'flex', gap: '16px' }}>
-                        {[
-                          { value: 'full', label: 'Full Payment', sub: `Pay ₹${Number(createForm.total_amount || 0).toLocaleString()} now` },
-                          { value: 'partial', label: 'Partial Payment', sub: 'Pay a portion now, rest later' },
-                        ].map((opt) => (
-                          <label
-                            key={opt.value}
-                            style={{
-                              flex: 1, display: 'flex', flexDirection: 'column',
-                              padding: '20px', borderRadius: '16px', cursor: 'pointer',
-                              border: createForm.payment_option === opt.value ? '2px solid #3b82f6' : '1px solid #e2e8f0',
-                              background: createForm.payment_option === opt.value ? 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)' : '#FFF',
-                              boxShadow: createForm.payment_option === opt.value ? '0 10px 15px -3px rgba(59,130,246,0.1)' : '0 4px 6px -1px rgba(0,0,0,0.02)',
-                              transform: createForm.payment_option === opt.value ? 'translateY(-2px)' : 'none',
-                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                            }}
-                          >
-                            <input
-                              type="radio"
-                              name="payment_option"
-                              value={opt.value}
-                              checked={createForm.payment_option === opt.value}
-                              onChange={() => setCreateForm((p) => {
-                                const total = Number(p.total_amount || 0);
-                                return {
-                                  ...p,
-                                  payment_option: opt.value,
-                                  amount_paid: opt.value === 'full' ? total : Math.floor(total / 2),
-                                };
-                              })}
-                              style={{ display: 'none' }}
-                            />
-                            <span style={{ fontWeight: 700, fontSize: '14px', color: createForm.payment_option === opt.value ? '#1E40AF' : '#374151' }}>
-                              {opt.label}
-                            </span>
-                            <span style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>{opt.sub}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Partial Amount */}
-                    {createForm.payment_option === 'partial' && (
+                      <FormControl>
+                        <FormLabel>How many sessions do you want to pay for?</FormLabel>
+                        <select
+                          value={createForm.sessions_to_pay !== undefined ? createForm.sessions_to_pay : Math.max(plannedSessionCount, 1)}
+                          onChange={(e) => setCreateForm(p => ({ ...p, sessions_to_pay: Number(e.target.value) }))}
+                          style={{
+                            width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '14px', outline: 'none', background: '#FFF'
+                          }}
+                        >
+                          {Array.from({ length: Math.max(plannedSessionCount, 1) + 1 }, (_, i) => i).map((num) => (
+                            <option key={num} value={num}>{num} Session{num !== 1 ? 's' : ''}</option>
+                          ))}
+                        </select>
+                      </FormControl>
+                      
                       <div
                         style={{
-                          background: '#FEF2F2',
-                          border: '1px solid #FECACA',
-                          borderRadius: '16px',
-                          padding: '20px',
+                          marginTop: '16px',
+                          background: '#EFF6FF',
+                          border: '1px solid #BFDBFE',
+                          borderRadius: '12px',
+                          padding: '16px',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: '12px'
+                          gap: '8px'
                         }}
                       >
-                        <FormControl>
-                          <FormLabel style={{ fontSize: '13px', fontWeight: 600, color: '#991B1B' }}>Amount to Pay Now (₹)</FormLabel>
-                          <Input
-                            type="number"
-                            variant="filled"
-                            placeholder={`Enter amount (Max: ₹${createForm.total_amount || 0})`}
-                            value={createForm.amount_paid}
-                            onChange={(e) => {
-                              let val = Number(e.target.value);
-                              const max = Number(createForm.total_amount || 0);
-                              if (val > max) val = max;
-                              setCreateForm((p) => ({ ...p, amount_paid: val }));
-                            }}
-                            style={{ background: '#FFF', borderRadius: '10px' }}
-                          />
-                        </FormControl>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px dashed #FECACA' }}>
-                          <span style={{ fontSize: '13px', color: '#991B1B' }}>Remaining Balance</span>
-                          <span style={{ fontSize: '18px', fontWeight: 800, color: '#DC2626' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '13px', color: '#1E3A8A' }}>Amount to Pay Now</span>
+                          <span style={{ fontSize: '18px', fontWeight: 800, color: '#1D4ED8' }}>
+                            ₹{Number(createForm.amount_paid || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px dashed #93C5FD' }}>
+                          <span style={{ fontSize: '13px', color: '#1E3A8A' }}>Remaining Balance</span>
+                          <span style={{ fontSize: '16px', fontWeight: 700, color: '#3B82F6' }}>
                             ₹{Math.max(0, Number(createForm.total_amount || 0) - Number(createForm.amount_paid || 0)).toLocaleString()}
                           </span>
                         </div>
                       </div>
-                    )}
+                    </div>
 
                     {/* Payment Method */}
                     {/* <FormControl>

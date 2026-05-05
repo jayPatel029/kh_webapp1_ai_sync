@@ -396,9 +396,21 @@ const PatientList = ({ data, onAddClick }) => {
     // if (true) {
       return [
         { key: 'profile', label: 'Profile', type: 'image', width: '111px', justifyContent: 'start' },
-        { key: 'name', label: 'Name', type: 'text', width: '150px' },
+        { 
+          key: 'patient_details', 
+          label: 'PATIENT DETAILS', 
+          type: 'custom', 
+          width: '300px',
+          render: (row) => {
+            const code = row.patientCode || row.patient_code || row.id || '-';
+            const name = row.name || '-';
+            const age = row.age || '-';
+            const gender = row.gender || '-';
+            const phone = row.number || row.phone || '-';
+            return <div style={{ fontSize: '13px', fontWeight: 600 }}>{`${code} / ${name} / ${age} / ${gender} / ${phone}`}</div>;
+          }
+        },
         { key: 'ailment', label: 'Ailment', type: 'text', width: '120px' },
-        { key: 'gender', label: 'Gender', type: 'text', width: '90px' },
         {
           key: 'condition', label: 'Condition', type: 'custom', width: '120px', render: (row) => (
             <span className={getConditionStyles(row.condition)}>{row.condition || '-'}</span>
@@ -448,14 +460,25 @@ const PatientList = ({ data, onAddClick }) => {
 
     const cols = [
       { key: 'profile', label: 'Profile', type: 'image', width: '111px', justifyContent: 'start' },
-      { key: 'name', label: 'Name', type: 'text', width: '107px' },
-      { key: 'gender', label: 'Gender', type: 'text', width: '90px' },
+      { 
+        key: 'patient_details', 
+        label: 'PATIENT DETAILS', 
+        type: 'custom', 
+        width: '300px',
+        render: (row) => {
+          const code = row.patientCode || row.patient_code || row.id || '-';
+          const name = row.name || '-';
+          const age = row.age || '-';
+          const gender = row.gender || '-';
+          const phone = row.number || row.phone || '-';
+          return <div style={{ fontSize: '13px', fontWeight: 600 }}>{`${code} / ${name} / ${age} / ${gender} / ${phone}`}</div>;
+        }
+      },
       {
         key: 'condition', label: 'Condition', type: 'custom', width: '120px', render: (row) => (
           <span className={getConditionStyles(row.condition)}>{row.condition || '-'}</span>
         )
       },
-      { key: 'number', label: 'Number', type: 'text', width: '125px' },
       {
         key: 'registered_date',
         label: 'Registration Date',
