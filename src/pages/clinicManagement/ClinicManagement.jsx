@@ -716,7 +716,7 @@ const ClinicManagement = () => {
                   >
                     <option value="NGO">NGO</option>
                     <option value="For Profit">For Profit</option>
-                    <option value="Corpo">Corpo</option>
+                    <option value="Corporate">Corporate</option>
                   </select>
                 </FormControl>
               </div>

@@ -61,7 +61,8 @@ import {
   getOrganizationById,
   getOrganizations,
   getAvailableSlots,
-  consumeAppointmentServices
+  consumeAppointmentServices,
+  createBill
 } from '../../ApiCalls/clinicApis';
 import { uploadFile } from '../../ApiCalls/dataUpload';
 import { getPatients, getPatientAilments, getPatientById, getGeneralParameterResponse } from '../../ApiCalls/patientAPis';
@@ -70,6 +71,7 @@ import { jsPDF } from 'jspdf';
 import ClinicSelector from '../../components/ClinicSelector';
 import OrganizationSelector from '../../components/OrganizationSelector';
 // import QuestionsContainer from '../../components/questions/QuestionsContainer';
+import { createBillForAppointment } from '../../utils/appointmentBilling';
 
 
 // ─── Status colors ──────────────────────────────────────────
@@ -281,9 +283,9 @@ function buildSlotTemplates(raw) {
 }
 
 const RECURRENCE_SESSION_LIMITS = {
-  weekly: 15,
-  'bi-weekly': 5,
-  monthly: 5,
+  weekly: 4,
+  'bi-weekly': 15,
+  monthly: 12,
 };
 
 function parseDateOnly(dateStr) {
@@ -345,9 +347,11 @@ function buildPlannedSessions({
   const normalizedMode = String(bookingMode || 'continuous').toLowerCase();
   const sessions = [];
 
-  templates.forEach((template) => {
+  templates.forEach((template, index) => {
+    const templateId = template.id || `template-${index}`;
     const frequency = String(template.frequency || 'weekly').toLowerCase();
-    const limit = frequency === 'one-time' ? 1 : (RECURRENCE_SESSION_LIMITS[frequency] || 15);
+    const effectiveFrequency = (normalizedMode === 'continuous' && frequency === 'one-time') ? 'weekly' : frequency;
+    const limit = effectiveFrequency === 'one-time' ? 1 : (RECURRENCE_SESSION_LIMITS[effectiveFrequency] || 30);
     const baseDate = parseDateOnly(
       template.date || appointmentDate || customStartDate || new Date().toISOString().split('T')[0]
     );
@@ -375,7 +379,7 @@ function buildPlannedSessions({
         const startTime = template.startTime || '09:00';
         const endTime = template.endTime || addMinutesToTime(startTime, 30) || '09:30';
         sessions.push({
-          templateId: template.id,
+          templateId: templateId,
           slotId: template.slot_id,
           date: formatDateOnly(current),
           startUTC: `${formatDateOnly(current)}T${startTime}:00.000Z`,
@@ -388,7 +392,7 @@ function buildPlannedSessions({
           weekOffset: template.weekOffset || null,
         });
 
-        if (normalizedMode === 'continuous' && sessions.filter((s) => s.templateId === template.id).length >= limit) {
+        if (normalizedMode === 'continuous' && sessions.filter((s) => s.templateId === templateId).length >= limit) {
           break;
         }
       }
@@ -1310,35 +1314,7 @@ const DialysisAppointments = () => {
         },
       };
 
-      let receiptUrl = null;
-      const receiptFile = createForm.receipt_file;
-      if (receiptFile) {
-        const formData = new FormData();
-        formData.append('file', receiptFile);
-        const uploadRes = await uploadFile(formData);
-        if (uploadRes.success) {
-          receiptUrl = uploadRes.data?.url || uploadRes.data?.file_url || uploadRes.data?.objectUrl || null;
-        } else {
-          console.warn('Appointment receipt upload failed', uploadRes.data || uploadRes);
-        }
-      }
-
-      if (!isEditOpen && finalPaid > 0) {
-        payload.immediatePayment = {
-          amount: finalPaid,
-          method: String(createForm.payment_method || 'cash').toUpperCase(),
-          ...(receiptUrl ? { receiptUrl } : {}),
-        };
-      }
-
-      if (receiptUrl) {
-        payload.receiptUrl = receiptUrl;
-        payload.metadata = {
-          ...payload.metadata,
-          receiptUrl,
-        };
-      }
-
+      // ---- Step 1: Create Appointments First ----
       let result;
       if (isEditOpen) {
         result = await updateAppointment(createForm.id, {
@@ -1350,14 +1326,35 @@ const DialysisAppointments = () => {
       }
 
       if (result.success) {
-        showToast(isEditOpen ? 'Appointment updated!' : 'Appointments booked!', 'success');
+        const createdData = result.data?.data || result.data;
+        const createdAppts = Array.isArray(createdData) ? createdData : (createdData.appointments || [createdData]);
+        const primaryApptId = isEditOpen ? createForm.id : (createdAppts[0]?.id || createdAppts[0]);
+
+        // ---- Step 2: Generate Bill linked to the primary appointment ----
+        if (primaryApptId) {
+          const { billId } = await createBillForAppointment({
+            appointmentId: primaryApptId,
+            sessions,
+            services: addedServices,
+            form: createForm,
+            patientData: selectedPatientData,
+          });
+
+          showToast(
+            isEditOpen ? 'Appointment updated!' : `Successfully booked ${sessions.length} sessions. Bill ID: ${billId}`, 
+            'success'
+          );
+        } else {
+          showToast(isEditOpen ? 'Appointment updated!' : 'Appointments booked successfully!', 'success');
+        }
+
         fetchAppointments();
 
         if (isEditOpen) {
           setIsCreateOpen(false);
           resetCreateModal();
         } else {
-          const firstAppt = result.data?.data || result.data || {};
+          const firstAppt = createdAppts[0] || {};
           const saved = {
             ...firstAppt,
             patient_id: createForm.patient_id,

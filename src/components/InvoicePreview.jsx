@@ -141,12 +141,19 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
 
   // ── Derive billing amounts from fetched invoice or appointment fields ──
   const invoice = fetchedInvoice || fetchedBill;
-  const totalDue = Number(invoice?.total_amt || appointment?.total_amount || appointment?.totalAmount || appointment?.total_amt || 0);
+  const totalDue = Number(invoice?.total_amt || invoice?.total_amount || appointment?.total_amount || appointment?.totalAmount || appointment?.total_amt || 0);
   
-  const amountPaid = fetchedBill ? Number(fetchedBill.paid_amt || 0) : (Number(appointment?.amount_paid || 0) || Number(appointment?.amountPaid || appointment?.received_amt || 0));
+  // Robust paid amount logic: use paid_amt if exists, otherwise fallback to total_amt if a receipt exists
+  const amountPaid = fetchedBill 
+    ? Number(fetchedBill.paid_amt || (fetchedBill.payment_receipt ? fetchedBill.total_amt : 0) || 0) 
+    : (Number(appointment?.amount_paid || 0) || Number(appointment?.amountPaid || appointment?.received_amt || 0));
+  
   const outstanding = Math.max(0, totalDue - amountPaid);
 
-  let payStatus = fetchedBill ? fetchedBill.payment_status : getPaymentStatus(totalDue, amountPaid);
+  let payStatus = fetchedBill 
+    ? (fetchedBill.payment_status || (amountPaid >= totalDue ? 'PAID' : 'PARTIAL')) 
+    : getPaymentStatus(totalDue, amountPaid);
+    
   if (String(appointment?.status).toUpperCase() === 'CANCELLED' || String(appointment?.status).toUpperCase() === 'MISSED') payStatus = 'CANCELLED';
 
   const invoiceId = invoice?.id ? `INV-${invoice.id}` : `INV-${appointment?.id || Date.now()}`;

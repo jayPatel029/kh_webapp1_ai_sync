@@ -18,8 +18,8 @@ import './DialysisBedSeat.css';
 
 // Status color mapping
 const STATUS_COLORS = {
-  AVAILABLE: '#10B981',      // Emerald 500 (Green)
-  OCCUPIED: '#3B82F6',       // Blue 500
+  AVAILABLE: '#3B82F6',      // Emerald 500 (Green)
+  OCCUPIED: '#10B981',       // Blue 500
   DIALYSIS_RUNNING: '#10B981', // Emerald 500
   PAUSED: '#F59E0B',         // Amber 500
   ALERT: '#EF4444',          // Red 500

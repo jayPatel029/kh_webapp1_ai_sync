@@ -70,22 +70,22 @@ import './BedManagementDashboard.css';
 // ---------------------------------------------------------------------------
 const BED_STATUS_CONFIG = {
   AVAILABLE: {
-    color: '#10B981', // Emerald 500
-    scheme: 'green',
-    label: 'Available',
-    dotColor: '#10B981'
-  },
-  EMPTY: {
-    color: '#10B981',
-    scheme: 'green',
-    label: 'Available',
-    dotColor: '#10B981'
-  },
-  OCCUPIED: {
     color: '#3B82F6', // Blue 500
     scheme: 'blue',
-    label: 'Occupied',
-    dotColor: '#3B82F6'
+    dotColor: '#3B82F6',
+    label: 'Available'
+  },
+  EMPTY: {
+    color: '#3B82F6', // Blue 500
+    scheme: 'blue',
+    dotColor: '#3B82F6',
+    label: 'Available',
+  },
+  OCCUPIED: {
+    color: '#10B981', // Emerald 500
+    scheme: 'green',
+    dotColor: '#10B981',
+    label: 'Occupied'
   },
   QUARANTINE: {
     color: '#F43F5E', // Rose 500 (Better for Isolation/Danger)

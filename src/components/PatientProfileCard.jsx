@@ -277,7 +277,7 @@ export const PatientProfileCard = ({
                 <>
                   <div className="w-0 self-stretch " />
 
-                  <Box className="flex-1 w-full">
+                  <Box className="flex-1 w-full border border-info rounded-md p-4">
                       <Box className="space-y-6">
                       <Heading as="h4" size="sm" weight="bold">Ailment Details</Heading>
 

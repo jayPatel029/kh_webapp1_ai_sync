@@ -317,37 +317,22 @@ export default function DialysisParametersModal({
             const orgData = orgResult.data.data;
             const guidelines = orgData.hasGuidelines ? (orgData.guidelines || []) : [];
             const checklists = orgData.hasChecklists ? (orgData.checklists || []) : [];
-            
+
             setOrgConfig({ hasGuidelines: !!orgData.hasGuidelines, hasChecklists: !!orgData.hasChecklists });
             setOrgGuidelines(guidelines);
             setOrgChecklists(checklists);
-            
-            // Initialize dynamic checklist for items that need checking across all stages
+
+            // Initialize dynamic checklist for checklist items only (guidelines are informational text)
             const initialChecklist = {};
 
-            // 1. Before Stage: Pre-dialysis Guidelines & Preparation Checklists
-            guidelines.filter(g => g.type === 'Pre-dialysis').forEach((_, i) => {
-              initialChecklist[`pre_guideline_${i}`] = false;
-            });
-            checklists.filter(c => c.type === 'Preparation').forEach((_, i) => {
-              initialChecklist[`prep_checklist_${i}`] = false;
-            });
+            // Normalize checklist grouping by stage (before/during/after) using flexible matching
+            const checklistBefore = checklists.filter(c => String(c.type || '').toLowerCase().includes('pre'));
+            const checklistDuring = checklists.filter(c => String(c.type || '').toLowerCase().includes('during'));
+            const checklistAfter = checklists.filter(c => String(c.type || '').toLowerCase().includes('post'));
 
-            // 2. During Stage: During-dialysis Guidelines & Monitoring Checklists
-            guidelines.filter(g => g.type === 'During-dialysis').forEach((_, i) => {
-              initialChecklist[`during_guideline_${i}`] = false;
-            });
-            checklists.filter(c => c.type === 'Monitoring').forEach((_, i) => {
-              initialChecklist[`mon_checklist_${i}`] = false;
-            });
-
-            // 3. After Stage: Post-dialysis Guidelines & Cleaning Checklists
-            guidelines.filter(g => g.type === 'Post-dialysis').forEach((_, i) => {
-              initialChecklist[`post_guideline_${i}`] = false;
-            });
-            checklists.filter(c => c.type === 'Cleaning').forEach((_, i) => {
-              initialChecklist[`clean_checklist_${i}`] = false;
-            });
+            checklistBefore.forEach((_, i) => { initialChecklist[`checklist_before_${i}`] = false; });
+            checklistDuring.forEach((_, i) => { initialChecklist[`checklist_during_${i}`] = false; });
+            checklistAfter.forEach((_, i) => { initialChecklist[`checklist_after_${i}`] = false; });
 
             setDynamicChecklist(initialChecklist);
           }
@@ -415,13 +400,12 @@ export default function DialysisParametersModal({
       setIsSaving(true);
       setSavingMessage('Validating preparation checklists...');
 
-      // Only check dynamic items relevant to the "Before" stage
-      const preGuidelineKeys = orgGuidelines.filter(g => g.type === 'Pre-dialysis').map((_, i) => `pre_guideline_${i}`);
-      const prepChecklistKeys = orgChecklists.filter(c => c.type === 'Preparation').map((_, i) => `prep_checklist_${i}`);
-      const allPreDynamicDone = [...preGuidelineKeys, ...prepChecklistKeys].every(key => dynamicChecklist[key]);
+      // Only require checklist items for the "Before" stage (guidelines are informational)
+      const prepChecklistKeys = orgChecklists.filter(c => String(c.type || '').toLowerCase().includes('pre')).map((_, i) => `checklist_before_${i}`);
+      const allPreDynamicDone = prepChecklistKeys.length === 0 ? true : prepChecklistKeys.every(key => dynamicChecklist[key]);
 
       if (!allPreDynamicDone) {
-        alert('Please complete all preparation checklists and organization guidelines before starting');
+        alert('Please complete all preparation checklist items before starting');
         return;
       }
 
@@ -480,17 +464,17 @@ export default function DialysisParametersModal({
       setSavingMessage('Finalizing clinical assessment...');
       await sleep(500);
 
-      const result = await submitDialysisHealthParams({
-        patient_id: patient.patient_id,
-        bed_id: bed?.id,
-        stage: 'before',
-        notes: beforeNotes,
-        heparin: heparinPayload,
-        custom_readings: hemoParamsResponses,
-        timestamp: new Date().toISOString(),
-      });
+      // const result = await submitDialysisHealthParams({
+      //   patient_id: patient.patient_id,
+      //   bed_id: bed?.id,
+      //   stage: 'before',
+      //   notes: beforeNotes,
+      //   heparin: heparinPayload,
+      //   custom_readings: hemoParamsResponses,
+      //   timestamp: new Date().toISOString(),
+      // });
 
-      if (result.success || startedSessionId) {
+      // if (result.success || startedSessionId) {
         setSavingMessage('Session started successfully!');
         // compute dialysis start and duration
         const startIso = new Date().toISOString();
@@ -530,7 +514,7 @@ export default function DialysisParametersModal({
             heparin: heparinPayload,
           });
         }
-      }
+      // }
     } catch (err) {
       console.error('Failed to start dialysis:', err);
       alert(err.message || 'Failed to start dialysis session');
@@ -661,21 +645,21 @@ export default function DialysisParametersModal({
         });
       }
 
-      const result = await submitDialysisHealthParams({
-        patient_id: patient.patient_id,
-        bed_id: bed?.id,
-        stage: 'during',
-        notes: duringNotes,
-        timestamp: new Date().toISOString(),
-      });
+      // const result = await submitDialysisHealthParams({
+      //   patient_id: patient.patient_id,
+      //   bed_id: bed?.id,
+      //   stage: 'during',
+      //   notes: duringNotes,
+      //   timestamp: new Date().toISOString(),
+      // });
 
-      if (result.success) {
+      // if (result.success) {
         setStage('after');
         setTimerActive(false);
         if (onStageChange) {
           onStageChange('after', { notes: duringNotes });
         }
-      }
+      // }
     } catch (err) {
       console.error('Failed to stop dialysis:', err);
     }
@@ -683,13 +667,13 @@ export default function DialysisParametersModal({
 
   const handleCloseDialysis = useCallback(async () => {
     try {
-      const result = await submitDialysisHealthParams({
-        patient_id: patient.patient_id,
-        bed_id: bed?.id,
-        stage: 'after',
-        notes: afterNotes,
-        timestamp: new Date().toISOString(),
-      });
+      // const result = await submitDialysisHealthParams({
+      //   patient_id: patient.patient_id,
+      //   bed_id: bed?.id,
+      //   stage: 'after',
+      //   notes: afterNotes,
+      //   timestamp: new Date().toISOString(),
+      // });
 
       if (sessionId) {
         await updateSessionParameters(sessionId, {
@@ -698,7 +682,7 @@ export default function DialysisParametersModal({
         });
       }
 
-      if (result.success) {
+      // if (result.success) {
         // After successfully saving post-dialysis params, prompt discharge confirmation (billing may follow)
         if (patient?.appointment_id) {
           const extraCost = consumedItems.reduce((acc, c) => acc + ((c.quantity || 1) * (Number(c.price) || 0)), 0);
@@ -727,7 +711,7 @@ export default function DialysisParametersModal({
           // No appointment / billing step — ask for discharge confirmation
           setDischargeModal({ isOpen: true, confirmText: '' });
         }
-      }
+      // }
     } catch (err) {
       console.error('Failed to close dialysis:', err);
     }
@@ -884,16 +868,16 @@ export default function DialysisParametersModal({
                     : 'After Dialysis'}
                 </Badge>
               </div>
-              {stage === 'during' && (
+              {/* {stage === 'during' && ( */}
                 <HStack spacing={2} ml="auto">
-                  <Button size="xs" variant="outline" colorScheme="slate" onClick={() => handleOpenAbort(false)}>
+                  <Button size="xs" variant="outline"  onClick={() => handleOpenAbort(false)}>
                     Abort
                   </Button>
-                  <Button size="xs" colorScheme="red" onClick={() => handleOpenAbort(true)} fontWeight="bold">
+                  {/* <Button size="xs" colorScheme="red" onClick={() => handleOpenAbort(true)} fontWeight="bold">
                     Emergency ABORT
-                  </Button>
+                  </Button> */}
                 </HStack>
-              )}
+              {/* )} */}
             </Box>
           </VStack>
         </ModalHeader>
@@ -934,12 +918,12 @@ export default function DialysisParametersModal({
                                 <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Checklist</Heading>
                                 <Box className="dialysis-modal__checklist-container" p={4} bg="slate.50" borderRadius="xl" border="1px solid" borderColor="slate.100">
                                   <VStack align="start" spacing={3}>
-                                    {/* Actual Org API Checklist Items (Preparation) */}
-                                    {orgChecklists.filter(c => c.type === 'Preparation').map((gl, i) => (
+                                    {/* Checklist items mapped to 'before' stage (flexible type matching) */}
+                                    {orgChecklists.filter(c => String(c.type || '').toLowerCase().includes('pre')).map((gl, i) => (
                                       <Checkbox
                                         key={`org_checklist_${i}`}
-                                        checked={dynamicChecklist[`prep_checklist_${i}`]}
-                                        onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`prep_checklist_${i}`]: e.target.checked }))}
+                                        checked={dynamicChecklist[`checklist_before_${i}`]}
+                                        onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`checklist_before_${i}`]: e.target.checked }))}
                                         disabled={stage !== 'before'}
                                         size="sm"
                                         colorScheme="info"
@@ -947,7 +931,7 @@ export default function DialysisParametersModal({
                                         <Text fontSize="xs" fontWeight="500">{gl.text}</Text>
                                       </Checkbox>
                                     ))}
-                                    {orgChecklists.filter(c => c.type === 'Preparation').length === 0 && (
+                                    {orgChecklists.filter(c => String(c.type || '').toLowerCase().includes('pre')).length === 0 && (
                                       <Text fontSize="xs" color="slate.400 italic">No preparation checklist items.</Text>
                                     )}
                                   </VStack>
@@ -1060,20 +1044,11 @@ export default function DialysisParametersModal({
                                 <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Guidelines</Heading>
                                 <Box className="dialysis-modal__guidelines-container" p={4} bg="slate.50" borderRadius="xl" border="1px solid" borderColor="slate.100">
                                   <VStack align="start" spacing={3}>
-                                    {/* Pre-dialysis Guidelines */}
-                                    {orgGuidelines.filter(g => g.type === 'Pre-dialysis').map((gl, i) => (
-                                      <Checkbox
-                                        key={`org_guideline_${i}`}
-                                        checked={dynamicChecklist[`pre_guideline_${i}`]}
-                                        onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`pre_guideline_${i}`]: e.target.checked }))}
-                                        disabled={stage !== 'before'}
-                                        size="sm"
-                                        colorScheme="info"
-                                      >
-                                        <Text fontSize="xs" fontWeight="500" color="slate.700">{gl.text}</Text>
-                                      </Checkbox>
+                                    {/* Pre-dialysis Guidelines rendered as informational text (not checkboxes) */}
+                                    {orgGuidelines.filter(g => String(g.type || '').toLowerCase().includes('pre')).map((gl, i) => (
+                                      <Text key={`org_guideline_${i}`} fontSize="xs" color="slate.700">{gl.text}</Text>
                                     ))}
-                                    {orgGuidelines.filter(g => g.type === 'Pre-dialysis').length === 0 && (
+                                    {orgGuidelines.filter(g => String(g.type || '').toLowerCase().includes('pre')).length === 0 && (
                                       <Text fontSize="xs" color="slate.400 italic">No specific pre-dialysis instructions.</Text>
                                     )}
                                   </VStack>
@@ -1165,22 +1140,17 @@ export default function DialysisParametersModal({
                               <CardHeader py={2}><Heading as="h4" size="xs" color="slate.500" textTransform="uppercase">Protocol & Monitoring</Heading></CardHeader>
                               <CardBody>
                                 <VStack align="start" spacing={3}>
-                                  {orgConfig.hasGuidelines && orgGuidelines.filter(g => g.type === 'During-dialysis').map((gl, i) => (
-                                    <Checkbox
-                                      key={`during_gl_${i}`}
-                                      checked={dynamicChecklist[`during_guideline_${i}`]}
-                                      onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`during_guideline_${i}`]: e.target.checked }))}
-                                      disabled={stage !== 'during'}
-                                      size="sm"
-                                    >
-                                      <Text fontSize="xs">{gl.text}</Text>
-                                    </Checkbox>
+                                  {/* Guidelines (informational) */}
+                                  {orgConfig.hasGuidelines && orgGuidelines.filter(g => String(g.type || '').toLowerCase().includes('during')).map((gl, i) => (
+                                    <Text key={`during_gl_text_${i}`} fontSize="xs">{gl.text}</Text>
                                   ))}
-                                  {orgConfig.hasChecklists && orgChecklists.filter(c => c.type === 'Monitoring').map((cl, i) => (
+
+                                  {/* Monitoring checklists (tick options) */}
+                                  {orgConfig.hasChecklists && orgChecklists.filter(c => String(c.type || '').toLowerCase().includes('during')).map((cl, i) => (
                                     <Checkbox
                                       key={`mon_cl_${i}`}
-                                      checked={dynamicChecklist[`mon_checklist_${i}`]}
-                                      onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`mon_checklist_${i}`]: e.target.checked }))}
+                                      checked={dynamicChecklist[`checklist_during_${i}`]}
+                                      onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`checklist_during_${i}`]: e.target.checked }))}
                                       disabled={stage !== 'during'}
                                       size="sm"
                                       colorScheme="warning"
@@ -1188,8 +1158,9 @@ export default function DialysisParametersModal({
                                       <Text fontSize="xs">Monitor: {cl.text}</Text>
                                     </Checkbox>
                                   ))}
-                                  {((orgConfig.hasGuidelines && orgGuidelines.filter(g => g.type === 'During-dialysis').length === 0) &&
-                                    (orgConfig.hasChecklists && orgChecklists.filter(c => c.type === 'Monitoring').length === 0)) && (
+
+                                  {((orgConfig.hasGuidelines && orgGuidelines.filter(g => String(g.type || '').toLowerCase().includes('during')).length === 0) &&
+                                    (orgConfig.hasChecklists && orgChecklists.filter(c => String(c.type || '').toLowerCase().includes('during')).length === 0)) && (
                                       <Text fontSize="xs" color="slate.400 italic">No monitoring protocols configured for this session.</Text>
                                     )}
                                 </VStack>
@@ -1221,25 +1192,17 @@ export default function DialysisParametersModal({
                               <CardBody>
                                 <VStack align="start" spacing={2}>
 
-                                  {/* Post-dialysis Guidelines */}
-                                  {orgConfig.hasGuidelines && orgGuidelines.filter(g => g.type === 'Post-dialysis').map((gl, i) => (
-                                    <Checkbox
-                                      key={`post_gl_${i}`}
-                                      checked={dynamicChecklist[`post_guideline_${i}`]}
-                                      onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`post_guideline_${i}`]: e.target.checked }))}
-                                      size="sm"
-                                      disabled={stage !== 'after'}
-                                    >
-                                      <Text fontSize="xs">{gl.text}</Text>
-                                    </Checkbox>
+                                  {/* Post-dialysis Guidelines (informational) */}
+                                  {orgConfig.hasGuidelines && orgGuidelines.filter(g => String(g.type || '').toLowerCase().includes('post')).map((gl, i) => (
+                                    <Text key={`post_gl_text_${i}`} fontSize="xs">{gl.text}</Text>
                                   ))}
 
-                                  {/* Cleaning Checklists */}
-                                  {orgConfig.hasChecklists && orgChecklists.filter(c => c.type === 'Cleaning').map((cl, i) => (
+                                  {/* Cleaning Checklists (tick options) */}
+                                  {orgConfig.hasChecklists && orgChecklists.filter(c => String(c.type || '').toLowerCase().includes('post')).map((cl, i) => (
                                     <Checkbox
                                       key={`clean_cl_${i}`}
-                                      checked={dynamicChecklist[`clean_checklist_${i}`]}
-                                      onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`clean_checklist_${i}`]: e.target.checked }))}
+                                      checked={dynamicChecklist[`checklist_after_${i}`]}
+                                      onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`checklist_after_${i}`]: e.target.checked }))}
                                       size="sm"
                                       disabled={stage !== 'after'}
                                       colorScheme="warning"
@@ -1247,8 +1210,8 @@ export default function DialysisParametersModal({
                                       <Text fontSize="xs">Cleaning: {cl.text}</Text>
                                     </Checkbox>
                                   ))}
-                                  {((orgConfig.hasGuidelines && orgGuidelines.filter(g => g.type === 'Post-dialysis').length === 0) &&
-                                    (orgConfig.hasChecklists && orgChecklists.filter(c => c.type === 'Cleaning').length === 0)) && (
+                                  {((orgConfig.hasGuidelines && orgGuidelines.filter(g => String(g.type || '').toLowerCase().includes('post')).length === 0) &&
+                                    (orgConfig.hasChecklists && orgChecklists.filter(c => String(c.type || '').toLowerCase().includes('post')).length === 0)) && (
                                       <Text fontSize="xs" color="slate.400 italic">No post-dialysis protocols configured.</Text>
                                     )}
                                 </VStack>
@@ -1309,7 +1272,7 @@ export default function DialysisParametersModal({
                     <CardBody p={4}>
                       <VStack spacing={4} align="stretch">
                         {/* APPOINTMENT SERVICES SECTION */}
-                        <Box borderBottom="1px solid" borderColor="slate.100" pb={4} mb={2}>
+                        {/* <Box borderBottom="1px solid" borderColor="slate.100" pb={4} mb={2}>
                           <HStack justify="space-between" mb={3}>
                             <Text fontSize="xs" fontWeight="bold" color="slate.600">Appointment Services</Text>
                             {servicesLoading && <Text fontSize="10px" color="info.500">Updating...</Text>}
@@ -1357,7 +1320,7 @@ export default function DialysisParametersModal({
                               </Box>
                             )}
                           </VStack>
-                        </Box>
+                        </Box> */}
 
                         <FormControl>
                           <FormLabel fontSize="xs" fontWeight="bold">Select Item</FormLabel>

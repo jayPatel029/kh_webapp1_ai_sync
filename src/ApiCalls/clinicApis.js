@@ -200,7 +200,7 @@ export async function createOrganization(payload, config = {}) {
  */
 export async function updateOrganization(orgId, payload, config = {}) {
   try {
-    const response = await axiosInstance.put(`${server_url}/org/organizations/${orgId}`, payload, config);
+    const response = await axiosInstance.put(`${server_url}/org/${orgId}`, payload, config);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -594,6 +594,16 @@ export async function getStaffSchedule(staffId, config = {}) {
   }
 }
 
+export async function createBill(payload, config = {}) {
+  try {
+    const configWithIdempotency = withIdempotency(config);
+    const response = await axiosInstance.post(`${server_url}/dt/bills`, payload, configWithIdempotency);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
 export default {
   getClinics,
   getClinicById,
@@ -626,4 +636,5 @@ export default {
   getBillDetails,
   getBillingBillById,
   consumeAppointmentServices,
+  createBill,
 };
