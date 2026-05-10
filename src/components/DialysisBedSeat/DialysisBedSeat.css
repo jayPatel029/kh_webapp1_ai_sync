@@ -260,7 +260,23 @@
 }
 
 /* Isolated/Quarantine bed with active status - thick green outline */
+.dialysis-bed-seat--isolated-active {
+  outline: 4px solid #16a34a;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: isolated-active-pulse 2.5s ease-in-out infinite;
+}
 
+@keyframes isolated-active-pulse {
+  0%, 100% {
+    outline-color: #16a34a;
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  50% {
+    outline-color: #22c55e;
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.35), 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+}
 
 /* ===================== RESPONSIVE ADJUSTMENTS ===================== */
 
@@ -315,7 +331,8 @@
   }
 
   .dialysis-bed-seat__alert-badge,
-  .dialysis-bed-seat__running-badge {
+  .dialysis-bed-seat__running-badge,
+  .dialysis-bed-seat--isolated-active {
     animation: none;
   }
 

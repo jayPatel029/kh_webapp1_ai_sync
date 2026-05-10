@@ -1334,6 +1334,7 @@ const DialysisAppointments = () => {
         if (primaryApptId) {
           const { billId } = await createBillForAppointment({
             appointmentId: primaryApptId,
+            appointmentIds: createdAppts.map(a => a.id || a),
             sessions,
             services: addedServices,
             form: createForm,

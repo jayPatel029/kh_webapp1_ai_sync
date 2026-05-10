@@ -75,7 +75,7 @@
   padding: 0;
   background: #f8fafc;
   overflow-y: auto !important;
-  max-height: calc(88vh - 180px); /* Adjust based on header/footer height */
+  max-height: calc(88vh - 100px); /* header only, no footer */
 }
 
 .dialysis-modal__workspace {
@@ -83,13 +83,11 @@
   flex-direction: column;
   gap: 16px;
   padding: 24px;
-  min-height: 100%;
   background: #f1f5f9;
 }
 
 .dialysis-modal__main-layout {
   align-items: stretch;
-  min-height: calc(88vh - 120px);
 }
 
 .dialysis-modal__left-sidebar {
@@ -219,4 +217,134 @@
   .dialysis-modal__footer {
     padding: 16px 18px 20px;
   }
+}
+
+/* ===================== STAGE PROGRESS INDICATOR ===================== */
+.dialysis-modal__stage-progress {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 14px 20px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.dialysis-modal__stage-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dialysis-modal__stage-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+  background: #e2e8f0;
+  color: #64748b;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.dialysis-modal__stage-step--active .dialysis-modal__stage-step-circle {
+  color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+}
+
+.dialysis-modal__stage-step--done .dialysis-modal__stage-step-circle {
+  color: #ffffff;
+}
+
+.dialysis-modal__stage-step-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.3s ease;
+}
+
+.dialysis-modal__stage-step--active .dialysis-modal__stage-step-label {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.dialysis-modal__stage-step--done .dialysis-modal__stage-step-label {
+  color: #64748b;
+}
+
+.dialysis-modal__stage-connector {
+  flex: 0 0 28px;
+  height: 2px;
+  background: #e2e8f0;
+  margin: 0 4px;
+  border-radius: 99px;
+  transition: background 0.4s ease;
+}
+
+.dialysis-modal__stage-connector--done {
+  background: #10b981;
+}
+
+/* ===================== SAVING BANNER ===================== */
+.dialysis-modal__saving-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(219, 234, 254, 0.8);
+  border: 1px solid rgba(147, 197, 253, 0.6);
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1d4ed8;
+  backdrop-filter: blur(6px);
+  animation: saving-fadein 0.25s ease;
+}
+
+@keyframes saving-fadein {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.dialysis-modal__saving-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b82f6;
+  animation: saving-pulse 1s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes saving-pulse {
+  0%, 100% { opacity: 1;  transform: scale(1);   }
+  50%       { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* ===================== LOADER SPINNER ===================== */
+.dialysis-modal__loader {
+  width: 44px;
+  height: 44px;
+  border: 4px solid rgba(59, 130, 246, 0.15);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===================== TIMER BANNER ===================== */
+.dialysis-modal__timer-banner {
+  transition: background 0.4s ease, border-color 0.4s ease;
 }

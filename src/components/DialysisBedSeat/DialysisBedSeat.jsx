@@ -118,9 +118,12 @@ const DialysisBedSeat = ({
   // Memoize icon color
   const iconColor = useMemo(() => textColor, [textColor]);
 
+  // Thick green outline when an isolated/quarantine bed is actively running
+  const isIsolatedActive = (status === 'QUARANTINE') && isRunning;
+
   return (
     <div
-      className="dialysis-bed-seat"
+      className={`dialysis-bed-seat${isIsolatedActive ? ' dialysis-bed-seat--isolated-active' : ''}`}
       style={{
         '--status-color': backgroundColor,
         '--text-color': textColor,

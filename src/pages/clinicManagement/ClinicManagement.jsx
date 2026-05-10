@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useCSVReader } from 'react-papaparse';
 import {
   Box,
   FormControl,
@@ -34,6 +35,15 @@ import {
   getOrganizations, getOrganizationById, createOrganization, updateOrganization, deleteOrganization,
   uploadClinicFiles,
 } from '../../ApiCalls/clinicApis';
+import { 
+  BulkUploadProof, 
+  Modal, 
+  ModalOverlay, 
+  ModalContent, 
+  ModalHeader, 
+  ModalBody, 
+  ModalCloseButton 
+} from '../../components';
 
 /**
  * Normalize a clinic from the backend into the shape the UI expects.
@@ -65,8 +75,13 @@ const ClinicManagement = () => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
   const { showToast, ToastContainer } = useAdminToast();
+  const { CSVReader } = useCSVReader();
 
   const [activeTab, setActiveTab] = useState('organizations');
+  
+  // Inline Bulk Upload states
+  const [showGuidelineUpload, setShowGuidelineUpload] = useState(false);
+  const [showChecklistUpload, setShowChecklistUpload] = useState(false);
 
   // ─── Organization state ────────────────────────────────
   const [organizations, setOrganizations] = useState([]);
@@ -203,6 +218,73 @@ const ClinicManagement = () => {
     } catch (err) {
       showToast(err?.message || 'Network error fetching organization details', 'error');
     }
+  };
+
+  const handleCSVUpload = (results, targetField) => {
+    const { data } = results;
+    if (data && data.length > 0) {
+      // Find headers (flexible search)
+      const headers = (data[0] || []).map(h => String(h).toLowerCase().trim());
+      const typeIdx = headers.findIndex(h => h === 'type' || h.includes('category'));
+      const textIdx = headers.findIndex(h => h === 'text' || h === 'content' || h === 'guideline' || h === 'checklist');
+
+      if (textIdx === -1) {
+        showToast('CSV must have a "text" or "content" column', 'error');
+        return;
+      }
+
+      const allowedTypes = ['Pre-dialysis', 'During dialysis', 'Post-dialysis', 'Cleaning', 'Preparation'];
+      
+      const newItems = data.slice(1).map(row => {
+        let itemType = typeIdx !== -1 ? String(row[typeIdx]).trim() : 'Pre-dialysis';
+        const itemText = row[textIdx];
+
+        // Match case-insensitively to allowed types
+        const matchedType = allowedTypes.find(t => t.toLowerCase() === itemType.toLowerCase());
+        itemType = matchedType || 'Pre-dialysis';
+
+        return { text: itemText, type: itemType };
+      }).filter(item => item.text && String(item.text).trim().length > 0);
+
+      if (newItems.length === 0) {
+        showToast('No valid items found in CSV', 'warning');
+        return;
+      }
+
+      setOrgFormData(prev => {
+        // If current list only has one empty item, replace it
+        const currentList = prev[targetField] || [];
+        const filteredCurrent = currentList.filter(item => item.text && item.text.trim().length > 0);
+        return {
+          ...prev,
+          [targetField]: [...filteredCurrent, ...newItems]
+        };
+      });
+      showToast(`${newItems.length} items added successfully!`, 'success');
+    }
+  };
+
+  const handleBulkData = (data, field) => {
+    if (!data || data.length === 0) return;
+    
+    setOrgFormData(prev => {
+      const currentList = prev[field] || [];
+      const filteredCurrent = currentList.filter(item => item.text && item.text.trim().length > 0);
+      
+      const newItems = data.map(item => ({
+        text: item.text || '',
+        type: item.type || 'Pre-dialysis'
+      }));
+
+      return {
+        ...prev,
+        [field]: [...filteredCurrent, ...newItems]
+      };
+    });
+    
+    showToast(`${data.length} items added successfully!`, 'success');
+    if (field === 'guidelines') setShowGuidelineUpload(false);
+    else setShowChecklistUpload(false);
   };
 
   const handleOrgSubmit = async () => {
@@ -770,46 +852,71 @@ const ClinicManagement = () => {
                     </div>
                     {orgFormData.hasGuidelines && (
                       <div className="space-y-3 mt-4 pt-4 border-t border-gray-200">
-                        <p className="font-medium text-sm text-gray-700 mb-2">Guidelines List</p>
-                        {orgFormData.guidelines.map((gl, i) => (
-                          <div key={i} className="flex items-start gap-3 w-full">
-                            <div className="flex flex-col items-start gap-3 flex-1 w-full">
-                              <select
-                                value={gl.type}
-                                onChange={(e) => {
-                                  const newGL = [...orgFormData.guidelines];
-                                  newGL[i] = { ...newGL[i], type: e.target.value };
-                                  setOrgFormData(prev => ({ ...prev, guidelines: newGL }));
-                                }}
-                                className="w-full h-10 px-3 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#004c6d] focus:border-transparent shrink-0 mt-1 text-gray-700"
-                              >
-                                <option value="Pre-dialysis">Pre-dialysis</option>
-                                <option value="During dialysis">During dialysis</option>
-                                <option value="Post-dialysis">Post-dialysis</option>
-                                <option value="Cleaning">Cleaning</option>
-                                <option value="Preparation">Preparation</option>
-                              </select>
-                              <Textarea
-                                value={gl.text}
-                                onChange={(e) => {
-                                  const newGL = [...orgFormData.guidelines];
-                                  newGL[i] = { ...newGL[i], text: e.target.value };
-                                  setOrgFormData(prev => ({ ...prev, guidelines: newGL }));
-                                }} 
-                                className="flex-1 min-h-[60px] resize-y w-full text-sm"
-                                placeholder="e.g. Ensure patient has updated their consent forms..."
-                              />
-                            </div>
-                            {orgFormData.guidelines.length > 1 && (
-                              <button type="button" onClick={() => setOrgFormData(prev => ({ ...prev, guidelines: prev.guidelines.filter((_, idx) => idx !== i) }))} className="mt-1 text-red-500 font-bold w-8 h-8 flex items-center justify-center bg-red-50 rounded-full hover:bg-red-100 transition-colors shrink-0" title="Remove row">
-                                ✕
-                              </button>
-                            )}
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="font-medium text-sm text-gray-700 mb-0">Guidelines List</p>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="xs" 
+                            onClick={() => setShowGuidelineUpload(!showGuidelineUpload)} 
+                            className="text-[#004c6d] hover:bg-blue-50"
+                          >
+                            {showGuidelineUpload ? '✕ Cancel Upload' : '📤 Bulk Upload CSV'}
+                          </Button>
+                        </div>
+
+                        {showGuidelineUpload ? (
+                          <div className="p-4 border border-dashed border-green-300 rounded-lg bg-green-50/30">
+                            <BulkUploadProof
+                              config={{ uploadType: 'guidelines' }}
+                              setData={(data) => handleBulkData(data, 'guidelines')}
+                              setSuccess={() => {}}
+                              success={false}
+                            />
                           </div>
-                        ))}
-                        <Button type="button" variant="outline" size="sm" onClick={() => setOrgFormData(prev => ({ ...prev, guidelines: [...prev.guidelines, { text: '', type: 'Pre-dialysis' }] }))} className="mt-2 text-[#004c6d] border-[#004c6d]">
-                          + Add More Guideline
-                        </Button>
+                        ) : (
+                          <>
+                            {orgFormData.guidelines.map((gl, i) => (
+                              <div key={i} className="flex items-start gap-3 w-full">
+                                <div className="flex flex-col items-start gap-3 flex-1 w-full">
+                                  <select
+                                    value={gl.type}
+                                    onChange={(e) => {
+                                      const newGL = [...orgFormData.guidelines];
+                                      newGL[i] = { ...newGL[i], type: e.target.value };
+                                      setOrgFormData(prev => ({ ...prev, guidelines: newGL }));
+                                    }}
+                                    className="w-full h-10 px-3 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#004c6d] focus:border-transparent shrink-0 mt-1 text-gray-700"
+                                  >
+                                    <option value="Pre-dialysis">Pre-dialysis</option>
+                                    <option value="During dialysis">During dialysis</option>
+                                    <option value="Post-dialysis">Post-dialysis</option>
+                                    <option value="Cleaning">Cleaning</option>
+                                    <option value="Preparation">Preparation</option>
+                                  </select>
+                                  <Textarea
+                                    value={gl.text}
+                                    onChange={(e) => {
+                                      const newGL = [...orgFormData.guidelines];
+                                      newGL[i] = { ...newGL[i], text: e.target.value };
+                                      setOrgFormData(prev => ({ ...prev, guidelines: newGL }));
+                                    }} 
+                                    className="flex-1 min-h-[60px] resize-y w-full text-sm"
+                                    placeholder="e.g. Ensure patient has updated their consent forms..."
+                                  />
+                                </div>
+                                {orgFormData.guidelines.length > 1 && (
+                                  <button type="button" onClick={() => setOrgFormData(prev => ({ ...prev, guidelines: prev.guidelines.filter((_, idx) => idx !== i) }))} className="mt-1 text-red-500 font-bold w-8 h-8 flex items-center justify-center bg-red-50 rounded-full hover:bg-red-100 transition-colors shrink-0" title="Remove row">
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <Button type="button" variant="outline" size="sm" onClick={() => setOrgFormData(prev => ({ ...prev, guidelines: [...prev.guidelines, { text: '', type: 'Pre-dialysis' }] }))} className="mt-2 text-[#004c6d] border-[#004c6d]">
+                              + Add More Guideline
+                            </Button>
+                          </>
+                        )}
                       </div>
                     )}
                   </Box>
@@ -829,46 +936,71 @@ const ClinicManagement = () => {
                     </div>
                     {orgFormData.hasChecklists && (
                       <div className="space-y-3 mt-4 pt-4 border-t border-gray-200">
-                        <p className="font-medium text-sm text-gray-700 mb-2">Checklists List</p>
-                        {orgFormData.checklists.map((chk, i) => (
-                          <div key={i} className="flex items-start gap-3 w-full">
-                            <div className="flex flex-col items-start gap-3 flex-1 w-full">
-                              <select
-                                value={chk.type}
-                                onChange={(e) => {
-                                  const newChk = [...orgFormData.checklists];
-                                  newChk[i] = { ...newChk[i], type: e.target.value };
-                                  setOrgFormData(prev => ({ ...prev, checklists: newChk }));
-                                }}
-                                className="w-full h-10 px-3 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#004c6d] focus:border-transparent shrink-0 mt-1 text-gray-700"
-                              >
-                                <option value="Pre-dialysis">Pre-dialysis</option>
-                                <option value="During dialysis">During dialysis</option>
-                                <option value="Post-dialysis">Post-dialysis</option>
-                                <option value="Cleaning">Cleaning</option>
-                                <option value="Preparation">Preparation</option>
-                              </select>
-                              <Textarea
-                                value={chk.text}
-                                onChange={(e) => {
-                                  const newChk = [...orgFormData.checklists];
-                                  newChk[i] = { ...newChk[i], text: e.target.value };
-                                  setOrgFormData(prev => ({ ...prev, checklists: newChk }));
-                                }} 
-                                className="flex-1 min-h-[60px] resize-y w-full text-sm"
-                                placeholder="e.g. Check vital signs..."
-                              />
-                            </div>
-                            {orgFormData.checklists.length > 1 && (
-                              <button type="button" onClick={() => setOrgFormData(prev => ({ ...prev, checklists: prev.checklists.filter((_, idx) => idx !== i) }))} className="mt-1 text-red-500 font-bold w-8 h-8 flex items-center justify-center bg-red-50 rounded-full hover:bg-red-100 transition-colors shrink-0" title="Remove row">
-                                ✕
-                              </button>
-                            )}
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="font-medium text-sm text-gray-700 mb-0">Checklists List</p>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="xs" 
+                            onClick={() => setShowChecklistUpload(!showChecklistUpload)} 
+                            className="text-[#004c6d] hover:bg-blue-50"
+                          >
+                            {showChecklistUpload ? '✕ Cancel Upload' : '📤 Bulk Upload CSV'}
+                          </Button>
+                        </div>
+
+                        {showChecklistUpload ? (
+                          <div className="p-4 border border-dashed border-green-300 rounded-lg bg-green-50/30">
+                            <BulkUploadProof
+                              config={{ uploadType: 'checklists' }}
+                              setData={(data) => handleBulkData(data, 'checklists')}
+                              setSuccess={() => {}}
+                              success={false}
+                            />
                           </div>
-                        ))}
-                        <Button type="button" variant="outline" size="sm" onClick={() => setOrgFormData(prev => ({ ...prev, checklists: [...prev.checklists, { text: '', type: 'Pre-dialysis' }] }))} className="mt-2 text-[#004c6d] border-[#004c6d]">
-                          + Add More Checklist
-                        </Button>
+                        ) : (
+                          <>
+                            {orgFormData.checklists.map((chk, i) => (
+                              <div key={i} className="flex items-start gap-3 w-full">
+                                <div className="flex flex-col items-start gap-3 flex-1 w-full">
+                                  <select
+                                    value={chk.type}
+                                    onChange={(e) => {
+                                      const newChk = [...orgFormData.checklists];
+                                      newChk[i] = { ...newChk[i], type: e.target.value };
+                                      setOrgFormData(prev => ({ ...prev, checklists: newChk }));
+                                    }}
+                                    className="w-full h-10 px-3 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#004c6d] focus:border-transparent shrink-0 mt-1 text-gray-700"
+                                  >
+                                    <option value="Pre-dialysis">Pre-dialysis</option>
+                                    <option value="During dialysis">During dialysis</option>
+                                    <option value="Post-dialysis">Post-dialysis</option>
+                                    <option value="Cleaning">Cleaning</option>
+                                    <option value="Preparation">Preparation</option>
+                                  </select>
+                                  <Textarea
+                                    value={chk.text}
+                                    onChange={(e) => {
+                                      const newChk = [...orgFormData.checklists];
+                                      newChk[i] = { ...newChk[i], text: e.target.value };
+                                      setOrgFormData(prev => ({ ...prev, checklists: newChk }));
+                                    }} 
+                                    className="flex-1 min-h-[60px] resize-y w-full text-sm"
+                                    placeholder="e.g. Check vital signs..."
+                                  />
+                                </div>
+                                {orgFormData.checklists.length > 1 && (
+                                  <button type="button" onClick={() => setOrgFormData(prev => ({ ...prev, checklists: prev.checklists.filter((_, idx) => idx !== i) }))} className="mt-1 text-red-500 font-bold w-8 h-8 flex items-center justify-center bg-red-50 rounded-full hover:bg-red-100 transition-colors shrink-0" title="Remove row">
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <Button type="button" variant="outline" size="sm" onClick={() => setOrgFormData(prev => ({ ...prev, checklists: [...prev.checklists, { text: '', type: 'Pre-dialysis' }] }))} className="mt-2 text-[#004c6d] border-[#004c6d]">
+                              + Add More Checklist
+                            </Button>
+                          </>
+                        )}
                       </div>
                     )}
                   </Box>

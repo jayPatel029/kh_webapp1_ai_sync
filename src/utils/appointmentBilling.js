@@ -17,6 +17,7 @@ import { generateBillPDF } from '../utils/billGenerator';
  */
 export async function createBillForAppointment({
   appointmentId,
+  appointmentIds,
   sessions,
   services,
   form,
@@ -67,6 +68,8 @@ export async function createBillForAppointment({
   // 2. Call backend createBill with the receiptUrl
   const billPayload = {
     appointment_id: appointmentId,
+    appointment_ids: appointmentIds || [appointmentId],
+    services_list: services.map(s => ({ name: s.name, price: s.price, id: s.id })),
     total_amt: totalDue,
     service: serviceNames,
     unit_price: totalDue / Math.max(sessions.length, 1),

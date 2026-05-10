@@ -44,6 +44,8 @@ import { Accordion, AccordionItem } from '../../../component-library/primitives/
 import {
   submitDialysisHealthParams,
   getDialysisReadings,
+  getAssignedDoctorData,
+  insertAlert,
 } from '../../../ApiCalls';
 import {
   startDialysisSession,
@@ -99,6 +101,61 @@ const buildCombinedTitle = (baseTitle, keyword, insertText) => {
 };
 
 const normalizeQuestionTitle = (title = "") => title.toLowerCase().replace(/[\s_-]/g, "");
+
+const pickFirstNumeric = (...values) => {
+  for (const value of values) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  }
+  return null;
+};
+
+const extractDoctorHeparinOrder = ({ patientData, appointmentData, initialData }) => {
+  const dose = pickFirstNumeric(
+    patientData?.doctor_heparin_dose_units,
+    patientData?.doctor_heparin_dose,
+    patientData?.heparin_dose_units,
+    patientData?.heparinDose,
+    appointmentData?.doctor_heparin_dose_units,
+    appointmentData?.doctor_heparin_dose,
+    appointmentData?.heparin_dose_units,
+    appointmentData?.heparinDose,
+    appointmentData?.metadata?.doctor_heparin_dose_units,
+    appointmentData?.metadata?.heparin_dose_units,
+    appointmentData?.metadata?.heparinDose,
+    initialData?.doctor_heparin_dose_units,
+    initialData?.doctor_heparin_dose,
+    initialData?.heparin_dose_units,
+    initialData?.heparinDose,
+    initialData?.params?.doctor_heparin_dose_units,
+    initialData?.params?.heparin_dose_units,
+    initialData?.planned_parameters?.heparin_dose_units,
+    initialData?.planned_parameters?.heparinDose,
+  );
+
+  if (dose == null) return null;
+
+  const strategy = [
+    patientData?.doctor_heparin_strategy,
+    patientData?.heparin_strategy,
+    appointmentData?.doctor_heparin_strategy,
+    appointmentData?.heparin_strategy,
+    appointmentData?.metadata?.doctor_heparin_strategy,
+    appointmentData?.metadata?.heparin_strategy,
+    initialData?.doctor_heparin_strategy,
+    initialData?.heparin_strategy,
+    initialData?.params?.doctor_heparin_strategy,
+    initialData?.params?.heparin_strategy,
+    initialData?.planned_parameters?.heparin_strategy,
+  ].find(Boolean);
+
+  return {
+    doseIU: Math.round(dose),
+    strategy: strategy || 'doctor_order',
+    perKg: null,
+    source: 'doctor',
+  };
+};
 
 const SystolicDiastolicGraph = ({
   question,
@@ -212,6 +269,9 @@ export default function DialysisParametersModal({
   const [timerActive, setTimerActive] = useState(false);
   const timerRef = useRef(null);
 
+  // Guard: auto-set ailment only once per modal open
+  const hasSetAilmentRef = useRef(false);
+
   // Guidelines & Checklist state
   const [orgGuidelines, setOrgGuidelines] = useState([]);
   const [orgChecklists, setOrgChecklists] = useState([]);
@@ -230,6 +290,22 @@ export default function DialysisParametersModal({
     return calculateHeparinDose(dry, heparinOverride || 'auto', selectedAilment || null);
   }, [completePatientData?.dry_weight, completePatientData?.body_weight, heparinOverride, selectedAilment]);
 
+  const doctorHeparinOrder = useMemo(
+    () => extractDoctorHeparinOrder({
+      patientData: completePatientData,
+      appointmentData: currentAppointment,
+      initialData,
+    }),
+    [completePatientData, currentAppointment, initialData]
+  );
+
+  const effectiveHeparinInfo = useMemo(
+    () => (doctorHeparinOrder?.doseIU ? doctorHeparinOrder : heparinInfo),
+    [doctorHeparinOrder, heparinInfo]
+  );
+
+  const isHeparinDoctorLocked = Boolean(doctorHeparinOrder?.doseIU);
+
   const [duringNotes, setDuringNotes] = useState('');
 
   // After Dialysis state
@@ -240,10 +316,66 @@ export default function DialysisParametersModal({
   const [hemoParamsResponses, setHemoParamsResponses] = useState({});
   const [showEntryFor, setShowEntryFor] = useState({}); // { [questionId]: boolean }
   const [graphModal, setGraphModal] = useState({ isOpen: false, questionId: null, questionTitle: '', questionUnit: '', dailyordia: 'dialysis' });
+  const [weightVarianceModal, setWeightVarianceModal] = useState({
+    isOpen: false,
+    reason: '',
+    dryWeight: null,
+    afterWeight: null,
+    varianceKg: null,
+  });
+  const [isSubmittingWeightVariance, setIsSubmittingWeightVariance] = useState(false);
 
   const hasDialysisSystolic = useMemo(() => {
     return hemoParams.some((q) => q.title?.toLowerCase().includes("systolic"));
   }, [hemoParams]);
+
+  const postDialysisWeightQuestion = useMemo(
+    () => hemoParams.find((q) => normalizeQuestionTitle(q?.title || '') === 'weightafter') || null,
+    [hemoParams]
+  );
+
+  const dryWeightValue = useMemo(() => {
+    const value = Number(completePatientData?.dry_weight);
+    return Number.isFinite(value) ? value : null;
+  }, [completePatientData?.dry_weight]);
+
+  const postDialysisWeightValue = useMemo(() => {
+    if (!postDialysisWeightQuestion?.id) return null;
+    const value = Number(hemoParamsResponses[postDialysisWeightQuestion.id]);
+    return Number.isFinite(value) ? value : null;
+  }, [hemoParamsResponses, postDialysisWeightQuestion?.id]);
+
+  const weightVarianceKg = useMemo(() => {
+    if (dryWeightValue == null || postDialysisWeightValue == null) return null;
+    return Number((postDialysisWeightValue - dryWeightValue).toFixed(2));
+  }, [dryWeightValue, postDialysisWeightValue]);
+
+  const hasAnyEnteredReading = useMemo(() => {
+    return Object.values(hemoParamsResponses || {}).some((value) => {
+      if (value === null || value === undefined) return false;
+      return String(value).trim() !== '';
+    });
+  }, [hemoParamsResponses]);
+
+  const validateReadingsForStage = useCallback((stageName) => {
+    if (!hasAnyEnteredReading) {
+      if (stageName === 'before') {
+        alert('Please enter at least one dialysis reading before starting the session.');
+      } else if (stageName === 'during') {
+        alert('Please enter at least one dialysis reading before stopping the session.');
+      } else {
+        alert('Please enter dialysis readings before completing the session.');
+      }
+      return false;
+    }
+
+    if (stageName === 'after' && postDialysisWeightQuestion?.id && postDialysisWeightValue == null) {
+      alert('Please enter the Weight After reading before completing the session.');
+      return false;
+    }
+
+    return true;
+  }, [hasAnyEnteredReading, postDialysisWeightQuestion?.id, postDialysisWeightValue]);
 
   // Inventory & Supplies state
   const [inventoryItems, setInventoryItems] = useState([]);
@@ -256,14 +388,47 @@ export default function DialysisParametersModal({
   const [appointmentServices, setAppointmentServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(false);
 
-  // Fetch patient parameters, readings and inventory
+  // Fetch patient parameters, readings and inventory — only when modal opens or patient changes
   useEffect(() => {
     if (isOpen && patient?.patient_id) {
+      hasSetAilmentRef.current = false; // reset guard when patient changes
       fetchPatientData();
       fetchInventoryData();
       setSessionId(initialData?.session_id || null);
     }
-  }, [isOpen, patient?.patient_id, initialData?.session_id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, patient?.patient_id]);
+
+  // Reset volatile session state when modal closes so next patient starts fresh
+  useEffect(() => {
+    if (!isOpen) {
+      setStage('before');
+      setCompletePatientData(null);
+      setDialysisReadings(null);
+      setBeforeNotes('');
+      setDuringNotes('');
+      setAfterNotes('');
+      setSessionId(null);
+      setConsumedItems([]);
+      setTimeLeft(0);
+      setTimerActive(false);
+      setHeparinOverride('auto');
+      setSelectedAilment('');
+      setHemoParamsResponses({});
+      setShowEntryFor({});
+      setDynamicChecklist({});
+      setMarkBedForCleaning(true);
+      setWeightVarianceModal({
+        isOpen: false,
+        reason: '',
+        dryWeight: null,
+        afterWeight: null,
+        varianceKg: null,
+      });
+      setIsSubmittingWeightVariance(false);
+      hasSetAilmentRef.current = false;
+    }
+  }, [isOpen]);
 
   const fetchInventoryData = useCallback(async () => {
     setInventoryLoading(true);
@@ -304,8 +469,9 @@ export default function DialysisParametersModal({
         const finalData = { ...pData, ailments: normalizedAilments };
         setCompletePatientData(finalData);
         
-        // Auto-select first relevant ailment if available for heparin calculation
-        if (normalizedAilments.length > 0 && !selectedAilment) {
+        // Auto-select first relevant ailment if available for heparin calculation (only once)
+        if (normalizedAilments.length > 0 && !hasSetAilmentRef.current) {
+          hasSetAilmentRef.current = true;
           setSelectedAilment(normalizedAilments[0]);
         }
 
@@ -393,12 +559,18 @@ export default function DialysisParametersModal({
     } finally {
       setLoadingData(false);
     }
-  }, [patient?.patient_id, bed?.organization_id, initialData, selectedAilment]);
+    // selectedAilment intentionally omitted — it is set inside here; using the ref guard avoids loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patient?.patient_id, bed?.organization_id, initialData]);
 
   const handleStartDialysis = useCallback(async () => {
     try {
       setIsSaving(true);
       setSavingMessage('Validating preparation checklists...');
+
+      if (!validateReadingsForStage('before')) {
+        return;
+      }
 
       // Only require checklist items for the "Before" stage (guidelines are informational)
       const prepChecklistKeys = orgChecklists.filter(c => String(c.type || '').toLowerCase().includes('pre')).map((_, i) => `checklist_before_${i}`);
@@ -409,21 +581,22 @@ export default function DialysisParametersModal({
         return;
       }
 
-      // Include calculated heparin data in submission
-      const heparinPayload = heparinInfo?.doseIU
+      // Include heparin data in submission (doctor prescribed when available, else calculated)
+      const heparinPayload = effectiveHeparinInfo?.doseIU
         ? {
-            strategy: heparinInfo.strategy,
-            dose_iu: heparinInfo.doseIU,
-            per_kg: heparinInfo.perKg,
+            strategy: effectiveHeparinInfo.strategy,
+            dose_iu: effectiveHeparinInfo.doseIU,
+            per_kg: effectiveHeparinInfo.perKg,
             ailment: selectedAilment || null,
+            source: isHeparinDoctorLocked ? 'doctor_order' : 'calculated',
           }
         : null;
 
       // Construct planned parameters from current session state and patient profile
       const plannedParameters = {
         session_duration_minutes: Number(manualDuration) * 60 || 240,
-        heparin_dose_units: heparinInfo?.doseIU || undefined,
-        heparin_strategy: heparinInfo?.strategy || undefined,
+        heparin_dose_units: effectiveHeparinInfo?.doseIU || undefined,
+        heparin_strategy: effectiveHeparinInfo?.strategy || undefined,
         ailments: completePatientData?.ailments || [],
         notes: beforeNotes,
         pre_readings: hemoParamsResponses,
@@ -522,7 +695,7 @@ export default function DialysisParametersModal({
       setIsSaving(false);
       setSavingMessage('');
     }
-  }, [beforeNotes, patient?.patient_id, patient?.appointment_id, bed?.id, currentAppointment, heparinInfo, selectedAilment, onStageChange, orgGuidelines, orgChecklists, dynamicChecklist, completePatientData, hemoParamsResponses]);
+  }, [beforeNotes, patient?.patient_id, patient?.appointment_id, bed?.id, currentAppointment, effectiveHeparinInfo, selectedAilment, onStageChange, orgGuidelines, orgChecklists, dynamicChecklist, completePatientData, hemoParamsResponses, isHeparinDoctorLocked, validateReadingsForStage]);
 
   const handleSaveReading = useCallback(async (questionId, value) => {
     if (!value) return;
@@ -627,6 +800,10 @@ export default function DialysisParametersModal({
 
   const handleStopDialysis = useCallback(async () => {
     try {
+      if (!validateReadingsForStage('during')) {
+        return;
+      }
+
       if (sessionId) {
         await submitSessionReadings(sessionId, {
           timestamp: new Date().toISOString(),
@@ -663,10 +840,47 @@ export default function DialysisParametersModal({
     } catch (err) {
       console.error('Failed to stop dialysis:', err);
     }
-  }, [sessionId, duringNotes, patient?.patient_id, bed?.id, onStageChange]);
+  }, [sessionId, duringNotes, patient?.patient_id, bed?.id, onStageChange, validateReadingsForStage]);
 
-  const handleCloseDialysis = useCallback(async () => {
+  const notifyAssignedDoctorsForWeightVariance = useCallback(async (reason, varianceSnapshot = {}) => {
+    if (!reason?.trim() || !patient?.patient_id) return;
+
     try {
+      const doctorsRes = await getAssignedDoctorData(patient.patient_id);
+      const doctors = doctorsRes?.data?.data || doctorsRes?.data || [];
+      const doctorEmails = [...new Set(
+        (Array.isArray(doctors) ? doctors : [])
+          .map((doctor) => doctor?.email || doctor?.doctor_email || doctor?.user_email || doctor?.mail)
+          .filter(Boolean)
+      )];
+
+      if (!doctorEmails.length) {
+        console.warn('No assigned doctor emails found for weight variance alert.');
+        return;
+      }
+
+      const dryW = varianceSnapshot?.dryWeight ?? dryWeightValue;
+      const afterW = varianceSnapshot?.afterWeight ?? postDialysisWeightValue;
+      const variance = varianceSnapshot?.varianceKg ?? weightVarianceKg;
+
+      const message = `Dialysis post-weight alert for patient ${patient?.patient_name || patient?.patient_id}: dry weight ${dryW ?? 'N/A'} kg, post-dialysis weight ${afterW ?? 'N/A'} kg, variance +${variance ?? 'N/A'} kg. Reason: ${reason.trim()}`;
+
+      await Promise.allSettled(
+        doctorEmails.map((email) =>
+          insertAlert(email, Number(patient.patient_id) || patient.patient_id, 'Dialysis Weight Variance', message)
+        )
+      );
+    } catch (error) {
+      console.error('Failed to send weight variance alert to assigned doctor(s):', error);
+    }
+  }, [dryWeightValue, patient?.patient_id, patient?.patient_name, postDialysisWeightValue, weightVarianceKg]);
+
+  const handleCloseDialysis = useCallback(async (weightVarianceReason = '') => {
+    try {
+      if (!validateReadingsForStage('after')) {
+        return;
+      }
+
       // const result = await submitDialysisHealthParams({
       //   patient_id: patient.patient_id,
       //   bed_id: bed?.id,
@@ -675,10 +889,23 @@ export default function DialysisParametersModal({
       //   timestamp: new Date().toISOString(),
       // });
 
+      const varianceReasonText = (weightVarianceReason || '').trim();
+      const varianceReasonNote = varianceReasonText
+        ? `\n\n[Weight Variance Alert]\nDry Weight: ${dryWeightValue ?? 'N/A'} kg\nPost-Dialysis Weight: ${postDialysisWeightValue ?? 'N/A'} kg\nVariance: +${weightVarianceKg ?? 'N/A'} kg\nReason: ${varianceReasonText}`
+        : '';
+
       if (sessionId) {
         await updateSessionParameters(sessionId, {
-          postDialysisNotes: afterNotes,
+          postDialysisNotes: `${afterNotes || ''}${varianceReasonNote}`.trim(),
           inventoryItemsUsed: consumedItems
+        });
+      }
+
+      if (varianceReasonText) {
+        await notifyAssignedDoctorsForWeightVariance(varianceReasonText, {
+          dryWeight: dryWeightValue,
+          afterWeight: postDialysisWeightValue,
+          varianceKg: weightVarianceKg,
         });
       }
 
@@ -715,7 +942,7 @@ export default function DialysisParametersModal({
     } catch (err) {
       console.error('Failed to close dialysis:', err);
     }
-  }, [afterNotes, patient, bed?.id, onStageChange, onClose, consumedItems]);
+  }, [afterNotes, consumedItems, dryWeightValue, notifyAssignedDoctorsForWeightVariance, patient, postDialysisWeightValue, bed?.id, onStageChange, onClose, sessionId, weightVarianceKg, validateReadingsForStage]);
 
   const handlePaymentSuccess = () => {
     setBillModalOpen(false);
@@ -868,24 +1095,35 @@ export default function DialysisParametersModal({
                     : 'After Dialysis'}
                 </Badge>
               </div>
-              {/* {stage === 'during' && ( */}
+              {/* Abort controls — only relevant while dialysis is running */}
+              {stage === 'during' && (
                 <HStack spacing={2} ml="auto">
-                  <Button size="xs" variant="outline"  onClick={() => handleOpenAbort(false)}>
+                  <Button size="xs" variant="outline" colorScheme="warning" onClick={() => handleOpenAbort(false)}>
                     Abort
                   </Button>
-                  {/* <Button size="xs" colorScheme="red" onClick={() => handleOpenAbort(true)} fontWeight="bold">
-                    Emergency ABORT
-                  </Button> */}
+                  <Button size="xs" colorScheme="red" onClick={() => handleOpenAbort(true)} fontWeight="bold">
+                    🚨 Emergency
+                  </Button>
                 </HStack>
-              {/* )} */}
+              )}
+              {/* Saving indicator in header */}
+              {isSaving && (
+                <div className="dialysis-modal__saving-banner">
+                  <span className="dialysis-modal__saving-dot" />
+                  {savingMessage || 'Saving…'}
+                </div>
+              )}
             </Box>
           </VStack>
+          <ModalCloseButton
+            onClick={onClose} />
         </ModalHeader>
 
         <ModalBody py={6} className="dialysis-modal__body">
           {loadingData ? (
-            <VStack spacing={4} justify="center" minH="200px">
-              <Text>Loading patient data...</Text>
+            <VStack spacing={4} justify="center" align="center" minH="300px">
+              <div className="dialysis-modal__loader" />
+              <Text fontSize="sm" color="slate.500" fontWeight="500">Loading patient data…</Text>
             </VStack>
           ) : (
             <Box className="dialysis-modal__workspace">
@@ -901,8 +1139,9 @@ export default function DialysisParametersModal({
 
                 {/* CENTER AREA: Session Stages */}
                 <VStack flex={6.5} align="stretch" spacing={6} className="dialysis-modal__center-content">
-                    {/* SESSION STAGES ACCORDION */}
-                    <Accordion defaultIndex={stage === 'before' ? [0] : stage === 'during' ? [1] : [2]} allowMultiple>
+
+                    {/* SESSION STAGES ACCORDION — key forces re-mount with correct open panel on stage change */}
+                    <Accordion key={stage} defaultIndex={stage === 'before' ? 0 : stage === 'during' ? 1 : 2}>
                       {/* BEFORE DIALYSIS */}
                       <AccordionItem
                         title="Before Dialysis Assessment"
@@ -1068,13 +1307,13 @@ export default function DialysisParametersModal({
                               <HStack spacing={2}>
                                 <Text fontSize="xs" fontWeight="600">Suggested Dose:</Text>
                                 <Badge colorScheme="info" variant="solid" fontSize="sm" px={3} py={1} borderRadius="lg">
-                                  {heparinInfo?.doseIU ? `${heparinInfo.doseIU} IU` : '—'}
+                                  {effectiveHeparinInfo?.doseIU ? `${effectiveHeparinInfo.doseIU} IU` : '—'}
                                 </Badge>
                               </HStack>
                               <Select
                                 value={heparinOverride}
                                 onChange={(e) => setHeparinOverride(e.target.value)}
-                                disabled={stage !== 'before'}
+                                disabled={stage !== 'before' || isHeparinDoctorLocked}
                                 size="xs"
                                 width="120px"
                                 borderRadius="md"
@@ -1086,6 +1325,11 @@ export default function DialysisParametersModal({
                               </Select>
                             </HStack>
                           </HStack>
+                          {isHeparinDoctorLocked && (
+                            <Text mt={2} fontSize="10px" color="warning.700" fontWeight="600">
+                              Doctor-prescribed heparin dose is locked and cannot be changed by DT.
+                            </Text>
+                          )}
                         </Box>
 
                         {/* Bottom Row: Notes & Start Button */}
@@ -1103,11 +1347,6 @@ export default function DialysisParametersModal({
                             />
                           </FormControl>
                             <VStack align="end" spacing={2} flex={1}>
-                              {isSaving && (
-                                <Text fontSize="xs" color="info.600" fontWeight="bold" animate="pulse">
-                                  {savingMessage}
-                                </Text>
-                              )}
                               <Button
                                 colorScheme="success"
                                 size="lg"
@@ -1123,6 +1362,11 @@ export default function DialysisParametersModal({
                               >
                                 START SESSION →
                               </Button>
+                              {stage !== 'before' && (
+                                <Text fontSize="xs" color="slate.400">
+                                  Session already started
+                                </Text>
+                              )}
                             </VStack>
                         </HStack>
                       </VStack>
@@ -1134,6 +1378,45 @@ export default function DialysisParametersModal({
                       className="dialysis-modal__accordion-item"
                     >
                       <VStack spacing={4} align="stretch">
+                          {/* Live session timer banner */}
+                          {stage === 'during' && timeLeft > 0 && (
+                            <Box
+                              className="dialysis-modal__timer-banner"
+                              p={3}
+                              borderRadius="xl"
+                              bg={timeLeft < 300 ? 'red.50' : 'amber.50'}
+                              border="1px solid"
+                              borderColor={timeLeft < 300 ? 'red.200' : 'amber.200'}
+                            >
+                              <HStack justify="space-between" align="center">
+                                <VStack align="start" spacing={0}>
+                                  <Text fontSize="10px" fontWeight="700" textTransform="uppercase" color={timeLeft < 300 ? 'red.500' : 'amber.600'} letterSpacing="wider">
+                                    {timeLeft < 300 ? '⚠️ Session ending soon' : '⏱ Time Remaining'}
+                                  </Text>
+                                  <Text
+                                    fontSize="2xl"
+                                    fontWeight="900"
+                                    fontFamily="monospace"
+                                    color={timeLeft < 300 ? 'red.600' : 'amber.700'}
+                                    letterSpacing="0.05em"
+                                  >
+                                    {formatTimeLeft(timeLeft)}
+                                  </Text>
+                                </VStack>
+                                <Button
+                                  size="sm"
+                                  colorScheme="warning"
+                                  variant="solid"
+                                  onClick={handleStopDialysis}
+                                  isLoading={isLoading}
+                                  isDisabled={stage !== 'during'}
+                                  borderRadius="xl"
+                                >
+                                  Stop Session
+                                </Button>
+                              </HStack>
+                            </Box>
+                          )}
                           {/* Machine Readings & During-dialysis Protocol */}
                           {(orgConfig.hasGuidelines || orgConfig.hasChecklists) && (
                             <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
@@ -1173,9 +1456,15 @@ export default function DialysisParametersModal({
                           <Textarea value={duringNotes} onChange={(e) => setDuringNotes(e.target.value)} disabled={stage !== 'during'} rows={2} size="sm" />
                         </FormControl>
 
-                        <Button colorScheme="warning" onClick={handleStopDialysis} isLoading={isLoading} isDisabled={stage !== 'during'} width="100%">
-                          Stop Dialysis
-                        </Button>
+                          {stage !== 'during' ? (
+                            <Box p={3} borderRadius="xl" bg="slate.50" textAlign="center">
+                              <Text fontSize="xs" color="slate.400">Stop Dialysis button available once session is started</Text>
+                            </Box>
+                          ) : (
+                            <Button colorScheme="warning" onClick={handleStopDialysis} isLoading={isLoading} isDisabled={stage !== 'during'} width="100%" size="lg" borderRadius="xl">
+                              ⏹ Stop Dialysis
+                            </Button>
+                          )}
                       </VStack>
                     </AccordionItem>
 
@@ -1234,6 +1523,17 @@ export default function DialysisParametersModal({
                           <Button
                             colorScheme="success"
                             onClick={async () => {
+                              if (weightVarianceKg != null && weightVarianceKg > 0.5) {
+                                setWeightVarianceModal({
+                                  isOpen: true,
+                                  reason: '',
+                                  dryWeight: dryWeightValue,
+                                  afterWeight: postDialysisWeightValue,
+                                  varianceKg: weightVarianceKg,
+                                });
+                                return;
+                              }
+
                               if (markBedForCleaning && bed?.id) {
                                 try {
                                   await updateBedStatus(bed.id, {
@@ -1390,18 +1690,6 @@ export default function DialysisParametersModal({
           )}
         </ModalBody>
 
-        <ModalFooter className="dialysis-modal__footer">
-          <HStack spacing={2} justify="flex-end">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              isDisabled={isLoading}
-              size="sm"
-            >
-              Cancel
-            </Button>
-          </HStack>
-        </ModalFooter>
       </ModalContent>
 
       <PaymentModal
@@ -1422,6 +1710,90 @@ export default function DialysisParametersModal({
           questionUnit={graphModal.questionUnit}
         />
       )}
+
+      <Modal
+        isOpen={weightVarianceModal.isOpen}
+        onClose={() => {
+          if (isSubmittingWeightVariance) return;
+          setWeightVarianceModal(prev => ({ ...prev, isOpen: false }));
+        }}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Post-Dialysis Weight Variance</ModalHeader>
+          <ModalCloseButton isDisabled={isSubmittingWeightVariance} />
+          <ModalBody>
+            <VStack align="stretch" spacing={3}>
+              <Text fontSize="sm" color="slate.700">
+                Post-dialysis weight is more than <strong>0.5 kg</strong> above dry weight. Please provide a reason before closing the session and notifying the doctor.
+              </Text>
+              <Box p={3} bg="amber.50" border="1px solid" borderColor="amber.200" borderRadius="md">
+                <VStack align="start" spacing={1}>
+                  <Text fontSize="xs"><strong>Dry Weight:</strong> {weightVarianceModal.dryWeight ?? 'N/A'} kg</Text>
+                  <Text fontSize="xs"><strong>Post-Dialysis Weight:</strong> {weightVarianceModal.afterWeight ?? 'N/A'} kg</Text>
+                  <Text fontSize="xs" color="amber.700"><strong>Variance:</strong> +{weightVarianceModal.varianceKg ?? 'N/A'} kg</Text>
+                </VStack>
+              </Box>
+              <FormControl isRequired>
+                <FormLabel fontSize="xs">Reason to send to doctor</FormLabel>
+                <Textarea
+                  value={weightVarianceModal.reason}
+                  onChange={(e) => setWeightVarianceModal(prev => ({ ...prev, reason: e.target.value }))}
+                  placeholder="Enter reason for elevated post-dialysis weight..."
+                  rows={4}
+                  isDisabled={isSubmittingWeightVariance}
+                />
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={() => setWeightVarianceModal(prev => ({ ...prev, isOpen: false }))}
+              isDisabled={isSubmittingWeightVariance}
+            >
+              Cancel
+            </Button>
+            <Button
+              colorScheme="red"
+              isLoading={isSubmittingWeightVariance}
+              onClick={async () => {
+                const reason = (weightVarianceModal.reason || '').trim();
+                if (!reason) {
+                  alert('Please enter a reason before continuing.');
+                  return;
+                }
+
+                setIsSubmittingWeightVariance(true);
+                try {
+                  if (markBedForCleaning && bed?.id) {
+                    await updateBedStatus(bed.id, {
+                      status: 'MAINTENANCE',
+                      notes: 'Automatically marked for cleaning after session'
+                    });
+                  }
+
+                  await handleCloseDialysis(reason);
+                  setWeightVarianceModal({
+                    isOpen: false,
+                    reason: '',
+                    dryWeight: null,
+                    afterWeight: null,
+                    varianceKg: null,
+                  });
+                } finally {
+                  setIsSubmittingWeightVariance(false);
+                }
+              }}
+            >
+              Send to Doctor & Continue
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
       {/* Discharge confirmation modal */}
       <Modal isOpen={dischargeModal.isOpen} onClose={() => setDischargeModal({ isOpen: false, confirmText: '' })} isCentered>
         <ModalOverlay />

@@ -156,6 +156,20 @@ const PRESET_CONFIGS = {
     },
     requiresLanguageTranslation: true,
   },
+  guidelines: {
+    columnDefinitions: {
+      type: { type: "string", isRequired: true, label: "Type" },
+      text: { type: "string", isRequired: true, label: "Guideline Text" },
+    },
+    requiredFields: ["type", "text"],
+  },
+  checklists: {
+    columnDefinitions: {
+      type: { type: "string", isRequired: true, label: "Type" },
+      text: { type: "string", isRequired: true, label: "Checklist Text" },
+    },
+    requiredFields: ["type", "text"],
+  },
 };
 
 export default function BulkUploadProof({
