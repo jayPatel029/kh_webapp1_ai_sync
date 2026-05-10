@@ -60,6 +60,7 @@ import {
   getAppointments,
   getOrganizations,
 } from '../../../ApiCalls/clinicApis';
+
 import OrganizationSelector from '../../../components/OrganizationSelector';
 import './BedManagementDashboard.css';
 
@@ -739,6 +740,8 @@ const BedGridCompact = ({
   );
 };
 
+// Cleaning confirmation flow was reverted to simple notification; modal removed.
+
 // ============================================================================
 // AssignmentModal - Modal for assigning patients to beds
 // ============================================================================
@@ -1074,6 +1077,8 @@ export default function BedManagementDashboard(props) {
     }
   }, [showNotification]);
 
+  // Cleaning confirmation flow reverted; clicking CLEANING beds shows notification only.
+
   const handleAssignmentConfirm = useCallback(
     async (assignmentData) => {
       try {
@@ -1396,6 +1401,8 @@ export default function BedManagementDashboard(props) {
         bed={dialysisBedData}
         onStageChange={handleDialysisStageChange}
       />
+
+      {/* Cleaning confirmation modal removed; clicking CLEANING beds now shows notification */}
 
       {notification && (
         <Box className={`notification toast--${notification.status}`} role="alert">

@@ -259,6 +259,9 @@
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+/* Isolated/Quarantine bed with active status - thick green outline */
+
+
 /* ===================== RESPONSIVE ADJUSTMENTS ===================== */
 
 @media (max-width: 480px) {

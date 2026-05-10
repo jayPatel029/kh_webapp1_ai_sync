@@ -1390,19 +1390,6 @@ export default function DialysisParametersModal({
           )}
         </ModalBody>
 
-        {/* Graph modal overlay for readings */}
-        {graphModal.isOpen && (
-          <GraphModal
-            closeModal={() => setGraphModal(prev => ({ ...prev, isOpen: false }))}
-            patientId={patient.patient_id}
-            questionId={graphModal.questionId}
-            dailyordia={graphModal.dailyordia}
-            isGraph={true}
-            questionTitle={graphModal.questionTitle}
-            questionUnit={graphModal.questionUnit}
-          />
-        )}
-
         <ModalFooter className="dialysis-modal__footer">
           <HStack spacing={2} justify="flex-end">
             <Button
@@ -1423,6 +1410,18 @@ export default function DialysisParametersModal({
         appointmentId={currentAppointment?.id}
         onSuccess={handlePaymentSuccess}
       />
+      {/* Graph modal overlay for readings - rendered outside ModalContent for proper z-index */}
+      {graphModal.isOpen && (
+        <GraphModal
+          closeModal={() => setGraphModal(prev => ({ ...prev, isOpen: false }))}
+          patientId={patient.patient_id}
+          questionId={graphModal.questionId}
+          dailyordia={graphModal.dailyordia}
+          isGraph={true}
+          questionTitle={graphModal.questionTitle}
+          questionUnit={graphModal.questionUnit}
+        />
+      )}
       {/* Discharge confirmation modal */}
       <Modal isOpen={dischargeModal.isOpen} onClose={() => setDischargeModal({ isOpen: false, confirmText: '' })} isCentered>
         <ModalOverlay />
