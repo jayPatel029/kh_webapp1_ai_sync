@@ -22,6 +22,7 @@ import UnifiedListTable from "../../components/table/UnifiedListTable";
 
 // Mobile
 import { useIsMobile } from "../../components/mobile/useIsMobile";
+import { isRole } from '../../helpers/roleUtils';
 
 // Page Components
 import UploadLabReports from "./UploadLabReports";
@@ -282,7 +283,7 @@ const UserLabReports = ({ patientId: propPatientId }) => {
           </button>
         </Flex>
 
-        {role?.role_name !== "Dialysis Technician" && (
+        {!isRole(role, 'Dialysis Technician') && (
           <Button
             variant="solid"
             className={`${isMobile ? 'h-[40px] px-4 text-[13px] rounded-lg w-full' : 'h-[50px] px-8 rounded-[10px] text-[16px]'} bg-[#4164df] text-white font-semibold hover:bg-[#3453c1] transition-colors`}

@@ -41,6 +41,7 @@ import Edit from "../../../assets/Edit.svg"; // Assuming you have an Edit icon i
 
 import RefreshButton from "../../../components/RefreshButton/RefreshButton";
 import { usePageCache, PAGE_CACHE } from "../../../cache";
+import { isRole } from '../../../helpers/roleUtils';
 import { CalendarIcon, ClipboardIcon } from '../../dashboard/components/DashboardIcons';
 import UserLabReports from '../../UserLabReports/UserLabReports';
 
@@ -389,7 +390,7 @@ const PatientList = ({ data, onAddClick }) => {
   // prepare columns for unified table (desktop + mobile card support)
   const columns = useMemo(() => {
     const isAdmin = isAdminRole(role?.role_name);
-    const isDialysisTechnician = String(role?.role_name || '').toLowerCase().includes('dialysis');
+    const isDialysisTechnician = isRole(role, 'dialysis');
 
     // When user is dialysis technician show a compact set of columns
     if (isDialysisTechnician) {
@@ -591,7 +592,7 @@ const PatientList = ({ data, onAddClick }) => {
     ];
 
     return cols;
-  }, [assignedDoctorsByPatient, assignedAdminsByPatient, role?.role_name]);
+  }, [assignedDoctorsByPatient, assignedAdminsByPatient, role]);
 
   // Profile Image or default with gender-based avatar fallback
   const getProfileImageUrl = (photoUrl, gender) => {
@@ -671,7 +672,7 @@ const PatientList = ({ data, onAddClick }) => {
   // Handle patient click
   const handlePatientClick = (patient) => {
     // If dialysis technician, open appointment timeline modal instead of navigating
-    const isDialysisTechnician = String(role?.role_name || '').toLowerCase().includes('dialysis');
+    const isDialysisTechnician = isRole(role, 'dialysis');
     if (isDialysisTechnician) {
     // if (true) {
       openAppointmentModal(patient);

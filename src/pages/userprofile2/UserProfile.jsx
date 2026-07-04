@@ -50,6 +50,7 @@ import {
   removeAdminFromPatient,
   updateMedical,
 } from "../../ApiCalls/patientAPis";
+import { isRole } from '../../helpers/roleUtils';
 import { addDoctorToPatient, deleteAssignedDoctor } from "../../ApiCalls/doctorPatientApis";
 import { addAdminToPatient, deleteAssignedAdmin } from "../../ApiCalls/adminPatientApis";
 import { getDoctors } from "../../ApiCalls/doctorApis";
@@ -404,7 +405,7 @@ function UserProfile() {
         if (isInPatientProfileShell && shellContext) {
           if (shellContext.userData) setPatient1(shellContext.userData);
           if (shellContext.role) {
-            if (shellContext.role?.role_name === "Admin") {
+            if (isRole(shellContext.role, 'Admin')) {
                 const chatResult = await getAllChatsAdmin(id);
                 const medicalResult = await getPatientMedicalTeam(id);
             }
@@ -416,7 +417,7 @@ function UserProfile() {
         const patientRes = await getPatientById(id);
         setPatient1(patientRes.data.data);
 
-        if (roleResult?.data?.data?.role_name === "Admin") {
+        if (isRole(roleResult?.data?.data, 'Admin')) {
           const chatResult = await getAllChatsAdmin(id);
           const medicalResult = await getPatientMedicalTeam(id);
           const adminResult = await getPatientAdminTeam(id);
@@ -724,7 +725,7 @@ function UserProfile() {
           <Box className={`grid gap-4 ${isSmall ? 'grid-cols-1' : 'grid-cols-2'}`}>
 
             {/* Daily Readings */}
-            {role?.role_name !== "Dialysis Technician" && userData.program !== "Basic" && (
+            {!isRole(role, 'Dialysis Technician') && userData.program !== "Basic" && (
               <Box className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
                 <Box as="h2" className={`${isSmall ? 'text-md' : 'text-lg'} font-bold text-[#32617d] mb-4 text-center`}>
                   Daily Readings
@@ -844,7 +845,7 @@ function UserProfile() {
                       >
                         {reading.title}
                       </button>
-                      {role?.role_name === "Admin" && (
+                      {isRole(role, 'Admin') && (
                         <button
                           onClick={() => deleteLabReading(reading.id)}
                           title="Delete reading"

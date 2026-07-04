@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Flex } from '../component-library';
 import { getImmunizations, saveImmunizations } from '../ApiCalls/immunizationApis';
 import ImmunizationModal from './modals/ImmunizationModal';
+import { isRole } from '../helpers/roleUtils';
 
 const formatDate = (d) => {
   if (!d) return '';
@@ -108,7 +109,7 @@ function ImmunizationSection({ userData = {}, role = {}, onSuccess }) {
       <Box className="space-y-4">
       <Flex justify="start" align="center" className="items-center gap-4">
         <Box as="h2" className="text-xl font-bold">Immunizations</Box>
-        {(role?.role_name === 'Doctor') && (
+        {(isRole(role, 'Doctor')) && (
           <button
             onClick={openAddModal}
             className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors font-medium"
@@ -138,7 +139,7 @@ function ImmunizationSection({ userData = {}, role = {}, onSuccess }) {
                 <div className="flex gap-2 items-center">
                   <button
                     title="Verify as Doctor"
-                    onClick={() => role?.role_name === 'Doctor' && toggleVerify(idx, 'doctor')}
+                    onClick={() => isRole(role, 'Doctor') && toggleVerify(idx, 'doctor')}
                     className={`text-sm px-2 py-1 rounded ${it.verifiedBy?.doctor?.value ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}
                   >
                     Dr: {it.verifiedBy?.doctor?.value ? 'Verified' : 'Verify'}
@@ -146,7 +147,7 @@ function ImmunizationSection({ userData = {}, role = {}, onSuccess }) {
 
                   <button
                     title="Verify as Patient"
-                    onClick={() => role?.role_name === 'Patient' && toggleVerify(idx, 'patient')}
+                    onClick={() => isRole(role, 'Patient') && toggleVerify(idx, 'patient')}
                     className={`text-sm px-2 py-1 rounded ${it.verifiedBy?.patient?.value ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}
                   >
                     You: {it.verifiedBy?.patient?.value ? 'Verified' : 'Verify'}
@@ -154,7 +155,7 @@ function ImmunizationSection({ userData = {}, role = {}, onSuccess }) {
 
                   <button
                     title="Verify as DT"
-                    onClick={() => String(role?.role_name || '').toLowerCase().includes('dialysis') && toggleVerify(idx, 'dt')}
+                    onClick={() => isRole(role, 'dialysis') && toggleVerify(idx, 'dt')}
                     className={`text-sm px-2 py-1 rounded ${it.verifiedBy?.dt?.value ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}
                   >
                     DT: {it.verifiedBy?.dt?.value ? 'Verified' : 'Verify'}
@@ -162,7 +163,7 @@ function ImmunizationSection({ userData = {}, role = {}, onSuccess }) {
                 </div>
 
                 <div>
-                  {(role?.role_name === 'Doctor') && (
+                  {(isRole(role, 'Doctor')) && (
                     <>
                       <button onClick={() => openEditModal(it)} className="text-sm px-2">Edit</button>
                       <button onClick={() => handleRemove(idx)} className="text-red-500 px-2">Remove</button>

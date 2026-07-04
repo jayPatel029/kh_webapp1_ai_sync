@@ -25,6 +25,7 @@ import Account from "../../assets/Account.svg";
 import { ROUTES } from "../../routes/routeConstants";
 import { IconButton } from "../../component-library";
 import { hasAnyPermission, hasDashboardAccess } from "../../helpers/permissions";
+import { isRole } from '../../helpers/roleUtils';
 
 const Sidebar = ({ mobile = false }) => {
   const [dropdown, setDropdown] = useState(false);
@@ -231,13 +232,13 @@ const Sidebar = ({ mobile = false }) => {
     hasAnyPermission(role, "createAdmin") ||
     hasAnyPermission(role, "createDoctor") ||
     hasAnyPermission(role, "manageRoles") ||
-    (role?.role_name === "Admin" || role?.role_name === "PSadmin")
+    isRole(role, ['Admin', 'PSadmin'])
   );
 
   // Show Chats group only for admin-type roles
-  const chatsGroupVisible = !!(role?.role_name === "Admin" || role?.role_name === "PSadmin");
+  const chatsGroupVisible = !!isRole(role, ['Admin', 'PSadmin']);
 
-  const dialysisGroupVisible = !!(role?.role_name === "Admin" || role?.role_name === "PSadmin");
+  const dialysisGroupVisible = !!isRole(role, ['Admin', 'PSadmin']);
 
   const renderDesktopNavItem = (item) => {
     const Icon = item.icon;
@@ -330,7 +331,7 @@ const Sidebar = ({ mobile = false }) => {
             {hasAnyPermission(role, "createAdmin") && renderAdminChild('Create Admin', SubdirectoryArrowRightIcon, ROUTES.USERS_ADMINS)}
             {hasAnyPermission(role, "createDoctor") && renderAdminChild('Create Doctor', SubdirectoryArrowRightIcon, ROUTES.USERS_DOCTORS)}
             {hasAnyPermission(role, "manageRoles") && renderAdminChild('Manage Roles', SubdirectoryArrowRightIcon, ROUTES.USERS_ROLES)}
-            {(role?.role_name === "Admin" || role?.role_name === "PSadmin") && renderAdminChild('Clinic Management', SubdirectoryArrowRightIcon, ROUTES.CLINIC_MANAGEMENT)}
+            {isRole(role, ['Admin', 'PSadmin']) && renderAdminChild('Clinic Management', SubdirectoryArrowRightIcon, ROUTES.CLINIC_MANAGEMENT)}
           </div>
         )}
       </li>

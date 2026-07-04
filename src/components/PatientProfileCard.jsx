@@ -5,6 +5,7 @@ import { IconButton, Button } from '../component-library/primitives/Button';
 import { Flex, Box } from '../component-library/layout/Layout';
 import { Skeleton } from '../component-library/feedback/Skeleton';
 import getValidImageUrl, { formatDate } from '../helpers/utils';
+import { isRole } from '../helpers/roleUtils';
 import clsx from 'clsx';
 import QuestionsContainer from './questions/QuestionsContainer';
 import upIcon from '../assets/up.png';
@@ -121,6 +122,7 @@ export const PatientProfileCard = ({
   const hasDialysisAilment = () =>
     hasAilment('Hemo Dialysis') || hasAilment('Peritoneal Dialysis') || hasAilment('Dialysis');
 
+  const bloodGroupValue = pickDisplayValue(mergedUserData, ['blood_group', 'bloodGroup', 'blood_type', 'bloodType']);
   const gfrValue = pickDisplayValue(mergedUserData, ['GFR', 'gfr']);
   const egfrValue = pickDisplayValue(mergedUserData, ['eGFR', 'egfr']);
   const dryWeightValue = pickDisplayValue(mergedUserData, ['dry_weight', 'dryWeight', 'dryweight']);
@@ -134,11 +136,12 @@ export const PatientProfileCard = ({
     { label: 'Name:', value: mergedUserData?.name },
     { label: 'Number:', value: pickDisplayValue(mergedUserData, ['number', 'phone', 'mobile', 'phone_number', 'contact_number']) },
     { label: 'Program:', value: mergedUserData?.program },
-    { label: 'Ailments:', value: mergedUserData?.ailments?.join(', '), isEditable: role?.role_name !== 'Dialysis Technician' && role?.role_name !== 'Medical Staff', onEdit: onEditAilments },
+    { label: 'Ailments:', value: mergedUserData?.ailments?.join(', '), isEditable: !isRole(role, ['Dialysis Technician', 'Medical Staff']), onEdit: onEditAilments },
     { label: 'DOB:', value: mergedUserData?.dob ? formatDate(mergedUserData.dob) : '-' },
     { label: 'Address:', value: mergedUserData?.address },
     { label: 'State:', value: mergedUserData?.state },
     { label: 'Pincode:', value: mergedUserData?.pincode },
+    { label: 'Blood Group:', value: bloodGroupValue || '-' },
     ...(shouldShowGfrMetrics() ? [
       { label: 'eGFR:', value: egfrValue || '-' },
       { label: 'GFR:', value: gfrValue || '-' }

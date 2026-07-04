@@ -11,6 +11,7 @@ import {
   Text,
 } from '../../component-library';
 import { getPatientById } from '../../ApiCalls/patientAPis';
+import { isRole } from '../../helpers/roleUtils';
 
 const ImmunizationModal = ({
   isOpen,
@@ -186,7 +187,7 @@ const ImmunizationModal = ({
       size="md"
       footer={(
         <Flex justify="end" gap={2}>
-          {mode === 'edit' && (role?.role_name === 'Doctor') && (
+          {mode === 'edit' && isRole(role, 'Doctor') && (
             <Button variant="outline" onClick={handleDelete} isDisabled={isSaving}>
               Delete
             </Button>

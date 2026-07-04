@@ -8,6 +8,7 @@
 
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
+import { isRole } from '../helpers/roleUtils';
 import { ROUTES } from '../routes/routeConstants';
 
 // Mobile icon assets (passive / active)
@@ -21,7 +22,7 @@ export const useMobileNavItems = () => {
     const role = useSelector((state) => state.permission);
 
     return useMemo(() => {
-        const hasDashboardAccess = ['Admin', 'PSadmin', 'Doctor'].includes(role?.role_name);
+        const hasDashboardAccess = isRole(role, ['Admin', 'PSadmin', 'Doctor']);
         const items = [];
 
         // Dashboard

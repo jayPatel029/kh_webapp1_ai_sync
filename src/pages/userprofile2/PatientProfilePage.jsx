@@ -11,13 +11,14 @@ import { getPatientGetPatientByid } from "../../ApiCalls/remainingApis";
 import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
 import { PAGE_CACHE, usePageCache } from "../../cache";
 import UserProfile from "./UserProfile";
+import { isRole } from '../../helpers/roleUtils';
 
 const PatientProfilePage = () => {
   const { id: patientId } = useParams();
   const role = useSelector((state) => state.permission);
   const { isMobile } = useIsMobile();
   const { fetchWithCache, refreshKey } = usePageCache(PAGE_CACHE.PATIENT_DETAIL);
-  const isAdmin = role?.role_name === "Admin";
+  const isAdmin = isRole(role, 'Admin');
 
   const [userData, setUserData] = useState({});
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);

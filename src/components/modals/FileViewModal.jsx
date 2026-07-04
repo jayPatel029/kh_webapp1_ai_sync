@@ -32,6 +32,7 @@ import {
 import { addComment, getComments } from "../../ApiCalls/commentApi";
 import { getPatientByIdad } from "../../ApiCalls/patientAPis";
 import MyPDFViewer from "../../components/pdf/MyPDFViewer";
+import { isRole } from '../../helpers/roleUtils';
 
 // Styles
 import '../../design-system/styles/index.css';
@@ -83,7 +84,7 @@ export const FileViewModal = ({
       }
 
       // Check role
-      if (role?.role_name === "Dialysis Technician") {
+      if (isRole(role, 'Dialysis Technician')) {
         setIsDialysisTech(true);
       }
 

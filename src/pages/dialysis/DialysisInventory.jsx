@@ -686,7 +686,7 @@ const DialysisInventory = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
-  const [supplierForm, setSupplierForm] = useState({ name: '', contact_person: '', email: '', phone: '', address: '', gst_number: '' });
+  const [supplierForm, setSupplierForm] = useState({ name: '', contact_person: '', email: '', phone: '', whatsapp_no: '', address: '', gst_number: '', delivery_terms: '', payment_terms: '0%', damaged_stock_policy: '' });
   const [supplierEditId, setSupplierEditId] = useState(null);
 
   const fetchSuppliers = useCallback(async () => {
@@ -707,10 +707,14 @@ const DialysisInventory = () => {
   };
 
   const supplierColumns = [
-    { key: 'name', label: 'Name', type: 'text', width: '200px' },
-    { key: 'contact_person', label: 'Contact', type: 'text', width: '150px' },
-    { key: 'phone', label: 'Phone', type: 'text', width: '120px' },
-    { key: 'email', label: 'Email', type: 'text', width: '180px' },
+    { key: 'name', label: 'Name', type: 'text', width: '180px' },
+    { key: 'contact_person', label: 'Contact', type: 'text', width: '140px' },
+    { key: 'phone', label: 'Phone', type: 'text', width: '110px' },
+    { key: 'whatsapp_no', label: 'WhatsApp', type: 'text', width: '110px' },
+    { key: 'email', label: 'Email', type: 'text', width: '160px' },
+    { key: 'delivery_terms', label: 'Delivery terms', type: 'text', width: '140px' },
+    { key: 'payment_terms', label: 'Payment', type: 'text', width: '100px' },
+    { key: 'damaged_stock_policy', label: 'Damaged stock', type: 'text', width: '200px' },
     { key: 'actions', label: 'Actions', type: 'actions', width: '100px' },
   ];
 
@@ -1235,7 +1239,7 @@ const DialysisInventory = () => {
             <div className="admin-card">
               <div className="admin-card__header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <span style={{ fontSize: '14px', fontWeight: 600 }}>Total Suppliers: {suppliers.length}</span>
-                <Button variant="primary" onClick={() => { setSupplierForm({ name: '', contact_person: '', email: '', phone: '', address: '', gst_number: '' }); setSupplierEditId(null); setIsSupplierModalOpen(true); }}>+ Add Supplier</Button>
+                <Button variant="primary" onClick={() => { setSupplierForm({ name: '', contact_person: '', email: '', phone: '', whatsapp_no: '', address: '', gst_number: '', delivery_terms: '', payment_terms: '0%', damaged_stock_policy: '' }); setSupplierEditId(null); setIsSupplierModalOpen(true); }}>+ Add Supplier</Button>
               </div>
               {suppliersLoading ? renderLoading() : (
                 <UnifiedListTable columns={supplierColumns} data={suppliers} onEdit={(s) => { setSupplierForm(s); setSupplierEditId(s.id); setIsSupplierModalOpen(true); }} emptyMessage="No suppliers found" displayMode="table" />
@@ -1670,9 +1674,35 @@ const DialysisInventory = () => {
               <FormLabel>Email</FormLabel>
               <Input value={supplierForm.email} onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})} />
             </FormControl>
+            <FormControl>
+              <FormLabel>WhatsApp Number</FormLabel>
+              <Input value={supplierForm.whatsapp_no} onChange={(e) => setSupplierForm({...supplierForm, whatsapp_no: e.target.value})} placeholder="e.g. +919876543210" />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Delivery Terms</FormLabel>
+              <select value={supplierForm.delivery_terms} onChange={(e) => setSupplierForm({...supplierForm, delivery_terms: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '14px' }}>
+                <option value="">-- Select --</option>
+                <option value="Standard">Standard</option>
+                <option value="Expedited">Expedited</option>
+                <option value="Prepaid">Prepaid</option>
+                <option value="Cash on Delivery">Cash on Delivery</option>
+              </select>
+            </FormControl>
+            <FormControl>
+              <FormLabel>Payment Terms</FormLabel>
+              <select value={supplierForm.payment_terms} onChange={(e) => setSupplierForm({...supplierForm, payment_terms: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', fontSize: '14px' }}>
+                <option value="0%">0%</option>
+                <option value="50%">50%</option>
+                <option value="100%">100%</option>
+              </select>
+            </FormControl>
             <FormControl className="md:col-span-2">
               <FormLabel>Address</FormLabel>
               <Textarea value={supplierForm.address} onChange={(e) => setSupplierForm({...supplierForm, address: e.target.value})} />
+            </FormControl>
+            <FormControl className="md:col-span-2">
+              <FormLabel>Damaged stock policy</FormLabel>
+              <Textarea value={supplierForm.damaged_stock_policy} onChange={(e) => setSupplierForm({...supplierForm, damaged_stock_policy: e.target.value})} placeholder="e.g. Return/Replace/Credit note" />
             </FormControl>
           </Box>
         </FormModal>

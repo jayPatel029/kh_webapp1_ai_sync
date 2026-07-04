@@ -19,6 +19,7 @@ import UnifiedListTable from "../../components/table/UnifiedListTable";
 
 // Mobile
 import { useIsMobile } from "../../components/mobile/useIsMobile";
+import { isRole } from '../../helpers/roleUtils';
 
 // Page Components
 import DietModal from "./DietModal";
@@ -191,7 +192,7 @@ const UserDietDetails = () => {
       {/* Upload Section */}
       <Flex justify="between" className={isMobile ? 'mb-3 flex-col gap-3' : 'mb-6'}>
         <RefreshButton pageName={PAGE_CACHE.USER_DIET.name} />
-        {role?.role_name !== "Doctor" && (
+        {!isRole(role, 'Doctor') && (
           <ButtonPrimitive
             variant="solid"
             onClick={openModal}

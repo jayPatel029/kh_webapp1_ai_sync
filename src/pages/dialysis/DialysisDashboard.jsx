@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import { Box, Flex, Heading, Text } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
@@ -225,6 +226,8 @@ const DialysisDashboard = () => {
   const [selectedClinicId, setSelectedClinicId] = useState('');
   const [clinicsLoading, setClinicsLoading] = useState(false);
 
+  const user = useSelector((state) => state.auth?.user || {});
+
   // ─── Alerts Data ───────────────────────────────────────
   const [inventoryAlerts, setInventoryAlerts] = useState([]);
   const [technicianAlerts, setTechnicianAlerts] = useState([]);
@@ -374,6 +377,15 @@ const DialysisDashboard = () => {
           const clinicList = Array.isArray(clinicsRes.data?.data) ? clinicsRes.data.data : (clinicsRes.data || []);
           setClinics(clinicList);
         }
+        // Auto-select org/clinic from user profile when available
+        const userOrg = String(user?.organization_id || user?.org_id || user?.organizationId || user?.organization || '').trim();
+        const userClinic = String(user?.clinic_id || user?.clinicId || user?.clinic || '').trim();
+        if (userOrg) {
+          setSelectedOrgId(String(userOrg));
+        }
+        if (userClinic) {
+          setSelectedClinicId(String(userClinic));
+        }
       } catch (err) {
         console.warn('Error loading organizations or clinics:', err);
       } finally {
@@ -381,7 +393,7 @@ const DialysisDashboard = () => {
       }
     };
     fetchSelectionData();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (selectedOrgId && clinics.length > 0) {

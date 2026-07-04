@@ -17,6 +17,7 @@ import { Box } from '../component-library';
 import { useIsMobile } from '../components/mobile/useIsMobile';
 import { useMobileNavItems } from '../hooks/useMobileNavItems';
 import { useSelector } from 'react-redux';
+import { isRole } from '../helpers/roleUtils';
 
 const MainLayout = () => {
     
@@ -59,8 +60,8 @@ const MainLayout = () => {
     const showSidebar = !noSidebarRoutes.includes(location.pathname);
 
     const role = useSelector((state) => state.permission);
-    const isDoctor = role?.role_name === 'Doctor';
-    const isDialysisMember = role?.role_name === 'Dialysis Technician';
+    const isDoctor = isRole(role, 'Doctor');
+    const isDialysisMember = isRole(role, 'Dialysis Technician');
     const isCompactRole = isDoctor || isDialysisMember;
 
     // On mobile, always hide desktop sidebar; calculate offset only for desktop

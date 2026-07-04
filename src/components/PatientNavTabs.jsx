@@ -18,6 +18,7 @@ import reqIcon from '../assets/Requsition_report.svg';
 import manageIcon from '../assets/admin_management.png';
 import { ROUTES } from '../routes/routeConstants';
 import { useIsMobile } from './mobile/useIsMobile';
+import { isRole } from '../helpers/roleUtils';
 
 export const PatientNavTabs = ({
   patientId,
@@ -31,14 +32,14 @@ export const PatientNavTabs = ({
   const { isMobile } = useIsMobile();
 
   const tabs = [
-    { id: 'alarms', label: 'Alarms', path: ROUTES.patientAlarms(patientId), visible: !(role?.role_name === 'Dialysis Technician') },
-    { id: 'diet', label: 'Diet details', path: ROUTES.patientDiet(patientId), state: userData, visible: !(role?.role_name === 'Dialysis Technician') },
-    { id: 'adminChat', label: 'Admin Chat', path: ROUTES.patientAdminChat(patientId), unread: unreadAdminCount, visible: !(role?.role_name === 'Dialysis Technician' || role?.role_name === 'Medical Staff') },
-    { id: 'doctorChat', label: 'Doctor Chat', path: ROUTES.patientDoctorChat(patientId), unread: unreadDoctorCount, visible: !(role?.role_name === 'Medical Staff' || role?.role_name === 'Dialysis Technician') },
+    { id: 'alarms', label: 'Alarms', path: ROUTES.patientAlarms(patientId), visible: !isRole(role, 'Dialysis Technician') },
+    { id: 'diet', label: 'Diet details', path: ROUTES.patientDiet(patientId), state: userData, visible: !isRole(role, 'Dialysis Technician') },
+    { id: 'adminChat', label: 'Admin Chat', path: ROUTES.patientAdminChat(patientId), unread: unreadAdminCount, visible: !isRole(role, ['Dialysis Technician', 'Medical Staff']) },
+    { id: 'doctorChat', label: 'Doctor Chat', path: ROUTES.patientDoctorChat(patientId), unread: unreadDoctorCount, visible: !isRole(role, ['Medical Staff', 'Dialysis Technician']) },
     { id: 'labs', label: 'Lab reports', path: ROUTES.patientLabs(patientId), state: userData, visible: true },
     { id: 'prescriptions', label: 'Prescriptions', path: ROUTES.patientPrescriptions(patientId), state: userData, visible: true },
     { id: 'requisition', label: 'Requisition reports', path: ROUTES.patientRequisitions(patientId), state: userData, visible: true },
-    { id: 'manage', label: 'Manage Parameters', path: ROUTES.patientParameters(patientId), state: userData, visible: role?.role_name === 'Admin' },
+    { id: 'manage', label: 'Manage Parameters', path: ROUTES.patientParameters(patientId), state: userData, visible: isRole(role, 'Admin') },
   ];
 
   const icons = {

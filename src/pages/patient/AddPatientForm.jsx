@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes/routeConstants";
 import { AddPatient } from "../../ApiCalls/patientAPis";
 import ThemeProvider from "../../components/ThemeProvider";
+import { Select } from "../../component-library/primitives/Select";
 
 // Component Library
 import {
@@ -22,7 +23,8 @@ import {
   Input,
   Textarea,
   Button,
-  Heading
+  Heading,
+  Checkbox
 } from "../../component-library";
 import { FormModal } from "../../component-library/modals/FormModal";
 
@@ -31,12 +33,33 @@ import "../../design-system/styles/index.css";
 import FileUploadWithCamera from "../../components/FileUploadWithCamera";
 
 
-const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient }) => {
+const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, initialData = {} }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
-  const [formData, setFormData] = useState({
+  const bloodGroupOptions = [
+    { value: "A+", label: "A+" },
+    { value: "A-", label: "A-" },
+    { value: "B+", label: "B+" },
+    { value: "B-", label: "B-" },
+    { value: "AB+", label: "AB+" },
+    { value: "AB-", label: "AB-" },
+    { value: "O+", label: "O+" },
+    { value: "O-", label: "O-" },
+    { value: "will_be_entered_later", label: "Will be entered later" },
+  ];
+
+  const paymentTypeOptions = [
+    { value: "out_of_pocket", label: "Out of Pocket" },
+    { value: "insurance", label: "Insurance" },
+  ];
+
+  const financialConditionOptions = [
+    { value: "BPL", label: "BPL (Below Poverty Line)" },
+    { value: "APL", label: "APL (Above Poverty Line)" },
+  ];
+  const defaultFormData = {
     name: "",
     aliments: "",
     number: "",
@@ -50,15 +73,33 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient }) =>
     address: "",
     pincode: "",
     state: "",
-    age: ""
+    age: "",
+    blood_group: "",
+    payment_type: "",
+    financial_condition: "",
+    bpl_card_verified: false,
+    abha_id: "",
+    abha_card: null
+  };
+
+  const [formData, setFormData] = useState({
+    ...defaultFormData,
+    ...initialData,
   });
 
   const handleChange = (e) => {
-    const { name, value, type, files } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === "file" ? files[0] : value,
-    });
+    const { name, value, type, files, checked } = e.target;
+    if (type === "checkbox") {
+      setFormData({
+        ...formData,
+        [name]: checked,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: type === "file" ? files[0] : value,
+      });
+    }
     setFieldErrors((prev) => ({ ...prev, [name]: false }));
   };
 
@@ -71,6 +112,11 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient }) =>
     if (!formData.age) nextFieldErrors.age = true;
     if (!formData.aliments || formData.aliments.trim() === "") nextFieldErrors.aliments = true;
     if (!formData.registered_date) nextFieldErrors.registered_date = true;
+    if (!formData.blood_group || formData.blood_group.trim() === "") nextFieldErrors.blood_group = true;
+    if (!formData.payment_type || formData.payment_type.trim() === "") nextFieldErrors.payment_type = true;
+    if (!formData.financial_condition || formData.financial_condition.trim() === "") nextFieldErrors.financial_condition = true;
+    if (formData.financial_condition === "BPL" && !formData.bpl_card_verified) nextFieldErrors.bpl_card_verified = true;
+    if (!formData.abha_id || formData.abha_id.trim() === "") nextFieldErrors.abha_id = true;
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
       // alert("Please fill all the required fields");
@@ -226,6 +272,26 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient }) =>
               </FormControl>
             </GridItem>
 
+            <GridItem>
+              <FormControl isRequired style={{ flex: 1 }} isInvalid={Boolean(fieldErrors.blood_group)}>
+                <FormLabel>Blood Group</FormLabel>
+                <Select
+                  name="blood_group"
+                  value={formData.blood_group}
+                  onChange={handleChange}
+                  placeholder="Select blood group"
+                  isInvalid={Boolean(fieldErrors.blood_group)}
+                  isRequired
+                >
+                  {bloodGroupOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </GridItem>
+
           </Grid>
           <Heading as="h3" size="lg" style={{ color: '#3f6b85', borderBottom: '1px solid #eee', paddingBottom: '15px', marginTop: '20px' }}>
             Medical Details
@@ -309,6 +375,101 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient }) =>
 
             </GridItem> */}
 
+          </Grid>
+
+          <Heading as="h3" size="lg" style={{ color: '#3f6b85', borderBottom: '1px solid #eee', paddingBottom: '15px', marginTop: '20px' }}>
+            Financial & Documentation
+          </Heading>
+
+          <Grid templateColumns="repeat(2, 1fr)" gap={8}>
+            <GridItem>
+              <FormControl isRequired isInvalid={Boolean(fieldErrors.payment_type)}>
+                <FormLabel>Type of Payment</FormLabel>
+                <Select
+                  name="payment_type"
+                  value={formData.payment_type}
+                  onChange={handleChange}
+                  placeholder="Select payment type"
+                  isInvalid={Boolean(fieldErrors.payment_type)}
+                  isRequired
+                >
+                  {paymentTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </GridItem>
+
+            <GridItem>
+              <FormControl isRequired isInvalid={Boolean(fieldErrors.financial_condition)}>
+                <FormLabel>Financial Condition</FormLabel>
+                <Select
+                  name="financial_condition"
+                  value={formData.financial_condition}
+                  onChange={handleChange}
+                  placeholder="Select financial condition"
+                  isInvalid={Boolean(fieldErrors.financial_condition)}
+                  isRequired
+                >
+                  {financialConditionOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </GridItem>
+
+            {formData.financial_condition === "BPL" && (
+              <GridItem colSpan={2}>
+                <FormControl isRequired isInvalid={Boolean(fieldErrors.bpl_card_verified)}>
+                  <Checkbox
+                    name="bpl_card_verified"
+                    isChecked={formData.bpl_card_verified}
+                    onChange={handleChange}
+                  >
+                    I have verified BPL Card and status of patient
+                  </Checkbox>
+                  {fieldErrors.bpl_card_verified && (
+                    <div style={{ color: '#e53e3e', fontSize: '12px', marginTop: '4px' }}>
+                      BPL verification is required for BPL patients
+                    </div>
+                  )}
+                </FormControl>
+              </GridItem>
+            )}
+
+            <GridItem>
+              <FormControl isRequired isInvalid={Boolean(fieldErrors.abha_id)}>
+                <FormLabel>ABHA ID</FormLabel>
+                <Input
+                  name="abha_id"
+                  value={formData.abha_id}
+                  onChange={handleChange}
+                  placeholder="e.g. XX-XXXX-XXXX-XXXX"
+                  variant="outline"
+                  isInvalid={Boolean(fieldErrors.abha_id)}
+                />
+              </FormControl>
+            </GridItem>
+
+            <GridItem>
+              <FormControl>
+                <FormLabel>ABHA Card Copy</FormLabel>
+                <FileUploadWithCamera
+                  onFileSelect={(file) => setFormData({ ...formData, abha_card: file })}
+                  accept="image/*,.pdf"
+                  attachLabel="Upload ABHA Card"
+                  previewWidth={100}
+                  previewHeight={100}
+                  multiple={false}
+                  size="xs"
+                  images={formData.abha_card ? [URL.createObjectURL(formData.abha_card)] : []}
+                />
+              </FormControl>
+            </GridItem>
           </Grid>
 
           <Heading as="h3" size="lg" style={{ color: '#3f6b85', borderBottom: '1px solid #eee', paddingBottom: '15px', marginTop: '20px' }}>

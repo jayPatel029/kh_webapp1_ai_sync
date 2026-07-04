@@ -26,6 +26,7 @@ const UserListManage = lazy(() => import("../components/UserListAdmin/UserListMa
 const UserMedicalTeam = lazy(() => import("../components/UserListAdmin/UserMedicalTeam"));
 const PatientAlertsByType = lazy(() => import("../pages/PatientAlertsByType"));
 const CommentsDemoPage = lazy(() => import("../pages/CommentsDemoPage"));
+const AddPatientFormTestPage = lazy(() => import("../pages/patient/AddPatientFormTestPage"));
 const GlobalChatsPage = lazy(() => import("../pages/chats/GlobalChatsPage"));
 const ClinicManagement = lazy(() => import("../pages/clinicManagement/ClinicManagement"));
 
@@ -208,6 +209,10 @@ function AppRoutes() {
     {
       path: ROUTES.FORGOT_PASSWORD,
       element: withSuspense(<ForgotPassword />),
+    },
+    {
+      path: ROUTES.TEST,
+      element: withSuspense(<AddPatientFormTestPage />),
     },
     {
       path: ROUTES.HOME,

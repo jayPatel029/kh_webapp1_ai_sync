@@ -39,6 +39,7 @@ import sortIcon from "../../assets/Sort_Amount_Up.svg";
 import "../../design-system/styles/index.css";
 
 import { useIsMobile } from "../../components/mobile/useIsMobile";
+import { isRole } from '../../helpers/roleUtils';
 
 // Cache
 import { usePageCache, PAGE_CACHE } from "../../cache";
@@ -250,7 +251,7 @@ const UserRequisition = () => {
           )}
         </Flex>
 
-        {role?.role_name !== "Dialysis Technician" && (
+        {!isRole(role, 'Dialysis Technician') && (
           <ButtonPrimitive
             variant="solid"
             onClick={openModal}
@@ -271,7 +272,7 @@ const UserRequisition = () => {
         cardSubtitleKey="requisition"
         cardFieldKeys={[]}
         emptyMessage="No Requisition found"
-        actionButtons={role?.role_name !== "Dialysis Technician"}
+        actionButtons={!isRole(role, 'Dialysis Technician')}
       />
 
       {/* Modals */}

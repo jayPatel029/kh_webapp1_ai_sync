@@ -39,7 +39,7 @@ import {
   Badge,
   Checkbox,
 } from '../../../component-library';
-import { Select } from '../../../component-library/primitives/Select';
+// import { Select } from '../../../component-library/primitives/Select';
 import { Accordion, AccordionItem } from '../../../component-library/primitives/Accordion';
 import {
   submitDialysisHealthParams,
@@ -58,6 +58,7 @@ import { useAdminToast } from '../../../components/AdminToast';
 import {
   getPatientById,
   getGeneralParameterResponse,
+  updatePatient,
 } from '../../../ApiCalls/patientAPis';
 import {
   getDialysisParameterQuestions,
@@ -88,6 +89,36 @@ import {
   useInventoryDialyzer as recordDialyzerUsage,
 } from '../../../ApiCalls/inventoryApis';
 import { updateBedStatus } from '../../../ApiCalls/bedManagementApis';
+import { Select } from '../../../component-library/primitives/Select';
+
+const BLOOD_GROUP_OPTIONS = [
+  'A+',
+  'A-',
+  'B+',
+  'B-',
+  'AB+',
+  'AB-',
+  'O+',
+  'O-',
+];
+
+const BLOOD_GROUP_PLACEHOLDER_VALUES = new Set([
+  '',
+  'later',
+  'pending',
+  'unknown',
+  'will_be_entered_later',
+  'will be entered later',
+]);
+
+const normalizeBloodGroup = (value = '') => String(value).trim();
+
+const isKnownBloodGroup = (value = '') => {
+  const normalized = normalizeBloodGroup(value);
+  if (BLOOD_GROUP_PLACEHOLDER_VALUES.has(normalized.toLowerCase())) return false;
+  const upper = normalized.toUpperCase();
+  return BLOOD_GROUP_OPTIONS.includes(upper);
+};
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -258,6 +289,8 @@ export default function DialysisParametersModal({
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [currentAppointment, setCurrentAppointment] = useState(null);
+  const [appointmentStatus, setAppointmentStatus] = useState(null);
+  const [statusModal, setStatusModal] = useState({ isOpen: false, status: null, reason: '', durationDays: '' });
   const [sessionId, setSessionId] = useState(null);
   const [dischargeModal, setDischargeModal] = useState({ isOpen: false, confirmText: '' });
   const [abortModal, setAbortModal] = useState({ isOpen: false, isEmergency: false, reason: '' });
@@ -279,6 +312,12 @@ export default function DialysisParametersModal({
   const [dynamicChecklist, setDynamicChecklist] = useState({});
 
   const [beforeNotes, setBeforeNotes] = useState('');
+  const [bloodGroupPrompt, setBloodGroupPrompt] = useState({
+    isOpen: false,
+    value: '',
+    error: '',
+    isSaving: false,
+  });
 
   // Heparin dosage state
   const [heparinOverride, setHeparinOverride] = useState('auto'); // 'auto' | 'low' | 'standard' | 'high'
@@ -426,6 +465,12 @@ export default function DialysisParametersModal({
         varianceKg: null,
       });
       setIsSubmittingWeightVariance(false);
+      setBloodGroupPrompt({
+        isOpen: false,
+        value: '',
+        error: '',
+        isSaving: false,
+      });
       hasSetAilmentRef.current = false;
     }
   }, [isOpen]);
@@ -563,7 +608,7 @@ export default function DialysisParametersModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.patient_id, bed?.organization_id, initialData]);
 
-  const handleStartDialysis = useCallback(async () => {
+  const startDialysisSessionFlow = useCallback(async (bloodGroupOverride = '') => {
     try {
       setIsSaving(true);
       setSavingMessage('Validating preparation checklists...');
@@ -579,6 +624,11 @@ export default function DialysisParametersModal({
       if (!allPreDynamicDone) {
         alert('Please complete all preparation checklist items before starting');
         return;
+      }
+
+      const resolvedBloodGroup = normalizeBloodGroup(bloodGroupOverride || completePatientData?.blood_group);
+      if (!isKnownBloodGroup(resolvedBloodGroup)) {
+        throw new Error('Blood group is required before starting dialysis.');
       }
 
       // Include heparin data in submission (doctor prescribed when available, else calculated)
@@ -598,6 +648,7 @@ export default function DialysisParametersModal({
         heparin_dose_units: effectiveHeparinInfo?.doseIU || undefined,
         heparin_strategy: effectiveHeparinInfo?.strategy || undefined,
         ailments: completePatientData?.ailments || [],
+        blood_group: resolvedBloodGroup,
         notes: beforeNotes,
         pre_readings: hemoParamsResponses,
       };
@@ -610,6 +661,7 @@ export default function DialysisParametersModal({
         planned_parameters: plannedParameters,
         dt_dialysis_session: dynamicChecklist,
         patient_name: completePatientData?.name || patient?.patient_name,
+        blood_group: resolvedBloodGroup,
       });
 
       if (!startSessionRes.success) {
@@ -684,6 +736,7 @@ export default function DialysisParametersModal({
             time_range: timeRange,
             appointment_id: patient?.appointment_id,
             bed_id: bed?.id,
+            blood_group: resolvedBloodGroup,
             heparin: heparinPayload,
           });
         }
@@ -695,7 +748,54 @@ export default function DialysisParametersModal({
       setIsSaving(false);
       setSavingMessage('');
     }
-  }, [beforeNotes, patient?.patient_id, patient?.appointment_id, bed?.id, currentAppointment, effectiveHeparinInfo, selectedAilment, onStageChange, orgGuidelines, orgChecklists, dynamicChecklist, completePatientData, hemoParamsResponses, isHeparinDoctorLocked, validateReadingsForStage]);
+  }, [beforeNotes, patient?.patient_id, patient?.appointment_id, bed?.id, currentAppointment, effectiveHeparinInfo, selectedAilment, onStageChange, orgGuidelines, orgChecklists, dynamicChecklist, completePatientData, hemoParamsResponses, isHeparinDoctorLocked, validateReadingsForStage, manualDuration]);
+
+  const handleStartDialysis = useCallback(async () => {
+    const currentBloodGroup = normalizeBloodGroup(completePatientData?.blood_group);
+    if (!isKnownBloodGroup(currentBloodGroup)) {
+      setBloodGroupPrompt({
+        isOpen: true,
+        value: '',
+        error: '',
+        isSaving: false,
+      });
+      return;
+    }
+
+    await startDialysisSessionFlow(currentBloodGroup);
+  }, [completePatientData?.blood_group, startDialysisSessionFlow]);
+
+  const handleBloodGroupPromptSave = useCallback(async () => {
+    const nextBloodGroup = normalizeBloodGroup(bloodGroupPrompt.value).toUpperCase();
+    if (!isKnownBloodGroup(nextBloodGroup)) {
+      setBloodGroupPrompt((prev) => ({ ...prev, error: 'Please select a valid blood group.' }));
+      return;
+    }
+
+    setBloodGroupPrompt((prev) => ({ ...prev, isSaving: true, error: '' }));
+    try {
+      const updateRes = await updatePatient({
+        id: patient.patient_id,
+        blood_group: nextBloodGroup,
+      });
+
+      if (!updateRes.success) {
+        throw new Error(updateRes.data?.message || updateRes.data?.error || 'Failed to save blood group');
+      }
+
+      setCompletePatientData((prev) => (prev ? { ...prev, blood_group: nextBloodGroup } : prev));
+      setBloodGroupPrompt({ isOpen: false, value: '', error: '', isSaving: false });
+
+      await startDialysisSessionFlow(nextBloodGroup);
+    } catch (err) {
+      console.error('Failed to save blood group:', err);
+      setBloodGroupPrompt((prev) => ({
+        ...prev,
+        isSaving: false,
+        error: err?.message || 'Failed to save blood group.',
+      }));
+    }
+  }, [bloodGroupPrompt.value, patient?.patient_id, startDialysisSessionFlow]);
 
   const handleSaveReading = useCallback(async (questionId, value) => {
     if (!value) return;
@@ -1078,6 +1178,70 @@ export default function DialysisParametersModal({
                 <span className="dialysis-modal__summary-label">Bed</span>
                 <span className="dialysis-modal__summary-value">
                   {bed?.bed_number || '—'}
+                </span>
+              </div>
+              <div className="dialysis-modal__summary-pill">
+                <span className="dialysis-modal__summary-label">Appt Status</span>
+                <span className="dialysis-modal__summary-value">
+                  {/* Status badge + small selector */}
+                  {/** Render current status badge */}
+                  {(() => {
+                    const status = appointmentStatus || currentAppointment?.status || patient?.appointment_status || '—';
+                    const badgeStyle = ({
+                      ACTIVE: { background: '#10B981', color: '#fff' }, // green
+                      WAIT_LISTED: { background: '#00CCCC', color: '#fff' }, // cyan
+                      VACATION: { background: '#F59E0B', color: '#fff' }, // turmeric/amber
+                      DECEASED: { background: '#EF4444', color: '#fff' }, // red
+                      LEFT: { background: '#DC2626', color: '#fff' }, // red
+                      HOSPITALIZED: { background: '#F59E0B', color: '#fff' },
+                    }[status] || {});
+
+                    return (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 700, ...badgeStyle }}>
+                          {String(status).replaceAll('_', ' ')}
+                        </span>
+                        <Select
+                          size="xs"
+                          width="160px"
+                          value={appointmentStatus || currentAppointment?.status || patient?.appointment_status || ''}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            // For VACATION, DECEASED, LEFT, HOSPITALIZED open modal to collect extra data
+                            if (['VACATION', 'DECEASED', 'LEFT', 'HOSPITALIZED'].includes(next)) {
+                              setStatusModal({ isOpen: true, status: next, reason: '', durationDays: '' });
+                            } else {
+                              // immediate apply for ACTIVE and WAIT_LISTED
+                              (async () => {
+                                try {
+                                  if (!patient?.appointment_id) throw new Error('No appointment to update');
+                                  const res = await updateAppointment(patient.appointment_id, { status: next });
+                                  if (res.success) {
+                                    setAppointmentStatus(next);
+                                    setCurrentAppointment(prev => ({ ...(prev || {}), status: next }));
+                                    showToast && showToast(`Appointment set to ${next}`, 'success');
+                                  } else {
+                                    throw new Error(res.data?.message || 'Failed to update appointment');
+                                  }
+                                } catch (err) {
+                                  console.error('Failed to change appointment status:', err);
+                                  alert(err?.message || 'Failed to update appointment status');
+                                }
+                              })();
+                            }
+                          }}
+                        >
+                          <option value="">Select status</option>
+                          <option value="ACTIVE">ACTIVE</option>
+                          <option value="WAIT_LISTED">WAIT_LISTED</option>
+                          <option value="VACATION">VACATION (set duration)</option>
+                          <option value="DECEASED">DECEASED</option>
+                          <option value="LEFT">LEFT</option>
+                          <option value="HOSPITALIZED">HOSPITALIZED</option>
+                        </Select>
+                      </span>
+                    );
+                  })()}
                 </span>
               </div>
               <div className="dialysis-modal__summary-pill dialysis-modal__summary-pill--stage">
@@ -1794,6 +1958,50 @@ export default function DialysisParametersModal({
         </ModalContent>
       </Modal>
 
+      <Modal
+        isOpen={bloodGroupPrompt.isOpen}
+        onClose={() => setBloodGroupPrompt({ isOpen: false, value: '', error: '', isSaving: false })}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Enter Blood Group</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={4}>
+              <Text color="slate.600">
+                Blood group is required before starting dialysis. Please enter and save it now.
+              </Text>
+              <FormControl isInvalid={Boolean(bloodGroupPrompt.error)}>
+                <FormLabel>Blood Group</FormLabel>
+                <Select
+                  value={bloodGroupPrompt.value}
+                  onChange={(e) => setBloodGroupPrompt((prev) => ({ ...prev, value: e.target.value, error: '' }))}
+                  placeholder="Select blood group"
+                >
+                  {BLOOD_GROUP_OPTIONS.map((group) => (
+                    <option key={group} value={group}>{group}</option>
+                  ))}
+                </Select>
+              </FormControl>
+              {bloodGroupPrompt.error ? (
+                <Text color="red.500" fontSize="sm">{bloodGroupPrompt.error}</Text>
+              ) : null}
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <HStack spacing={3}>
+              <Button variant="ghost" onClick={() => setBloodGroupPrompt({ isOpen: false, value: '', error: '', isSaving: false })}>
+                Cancel
+              </Button>
+              <Button colorScheme="blue" onClick={handleBloodGroupPromptSave} isLoading={bloodGroupPrompt.isSaving}>
+                Save & Start Dialysis
+              </Button>
+            </HStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
       {/* Discharge confirmation modal */}
       <Modal isOpen={dischargeModal.isOpen} onClose={() => setDischargeModal({ isOpen: false, confirmText: '' })} isCentered>
         <ModalOverlay />
@@ -1867,6 +2075,103 @@ export default function DialysisParametersModal({
               isDisabled={!abortModal.reason || !abortModal.reason.trim()}
             >
               Confirm Abort
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      {/* Appointment status modal (vacation / deceased / left / hospitalized) */}
+      <Modal isOpen={statusModal.isOpen} onClose={() => setStatusModal({ isOpen: false, status: null, reason: '', durationDays: '' })} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Update Appointment Status: {statusModal.status}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack align="stretch" spacing={3}>
+              {(statusModal.status === 'VACATION') && (
+                <>
+                  <Text fontSize="sm">Mark patient as on VACATION. This can free the bed for other patients.</Text>
+                  <FormControl>
+                    <FormLabel>Duration (days)</FormLabel>
+                    <Input
+                      type="number"
+                      value={statusModal.durationDays}
+                      onChange={(e) => setStatusModal(prev => ({ ...prev, durationDays: e.target.value }))}
+                      placeholder="Number of days patient will be on vacation"
+                    />
+                  </FormControl>
+                </>
+              )}
+
+              {(statusModal.status === 'DECEASED') && (
+                <>
+                  <Text fontSize="sm">Please confirm deceased details and reason. This will mark the appointment appropriately.</Text>
+                  <FormControl>
+                    <FormLabel>Location</FormLabel>
+                    <Select value={statusModal.location || ''} onChange={(e) => setStatusModal(prev => ({ ...prev, location: e.target.value }))}>
+                      <option value="">Select location</option>
+                      <option value="in_center">In dialysis center</option>
+                      <option value="outside">Outside dialysis center</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Reason</FormLabel>
+                    <Textarea value={statusModal.reason} onChange={(e) => setStatusModal(prev => ({ ...prev, reason: e.target.value }))} rows={3} />
+                  </FormControl>
+                </>
+              )}
+
+              {(['LEFT','HOSPITALIZED'].includes(statusModal.status)) && (
+                <>
+                  <Text fontSize="sm">Provide a short reason for this status change.</Text>
+                  <FormControl>
+                    <FormLabel>Reason</FormLabel>
+                    <Textarea value={statusModal.reason} onChange={(e) => setStatusModal(prev => ({ ...prev, reason: e.target.value }))} rows={3} />
+                  </FormControl>
+                </>
+              )}
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={() => setStatusModal({ isOpen: false, status: null, reason: '', durationDays: '' })}>Cancel</Button>
+            <Button colorScheme="blue" onClick={async () => {
+              try {
+                const status = statusModal.status;
+                if (!patient?.appointment_id) throw new Error('No appointment selected');
+                const meta = { ...(currentAppointment?.metadata || {}) };
+                if (status === 'VACATION') {
+                  const days = Number(statusModal.durationDays) || null;
+                  meta.vacation_days = days;
+                }
+                if (status === 'DECEASED') {
+                  meta.deceased_reason = statusModal.reason || null;
+                  meta.deceased_location = statusModal.location || null;
+                }
+                if (status === 'LEFT' || status === 'HOSPITALIZED') {
+                  meta.reason = statusModal.reason || null;
+                }
+
+                const res = await updateAppointment(patient.appointment_id, { status, metadata: meta });
+                if (!res.success) throw new Error(res.data?.message || 'Failed to update appointment');
+
+                // For VACATION, free up bed so others can use it
+                if (status === 'VACATION' && bed?.id) {
+                  try {
+                    await updateBedStatus(bed.id, { status: 'EMPTY', notes: `Patient on VACATION for ${meta.vacation_days || 'N/A'} days` });
+                  } catch (bedErr) {
+                    console.warn('Failed to update bed state for vacation:', bedErr);
+                  }
+                }
+
+                setAppointmentStatus(status);
+                setCurrentAppointment(prev => ({ ...(prev || {}), status, metadata: meta }));
+                setStatusModal({ isOpen: false, status: null, reason: '', durationDays: '' });
+                showToast && showToast(`Appointment updated: ${status}`, 'success');
+              } catch (err) {
+                console.error('Failed to update appointment status:', err);
+                alert(err?.message || 'Failed to update appointment status');
+              }
+            }}>
+              Save
             </Button>
           </ModalFooter>
         </ModalContent>
