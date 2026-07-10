@@ -257,6 +257,144 @@ const SystolicDiastolicGraph = ({
   );
 };
 
+const DemoDialysisParameterPreview = ({ question, patient, demoData, viewMode = 'graph' }) => {
+  const title = question?.title || 'Dialysis Parameter';
+  const titleLower = title.toLowerCase();
+  const baseValue = demoData?.hemoParamsResponses?.[question?.id] ?? question?.demoValue ?? '—';
+  const systolic = demoData?.preview?.systolic ?? '128';
+  const diastolic = demoData?.preview?.diastolic ?? '82';
+
+  if (viewMode === 'graph') {
+    if (titleLower.includes('systolic') || titleLower.includes('diastolic')) {
+      return (
+        <Box className="space-y-4">
+          <Box className="grid grid-cols-2 gap-3">
+            <Box className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <Text fontSize="xs" color="slate.500" fontWeight="700" textTransform="uppercase">Latest Systolic</Text>
+              <Text fontSize="2xl" fontWeight="700" color="#32617d">{systolic} mmHg</Text>
+            </Box>
+            <Box className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <Text fontSize="xs" color="slate.500" fontWeight="700" textTransform="uppercase">Latest Diastolic</Text>
+              <Text fontSize="2xl" fontWeight="700" color="#32617d">{diastolic} mmHg</Text>
+            </Box>
+          </Box>
+
+          <Box className="rounded-xl border border-slate-200 bg-slate-50 p-6 flex flex-col items-center">
+            <Text fontSize="xs" color="slate.500" fontWeight="700" mb={4} textTransform="uppercase" width="100%" textAlign="left">
+              Blood Pressure Trend (mmHg)
+            </Text>
+            <svg viewBox="0 0 500 200" style={{ width: '100%', height: '180px' }}>
+              {/* Grid lines */}
+              <line x1="40" y1="20" x2="480" y2="20" stroke="#e2e8f0" strokeDasharray="4 4" />
+              <line x1="40" y1="70" x2="480" y2="70" stroke="#e2e8f0" strokeDasharray="4 4" />
+              <line x1="40" y1="120" x2="480" y2="120" stroke="#e2e8f0" strokeDasharray="4 4" />
+              <line x1="40" y1="170" x2="480" y2="170" stroke="#cbd5e1" strokeWidth="2" />
+              
+              {/* Systolic Trend Line (Upper) */}
+              <path
+                d="M 60 60 Q 150 40, 240 70 T 420 50"
+                fill="none"
+                stroke="#ef4444"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+              <circle cx="60" cy="60" r="5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+              <circle cx="200" cy="45" r="5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+              <circle cx="340" cy="65" r="5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+              <circle cx="420" cy="50" r="5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+
+              {/* Diastolic Trend Line (Lower) */}
+              <path
+                d="M 60 130 Q 150 110, 240 140 T 420 120"
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+              <circle cx="60" cy="130" r="5" fill="#3b82f6" stroke="#ffffff" strokeWidth="1.5" />
+              <circle cx="200" cy="115" r="5" fill="#3b82f6" stroke="#ffffff" strokeWidth="1.5" />
+              <circle cx="340" cy="135" r="5" fill="#3b82f6" stroke="#ffffff" strokeWidth="1.5" />
+              <circle cx="420" cy="120" r="5" fill="#3b82f6" stroke="#ffffff" strokeWidth="1.5" />
+              
+              {/* Labels */}
+              <text x="60" y="192" fontSize="10" fill="#64748b" textAnchor="middle">08:00</text>
+              <text x="200" y="192" fontSize="10" fill="#64748b" textAnchor="middle">08:30</text>
+              <text x="340" y="192" fontSize="10" fill="#64748b" textAnchor="middle">09:00</text>
+              <text x="420" y="192" fontSize="10" fill="#64748b" textAnchor="middle">09:30</text>
+
+              <text x="30" y="55" fontSize="10" fill="#ef4444" textAnchor="end">130</text>
+              <text x="30" y="125" fontSize="10" fill="#3b82f6" textAnchor="end">80</text>
+            </svg>
+          </Box>
+        </Box>
+      );
+    }
+
+    return (
+      <Box className="space-y-4">
+        <Box className="rounded-xl border border-slate-200 bg-slate-50 p-6 flex flex-col items-center">
+          <Text fontSize="xs" color="slate.500" fontWeight="700" mb={4} textTransform="uppercase" width="100%" textAlign="left">
+            {title} Trend Analysis ({question?.unit || ''})
+          </Text>
+          <svg viewBox="0 0 500 200" style={{ width: '100%', height: '180px' }}>
+            <line x1="40" y1="20" x2="480" y2="20" stroke="#e2e8f0" strokeDasharray="4 4" />
+            <line x1="40" y1="70" x2="480" y2="70" stroke="#e2e8f0" strokeDasharray="4 4" />
+            <line x1="40" y1="120" x2="480" y2="120" stroke="#e2e8f0" strokeDasharray="4 4" />
+            <line x1="40" y1="170" x2="480" y2="170" stroke="#cbd5e1" strokeWidth="2" />
+            
+            <path
+              d="M 60 110 Q 150 70, 240 130 T 420 90"
+              fill="none"
+              stroke="#10b981"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+            <circle cx="60" cy="110" r="5" fill="#10b981" stroke="#ffffff" strokeWidth="1.5" />
+            <circle cx="200" cy="85" r="5" fill="#10b981" stroke="#ffffff" strokeWidth="1.5" />
+            <circle cx="340" cy="120" r="5" fill="#10b981" stroke="#ffffff" strokeWidth="1.5" />
+            <circle cx="420" cy="90" r="5" fill="#10b981" stroke="#ffffff" strokeWidth="1.5" />
+            
+            <text x="60" y="192" fontSize="10" fill="#64748b" textAnchor="middle">08:00</text>
+            <text x="200" y="192" fontSize="10" fill="#64748b" textAnchor="middle">08:30</text>
+            <text x="340" y="192" fontSize="10" fill="#64748b" textAnchor="middle">09:00</text>
+            <text x="420" y="192" fontSize="10" fill="#64748b" textAnchor="middle">09:30</text>
+          </svg>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Table view (viewMode === 'table')
+  const readingsList = (titleLower.includes('systolic') || titleLower.includes('diastolic'))
+    ? [
+        { date: '2026-06-21 08:00', reading: `${systolic}/${diastolic}` },
+        { date: '2026-06-21 08:30', reading: `${Number(systolic) + 2}/${Number(diastolic) + 1}` },
+        { date: '2026-06-21 09:00', reading: `${Number(systolic) - 3}/${Number(diastolic) - 1}` },
+      ]
+    : [
+        { date: '2026-06-21 08:00', reading: baseValue },
+        { date: '2026-06-21 08:30', reading: baseValue },
+        { date: '2026-06-21 09:00', reading: baseValue },
+      ];
+
+  return (
+    <Box className="space-y-4">
+      <Box className="rounded-xl border border-slate-200 overflow-hidden">
+        <Box className="bg-slate-100 px-4 py-2 flex justify-between">
+          <Text fontSize="xs" fontWeight="700" color="slate.600" textTransform="uppercase">Date</Text>
+          <Text fontSize="xs" fontWeight="700" color="slate.600" textTransform="uppercase">Reading ({question?.unit || ''})</Text>
+        </Box>
+        {readingsList.map((row) => (
+          <Box key={row.date} className="px-4 py-3 border-t border-slate-100 flex justify-between items-center bg-white">
+            <Text fontSize="sm" color="slate.600">{row.date}</Text>
+            <Text fontSize="sm" fontWeight="600" color="#4164df">{row.reading}</Text>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  );
+};
+
 /**
  * DialysisParametersModal Component
  * @param {boolean} isOpen - Modal open state
@@ -275,6 +413,9 @@ export default function DialysisParametersModal({
   onStageChange,
   isLoading = false,
   initialData = {},
+  demoMode = false,
+  demoData = null,
+  demoAutoOpenFirstParameter = false,
 }) {
   const [stage, setStage] = useState('before'); // 'before', 'during', 'after'
   const [completePatientData, setCompletePatientData] = useState(null);
@@ -355,6 +496,22 @@ export default function DialysisParametersModal({
   const [hemoParamsResponses, setHemoParamsResponses] = useState({});
   const [showEntryFor, setShowEntryFor] = useState({}); // { [questionId]: boolean }
   const [graphModal, setGraphModal] = useState({ isOpen: false, questionId: null, questionTitle: '', questionUnit: '', dailyordia: 'dialysis' });
+  const [selectedDialysisParam, setSelectedDialysisParam] = useState(null);
+  const [detailViewMode, setDetailViewMode] = useState('graph'); // 'graph' or 'table'
+
+  useEffect(() => {
+    if (selectedDialysisParam?.question) {
+      const q = selectedDialysisParam.question;
+      const t = q.title || '';
+      const norm = normalizeQuestionTitle(t);
+      const isSys = t.toLowerCase().includes('systolic');
+      const isDia = t.toLowerCase().includes('diastolic');
+      const forceTable = norm === 'weightafter' || norm === 'weightbefore';
+      const forceGraph = norm === 'interdialyticweight';
+      const defaultAsGraph = forceGraph || (!forceTable && q.isGraph === 1) || isSys || isDia;
+      setDetailViewMode(defaultAsGraph ? 'graph' : 'table');
+    }
+  }, [selectedDialysisParam]);
   const [weightVarianceModal, setWeightVarianceModal] = useState({
     isOpen: false,
     reason: '',
@@ -426,17 +583,88 @@ export default function DialysisParametersModal({
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [appointmentServices, setAppointmentServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(false);
+  const isDemoMode = true
 
   // Fetch patient parameters, readings and inventory — only when modal opens or patient changes
   useEffect(() => {
-    if (isOpen && patient?.patient_id) {
+    if (!isOpen) return;
+
+    if (isDemoMode) {
+      const demoPatient = demoData.patient || demoData.completePatientData || demoData.userData || {
+        id: patient?.patient_id || 9001,
+        patient_id: patient?.patient_id || 9001,
+        patient_name: patient?.patient_name || patient?.name || 'Demo Patient',
+        name: patient?.patient_name || patient?.name || 'Demo Patient',
+        dry_weight: 68.5,
+        body_weight: 70.2,
+        blood_group: 'O+',
+        ailments: ['Hemo Dialysis'],
+        program: 'Standard',
+      };
+
+      setCompletePatientData(demoPatient);
+      setDialysisReadings(demoData.readings || []);
+      setCurrentAppointment(demoData.appointment || {
+        id: 7001,
+        metadata: { dialysisDuration: 4 },
+        start_time: '08:00',
+        end_time: '12:00',
+        services: demoData.appointmentServices || [],
+        totalAmount: 2400,
+        amountPaid: 500,
+      });
+      setAppointmentServices(demoData.appointmentServices || []);
+      setHemoParams(demoData.hemoParams || [
+        { id: 101, title: 'Systolic BP', unit: 'mmHg', isGraph: 1 },
+        { id: 102, title: 'Diastolic BP', unit: 'mmHg', isGraph: 1 },
+        { id: 103, title: 'Weight Before', unit: 'kg', isGraph: 0 },
+        { id: 104, title: 'Weight After', unit: 'kg', isGraph: 0 },
+        { id: 105, title: 'Blood Flow Rate', unit: 'ml/min', isGraph: 0 },
+      ]);
+      setHemoParamsResponses(demoData.hemoParamsResponses || {
+        101: '128',
+        102: '82',
+        103: '70.1',
+        104: '69.8',
+        105: '350',
+      });
+      setInventoryItems(demoData.inventoryItems || [
+        { id: 1, name: 'Heparin', unit_price: 12 },
+        { id: 2, name: 'Saline', unit_price: 5 },
+      ]);
+      setInventoryStock(demoData.inventoryStock || [
+        { item_id: 1, unit_price: 12 },
+        { item_id: 2, unit_price: 5 },
+      ]);
+      setDialyzers(demoData.dialyzers || [
+        { id: 1, usage_count: 2, max_usage: 5, unit_price: 150 },
+      ]);
+      setConsumedItems(demoData.consumedItems || []);
+      setSelectedDialyzerId(demoData.selectedDialyzerId || '');
+      setSessionId(demoData.sessionId || 9991);
+      setLoadingData(false);
+      setInventoryLoading(false);
+      setServicesLoading(false);
+
+      if (demoAutoOpenFirstParameter && (demoData.hemoParams || []).length > 0) {
+        setSelectedDialysisParam({ question: (demoData.hemoParams || [])[0] });
+      }
+      return;
+    }
+
+    if (patient?.patient_id) {
       hasSetAilmentRef.current = false; // reset guard when patient changes
       fetchPatientData();
       fetchInventoryData();
       setSessionId(initialData?.session_id || null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, patient?.patient_id]);
+  }, [isOpen, patient?.patient_id, isDemoMode, demoData, demoAutoOpenFirstParameter]);
+
+  // Close selected dialysis param overlay when modal closes
+  useEffect(() => {
+    if (!isOpen) setSelectedDialysisParam(null);
+  }, [isOpen]);
 
   // Reset volatile session state when modal closes so next patient starts fresh
   useEffect(() => {
@@ -476,6 +704,7 @@ export default function DialysisParametersModal({
   }, [isOpen]);
 
   const fetchInventoryData = useCallback(async () => {
+    if (isDemoMode) return;
     setInventoryLoading(true);
     try {
       const [itemsRes, stockRes, dialyzersRes] = await Promise.all([
@@ -492,9 +721,10 @@ export default function DialysisParametersModal({
     } finally {
       setInventoryLoading(false);
     }
-  }, []);
+  }, [isDemoMode]);
 
   const fetchPatientData = useCallback(async () => {
+    if (isDemoMode) return;
     setLoadingData(true);
     try {
       // 1. Fetch complete patient data (Ailments, Body Weight, Org Info)
@@ -606,7 +836,7 @@ export default function DialysisParametersModal({
     }
     // selectedAilment intentionally omitted — it is set inside here; using the ref guard avoids loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patient?.patient_id, bed?.organization_id, initialData]);
+  }, [isDemoMode, patient?.patient_id, bed?.organization_id, initialData]);
 
   const startDialysisSessionFlow = useCallback(async (bloodGroupOverride = '') => {
     try {
@@ -1291,7 +1521,7 @@ export default function DialysisParametersModal({
             </VStack>
           ) : (
             <Box className="dialysis-modal__workspace">
-              <HStack align="start" spacing={6} width="100%" className="dialysis-modal__main-layout">
+              <Box className="dialysis-modal__main-layout">
                 {/* LEFT SIDEBAR: Patient Info */}
                 <Box flex={2.5} className="dialysis-modal__left-sidebar">
                   <PatientProfileCard 
@@ -1314,7 +1544,7 @@ export default function DialysisParametersModal({
                         className="dialysis-modal__accordion-item"
                       >
                         <VStack spacing={6} align="stretch">
-                        <HStack align="start" spacing={6}>
+                        <Box className="dialysis-modal__step1-layout">
                           {/* 1. Checklist (Actual API Data) */}
                             {orgConfig.hasChecklists && (
                               <VStack flex={1} align="stretch" spacing={3}>
@@ -1364,77 +1594,24 @@ export default function DialysisParametersModal({
                           <VStack flex={2} align="stretch" spacing={3}>
                             <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Readings & Parameters</Heading>
                               {hemoParams.length > 0 ? (
-                                <Box className="space-y-6">
-                                  {hemoParams.map((question, index) => {
-                                    const questionTitle = question.title || '';
-                                    const normalizedTitle = normalizeQuestionTitle(questionTitle);
-                                    const isWeightAfter = normalizedTitle === 'weightafter';
-
-                                    return (
-                                      <ParameterSection
-                                        key={index}
-                                        title={questionTitle}
-                                        noResponse={question.responseCount === 0}
-                                        onEnterReading={() => setShowEntryFor(prev => ({ ...prev, [question.id]: !prev[question.id] }))}
-                                      >
-                                        <VStack spacing={4} align="stretch" mt={4}>
-                                          {/* Inline save-reading input - Toggled by Enter Reading button */}
-                                          {showEntryFor[question.id] && (
-                                            <Box p={3} bg="slate.50" borderRadius="xl" border="1px solid" borderColor="slate.200">
-                                              <HStack spacing={3} justify="flex-end">
-                                                <Input
-                                                  type={question.type === 'Numeric' ? 'number' : question.type === 'Date' ? 'date' : 'text'}
-                                                  placeholder={`Enter value for ${questionTitle}...`}
-                                                  value={hemoParamsResponses[question.id] || ''}
-                                                  onChange={(e) => setHemoParamsResponses(prev => ({ ...prev, [question.id]: e.target.value }))}
-                                                  size="sm"
-                                                  borderRadius="lg"
-                                                  bg="white"
-                                                  flex={1}
-                                                />
-                                                <Button
-                                                  size="sm"
-                                                  colorScheme="info"
-                                                  leftIcon={<FaSave />}
-                                                  onClick={async () => {
-                                                    await handleSaveReading(question.id, hemoParamsResponses[question.id]);
-                                                    setShowEntryFor(prev => ({ ...prev, [question.id]: false }));
-                                                  }}
-                                                  isDisabled={!hemoParamsResponses[question.id]}
-                                                  isLoading={isSaving}
-                                                  px={8}
-                                                  borderRadius="lg"
-                                                >
-                                                  Save
-                                                </Button>
-                                              </HStack>
-                                            </Box>
-                                          )}
-
-                                          {/* Table only for technicians */}
-                                          <Box className="w-full overflow-hidden rounded-xl border border-slate-200">
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px' }}>
-                                              <button
-                                                title="Open readings graph"
-                                                onClick={() => setGraphModal({ isOpen: true, questionId: question.id, questionTitle, questionUnit: question.unit || '', dailyordia: 'dialysis' })}
-                                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#2563EB', padding: '6px', fontSize: '16px' }}
-                                              >
-                                                <FaChartLine />
-                                              </button>
-                                            </div>
-                                            <DialysisTable
-                                              questionId={question.id}
-                                              user_id={patient.patient_id}
-                                              title={questionTitle}
-                                              question={question}
-                                              highlightThreshold={isWeightAfter ? completePatientData?.dry_weight : null}
-                                              highlightComparator="gt"
-                                            />
-                                          </Box>
-                                        </VStack>
-                                      </ParameterSection>
-                                    );
-                                  })}
+                                <Box className="space-y-4">
+                                  <Box className="grid grid-cols-2 gap-3">
+                                    {hemoParams.map((question, index) => {
+                                      const questionTitle = question.title || '';
+                                      const normalizedTitle = normalizeQuestionTitle(questionTitle);
+                                      // Render as patient-profile-style buttons that open a popup
+                                      return (
+                                        <button
+                                          key={question.id || index}
+                                          className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-left hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
+                                          onClick={() => setSelectedDialysisParam({ question })}
+                                          title={questionTitle}
+                                        >
+                                          {questionTitle}
+                                        </button>
+                                      );
+                                    })}
+                                  </Box>
                                 </Box>
                               ) : (
                                 <Text fontSize="xs" color="slate.400 italic">No specific parameters configured.</Text>
@@ -1458,7 +1635,7 @@ export default function DialysisParametersModal({
                                 </Box>
                               </VStack>
                             )}
-                        </HStack>
+                        </Box>
 
                         {/* Heparin Calculations Row */}
                         <Box p={4} bg="info.50" borderRadius="xl" border="1px dashed" borderColor="info.200">
@@ -1497,8 +1674,8 @@ export default function DialysisParametersModal({
                         </Box>
 
                         {/* Bottom Row: Notes & Start Button */}
-                        <HStack align="end" spacing={4}>
-                          <FormControl flex={1}>
+                        <Box className="dialysis-modal__step1-actions">
+                          <FormControl className="dialysis-modal__notes-control">
                             <FormLabel fontSize="xs" fontWeight="700">Pre-Dialysis Notes</FormLabel>
                             <Textarea
                               placeholder="Add any observations..."
@@ -1510,29 +1687,30 @@ export default function DialysisParametersModal({
                               borderRadius="xl"
                             />
                           </FormControl>
-                            <VStack align="end" spacing={2} flex={1}>
-                              <Button
-                                colorScheme="success"
-                                size="lg"
-                                onClick={handleStartDialysis}
-                                isLoading={isSaving}
-                                isDisabled={stage !== 'before'}
-                                height="60px"
-                                px={12}
-                                borderRadius="xl"
-                                shadow="lg"
-                                _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-                                transition="all 0.2s"
-                              >
-                                START SESSION →
-                              </Button>
-                              {stage !== 'before' && (
-                                <Text fontSize="xs" color="slate.400">
-                                  Session already started
-                                </Text>
-                              )}
-                            </VStack>
-                        </HStack>
+                          <VStack align="end" spacing={2} className="dialysis-modal__button-control">
+                            <Button
+                              colorScheme="success"
+                              size="lg"
+                              onClick={handleStartDialysis}
+                              isLoading={isSaving}
+                              isDisabled={stage !== 'before'}
+                              height="60px"
+                              px={12}
+                              borderRadius="xl"
+                              shadow="lg"
+                              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
+                              transition="all 0.2s"
+                              width="100%"
+                            >
+                              START SESSION →
+                            </Button>
+                            {stage !== 'before' && (
+                              <Text fontSize="xs" color="slate.400">
+                                Session already started
+                              </Text>
+                            )}
+                          </VStack>
+                        </Box>
                       </VStack>
                       </AccordionItem>
                     <AccordionItem
@@ -1849,7 +2027,7 @@ export default function DialysisParametersModal({
                     </CardBody>
                   </Card>
                 </Box>
-              </HStack>
+              </Box>
             </Box>
           )}
         </ModalBody>
@@ -1873,6 +2051,93 @@ export default function DialysisParametersModal({
           questionTitle={graphModal.questionTitle}
           questionUnit={graphModal.questionUnit}
         />
+      )}
+
+      {/* Selected dialysis parameter overlay (match patient profile popup behavior) */}
+      {selectedDialysisParam && (
+        <div onClick={() => setSelectedDialysisParam(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '24px', padding: '28px', width: '100%', maxWidth: '820px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.28)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <h2 style={{ fontWeight: '800', color: '#1e293b', fontSize: '1.35rem', margin: 0, letterSpacing: '-0.02em' }}>
+                  {selectedDialysisParam.question?.title}
+                </h2>
+                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Patient: {completePatientData?.name || patient?.patient_name || 'Demo Patient'}
+                </span>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                {/* Table / Graph Segmented Selector */}
+                <div style={{ display: 'inline-flex', background: '#f1f5f9', borderRadius: '10px', padding: '4px', border: '1px solid #e2e8f0' }}>
+                  <button
+                    onClick={() => setDetailViewMode('table')}
+                    style={{
+                      padding: '6px 18px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.02em',
+                      cursor: 'pointer',
+                      border: 'none',
+                      transition: 'all 0.2s',
+                      background: detailViewMode === 'table' ? '#ffffff' : 'transparent',
+                      color: detailViewMode === 'table' ? '#3b82f6' : '#64748b',
+                      boxShadow: detailViewMode === 'table' ? '0 2px 4px rgba(15,23,42,0.06)' : 'none',
+                    }}
+                  >
+                    Table
+                  </button>
+                  <button
+                    onClick={() => setDetailViewMode('graph')}
+                    style={{
+                      padding: '6px 18px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.02em',
+                      cursor: 'pointer',
+                      border: 'none',
+                      transition: 'all 0.2s',
+                      background: detailViewMode === 'graph' ? '#ffffff' : 'transparent',
+                      color: detailViewMode === 'graph' ? '#3b82f6' : '#64748b',
+                      boxShadow: detailViewMode === 'graph' ? '0 2px 4px rgba(15,23,42,0.06)' : 'none',
+                    }}
+                  >
+                    Graph
+                  </button>
+                </div>
+                
+                <button onClick={() => setSelectedDialysisParam(null)} style={{ background: 'none', border: 'none', fontSize: '2rem', cursor: 'pointer', color: '#94a3b8', lineHeight: 1, padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              </div>
+            </div>
+
+            <div style={{ flex: 1 }}>
+              {(() => {
+                const q = selectedDialysisParam.question;
+                const t = q.title || '';
+                const norm = normalizeQuestionTitle(t);
+                const isSys = t.toLowerCase().includes('systolic');
+                const isDia = t.toLowerCase().includes('diastolic');
+                
+                if (isDemoMode) {
+                  return <DemoDialysisParameterPreview question={q} patient={patient} demoData={demoData} viewMode={detailViewMode} />;
+                }
+                
+                if (detailViewMode === 'graph') {
+                  if (isSys || isDia) {
+                    return <SystolicDiastolicGraph question={q} userId={patient.patient_id} isDialysis={true} aspect={2/1} />;
+                  }
+                  return <LineChartDialysis aspect={2/1} questionId={q.id} user_id={patient.patient_id} title={t} unit={q.unit} />;
+                } else {
+                  return <DialysisTable questionId={q.id} user_id={patient.patient_id} title={t} question={q} highlightThreshold={norm === 'weightafter' ? completePatientData?.dry_weight : null} highlightComparator="gt" />;
+                }
+              })()}
+            </div>
+          </div>
+        </div>
       )}
 
       <Modal

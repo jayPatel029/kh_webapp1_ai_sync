@@ -12,6 +12,7 @@ import { ROUTES } from "../../routes/routeConstants";
 import { AddPatient } from "../../ApiCalls/patientAPis";
 import ThemeProvider from "../../components/ThemeProvider";
 import { Select } from "../../component-library/primitives/Select";
+import { calculateAge } from "../../helpers/utils";
 
 // Component Library
 import {
@@ -94,13 +95,31 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
         ...formData,
         [name]: checked,
       });
+      setFieldErrors((prev) => ({ ...prev, [name]: false }));
     } else {
-      setFormData({
+      let updatedFormData = {
         ...formData,
         [name]: type === "file" ? files[0] : value,
-      });
+      };
+
+      if (name === "dob") {
+        if (value) {
+          const parsedDate = new Date(value);
+          if (!isNaN(parsedDate.getTime())) {
+            const calculatedAge = calculateAge(value);
+            if (calculatedAge >= 0) {
+              updatedFormData.age = calculatedAge.toString();
+              setFieldErrors((prev) => ({ ...prev, age: false }));
+            }
+          }
+        } else {
+          updatedFormData.age = "";
+        }
+      }
+
+      setFormData(updatedFormData);
+      setFieldErrors((prev) => ({ ...prev, [name]: false }));
     }
-    setFieldErrors((prev) => ({ ...prev, [name]: false }));
   };
 
   const handleSubmit = async (e) => {
