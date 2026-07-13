@@ -54,6 +54,13 @@ function Login() {
         clearAllCaches();
 
         const decoded = parseJwt(response?.data?.token);
+        if (process.env.NODE_ENV !== "production") {
+          console.debug("[auth] login token issued", {
+            email: decoded?.email || email,
+            role: decoded?.role || null,
+            exp: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null,
+          });
+        }
         localStorage.setItem("firstname", decoded?.firstname || "");
         localStorage.setItem("email", decoded?.email || email);
         localStorage.setItem("token", response?.data?.token);

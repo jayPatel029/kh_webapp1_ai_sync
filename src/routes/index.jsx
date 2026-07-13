@@ -27,6 +27,8 @@ const UserMedicalTeam = lazy(() => import("../components/UserListAdmin/UserMedic
 const PatientAlertsByType = lazy(() => import("../pages/PatientAlertsByType"));
 const CommentsDemoPage = lazy(() => import("../pages/CommentsDemoPage"));
 const AddPatientFormTestPage = lazy(() => import("../pages/patient/AddPatientFormTestPage"));
+const DialysisParametersTestPage = lazy(() => import("../pages/adminDashboard/components/DialysisParametersTestPage"));
+const SuppliersTestPage = lazy(() => import("../pages/adminDashboard/components/SuppliersTestPage"));
 const GlobalChatsPage = lazy(() => import("../pages/chats/GlobalChatsPage"));
 const ClinicManagement = lazy(() => import("../pages/clinicManagement/ClinicManagement"));
 
@@ -193,7 +195,8 @@ const getLegacyRedirectRoutes = () => [
   { path: "aiChat", element: <Navigate to={ROUTES.AI_CHAT} replace /> },
   { path: "doctorDashboard", element: <Navigate to={ROUTES.DOCTOR_DASHBOARD} replace /> },
   { path: "labReports", element: <Navigate to={ROUTES.READINGS_DAILY} replace /> },
-  { path: "logout", element: <Navigate to={ROUTES.DOCTOR_LOGIN} replace /> },
+  // { path: "logout", element: <Navigate to={ROUTES.DOCTOR_LOGIN} replace /> },
+  { path: "logout", element: <Navigate to={ROUTES.DASHBOARD} replace /> },
 ];
 
 function AppRoutes() {
@@ -213,6 +216,14 @@ function AppRoutes() {
     {
       path: ROUTES.TEST,
       element: withSuspense(<AddPatientFormTestPage />),
+    },
+    {
+      path: ROUTES.DIALYSIS_TEST,
+      element: withSuspense(<DialysisParametersTestPage />),
+    },
+    {
+      path: ROUTES.SUPPLIERS_TEST,
+      element: withSuspense(<SuppliersTestPage />),
     },
     {
       path: ROUTES.HOME,

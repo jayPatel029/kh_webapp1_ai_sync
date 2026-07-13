@@ -97,8 +97,8 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
   // ── Fetch patient + clinic/org (existing logic) ──
   useEffect(() => {
     const fetchData = async () => {
-      const clinicIdVal = appointment?.clinic_id || appointment?.clinicId;
-      const patientIdVal = appointment?.patient_id || appointment?.patientId;
+      const clinicIdVal = appointment?.clinic_id || appointment?.clinicId || appointment?._raw?.clinic_id || appointment?._raw?.clinicId;
+      const patientIdVal = appointment?.patient_id || appointment?.patientId || appointment?._raw?.patient_id || appointment?._raw?.patientId;
 
       if (isOpen && patientIdVal) {
         try {
@@ -135,7 +135,17 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
 
     };
     if (isOpen && appointment) fetchData();
-  }, [isOpen, appointment?.clinic_id, appointment?.clinicId, appointment?.patient_id, appointment?.patientId]);
+  }, [
+    isOpen,
+    appointment?.clinic_id,
+    appointment?.clinicId,
+    appointment?._raw?.clinic_id,
+    appointment?._raw?.clinicId,
+    appointment?.patient_id,
+    appointment?.patientId,
+    appointment?._raw?.patient_id,
+    appointment?._raw?.patientId
+  ]);
 
   if (!appointment && !loadingAppt) return null;
 
@@ -262,6 +272,14 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
       }
     }
 
+    if (appointment?.services && appointment.services.length > 0) {
+      return appointment.services.map(s => ({
+        name: (s.service_name || s.name || 'Service').trim(),
+        price: Number(s.amount || s.price || 0),
+        discount: Number(s.discount || 0)
+      }));
+    }
+
     if (invoice) {
       const svcName = invoice.service || invoice.bill_description || 'Dialysis Session';
       const unitPrice = Number(invoice.unit_price || invoice.total_amt || 0);
@@ -274,6 +292,9 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
   };
 
   const servicesList = buildServicesList();
+  const appointmentsToDisplay = fetchedBillAppointments.length > 0
+    ? fetchedBillAppointments
+    : (appointment ? [appointment] : []);
   const grossAmount = servicesList.reduce((acc, s) => acc + (s.price - (s.price * s.discount / 100)), 0);
 
   function calculateDurationHours(start, end) {
@@ -368,13 +389,31 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
 
   // ── Parse individual payment records for display ──
   const parsePaymentForDisplay = (p) => {
-    // Payments from getAppointmentById come as parsed receipt objects
     const amt = Number(p.amount || 0);
     const method = p.method || 'N/A';
     const status = p.status || 'RECEIVED';
     const date = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '-';
     return { id: p.id, amount: amt, method, status, date };
   };
+
+  const getStatusStyles = (status) => {
+    const s = String(status).toUpperCase();
+    if (s === 'PAID') {
+      return { bg: '#DCFCE7', color: '#16A34A', border: '1px solid #BBF7D0' };
+    }
+    if (s === 'PARTIAL' || s === 'PENDING') {
+      return { bg: '#FEF3C7', color: '#D97706', border: '1px solid #FDE68A' };
+    }
+    if (s === 'CANCELLED') {
+      return { bg: '#F1F5F9', color: '#64748B', border: '1px solid #E2E8F0' };
+    }
+    return { bg: '#FEE2E2', color: '#DC2626', border: '1px solid #FCA5A5' };
+  };
+
+  const rawInvoiceDate = invoice?.created_at || invoice?.createdAt || appointment?.appointment_date || appointment?.created_date || appointment?.startUTC;
+  const invoiceDate = rawInvoiceDate ? new Date(rawInvoiceDate).toLocaleDateString('en-GB').replace(/\//g, '-') : new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+
+  const statusStyle = getStatusStyles(payStatus);
 
   return (
     <BaseModal
@@ -386,34 +425,36 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
     >
       {loadingAppt ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-          <p style={{ color: '#6B7280', fontSize: '14px' }}>Loading invoice data…</p>
+          <p style={{ color: '#64748B', fontSize: '14px', fontWeight: 500 }}>Loading invoice data…</p>
         </div>
       ) : (
       <>
       <div id="invoice-render-node" style={{
               backgroundColor: '#fff', padding: '40px', fontSize: '13px',
-              lineHeight: '1.5', color: '#111', fontFamily: '"Inter", sans-serif'
+              lineHeight: '1.6', color: '#1E293B', fontFamily: '"Inter", sans-serif'
       }}>
-              {/* --- HEADER: ORG & CLINIC --- */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px', borderBottom: '1px solid #eee', paddingBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px', borderBottom: '2px solid #F1F5F9', paddingBottom: '24px' }}>
           <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '12px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Organization</div>
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#1E40AF' }}>{orgName}</div>
-                  {orgAddress && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '12px', marginTop: '4px', maxWidth: '250px' }}>{orgAddress}</div>}
-                  {activeOrg.phone && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '11px', marginTop: '2px' }}>Ph: {activeOrg.phone}</div>}
+            <div style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '6px', fontWeight: 600 }}>Organization</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#1E40AF', lineHeight: '1.2' }}>{orgName}</div>
+            {orgAddress && <div style={{ color: '#475569', fontSize: '12px', marginTop: '6px', maxWidth: '280px', lineHeight: '1.4' }}>{orgAddress}</div>}
+            {activeOrg.phone && <div style={{ color: '#64748B', fontSize: '12px', marginTop: '4px', fontWeight: 500 }}>Ph: {activeOrg.phone}</div>}
           </div>
 
-          <div style={{ flex: 1, textAlign: 'right' }}>
-            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{clinicName}</div>
-            {clinicAddress && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '12px', wordBreak: 'break-word', marginLeft: 'auto', maxWidth: '200px' }}>{clinicAddress}</div>}
-            {clinicPhone && <div style={{ color: BILL_COLORS.textSecondary, fontSize: '12px' }}>Emergency Ph no: {clinicPhone}</div>}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', textAlign: 'right' }}>
+            {clinicIcon && !clinicIcon.includes('placeholder') && (
+              <img src={clinicIcon} alt="Clinic Logo" style={{ width: '48px', height: '48px', objectFit: 'contain', borderRadius: '8px', marginBottom: '8px', border: '1px solid #E2E8F0', padding: '4px', backgroundColor: '#F8FAFC' }} />
+            )}
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A' }}>{clinicName}</div>
+            {clinicAddress && <div style={{ color: '#475569', fontSize: '12px', wordBreak: 'break-word', marginLeft: 'auto', maxWidth: '240px', marginTop: '4px', lineHeight: '1.4' }}>{clinicAddress}</div>}
+            {clinicPhone && <div style={{ color: '#64748B', fontSize: '12px', marginTop: '4px' }}>Emergency Ph: {clinicPhone}</div>}
             
             {clinicSlotsLines && (
-              <div style={{ color: BILL_COLORS.textSecondary, fontSize: '12px', marginTop: '6px', lineHeight: '1.2' }}>
-                <div style={{ fontWeight: 600 }}>Timings:</div>
+              <div style={{ color: '#64748B', fontSize: '11px', marginTop: '8px', lineHeight: '1.3', backgroundColor: '#F8FAFC', padding: '6px 10px', borderRadius: '6px', border: '1px solid #F1F5F9' }}>
+                <div style={{ fontWeight: 600, color: '#475569', marginBottom: '2px' }}>Clinic Timings:</div>
                 {clinicSlotsLines.map((line, idx) => (
-                  <div key={idx} style={{ marginTop: '2px' }}>
-                    {line.days}: {line.time === 'Close' ? <span style={{ color: BILL_COLORS.dangerDark }}>Close</span> : line.time}
+                  <div key={idx} style={{ marginTop: '1px' }}>
+                    <span style={{ fontWeight: 500 }}>{line.days}</span>: {line.time === 'Close' ? <span style={{ color: '#DC2626', fontWeight: 600 }}>Close</span> : line.time}
                   </div>
                 ))}
               </div>
@@ -421,170 +462,305 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
           </div>
         </div>
 
-              {/* --- PATIENT DETAILS (single-line) --- */}
-              <div style={{ marginBottom: '30px', background: '#F8FAFC', padding: '14px 20px', borderRadius: '8px' }}>
-                <div style={{ fontSize: '11px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', fontWeight: 700 }}>Patient Details</div>
-                {/* Compose single-line: PATIENT_CODE / PATIENT_NAME / AGE / GENDER / MOBILE_NO */}
-                {(() => {
-                  const pid = fetchedPatient?.patient_code || fetchedPatient?.patientCode || fetchedPatient?.patient_id || fetchedPatient?.id || appointment?.patient_code || appointment?.patientCode || appointment?.patient_id || appointment?.patientId;
-                  const codePart = pid ? String(pid) : '-';
-                  const namePart = patientName && patientName !== '-' ? patientName : '-';
-                  const agePart = patientAge && patientAge !== '-' ? patientAge : '-';
-                  const genderPart = patientGender && patientGender !== '-' ? patientGender : '-';
-                  const phonePart = patientPhone && patientPhone !== '-' ? patientPhone : '-';
-                  const line = `${codePart} / ${namePart} / ${agePart} / ${genderPart} / ${phonePart}`;
-                  return (
-                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A', letterSpacing: '0.02em' }}>{line}</div>
-                  );
-                })()}
-              </div>
+        <div style={{ display: 'flex', gap: '20px', background: '#F8FAFC', padding: '16px 20px', borderRadius: '8px', border: '1px solid #E2E8F0', marginBottom: '20px' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Invoice Number</div>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>{invoiceId}</div>
+          </div>
+          <div style={{ width: '1px', backgroundColor: '#E2E8F0' }}></div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Invoice Date</div>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>{invoiceDate}</div>
+          </div>
+          <div style={{ width: '1px', backgroundColor: '#E2E8F0' }}></div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '10px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>Payment Status</div>
+            <span style={{
+              display: 'inline-block',
+              marginTop: '4px',
+              padding: '2px 10px',
+              fontSize: '11px',
+              fontWeight: 700,
+              borderRadius: '12px',
+              backgroundColor: statusStyle.bg,
+              color: statusStyle.color,
+              border: statusStyle.border,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              {payStatus}
+            </span>
+          </div>
+        </div>
 
-              {/* --- THREE MAIN SECTIONS (TABLES) --- */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '35px' }}>
-          
-                {/* Section 1: List of Appointments */}
-                <div>
-                  <div style={{ fontSize: '14px', color: '#1E40AF', marginBottom: '12px', fontWeight: 800 }}>List of Appointments</div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px dashed #CBD5E1' }}>
-                    <thead>
-                      <tr style={{ textAlign: 'center', borderBottom: '1px dashed #CBD5E1', background: '#F8FAFC' }}>
-                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>SR no.</th>
-                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Appt Date</th>
-                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Day</th>
-                        <th style={{ padding: '10px 5px', borderRight: showDuration ? '1px dashed #CBD5E1' : 'none' }}>start time</th>
-                        {showDuration && <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>end time</th>}
-                        {showDuration && <th style={{ padding: '10px 5px' }}>Duration</th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fetchedBillAppointments.length > 0 ? (
-                        fetchedBillAppointments.map((appt, idx) => {
-                          const dateObj = new Date(appt.appointment_date);
-                          const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                          return (
-                      <tr key={appt.id || idx} style={{ borderBottom: '1px dashed #CBD5E1', textAlign: 'center' }}>
-                        <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{idx + 1}</td>
-                        <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{dateObj.toLocaleDateString('en-GB').replace(/\//g, '-')}</td>
-                        <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#1E40AF', fontWeight: 700 }}>{days[dateObj.getDay()]}</td>
-                        <td style={{ padding: '8px', borderRight: showDuration ? '1px dashed #CBD5E1' : 'none' }}>{to12Hour(appt.start_time)}</td>
-                        {showDuration && <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{to12Hour(appt.end_time)}</td>}
-                        {showDuration && <td style={{ padding: '8px', fontWeight: 800, fontSize: '14px' }}>{calculateDurationHours(appt.start_time, appt.end_time)}</td>}
+        <div style={{ marginBottom: '24px', background: '#F1F5F9', padding: '14px 20px', borderRadius: '8px', borderLeft: '4px solid #2563EB' }}>
+          <div style={{ fontSize: '10px', color: '#475569', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '6px', fontWeight: 700 }}>Patient Demographics</div>
+          {(() => {
+            const pid = fetchedPatient?.patient_code || fetchedPatient?.patientCode || fetchedPatient?.patient_id || fetchedPatient?.id || appointment?.patient_code || appointment?.patientCode || appointment?.patient_id || appointment?.patientId;
+            const codePart = pid ? String(pid) : '-';
+            const namePart = patientName && patientName !== '-' ? patientName : '-';
+            const agePart = patientAge && patientAge !== '-' ? patientAge : '-';
+            const genderPart = patientGender && patientGender !== '-' ? patientGender : '-';
+            const phonePart = patientPhone && patientPhone !== '-' ? patientPhone : '-';
+            
+            return (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', fontSize: '13px', color: '#1E293B', fontWeight: 600 }}>
+                <div><span style={{ color: '#64748B', fontWeight: 500 }}>ID:</span> {codePart}</div>
+                <div style={{ width: '1px', height: '12px', backgroundColor: '#CBD5E1' }}></div>
+                <div><span style={{ color: '#64748B', fontWeight: 500 }}>Name:</span> {namePart}</div>
+                <div style={{ width: '1px', height: '12px', backgroundColor: '#CBD5E1' }}></div>
+                <div><span style={{ color: '#64748B', fontWeight: 500 }}>Age/Sex:</span> {agePart} / {genderPart}</div>
+                <div style={{ width: '1px', height: '12px', backgroundColor: '#CBD5E1' }}></div>
+                <div><span style={{ color: '#64748B', fontWeight: 500 }}>Contact:</span> {phonePart}</div>
+              </div>
+            );
+          })()}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+    
+          <div>
+            <div style={{ fontSize: '13px', color: '#1E40AF', marginBottom: '8px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>List of Appointments</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
+              <thead>
+                <tr style={{ textAlign: 'center', borderBottom: '2px solid #E2E8F0', background: '#F8FAFC' }}>
+                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0', width: '60px' }}>SR No.</th>
+                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0', textAlign: 'left' }}>Appointment Date</th>
+                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0' }}>Day</th>
+                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: showDuration ? '1px solid #E2E8F0' : 'none' }}>Start Time</th>
+                  {showDuration && <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0' }}>End Time</th>}
+                  {showDuration && <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700 }}>Duration</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {appointmentsToDisplay.length > 0 ? (
+                  appointmentsToDisplay.map((appt, idx) => {
+                    const rawDate = appt.appointment_date || appt.appointmentDate || appt.created_date || appt.startUTC || appt.date;
+                    const dateObj = rawDate ? new Date(rawDate) : null;
+                    const dateStr = (dateObj && !isNaN(dateObj.getTime()))
+                      ? dateObj.toLocaleDateString('en-GB').replace(/\//g, '-')
+                      : '—';
+                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    const dayStr = (dateObj && !isNaN(dateObj.getTime())) ? days[dateObj.getDay()] : '—';
+                    const startTime = appt.start_time || appt.booking_time || appt.appointment_time || '—';
+                    
+                    return (
+                      <tr key={appt.id || idx} style={{ borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
+                        <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#64748B', fontWeight: 500 }}>{idx + 1}</td>
+                        <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'left', color: '#0F172A', fontWeight: 600 }}>{dateStr}</td>
+                        <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#2563EB', fontWeight: 700 }}>{dayStr}</td>
+                        <td style={{ padding: '9px 12px', borderRight: showDuration ? '1px solid #E2E8F0' : 'none', color: '#334155' }}>{to12Hour(startTime)}</td>
+                        {showDuration && <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#334155' }}>{to12Hour(appt.end_time)}</td>}
+                        {showDuration && <td style={{ padding: '9px 12px', fontWeight: 800, fontSize: '13px', color: '#0F172A' }}>{calculateDurationHours(appt.start_time, appt.end_time)} hrs</td>}
                       </tr>
                     );
                   })
-                      ) : (
-                        <tr><td colSpan={showDuration ? 6 : 4} style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No appointments linked to this bill.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                ) : (
+                  <tr><td colSpan={showDuration ? 6 : 4} style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No appointments linked to this bill.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-                {/* Section 2: List of Services */}
-                <div>
-                  <div style={{ fontSize: '14px', color: '#1E40AF', marginBottom: '12px', fontWeight: 800 }}>List of Services</div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px dashed #CBD5E1' }}>
-                    <thead>
-                      <tr style={{ textAlign: 'center', borderBottom: '1px dashed #CBD5E1', background: '#F8FAFC' }}>
-                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>SR no.</th>
-                        <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Service Name</th>
-                        <th style={{ padding: '10px 5px', borderRight: showDiscount ? '1px dashed #CBD5E1' : 'none' }}>Unit Price</th>
-                        {showDiscount && <th style={{ padding: '10px 5px', borderRight: '1px dashed #CBD5E1' }}>Discount</th>}
-                        <th style={{ padding: '10px 5px' }}>price</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {servicesList.length > 0 ? servicesList.map((s, idx) => {
-                        const final = s.price - (s.price * s.discount / 100);
-                        return (
-                          <tr key={idx} style={{ borderBottom: '1px dashed #CBD5E1', textAlign: 'center' }}>
-                            <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>{idx + 1}</td>
-                            <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#3b82f6', fontWeight: 700 }}>{s.name}</td>
-                            <td style={{ padding: '8px', borderRight: showDiscount ? '1px dashed #CBD5E1' : 'none' }}>{s.price}</td>
-                            {showDiscount && <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#f59e0b', fontWeight: 700 }}>{s.discount} %</td>}
-                            <td style={{ padding: '8px', fontWeight: 800, fontSize: '14px', color: '#1e3a8a' }}>{final.toFixed(2)}</td>
-                          </tr>
-                        );
-                      }) : (
-                        <tr style={{ borderBottom: '1px dashed #CBD5E1', textAlign: 'center' }}>
-                          <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1' }}>1</td>
-                          <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#3b82f6', fontWeight: 700 }}>Dialysis</td>
-                          <td style={{ padding: '8px', borderRight: showDiscount ? '1px dashed #CBD5E1' : 'none' }}>{(totalDue / (fetchedBillAppointments.length || 1)).toFixed(2)}</td>
-                          {showDiscount && <td style={{ padding: '8px', borderRight: '1px dashed #CBD5E1', color: '#f59e0b', fontWeight: 700 }}>0 %</td>}
-                          <td style={{ padding: '8px', fontWeight: 800, fontSize: '14px', color: '#1e3a8a' }}>{(totalDue / (fetchedBillAppointments.length || 1)).toFixed(2)}</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+          <div>
+            <div style={{ fontSize: '13px', color: '#1E40AF', marginBottom: '8px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>List of Services</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
+              <thead>
+                <tr style={{ textAlign: 'center', borderBottom: '2px solid #E2E8F0', background: '#F8FAFC' }}>
+                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0', width: '60px' }}>SR No.</th>
+                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0', textAlign: 'left' }}>Service Name</th>
+                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0' }}>Unit Price</th>
+                  {showDiscount && <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0' }}>Discount</th>}
+                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700 }}>Total Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {servicesList.length > 0 ? servicesList.map((s, idx) => {
+                  const final = s.price - (s.price * s.discount / 100);
+                  return (
+                    <tr key={idx} style={{ borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
+                      <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#64748B', fontWeight: 500 }}>{idx + 1}</td>
+                      <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'left', color: '#2563EB', fontWeight: 700 }}>{s.name}</td>
+                      <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#334155', fontWeight: 600 }}>₹{s.price.toFixed(2)}</td>
+                      {showDiscount && <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#D97706', fontWeight: 700 }}>{s.discount}%</td>}
+                      <td style={{ padding: '9px 12px', fontWeight: 800, fontSize: '13px', color: '#1E3A8A' }}>₹{final.toFixed(2)}</td>
+                    </tr>
+                  );
+                }) : (
+                  <tr style={{ borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
+                    <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#64748B', fontWeight: 500 }}>1</td>
+                    <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'left', color: '#2563EB', fontWeight: 700 }}>Dialysis Session</td>
+                    <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#334155', fontWeight: 600 }}>₹{(totalDue / (appointmentsToDisplay.length || 1)).toFixed(2)}</td>
+                    {showDiscount && <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#D97706', fontWeight: 700 }}>0%</td>}
+                    <td style={{ padding: '9px 12px', fontWeight: 800, fontSize: '13px', color: '#1E3A8A' }}>₹{(totalDue / (appointmentsToDisplay.length || 1)).toFixed(2)}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-                {/* Section 3: Payment amount breakdown */}
-                <div style={{ marginTop: '10px' }}>
-                  <div style={{ fontSize: '13px', color: '#1E40AF', marginBottom: '15px', fontWeight: 800 }}>Payment amount breakdown by services and appts</div>
+          <div style={{ background: '#F8FAFC', padding: '16px 20px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+            <div style={{ fontSize: '12px', color: '#1E40AF', marginBottom: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Calculation</div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '16px', fontWeight: 800 }}>
-                    <div style={{ color: '#1e3a8a' }}>
-                      gross amount: {grossAmount.toFixed(2)}
-                    </div>
-                    <div style={{ color: '#1e3a8a', marginTop: '10px' }}>
-                      Final Amount: gross amount X no. of appt = {grossAmount.toFixed(2)} x {fetchedBillAppointments.length} = <span style={{ fontSize: '22px', borderBottom: '2px solid #1E40AF' }}>{totalDue.toFixed(2)}</span>
-                    </div>
-                    {fetchedBillAppointments.length > 0 && (
-                      <div style={{ display: 'flex', gap: '20px', marginTop: '12px', fontSize: '13px', padding: '10px', background: '#F1F5F9', borderRadius: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A' }}></span>
-                          <span style={{ color: '#475569' }}>Paid Sessions:</span>
-                          <span style={{ color: '#16A34A', fontWeight: 900 }}>{fetchedBillAppointments.filter(a => String(a.payment_action).toUpperCase() === 'PAID').length}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#DC2626' }}></span>
-                          <span style={{ color: '#475569' }}>Unpaid Sessions:</span>
-                          <span style={{ color: '#DC2626', fontWeight: 900 }}>{fetchedBillAppointments.filter(a => String(a.payment_action).toUpperCase() !== 'PAID').length}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '14px', color: '#334155' }}>
+              <div>
+                <span style={{ fontWeight: 500, color: '#64748B' }}>Gross Amount (Per Session):</span> <strong style={{ color: '#0F172A' }}>₹{grossAmount.toFixed(2)}</strong>
               </div>
-
-              {/* --- RECEIPT HISTORY & STATUS --- */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '40px', borderTop: '1px dashed #CBD5E1', paddingTop: '20px' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 700, marginBottom: '10px' }}>RECENT RECEIPTS</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    {fetchedPayments.map((p, idx) => (
-                      <div key={idx} style={{ fontSize: '11px', color: '#16A34A', fontWeight: 600 }}>
-                        • {new Date(p.createdAt || Date.now()).toLocaleDateString()} - {p.method || 'cash'} - ₹{p.amount} RECEIVED
-                      </div>
-                    ))}
+              <div style={{ fontSize: '15px', fontWeight: 700, color: '#1E3A8A', marginTop: '6px', borderTop: '1px solid #E2E8F0', paddingTop: '8px' }}>
+                Total Invoice Amount: <span style={{ color: '#64748B', fontWeight: 500 }}>₹{grossAmount.toFixed(2)} x {appointmentsToDisplay.length} (sessions) =</span> <span style={{ fontSize: '18px', borderBottom: '2px solid #1E40AF', paddingBottom: '2px', color: '#1E40AF' }}>₹{totalDue.toFixed(2)}</span>
+              </div>
+              {appointmentsToDisplay.length > 0 && (
+                <div style={{ display: 'flex', gap: '16px', marginTop: '10px', fontSize: '12px', padding: '8px 12px', background: '#FFF', borderRadius: '6px', border: '1px solid #E2E8F0', width: 'fit-content' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A' }}></span>
+                    <span style={{ color: '#475569', fontWeight: 500 }}>Paid Sessions:</span>
+                    <span style={{ color: '#16A34A', fontWeight: 700 }}>{appointmentsToDisplay.filter(a => String(a.payment_action).toUpperCase() === 'PAID').length}</span>
+                  </div>
+                  <div style={{ width: '1px', backgroundColor: '#E2E8F0', height: '12px' }}></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#DC2626' }}></span>
+                    <span style={{ color: '#475569', fontWeight: 500 }}>Unpaid Sessions:</span>
+                    <span style={{ color: '#DC2626', fontWeight: 700 }}>{appointmentsToDisplay.filter(a => String(a.payment_action).toUpperCase() !== 'PAID').length}</span>
                   </div>
                 </div>
-                <div style={{ width: '250px', textAlign: 'right' }}>
-                  <div style={{ fontSize: '12px', color: '#64748B' }}>Amount Paid: <strong style={{ color: '#16A34A' }}>₹{amountPaid}</strong></div>
-                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>Balance Due: <strong style={{ color: '#DC2626' }}>₹{outstanding}</strong></div>
-                  <div style={{ marginTop: '10px', fontSize: '14px', fontWeight: 900, color: payStatus === 'PAID' ? '#16A34A' : '#DC2626' }}>{payStatus}</div>
-                </div>
+              )}
+            </div>
+          </div>
+
         </div>
 
-              {/* --- FOOTER --- */}
-              <div style={{ marginTop: '50px', borderTop: '1px solid #F1F5F9', paddingTop: '20px' }}>
-                <div style={{ fontSize: '10px', color: '#94A3B8', textAlign: 'center', marginBottom: '15px' }}>
-                  This is an electronically generated invoice. No signature is required.
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '35px', borderTop: '2px solid #F1F5F9', paddingTop: '24px', gap: '30px' }}>
+          <div style={{ flex: 1.2 }}>
+            <div>
+              <div style={{ fontSize: '11px', color: '#475569', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Recent Payments</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {fetchedPayments.length > 0 ? fetchedPayments.map((p, idx) => (
+                  <div key={idx} style={{ fontSize: '12px', color: '#16A34A', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16A34A' }}></span>
+                    {new Date(p.createdAt || Date.now()).toLocaleDateString()} - <span style={{ textTransform: 'uppercase', color: '#475569' }}>{p.method || 'cash'}</span> - ₹{p.amount} RECEIVED
+                  </div>
+                )) : (
+                  <div style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>No payment receipts recorded yet.</div>
+                )}
+              </div>
+            </div>
+
+            {fetchedRefunds?.length > 0 && (
+              <div style={{ marginTop: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#475569', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>Refund History</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {fetchedRefunds.map((r, idx) => {
+                    const amt = Math.abs(Number(r.amount || r.refundAmount || r.refund_amount || 0));
+                    return (
+                      <div key={idx} style={{ fontSize: '12px', color: '#DC2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#DC2626' }}></span>
+                        {new Date(r.createdAt || Date.now()).toLocaleDateString()} - <span style={{ textTransform: 'uppercase', color: '#475569' }}>{r.method || 'refund'}</span> - ₹{amt} REFUNDED
+                      </div>
+                    );
+                  })}
                 </div>
-                <div style={{ fontSize: '9px', color: '#94A3B8', lineHeight: '1.4', textAlign: 'justify' }}>
-                  Notice: By receiving care, you consent to the processing and secure storage of your health data by authorized third-party technology providers (including Kifayti Health), solely for medical and lawful purposes, in compliance with Indian data protection laws.
-                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ width: '260px', textAlign: 'right', background: '#F8FAFC', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ fontSize: '13px', color: '#475569', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Total Bill:</span>
+              <strong style={{ color: '#0F172A' }}>₹{totalDue.toFixed(2)}</strong>
+            </div>
+            <div style={{ fontSize: '13px', color: '#475569', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Paid Amount:</span>
+              <strong style={{ color: '#16A34A' }}>₹{amountPaid.toFixed(2)}</strong>
+            </div>
+            <div style={{ fontSize: '14px', color: '#475569', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #E2E8F0', paddingTop: '6px', marginTop: '2px' }}>
+              <span style={{ fontWeight: 700 }}>Balance Due:</span>
+              <strong style={{ color: '#DC2626', fontSize: '15px' }}>₹{outstanding.toFixed(2)}</strong>
+            </div>
+            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '10px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>STATUS</span>
+              <span style={{
+                padding: '3px 12px',
+                fontSize: '12px',
+                fontWeight: 800,
+                borderRadius: '6px',
+                backgroundColor: statusStyle.bg,
+                color: statusStyle.color,
+                border: statusStyle.border,
+                textTransform: 'uppercase'
+              }}>
+                {payStatus}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '40px', borderTop: '2px solid #F1F5F9', paddingTop: '20px' }}>
+          <div style={{ fontSize: '11px', color: '#64748B', textAlign: 'center', marginBottom: '12px', fontWeight: 500 }}>
+            This is an electronically generated invoice. No signature is required.
+          </div>
+          <div style={{ fontSize: '9px', color: '#94A3B8', lineHeight: '1.5', textAlign: 'justify' }}>
+            Notice: By receiving care, you consent to the processing and secure storage of your health data by authorized third-party technology providers (including Kifayti Health), solely for medical and lawful purposes, in compliance with Indian data protection laws.
+          </div>
         </div>
       </div>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px', padding: '0 40px 40px' }}>
-              <button onClick={handlePrint} disabled={printing} style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 600, border: '1px solid #E2E8F0', borderRadius: '6px', background: '#fff', color: '#475569', cursor: 'pointer' }}>
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px', padding: '0 40px 40px' }}>
+        <button
+          onClick={handlePrint}
+          disabled={printing}
+          style={{
+            padding: '10px 24px',
+            fontSize: '12px',
+            fontWeight: 700,
+            border: '1.5px solid #2563EB',
+            borderRadius: '6px',
+            background: 'transparent',
+            color: '#2563EB',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#EFF6FF'; }}
+          onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+        >
           {printing ? 'Opening...' : 'Print'}
         </button>
-              <button onClick={handleDownload} disabled={downloading} style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 600, border: 'none', borderRadius: '6px', background: '#1E40AF', color: '#fff', cursor: 'pointer' }}>
-                {downloading ? 'Download PDF' : 'Download PDF'}
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          style={{
+            padding: '10px 24px',
+            fontSize: '12px',
+            fontWeight: 700,
+            border: 'none',
+            borderRadius: '6px',
+            background: '#2563EB',
+            color: '#fff',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 4px rgba(37,99,235,0.2)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#1D4ED8'; }}
+          onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#2563EB'; }}
+        >
+          {downloading ? 'Downloading...' : 'Download PDF'}
         </button>
-              <button onClick={onClose} style={{ padding: '8px 20px', fontSize: '12px', fontWeight: 600, border: '1px solid #E2E8F0', borderRadius: '6px', background: '#fff', color: '#111', cursor: 'pointer' }}>
+        <button
+          onClick={onClose}
+          style={{
+            padding: '10px 24px',
+            fontSize: '12px',
+            fontWeight: 700,
+            border: '1px solid #D1D5DB',
+            borderRadius: '6px',
+            background: '#F9FAFB',
+            color: '#374151',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#F3F4F6'; }}
+          onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#F9FAFB'; }}
+        >
           Close
         </button>
       </div>

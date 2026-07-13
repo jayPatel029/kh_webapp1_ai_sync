@@ -101,6 +101,13 @@ function DoctorLogin() {
         setErrMsg("");
         clearAllCaches();
         const decoded = parseJwt(res.token);
+        if (process.env.NODE_ENV !== "production") {
+          console.debug("[auth] OTP login token issued", {
+            email: decoded?.email || email,
+            firstname: decoded?.firstname || null,
+            exp: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null,
+          });
+        }
         localStorage.setItem("firstname", decoded?.firstname || "");
         localStorage.setItem("email", decoded?.email || email);
         localStorage.setItem("token", res.token);

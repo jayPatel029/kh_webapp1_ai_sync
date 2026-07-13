@@ -34,6 +34,8 @@ const normalizeBillingRow = (apt, patients) => {
     sex: apt.gender || apt.patient_gender || patientData?.gender || patientData?.sex || '—',
     mobile_no: apt.phoneNumber || apt.phone_number || apt.patient_phone || apt.phone || patientData?.phone_no || patientData?.mobile_no || '—',
     patient_id: apt.patient_id || apt.patientId,
+    clinic_id: apt.clinic_id || apt.clinicId,
+    clinicId: apt.clinic_id || apt.clinicId,
     phoneNumber: apt.phoneNumber || apt.phone_number || apt.patient_phone || apt.phone || patientData?.phone_no || patientData?.mobile_no || '—',
     consultation_type: apt.bookingType || apt.appointment_type || 'In Clinic',
     service: apt.reason || apt.metadata?.notes || 'Dialysis Session',

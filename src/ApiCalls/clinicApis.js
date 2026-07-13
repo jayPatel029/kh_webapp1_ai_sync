@@ -597,7 +597,7 @@ export async function getStaffSchedule(staffId, config = {}) {
 export async function createBill(payload, config = {}) {
   try {
     const configWithIdempotency = withIdempotency(config);
-    const response = await axiosInstance.post(`${server_url}/dt/billing/bills`, payload, configWithIdempotency);
+    const response = await axiosInstance.post(`${server_url}/dt/bills`, payload, configWithIdempotency);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

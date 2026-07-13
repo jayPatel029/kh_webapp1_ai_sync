@@ -9,6 +9,7 @@ import GraphModal from "./graphModal";
 import InsertChartIcon from "@mui/icons-material/InsertChart";
 import InsightsIcon from "@mui/icons-material/Insights";
 import DatasetLinkedIcon from "@mui/icons-material/DatasetLinked";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import TableModal from "./TableModal";
 import WarningIcon from "@mui/icons-material/Warning";
 import SendMessage from "./SendMessage";
@@ -153,6 +154,8 @@ const AlertModal = ({ closeModal }) => {
     setIsModalOpen(false);
   };
 
+  const getAlertMediaUrl = (alert) => alert?.image || alert?.url || alert?.mediaUrl || "";
+
   const cosultDoctor = async (alert) => {
     // http://localhost:8080/api/notifs/pushNotifs
     const res = await postNotifsPushNotifs({
@@ -275,20 +278,23 @@ const AlertModal = ({ closeModal }) => {
                     </div>
 
                     <div className="flex items-center justify-between space-x-3">
-                      {alert.questionType == "Upload" &&
-                        (alert?.image?.endsWith(".pdf") ? (
-                          <FaFilePdf
-                            className="w-10 h-10 lg:ml-[500px] shadow-md cursor-pointer text-red-500"
-                            onClick={() => openModalSimple(alert.image)}
-                          />
-                        ) : (
-                          <img
-                            src={alert.image}
-                            alt="alert"
-                            className="w-10 h-10 lg:ml-[500px] shadow-md cursor-pointer"
-                            onClick={() => openModalSimple(alert.image)}
-                          />
-                        ))}
+                      {getAlertMediaUrl(alert) && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-700 shadow-sm transition hover:bg-blue-100"
+                          onClick={() => openModalSimple(getAlertMediaUrl(alert))}
+                          title={getAlertMediaUrl(alert).endsWith(".pdf") ? "Open attached document" : "Open attached image"}
+                        >
+                          {getAlertMediaUrl(alert).endsWith(".pdf") ? (
+                            <FaFilePdf className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <ImageOutlinedIcon style={{ fontSize: 18 }} />
+                          )}
+                          <span className="text-xs font-semibold whitespace-nowrap">
+                            {getAlertMediaUrl(alert).endsWith(".pdf") ? "View file" : "View image"}
+                          </span>
+                        </button>
+                      )}
                       <p className="text-gray-700 text-sm font-bold mr-2">
                         {alert.date
                           ?.slice(0, 10)

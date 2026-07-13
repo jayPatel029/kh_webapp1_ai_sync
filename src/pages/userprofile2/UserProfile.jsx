@@ -165,6 +165,96 @@ const SystolicDiastolicGraph = ({
   );
 };
 
+const ParameterDetailView = ({
+  question,
+  userId,
+  isDialysis = false,
+  aspect = 2 / 1,
+  dryWeight = null,
+}) => {
+  if (!question) return null;
+
+  const title = question?.title || "";
+  const normalizedTitle = title.toLowerCase().replace(/\s+/g, "");
+  const isSystolic = title.toLowerCase().includes("systolic");
+  const isDiastolic = title.toLowerCase().includes("diastolic");
+
+  const graphNode = isSystolic || isDiastolic ? (
+    <SystolicDiastolicGraph
+      question={question}
+      userId={userId}
+      isDialysis={isDialysis}
+      aspect={aspect}
+    />
+  ) : isDialysis ? (
+    <LineChartDialysis
+      aspect={aspect}
+      questionId={question?.id}
+      user_id={userId}
+      title={title}
+      unit={question?.unit}
+      isPatientProfile={1}
+    />
+  ) : (
+    <LineChartComponent
+      aspect={aspect}
+      questionId={question?.id}
+      user_id={userId}
+      title={title}
+      unit={question?.unit}
+      isPatientProfile={1}
+    />
+  );
+
+  const tableNode = isDialysis ? (
+    <DialysisTable
+      questionId={question?.id}
+      user_id={userId}
+      title={title}
+      question={question}
+      isPatientProfile={1}
+      highlightThreshold={normalizedTitle === "weightafter" ? dryWeight : null}
+      highlightComparator="gt"
+    />
+  ) : (
+    <Table
+      questionId={question?.id}
+      user_id={userId}
+      title={title}
+      question={question}
+      isPatientProfile={1}
+    />
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-gray-100 px-4 py-3 bg-slate-50">
+            <h3 className="text-sm font-semibold text-[#32617d]">Graph</h3>
+          </div>
+          <div className="p-4">
+            {graphNode}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-gray-100 px-4 py-3 bg-slate-50">
+            <h3 className="text-sm font-semibold text-[#32617d]">Table</h3>
+          </div>
+          <div className="p-4">
+            {tableNode}
+          </div>
+        </section>
+      </div>
+
+      <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        Admins can edit chart ranges and enter readings directly from the graph controls.
+      </div>
+    </div>
+  );
+};
+
 function UserProfile() {
   const [totalUnreadCount, settotalUnreadCount] = useState(0);
   const [totalUnreadCountDoc, settotalUnreadCountDoc] = useState(0);
@@ -791,12 +881,14 @@ function UserProfile() {
                   <QuestionsContainer aliment="Generic Profile" user_id={id} />
                 ) : (() => {
                   const q = selectedGeneralParam.question;
-                  const t = q.title || '';
-                  const isSys = t.toLowerCase().includes('systolic');
-                  const isDia = t.toLowerCase().includes('diastolic');
-                  if (isSys || isDia) return <SystolicDiastolicGraph question={q} userId={userData.id} isDialysis={false} aspect={2/1} />;
-                  if (q.isGraph === 1) return <LineChartComponent aspect={2/1} questionId={q.id} user_id={userData.id} title={t} unit={q.unit} />;
-                  return <Table questionId={q.id} user_id={userData.id} title={t} question={q} />;
+                  return (
+                    <ParameterDetailView
+                      question={q}
+                      userId={userData.id}
+                      isDialysis={false}
+                      aspect={2 / 1}
+                    />
+                  );
                 })()}
               </div>
             </div>
@@ -812,16 +904,15 @@ function UserProfile() {
                 </div>
                 {(() => {
                   const q = selectedDialysisParam.question;
-                  const t = q.title || '';
-                  const norm = normalizeQuestionTitle(t);
-                  const isSys = t.toLowerCase().includes('systolic');
-                  const isDia = t.toLowerCase().includes('diastolic');
-                  if (isSys || isDia) return <SystolicDiastolicGraph question={q} userId={userData.id} isDialysis={true} aspect={2/1} />;
-                  const forceTable = norm === 'weightafter' || norm === 'weightbefore';
-                  const forceGraph = norm === 'interdialyticweight';
-                  const asGraph = forceGraph || (!forceTable && q.isGraph === 1);
-                  if (asGraph) return <LineChartDialysis aspect={2/1} questionId={q.id} user_id={userData.id} title={t} unit={q.unit} />;
-                  return <DialysisTable questionId={q.id} user_id={userData.id} title={t} question={q} highlightThreshold={norm === 'weightafter' ? userData?.dry_weight : null} highlightComparator="gt" />;
+                  return (
+                    <ParameterDetailView
+                      question={q}
+                      userId={userData.id}
+                      isDialysis={true}
+                      aspect={2 / 1}
+                      dryWeight={userData?.dry_weight}
+                    />
+                  );
                 })()}
               </div>
             </div>

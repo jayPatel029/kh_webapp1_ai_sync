@@ -15,6 +15,12 @@ const ProtectedRoute = ({ routeName, children }) => {
 
   useEffect(() => {
     if (!token) {
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[auth] ProtectedRoute redirect: missing token", {
+          routeName,
+          pathname: window.location.pathname,
+        });
+      }
       setIsRoleLoading(false);
       return;
     }
@@ -30,6 +36,12 @@ const ProtectedRoute = ({ routeName, children }) => {
         const response = await identifyRole();
         if (response.success) {
           dispatch(setPermissions(response.data.data));
+        } else if (process.env.NODE_ENV !== "production") {
+          console.warn("[auth] ProtectedRoute identifyRole failed", {
+            routeName,
+            pathname: window.location.pathname,
+            error: response.error,
+          });
         }
       } catch (error) {
         reportError(error, { source: 'ProtectedRoute' });
@@ -50,6 +62,13 @@ const ProtectedRoute = ({ routeName, children }) => {
   }
 
   if (!canAccessRoute(role, routeName)) {
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[auth] ProtectedRoute redirect: insufficient permissions", {
+        routeName,
+        pathname: window.location.pathname,
+        role,
+      });
+    }
     return <Navigate to="/login" replace />;
   }
 
