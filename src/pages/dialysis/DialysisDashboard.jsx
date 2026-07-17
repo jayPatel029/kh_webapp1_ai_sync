@@ -13,7 +13,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
-import { Box, Flex, Heading, Text } from '../../component-library';
+import { useNavigate } from 'react-router-dom';
+import { Box, Flex, Heading, Text, Button } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
@@ -30,6 +31,7 @@ import OrganizationSelector from '../../components/OrganizationSelector';
 import axiosInstance from '../../helpers/axios/axiosInstance';
 import { server_url } from '../../constants/constants';
 import { groupAlertsByPatient } from '../../helpers/alertGrouping';
+import { ROUTES } from '../../routes/routeConstants';
 
 // ─── Helpers ───────────────────────────────────────────────
 const formatDate = (iso) => {
@@ -216,6 +218,7 @@ const StatCard = ({ label, value, color, icon, subtext }) => (
 const DialysisDashboard = () => {
   const { isMobile } = useIsMobile();
   const { showToast, ToastContainer } = useAdminToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const userRole = localStorage.getItem('role');
   const isTechnician = userRole === 'Dialysis Technician';
@@ -471,6 +474,54 @@ const DialysisDashboard = () => {
             </div>
           ) : (
             <>
+              <div
+                style={{
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 55%, #f8fafc 100%)',
+                  border: '1px solid #dbeafe',
+                  borderRadius: '28px',
+                  padding: isMobile ? '20px' : '26px 28px',
+                  boxShadow: '0 18px 40px rgba(37, 99, 235, 0.08)',
+                  marginBottom: '18px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexDirection: isMobile ? 'column' : 'row' }}>
+                  <div style={{ maxWidth: '720px' }}>
+                    <div style={{ fontSize: isMobile ? '28px' : '34px', fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>
+                      {isTechnician ? 'Pre-Dialysis Command Center' : 'Dialysis Operations Command Center'}
+                    </div>
+                    <div style={{ marginTop: '10px', color: '#475569', fontSize: '15px', lineHeight: 1.7 }}>
+                      Keep the day moving with queue visibility, current bed utilization, and high-priority alerts in one place.
+                    </div>
+                    <div style={{ marginTop: '16px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <Button variant="brand" onClick={() => navigate(ROUTES.DIALYSIS_APPOINTMENTS)}>
+                        Open Today's Queue
+                      </Button>
+                      <Button variant="outline" onClick={() => navigate(ROUTES.DIALYSIS_PATIENTS)}>
+                        Patient Summary
+                      </Button>
+                      <Button variant="outline" onClick={() => navigate(ROUTES.DIALYSIS_SESSIONS)}>
+                        Pre-Dialysis Dashboard
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div style={{ minWidth: isMobile ? '100%' : '320px', display: 'grid', gap: '12px', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr' }}>
+                    {[
+                      { label: 'Today Queue', value: stats.totalAppointments, color: '#2563eb', bg: '#eff6ff' },
+                      { label: 'In Center', value: stats.scheduledAppointments, color: '#d97706', bg: '#fff7ed' },
+                      { label: 'Available Beds', value: stats.emptyBeds, color: '#16a34a', bg: '#ecfdf5' },
+                      { label: 'Active Alerts', value: isTechnician ? technicianAlerts.length : stats.activeAlerts, color: '#dc2626', bg: '#fef2f2' },
+                    ].map((card) => (
+                      <div key={card.label} style={{ background: card.bg, borderRadius: '18px', padding: '16px', border: '1px solid rgba(148, 163, 184, 0.15)' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{card.label}</div>
+                        <div style={{ marginTop: '8px', fontSize: '30px', fontWeight: 800, color: card.color }}>{card.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {/* ─── Today's Appointments ─────────────── */}
               <div style={{ marginBottom: '12px' }}>
                 <h3
