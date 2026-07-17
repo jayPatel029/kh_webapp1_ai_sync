@@ -32,13 +32,14 @@ import { FormModal } from "../../component-library/modals/FormModal";
 // Import design system styles
 import "../../design-system/styles/index.css";
 import FileUploadWithCamera from "../../components/FileUploadWithCamera";
-
+import { ABDMStepper } from "../../components/ABDMStepper";
 
 const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, initialData = {} }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
+  const [isAbdmStepperOpen, setIsAbdmStepperOpen] = useState(false);
   const bloodGroupOptions = [
     { value: "A+", label: "A+" },
     { value: "A-", label: "A-" },
@@ -462,7 +463,12 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
 
             <GridItem>
               <FormControl isRequired isInvalid={Boolean(fieldErrors.abha_id)}>
-                <FormLabel>ABHA ID</FormLabel>
+                <Flex justify="space-between" align="center" style={{ marginBottom: "0.5rem" }}>
+                  <FormLabel style={{ margin: 0 }}>ABHA ID</FormLabel>
+                  <Button size="sm" variant="outline" onClick={() => setIsAbdmStepperOpen(true)}>
+                    Start ABDM Walkthrough
+                  </Button>
+                </Flex>
                 <Input
                   name="abha_id"
                   value={formData.abha_id}
@@ -472,6 +478,10 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
                   isInvalid={Boolean(fieldErrors.abha_id)}
                 />
               </FormControl>
+              
+              {isAbdmStepperOpen && (
+                <ABDMStepper isOpen={isAbdmStepperOpen} onClose={() => setIsAbdmStepperOpen(false)} />
+              )}
             </GridItem>
 
             <GridItem>

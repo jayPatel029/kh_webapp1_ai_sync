@@ -14,6 +14,7 @@ import { useParams } from 'react-router-dom';
 import { getPatientAilments, getPatientById } from '../ApiCalls/patientAPis';
 import { Grid } from '@mui/material';
 
+
 const normalizeAilments = (data = {}) => {
   if (Array.isArray(data?.ailments)) return data.ailments;
 
@@ -46,6 +47,7 @@ export const PatientProfileCard = ({
   showAilmentDetails = true,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+
   const [resolvedUserData, setResolvedUserData] = useState({ ailments: [] });
   const [isFetchingProfile, setIsFetchingProfile] = useState(false);
   const { id: routePatientId } = useParams();
@@ -234,12 +236,14 @@ export const PatientProfileCard = ({
                       {mergedUserData?.condition || 'Unknown'}
                     </Box>
                   </Flex>
-                  <IconButton
-                    onClick={(e) => { e.stopPropagation(); onEditName?.(); }}
-                    variant="ghost"
-                    className="bg-white shadow rounded-full h-9 w-9 p-0 flex items-center justify-center hover:bg-gray-100"
-                    icon={<Edit style={{ fontSize: 20, color: '#00A89B' }} />}
-                  />
+                  <Flex align="center" gap={2}>
+                    <IconButton
+                      onClick={(e) => { e.stopPropagation(); onEditName?.(); }}
+                      variant="ghost"
+                      className="bg-white shadow rounded-full h-9 w-9 p-0 flex items-center justify-center hover:bg-gray-100"
+                      icon={<Edit style={{ fontSize: 20, color: '#00A89B' }} />}
+                    />
+                  </Flex>
                 </Flex>
 
                 {/* <Box className="mt-2"> */}
@@ -316,4 +320,3 @@ export const PatientProfileCard = ({
 };
 
 export default PatientProfileCard;
-
