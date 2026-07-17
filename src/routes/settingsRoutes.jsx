@@ -6,6 +6,7 @@ const ManageParameters = lazy(() => import("../pages/ManageParameters/ManagePara
 const Logs = lazy(() => import("../pages/AuditLogs/Logs"));
 const LogsPage = lazy(() => import("../pages/AuditLogs/patientLog"));
 const DocLogPage = lazy(() => import("../pages/AuditLogs/DoctorLog"));
+const ReportLogPage = lazy(() => import("../pages/AuditLogs/ReportLog"));
 const AlimentMaster = lazy(() => import("../pages/alimentMaster/AlimentMaster"));
 
 export const getSettingsRoutes = ({ guard, ROUTE_NAMES }) => [
@@ -19,6 +20,7 @@ export const getSettingsRoutes = ({ guard, ROUTE_NAMES }) => [
       { path: "logs", element: guard(<Logs />, ROUTE_NAMES.SETTINGS_LOGS) },
       { path: "logs/patient", element: guard(<LogsPage />, ROUTE_NAMES.PATIENT_LOGS) },
       { path: "logs/doctor", element: guard(<DocLogPage />, ROUTE_NAMES.SETTINGS_LOGS) },
+      { path: "logs/report", element: guard(<ReportLogPage />, ROUTE_NAMES.SETTINGS_LOGS) },
       { path: "ailments", element: guard(<AlimentMaster />, ROUTE_NAMES.AILMENTS) },
     ],
   },

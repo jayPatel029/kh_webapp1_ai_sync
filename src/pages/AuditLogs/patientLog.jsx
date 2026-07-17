@@ -48,7 +48,7 @@ const LogsPage = () => {
       setLoading(true);
       const response = await fetchWithCache('patientLogs', () => getPatientLog());
       if (response.success) {
-        setLogs(response.data?.logs || []);
+        setLogs(response.data?.logs || response.data || []);
       } else {
         throw new Error("Failed to fetch logs");
       }
@@ -104,11 +104,11 @@ const LogsPage = () => {
                 title="Patient Logs"
                 breadcrumbs={[
                   { label: "Dashboard", path: "/" },
-                  { label: "Audit Logs", path: "/logs" },
+                  { label: "Audit Logs", path: "/settings/logs" },
                   { label: "Patient Logs", active: true }
                 ]}
                 rightAction={<RefreshButton pageName={PAGE_CACHE.AUDIT_LOGS.name} />}
-                onBack={() => navigate(ROUTES.LOGS)}
+                onBack={() => navigate(ROUTES.SETTINGS_LOGS)}
               />
              
           </Box>
@@ -175,22 +175,22 @@ const LogsPage = () => {
                           >
                             <Flex justify="between" align="center">
                               <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898]">
-                                {log.patientId}
+                                {log.patient_id || log.patientId || "-"}
                               </Box>
                               <Box style={{ flex: "0 0 150px" }} className="text-[14px] font-semibold text-[#393939]">
-                                {log.field}
+                                {log.changed_field || log.field || "-"}
                               </Box>
                               <Box style={{ flex: "1", minWidth: "150px" }} className="text-[14px] text-[#989898] truncate pr-2">
-                                {log.oldValue || "-"}
+                                {log.old_value || log.oldValue || "-"}
                               </Box>
                               <Box style={{ flex: "1", minWidth: "150px" }} className="text-[14px] text-[#4164df] truncate pr-2">
-                                {log.newValue || "-"}
+                                {log.new_value || log.newValue || "-"}
                               </Box>
                               <Box style={{ flex: "0 0 180px" }} className="text-[14px] text-[#989898]">
-                                {new Date(log.changedAt).toLocaleString()}
+                                {log.changed_at ? new Date(log.changed_at).toLocaleString() : (log.changedAt ? new Date(log.changedAt).toLocaleString() : "-")}
                               </Box>
                               <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898]">
-                                {log.changedBy}
+                                {log.changed_by || log.changedBy || "-"}
                               </Box>
                             </Flex>
                           </Box>

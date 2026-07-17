@@ -1,8 +1,8 @@
 /**
- * Doctor Logs Page - Redesigned
+ * Report Logs Page
  * Following component library and design system patterns
  * 
- * @file src/pages/AuditLogs/DoctorLog.jsx
+ * @file src/pages/AuditLogs/ReportLog.jsx
  */
 
 import React, { useEffect, useState } from "react";
@@ -25,16 +25,13 @@ import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 
 // APIs and Helpers
-import { getDoctorLogs } from "../../ApiCalls/doctorApis";
+import { getDoctorReportLogs } from "../../ApiCalls/doctorApis";
 import { usePageCache, PAGE_CACHE } from "../../cache";
 
 // Design System
 import "../../design-system/styles/index.css";
 
-// Icons
-import { FaDownload, FaArrowLeft } from "react-icons/fa";
-
-const DocLogPage = () => {
+const ReportLogPage = () => {
   const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +43,7 @@ const DocLogPage = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const response = await fetchWithCache('doctorLogs', () => getDoctorLogs());
+      const response = await fetchWithCache('reportLogs', () => getDoctorReportLogs());
       if (response.success) {
         setLogs(response.data?.logs || response.data || []);
       } else {
@@ -88,7 +85,7 @@ const DocLogPage = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "doctor_logs.csv";
+    link.download = "report_logs.csv";
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -101,11 +98,11 @@ const DocLogPage = () => {
           <Box className="sticky top-[56px] z-20 bg-white">
              
               <PageHeader
-                title="Doctor Logs"
+                title="Report Logs"
                 breadcrumbs={[
                   { label: "Dashboard", path: "/" },
                   { label: "Audit Logs", path: "/settings/logs" },
-                  { label: "Doctor Logs", active: true }
+                  { label: "Report Logs", active: true }
                 ]}
                 rightAction={<RefreshButton pageName={PAGE_CACHE.AUDIT_LOGS.name} />}
                 onBack={() => navigate(ROUTES.SETTINGS_LOGS)}
@@ -119,13 +116,12 @@ const DocLogPage = () => {
                 {/* Header Section */}
                 <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
                   <Box>
-                    <h2 className="text-[18px] font-bold text-[#393939]">Doctor Logs</h2>
-                    <p className="text-[14px] text-[#989898] mt-1">Track changes made to doctor records</p>
+                    <h2 className="text-[18px] font-bold text-[#393939]">Report Logs</h2>
+                    <p className="text-[14px] text-[#989898] mt-1">Track changes made to lab reports and prescriptions</p>
                   </Box>
                   <Button
                     onClick={downloadCSV}
                     disabled={!logs.length}
-                  // leftIcon={<FaDownload />}
                   >
                     Download CSV
                   </Button>
@@ -155,11 +151,12 @@ const DocLogPage = () => {
                     {/* Table Header */}
                     <Box className="bg-[#5886a5] rounded-[5px] px-6 py-4 mb-0">
                       <Flex justify="between" align="center" className="text-white text-[14px] font-semibold">
-                        <Box style={{ flex: "0 0 120px" }}>Doctor ID</Box>
-                        <Box style={{ flex: "0 0 150px" }}>Field</Box>
-                        <Box style={{ flex: "1", minWidth: "150px" }}>Old Value</Box>
-                        <Box style={{ flex: "1", minWidth: "150px" }}>New Value</Box>
-                        <Box style={{ flex: "0 0 180px" }}>Changed At</Box>
+                        <Box style={{ flex: "0 0 120px" }}>Report ID</Box>
+                        <Box style={{ flex: "0 0 120px" }}>Patient ID</Box>
+                        <Box style={{ flex: "1", minWidth: "120px" }}>Report</Box>
+                        <Box style={{ flex: "0 0 120px" }}>Type</Box>
+                        <Box style={{ flex: "1", minWidth: "150px" }}>Message</Box>
+                        <Box style={{ flex: "0 0 160px" }}>Changed At</Box>
                         <Box style={{ flex: "0 0 120px" }}>Changed By</Box>
                       </Flex>
                     </Box>
@@ -173,23 +170,26 @@ const DocLogPage = () => {
                             className="bg-white border-b border-gray-100 px-6 py-4 hover:bg-gray-50 transition-colors"
                           >
                             <Flex justify="between" align="center">
-                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898]">
-                                {log.doctor_id || log.doctorId || "-"}
+                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898] truncate pr-2">
+                                {log.report_id || log.reportId || "-"}
                               </Box>
-                              <Box style={{ flex: "0 0 150px" }} className="text-[14px] font-semibold text-[#393939]">
-                                {log.changed_field || log.field || "-"}
+                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898] truncate pr-2">
+                                {log.patient_id || log.patientId || "-"}
                               </Box>
-                              <Box style={{ flex: "1", minWidth: "150px" }} className="text-[14px] text-[#989898] truncate pr-2">
-                                {log.old_value || log.oldValue || "-"}
+                              <Box style={{ flex: "1", minWidth: "120px" }} className="text-[14px] text-[#393939] truncate pr-2">
+                                {log.report || "-"}
                               </Box>
-                              <Box style={{ flex: "1", minWidth: "150px" }} className="text-[14px] text-[#4164df] truncate pr-2">
-                                {log.new_value || log.newValue || "-"}
+                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] text-[#4164df] truncate pr-2">
+                                {log.type || "-"}
                               </Box>
-                              <Box style={{ flex: "0 0 180px" }} className="text-[14px] text-[#989898]">
+                              <Box style={{ flex: "1", minWidth: "150px" }} className="text-[14px] text-[#989898] truncate pr-2" title={log.message}>
+                                {log.message || "-"}
+                              </Box>
+                              <Box style={{ flex: "0 0 160px" }} className="text-[14px] text-[#989898]">
                                 {log.changed_at ? new Date(log.changed_at).toLocaleString() : (log.changedAt ? new Date(log.changedAt).toLocaleString() : "-")}
                               </Box>
-                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898]">
-                                {log.changed_by || log.changedBy || "-"}
+                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898] truncate">
+                                {log.deletedBy || log.deleted_by || log.changed_by || log.changedBy || "-"}
                               </Box>
                             </Flex>
                           </Box>
@@ -219,4 +219,4 @@ const DocLogPage = () => {
   );
 };
 
-export default DocLogPage;
+export default ReportLogPage;

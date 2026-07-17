@@ -62,6 +62,7 @@ export const ROUTES = {
   SETTINGS_LOGS: "/settings/logs",
   SETTINGS_LOGS_PATIENT: "/settings/logs/patient",
   SETTINGS_LOGS_DOCTOR: "/settings/logs/doctor",
+  SETTINGS_LOGS_REPORT: "/settings/logs/report",
   SETTINGS_AILMENTS: "/settings/ailments",
 
   REPORTS: "/reports",
@@ -124,6 +125,7 @@ export const ROUTE_NAMES = {
   ALERTS: "PatientAlertsByType",
   SUPPORT: "ContactUsPage",
   SETTINGS_LOGS: "logs",
+  REPORT_LOGS: "ReportLogs",
 
   // Dialysis
   DIALYSIS_DASHBOARD: "DialysisDashboard",
