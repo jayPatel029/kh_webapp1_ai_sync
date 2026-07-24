@@ -11,6 +11,7 @@ import {
   createAppointment as createAppointmentApi, 
   updateAppointment as updateAppointmentApi, 
   cancelAppointment as cancelAppointmentApi,
+  addAppointmentPayment as addAppointmentPaymentApi,
   getAvailableSlots
 } from '../ApiCalls/clinicApis';
 
@@ -107,39 +108,24 @@ export default function useDialysisAppointments(options = {}) {
 
   const createAppointment = useCallback(
     async (data) => {
-      const start = new Date(data.start);
-      const end = new Date(data.end);
-      if (start >= end) {
-        throw new Error('Start time must be before end time.');
-      }
+      if (data.start && data.end) {
+        const start = new Date(data.start);
+        const end = new Date(data.end);
+        if (start >= end) {
+          throw new Error('Start time must be before end time.');
+        }
 
-      if (!settings.allowOverlapping) {
-        const conflicts = findConflictsInternal(appointments, start, end);
-        if (conflicts.length) {
-          const err = new Error('Conflicts found for this time slot.');
-          err.conflicts = conflicts;
-          throw err;
+        if (!settings.allowOverlapping) {
+          const conflicts = findConflictsInternal(appointments, start, end);
+          if (conflicts.length) {
+            const err = new Error('Conflicts found for this time slot.');
+            err.conflicts = conflicts;
+            throw err;
+          }
         }
       }
 
-      // API Call
-      const payload = {
-        clinicId: data.clinic_id || data.clinicId || 1,
-        patientId: data.patient_id || data.patientId || 1,
-        patientName: data.patientName || data.patient_name,
-        startUTC: start.toISOString(),
-        endUTC: end.toISOString(),
-        bookingType: data.bookingType || 'offline',
-        amountDue: Number(data.amountDue || data.totalAmount || 0),
-        slotId: data.slotId,
-        metadata: {
-          notes: data.title || data.reason,
-          dialysisDuration: data.duration,
-          ...data.metadata
-        },
-      };
-
-      const result = await createAppointmentApi(payload);
+      const result = await createAppointmentApi(data);
       if (result.success) {
         await fetchAppointments();
         return result.data;
@@ -187,7 +173,7 @@ export default function useDialysisAppointments(options = {}) {
   );
 
   const cancelAppointment = useCallback(async (id, reason = 'Cancelled from sessions dashboard') => {
-    const result = await cancelAppointmentApi(id, { reason, refundAmount: 0 });
+    const result = await cancelAppointmentApi(id, { reason, refund: false, refundAmount: 0 });
     if (result.success) {
       await fetchAppointments();
     } else {
@@ -195,48 +181,58 @@ export default function useDialysisAppointments(options = {}) {
     }
   }, [fetchAppointments]);
 
-  // Cancel with refund handling (client‑side mock)
-  const cancelAppointmentWithRefund = useCallback(async (id) => {
+  // Cancel with refund handling via API
+  const cancelAppointmentWithRefund = useCallback(async (id, reason = 'Cancelled with refund', method = 'cash') => {
     const appt = appointments.find((a) => a.id === id);
     if (!appt) throw new Error('Appointment not found');
-    const refundAmount = appt.amountPaid || 0;
-    if (refundAmount > 0) {
+    const refundAmount = Number(appt.amountPaid || appt.received_amt || appt.paidAmount || 0);
+    const result = await cancelAppointmentApi(id, {
+      reason,
+      refund: refundAmount > 0,
+      refundAmount,
+      method,
+    });
+    if (result.success) {
       setPayments((prev) => [
         ...prev,
         {
           id: `refund-${Date.now()}`,
           appointmentId: id,
           amount: -refundAmount,
-          method: 'refund',
+          method,
           timestamp: new Date(),
         },
       ]);
-    }
-    const result = await cancelAppointmentApi(id, {
-      reason: 'Cancelled with refund',
-      refundAmount,
-    });
-    if (result.success) {
       await fetchAppointments();
     } else {
       throw new Error(result.data?.message || 'Failed to cancel appointment');
     }
   }, [appointments, fetchAppointments]);
 
-  // Add a payment to an existing appointment (client‑side mock)
-  const addPayment = useCallback((appointmentId, amount, method) => {
-    setPayments((prev) => [
-      ...prev,
-      {
-        id: `pay-${Date.now()}`,
-        appointmentId,
-        amount,
-        method,
-        timestamp: new Date(),
-      },
-    ]);
-    // Optionally update appointment payment status here
-  }, []);
+  // Add a payment to an existing appointment via API
+  const addPayment = useCallback(async (appointmentId, amount, method = 'cash', receiptUrl = null) => {
+    const result = await addAppointmentPaymentApi(appointmentId, {
+      amount: Number(amount),
+      method,
+      receiptUrl,
+    });
+    if (result.success) {
+      setPayments((prev) => [
+        ...prev,
+        {
+          id: result.data?.paymentId || `pay-${Date.now()}`,
+          appointmentId,
+          amount: Number(amount),
+          method,
+          timestamp: new Date(),
+        },
+      ]);
+      await fetchAppointments();
+      return result.data;
+    } else {
+      throw new Error(result.data?.message || 'Failed to add payment');
+    }
+  }, [fetchAppointments]);
 
   const isSlotAvailable = useCallback(
     (start, end) => {

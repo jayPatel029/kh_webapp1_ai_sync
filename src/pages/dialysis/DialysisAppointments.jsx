@@ -1275,8 +1275,24 @@ const DialysisAppointments = () => {
         : Math.max(sessions.length, 1);
 
       const payload = {
-        clinicId: Number(createForm.clinic_id),
-        patientId: Number(createForm.patient_id),
+        organization_id: createForm.org_id || createForm.organization_id || selectedClinicData?.org_id || null,
+        clinic_id: createForm.clinic_id || null,
+        patient_id: createForm.patient_id || null,
+        primary_doctor_id: createForm.doctor_id || createForm.primary_doctor_id || null,
+        appointment_date: createForm.appointment_date,
+        start_time: createForm.start_time || createForm.slotTemplates[0]?.startTime || '09:00',
+        end_time: createForm.end_time || createForm.slotTemplates[0]?.endTime || '13:00',
+        appointment_type: createForm.appointment_type || 'in_clinic',
+        reason: createForm.reason || 'Routine dialysis session',
+        patient_ailments: createForm.patient_ailments || [],
+        status: (createForm.status || 'SCHEDULED').toUpperCase(),
+        created_by: createForm.created_by ? Number(createForm.created_by) : (localStorage.getItem('id') ? Number(localStorage.getItem('id')) : null),
+        unit_price: String(createForm.unit_price || addedServices[0]?.price || createForm.total_amount || '0'),
+        discount: String(createForm.discount || addedServices[0]?.discount || '0'),
+        token_id: createForm.token_id || null,
+        isEmergency: Boolean(createForm.is_emergency || createForm.isEmergency || false),
+        referred_by: createForm.referred_by || null,
+        meet_link: createForm.meet_link !== undefined ? createForm.meet_link : null,
         sessions,
         paySessions: sessionsToPay, // Global flag for backend to mark the first N appointments as PAID
         services: addedServices.map(s => ({

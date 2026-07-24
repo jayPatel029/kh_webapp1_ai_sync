@@ -294,32 +294,169 @@ export async function getAppointments(params = {}, config = {}) {
 }
 
 /**
+ * Formats incoming DT appointment data into standard JSON payload structure required by backend.
+ * 
+ * Target structure:
+ * {
+ *   "organization_id": 1,
+ *   "clinic_id": 3,
+ *   "patient_id": 42,
+ *   "primary_doctor_id": 15,
+ *   "appointment_date": "2026-07-15",
+ *   "start_time": "09:00",
+ *   "end_time": "13:00",
+ *   "appointment_type": "in_clinic",
+ *   "reason": "Routine dialysis session",
+ *   "patient_ailments": [
+ *     { "id": 2, "name": "Chronic Kidney Disease" },
+ *     { "id": 5, "name": "Hypertension" }
+ *   ],
+ *   "status": "SCHEDULED",
+ *   "created_by": 7,
+ *   "unit_price": "1500",
+ *   "discount": "100",
+ *   "token_id": "DT-001",
+ *   "isEmergency": false,
+ *   "referred_by": "Dr. Smith",
+ *   "meet_link": null
+ * }
+ */
+export function formatDtAppointmentPayload(data = {}) {
+  let ailments = [];
+  const rawAilments = data.patient_ailments ?? data.patientAilments ?? data.ailments;
+  if (Array.isArray(rawAilments)) {
+    ailments = rawAilments.map((item, idx) => {
+      if (typeof item === 'object' && item !== null) {
+        return {
+          id: Number(item.id || idx + 1),
+          name: String(item.name || item.title || '').trim(),
+        };
+      }
+      return { id: idx + 1, name: String(item).trim() };
+    }).filter(a => a.name);
+  } else if (typeof rawAilments === 'string' && rawAilments.trim()) {
+    try {
+      const parsed = JSON.parse(rawAilments);
+      if (Array.isArray(parsed)) {
+        ailments = formatDtAppointmentPayload({ patient_ailments: parsed }).patient_ailments;
+      } else if (typeof parsed === 'object' && parsed !== null) {
+        const list = parsed.ailments || parsed.patientAilments || parsed.patient_ailments || [];
+        if (Array.isArray(list)) {
+          ailments = formatDtAppointmentPayload({ patient_ailments: list }).patient_ailments;
+        }
+      }
+    } catch (_) {
+      ailments = rawAilments
+        .split(',')
+        .map((s, idx) => ({ id: idx + 1, name: s.trim() }))
+        .filter(a => a.name);
+    }
+  }
+
+  let appointment_date = data.appointment_date || data.appointmentDate || data.date || '';
+  let start_time = data.start_time || data.startTime || '';
+  let end_time = data.end_time || data.endTime || '';
+
+  if (!appointment_date && data.startUTC) {
+    appointment_date = String(data.startUTC).split('T')[0];
+  }
+  if (!start_time && data.startUTC) {
+    const timePart = String(data.startUTC).split('T')[1];
+    if (timePart) start_time = timePart.substring(0, 5);
+  }
+  if (!end_time && data.endUTC) {
+    const timePart = String(data.endUTC).split('T')[1];
+    if (timePart) end_time = timePart.substring(0, 5);
+  }
+
+  if (!start_time) start_time = '09:00';
+  if (!end_time) end_time = '13:00';
+  if (!appointment_date) {
+    appointment_date = new Date().toISOString().split('T')[0];
+  }
+
+  const resolveId = (val, fallback = null) => {
+    if (val !== undefined && val !== null && val !== '') {
+      const num = Number(val);
+      if (!isNaN(num) && num > 0) return num;
+    }
+    return fallback;
+  };
+
+  const resolveCreatedBy = (val) => {
+    const fromVal = resolveId(val);
+    if (fromVal !== null) return fromVal;
+    
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('id') || localStorage.getItem('userId') || localStorage.getItem('user_id');
+      return resolveId(stored);
+    }
+    return null;
+  };
+
+  return {
+    organization_id: resolveId(data.organization_id ?? data.organizationId ?? data.org_id ?? data.orgId),
+    clinic_id: resolveId(data.clinic_id ?? data.clinicId),
+    patient_id: resolveId(data.patient_id ?? data.patientId),
+    primary_doctor_id: resolveId(data.primary_doctor_id ?? data.primaryDoctorId ?? data.doctor_id ?? data.doctorId),
+    appointment_date: String(appointment_date),
+    start_time: String(start_time),
+    end_time: String(end_time),
+    appointment_type: String(data.appointment_type || data.appointmentType || data.bookingType || 'in_clinic'),
+    reason: String(data.reason || data.title || (data.metadata && data.metadata.notes_brief) || 'Routine dialysis session'),
+    patient_ailments: ailments.length > 0 ? ailments : [],
+    status: String(data.status || data.appointmentStatus || 'SCHEDULED').toUpperCase(),
+    created_by: resolveCreatedBy(data.created_by ?? data.createdBy),
+    unit_price: String(data.unit_price ?? data.unitPrice ?? data.amountDue ?? data.total_amount ?? data.totalAmount ?? '0'),
+    discount: String(data.discount ?? '0'),
+    token_id: String(data.token_id || data.tokenId || ''),
+    isEmergency: Boolean(data.isEmergency || data.is_emergency || false),
+    referred_by: String(data.referred_by || data.referredBy || ''),
+    meet_link: data.meet_link !== undefined ? data.meet_link : (data.meetLink !== undefined ? data.meetLink : null)
+  };
+}
+
+/**
  * Create a new appointment
  * @param {Object} payload 
- * @param {number} payload.clinicId required unless slotId infers clinic
- * @param {number} payload.patientId required
- * @param {string} [payload.patientName]
- * @param {string} payload.startUTC ISO datetime
- * @param {string} payload.endUTC ISO datetime
- * @param {string} [payload.bookingType] 'online' or 'offline'
- * @param {number} [payload.amountDue]
- * @param {Object} [payload.immediatePayment]
- * @param {number} [payload.slotId]
- * @param {Object} [payload.metadata]
  * @param {Object} config Axios config. Header 'Idempotency-Key' is required (auto-generated if missing).
  * @returns {Promise<{success: boolean, data: any}>}
  */
 export async function createAppointment(payload, config = {}) {
   try {
     const finalConfig = withIdempotency(config);
-    // CORS FIX: Move idempotency key from header to payload to avoid preflight rejection
     const idempotencyKey = finalConfig.headers['Idempotency-Key'] || finalConfig.headers['idempotency-key'];
+
+    const formattedPayload = formatDtAppointmentPayload(payload);
+
     if (idempotencyKey) {
-      payload = { ...payload, idempotencyKey };
-      delete finalConfig.headers['Idempotency-Key'];
-      delete finalConfig.headers['idempotency-key'];
+      formattedPayload.idempotencyKey = idempotencyKey;
     }
-    const response = await axiosInstance.post(`${server_url}/dt/appointments`, payload, finalConfig);
+    if (payload.patientId !== undefined) formattedPayload.patientId = payload.patientId;
+    if (payload.clinicId !== undefined) formattedPayload.clinicId = payload.clinicId;
+    if (payload.slotId !== undefined) formattedPayload.slotId = payload.slotId;
+    if (payload.startUTC !== undefined) formattedPayload.startUTC = payload.startUTC;
+    if (payload.endUTC !== undefined) formattedPayload.endUTC = payload.endUTC;
+    if (payload.amountDue !== undefined) formattedPayload.amountDue = payload.amountDue;
+    if (payload.currency !== undefined) formattedPayload.currency = payload.currency;
+    if (payload.immediatePayment !== undefined) formattedPayload.immediatePayment = payload.immediatePayment;
+    if (payload.bookingType !== undefined) formattedPayload.bookingType = payload.bookingType;
+    if (payload.services !== undefined) formattedPayload.services = payload.services;
+
+    if (Array.isArray(payload.sessions)) {
+      formattedPayload.sessions = payload.sessions.map(s => ({
+        ...formatDtAppointmentPayload({ ...payload, ...s }),
+        startUTC: s.startUTC,
+        endUTC: s.endUTC,
+        slotId: s.slotId
+      }));
+    }
+    if (payload.recurrence) formattedPayload.recurrence = payload.recurrence;
+    if (payload.metadata) formattedPayload.metadata = payload.metadata;
+    if (payload.automation) formattedPayload.automation = payload.automation;
+    if (payload.paySessions) formattedPayload.paySessions = payload.paySessions;
+
+    const response = await axiosInstance.post(`${server_url}/dt/appointments`, formattedPayload, finalConfig);
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };
@@ -620,6 +757,7 @@ export default {
   getAvailableSlots,
   getAppointments,
   createAppointment,
+  formatDtAppointmentPayload,
   getAppointmentById,
   updateAppointment,
   deleteAppointment,

@@ -69,6 +69,7 @@ export async function createBillForAppointment({
   const billPayload = {
     appointment_id: appointmentId,
     appointment_ids: appointmentIds || [appointmentId],
+    consultation_type: form.booking_type || form.bookingType || form.consultation_type || form.consultationType || 'offline',
     services_list: services.map(s => ({ name: s.name, price: s.price, id: s.id })),
     total_amt: totalDue,
     service: serviceNames,

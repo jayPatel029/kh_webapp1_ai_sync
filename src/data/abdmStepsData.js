@@ -22,20 +22,6 @@ export const abdmSteps = [
     "other_ui_elements": []
   },
   {
-    "step_number": 2,
-    "header": "Select Language",
-    "illustration_placement": "None",
-    "illustration_description": "",
-    "paragraphs": [],
-    "buttons": [
-      "Continue"
-    ],
-    "input_fields": [
-      "Radio button list for languages: English (selected), Hindi, Telugu, Gujarati, Bengali, Tamil, Marathi, Assamese, Punjabi"
-    ],
-    "other_ui_elements": []
-  },
-  {
     "step_number": 3,
     "header": "What is the ABHA address?",
     "illustration_placement": "Middle of screen",
@@ -56,54 +42,6 @@ export const abdmSteps = [
       "Language selector (English)",
       "Pagination dots (dot 2 active)"
     ]
-  },
-  {
-    "step_number": 4,
-    "header": "What is ABHA App?",
-    "illustration_placement": "Middle of screen",
-    "illustration_description": "A giant smartphone displaying a heart with a checkmark and heartbeat line, with a doctor and patient standing beside it.",
-    "paragraphs": [
-      {
-        "heading": "",
-        "text": "It is a citizen-facing application that will enable you to view, manage, and do consent-based sharing of health records."
-      }
-    ],
-    "buttons": [
-      "Register",
-      "Login"
-    ],
-    "input_fields": [],
-    "other_ui_elements": [
-      "QR scanner icon",
-      "Language selector (English)",
-      "Pagination dots (dot 1 active)"
-    ]
-  },
-  {
-    "step_number": 5,
-    "header": "App Permissions",
-    "illustration_placement": "Top half",
-    "illustration_description": "Two men shaking hands, one holding a phone displaying UI elements (same as step 1).",
-    "paragraphs": [
-      {
-        "heading": "",
-        "text": "party without the user's consent."
-      },
-      {
-        "heading": "Access external storage",
-        "text": "The app uses the mobile device's external storage to access files and documents. The app uses the cache memory of the mobile device for the purpose of enabling the user to access medical and health records in the form of PDFs or any other format that can also be downloaded by the user onto the mobile device."
-      },
-      {
-        "heading": "GPS/Geolocation",
-        "text": "Additional geolocation data is being collected in order to restrict app operation to India and enable QR code scanning for getting token numbers and to enable nearby facility search."
-      }
-    ],
-    "buttons": [
-      "Decline",
-      "Agree"
-    ],
-    "input_fields": [],
-    "other_ui_elements": []
   },
   {
     "step_number": 6,
