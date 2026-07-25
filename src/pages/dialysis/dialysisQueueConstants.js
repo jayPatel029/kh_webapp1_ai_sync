@@ -76,6 +76,19 @@ export const ALERT_SEVERITY = {
   INFO: 'Info',
 };
 
+/** Severity visual style palette. */
+export const ALERT_SEVERITY_STYLES = {
+  Critical: { bg: '#fef2f2', border: '#fecaca', color: '#dc2626' },
+  Warning: { bg: '#fff7ed', border: '#fed7aa', color: '#d97706' },
+  Info: { bg: '#eff6ff', border: '#bfdbfe', color: '#2563eb' },
+};
+
+/**
+ * Get visual style object for a given alert severity string.
+ */
+export const getSeverityStyle = (severity) =>
+  ALERT_SEVERITY_STYLES[severity] || ALERT_SEVERITY_STYLES.Warning;
+
 /**
  * Normalize raw status string to upper-case enum key.
  * Maps CONFIRMED → BOOKED for consistency.
@@ -90,3 +103,4 @@ export const normalizeStatus = (status) => {
  */
 export const getStatusStyle = (status) =>
   QUEUE_STATUS_STYLES[normalizeStatus(status)] || QUEUE_STATUS_STYLES.PENDING;
+

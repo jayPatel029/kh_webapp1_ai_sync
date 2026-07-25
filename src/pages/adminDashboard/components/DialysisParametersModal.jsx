@@ -583,14 +583,14 @@ export default function DialysisParametersModal({
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [appointmentServices, setAppointmentServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(false);
-  const isDemoMode = true
+  const isDemoMode = Boolean(demoMode || demoData);
 
   // Fetch patient parameters, readings and inventory — only when modal opens or patient changes
   useEffect(() => {
     if (!isOpen) return;
 
     if (isDemoMode) {
-      const demoPatient = demoData.patient || demoData.completePatientData || demoData.userData || {
+      const demoPatient = demoData?.patient || demoData?.completePatientData || demoData?.userData || {
         id: patient?.patient_id || 9001,
         patient_id: patient?.patient_id || 9001,
         patient_name: patient?.patient_name || patient?.name || 'Demo Patient',
@@ -603,51 +603,51 @@ export default function DialysisParametersModal({
       };
 
       setCompletePatientData(demoPatient);
-      setDialysisReadings(demoData.readings || []);
-      setCurrentAppointment(demoData.appointment || {
+      setDialysisReadings(demoData?.readings || []);
+      setCurrentAppointment(demoData?.appointment || {
         id: 7001,
         metadata: { dialysisDuration: 4 },
         start_time: '08:00',
         end_time: '12:00',
-        services: demoData.appointmentServices || [],
+        services: demoData?.appointmentServices || [],
         totalAmount: 2400,
         amountPaid: 500,
       });
-      setAppointmentServices(demoData.appointmentServices || []);
-      setHemoParams(demoData.hemoParams || [
+      setAppointmentServices(demoData?.appointmentServices || []);
+      setHemoParams(demoData?.hemoParams || [
         { id: 101, title: 'Systolic BP', unit: 'mmHg', isGraph: 1 },
         { id: 102, title: 'Diastolic BP', unit: 'mmHg', isGraph: 1 },
         { id: 103, title: 'Weight Before', unit: 'kg', isGraph: 0 },
         { id: 104, title: 'Weight After', unit: 'kg', isGraph: 0 },
         { id: 105, title: 'Blood Flow Rate', unit: 'ml/min', isGraph: 0 },
       ]);
-      setHemoParamsResponses(demoData.hemoParamsResponses || {
+      setHemoParamsResponses(demoData?.hemoParamsResponses || {
         101: '128',
         102: '82',
         103: '70.1',
         104: '69.8',
         105: '350',
       });
-      setInventoryItems(demoData.inventoryItems || [
+      setInventoryItems(demoData?.inventoryItems || [
         { id: 1, name: 'Heparin', unit_price: 12 },
         { id: 2, name: 'Saline', unit_price: 5 },
       ]);
-      setInventoryStock(demoData.inventoryStock || [
+      setInventoryStock(demoData?.inventoryStock || [
         { item_id: 1, unit_price: 12 },
         { item_id: 2, unit_price: 5 },
       ]);
-      setDialyzers(demoData.dialyzers || [
+      setDialyzers(demoData?.dialyzers || [
         { id: 1, usage_count: 2, max_usage: 5, unit_price: 150 },
       ]);
-      setConsumedItems(demoData.consumedItems || []);
-      setSelectedDialyzerId(demoData.selectedDialyzerId || '');
-      setSessionId(demoData.sessionId || 9991);
+      setConsumedItems(demoData?.consumedItems || []);
+      setSelectedDialyzerId(demoData?.selectedDialyzerId || '');
+      setSessionId(demoData?.sessionId || 9991);
       setLoadingData(false);
       setInventoryLoading(false);
       setServicesLoading(false);
 
-      if (demoAutoOpenFirstParameter && (demoData.hemoParams || []).length > 0) {
-        setSelectedDialysisParam({ question: (demoData.hemoParams || [])[0] });
+      if (demoAutoOpenFirstParameter && (demoData?.hemoParams || []).length > 0) {
+        setSelectedDialysisParam({ question: (demoData?.hemoParams || [])[0] });
       }
       return;
     }
