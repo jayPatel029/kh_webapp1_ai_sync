@@ -17,6 +17,7 @@ import UnifiedListTable from '../../components/table/UnifiedListTable';
 import useDialysisQueue from '../../hooks/useDialysisQueue';
 import PatientSummaryView from './PatientSummaryView';
 import PreDialysisDashboardView from './PreDialysisDashboardView';
+import PatientVerificationView from './PatientVerificationView';
 import { ROUTES } from '../../routes/routeConstants';
 import {
   EMERGENCY_ACTION_ROLES,
@@ -65,7 +66,7 @@ const getShiftDisplayLabel = (value) => {
 };
 
 // ---------------------------------------------------------------------------
-// DialysisPatients — P2-01 Queue / P2-02 Summary / P2-03 Dashboard router
+// DialysisPatients — P2-01 Queue / P2-02 Summary / P2-03 Dashboard / P2-04 Verification router
 // ---------------------------------------------------------------------------
 
 const DialysisPatients = () => {
@@ -74,10 +75,31 @@ const DialysisPatients = () => {
   const location = useLocation();
   const roleName = useSelector((state) => state.permission?.role_name);
 
-  // Selected patient and requested sub-view
+  // Selected patient and requested sub-view/step
   const selectedPatientId = location.state?.patientId;
+  const currentStep = location.state?.step;
   const isDashboardView =
-    location.state?.view === 'dashboard' || location.state?.step === 'P2-03';
+    location.state?.view === 'dashboard' || currentStep === 'P2-03';
+  const isVerificationStep = currentStep === 'P2-04' || currentStep === 'verification';
+
+  // If Patient Verification (P2-04) step requested
+  if (selectedPatientId && isVerificationStep) {
+    return (
+      <PatientVerificationView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, view: 'dashboard', step: 'P2-03' },
+          })
+        }
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-05' },
+          })
+        }
+      />
+    );
+  }
 
   // If dashboard view (P2-03) requested for patient
   if (selectedPatientId && isDashboardView) {
@@ -87,6 +109,11 @@ const DialysisPatients = () => {
         onBack={() =>
           navigate(ROUTES.DIALYSIS_PATIENTS, {
             state: { patientId: selectedPatientId },
+          })
+        }
+        onNavigateStep={(stepCode) =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: stepCode },
           })
         }
       />
