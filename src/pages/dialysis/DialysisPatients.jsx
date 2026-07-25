@@ -18,6 +18,7 @@ import useDialysisQueue from '../../hooks/useDialysisQueue';
 import PatientSummaryView from './PatientSummaryView';
 import PreDialysisDashboardView from './PreDialysisDashboardView';
 import PatientVerificationView from './PatientVerificationView';
+import VitalsMeasurementsView from './VitalsMeasurementsView';
 import { ROUTES } from '../../routes/routeConstants';
 import {
   EMERGENCY_ACTION_ROLES,
@@ -66,7 +67,7 @@ const getShiftDisplayLabel = (value) => {
 };
 
 // ---------------------------------------------------------------------------
-// DialysisPatients — P2-01 Queue / P2-02 Summary / P2-03 Dashboard / P2-04 Verification router
+// DialysisPatients — P2-01 Queue / P2-02 Summary / P2-03 Dashboard / P2-04 Verification / P2-05 Vitals router
 // ---------------------------------------------------------------------------
 
 const DialysisPatients = () => {
@@ -81,6 +82,26 @@ const DialysisPatients = () => {
   const isDashboardView =
     location.state?.view === 'dashboard' || currentStep === 'P2-03';
   const isVerificationStep = currentStep === 'P2-04' || currentStep === 'verification';
+  const isVitalsStep = currentStep === 'P2-05' || currentStep === 'vitals';
+
+  // If Vitals & Measurements (P2-05) step requested
+  if (selectedPatientId && isVitalsStep) {
+    return (
+      <VitalsMeasurementsView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-04' },
+          })
+        }
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-06' },
+          })
+        }
+      />
+    );
+  }
 
   // If Patient Verification (P2-04) step requested
   if (selectedPatientId && isVerificationStep) {
