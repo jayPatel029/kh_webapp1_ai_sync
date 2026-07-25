@@ -16,6 +16,7 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import UnifiedListTable from '../../components/table/UnifiedListTable';
 import useDialysisQueue from '../../hooks/useDialysisQueue';
 import PatientSummaryView from './PatientSummaryView';
+import PreDialysisDashboardView from './PreDialysisDashboardView';
 import { ROUTES } from '../../routes/routeConstants';
 import {
   EMERGENCY_ACTION_ROLES,
@@ -64,7 +65,7 @@ const getShiftDisplayLabel = (value) => {
 };
 
 // ---------------------------------------------------------------------------
-// DialysisPatients — P2-01 Queue / P2-02 Summary router
+// DialysisPatients — P2-01 Queue / P2-02 Summary / P2-03 Dashboard router
 // ---------------------------------------------------------------------------
 
 const DialysisPatients = () => {
@@ -73,9 +74,26 @@ const DialysisPatients = () => {
   const location = useLocation();
   const roleName = useSelector((state) => state.permission?.role_name);
 
-  // If route state carries a patientId, render Patient Summary (P2-02)
+  // Selected patient and requested sub-view
   const selectedPatientId = location.state?.patientId;
+  const isDashboardView =
+    location.state?.view === 'dashboard' || location.state?.step === 'P2-03';
 
+  // If dashboard view (P2-03) requested for patient
+  if (selectedPatientId && isDashboardView) {
+    return (
+      <PreDialysisDashboardView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId },
+          })
+        }
+      />
+    );
+  }
+
+  // If route state carries a patientId, render Patient Summary (P2-02)
   if (selectedPatientId) {
     return (
       <PatientSummaryView

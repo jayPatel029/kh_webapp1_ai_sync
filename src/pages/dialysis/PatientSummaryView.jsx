@@ -177,8 +177,8 @@ const PatientSummaryView = ({ patientId, appointment, onBackToQueue }) => {
 
   const handleProceedToPreDialysis = () => {
     if (hasActivePrescription) {
-      navigate(ROUTES.DIALYSIS_SESSIONS, {
-        state: { patientId, patient: patientBanner?.raw },
+      navigate(ROUTES.DIALYSIS_PATIENTS, {
+        state: { patientId, view: 'dashboard', step: 'P2-03', patient: patientBanner?.raw },
       });
     }
   };

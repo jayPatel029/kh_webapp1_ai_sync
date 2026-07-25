@@ -1,11 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Box, Button, Card, CardBody, Heading, Text } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
+import PreDialysisDashboardView from './PreDialysisDashboardView';
 import BedManagementDashboard from '../adminDashboard/components/BedManagementDashboard';
 import DialysisAppointmentsDashboard from '../adminDashboard/components/DialysisAppointmentsDashboard';
 import UpcomingAppointmentsPanel from '../adminDashboard/components/UpcomingAppointmentsPanel';
+import { ROUTES } from '../../routes/routeConstants';
 import {
   getAllBeds,
   getBedById,
@@ -48,10 +51,23 @@ const isIsolatedBed = (bed = {}) => {
 
 const DialysisSessions = () => {
   const { isMobile } = useIsMobile();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [beds, setBeds] = useState([]);
   const [patientSessionReadings, setPatientSessionReadings] = useState([]);
   const [integrationLoading, setIntegrationLoading] = useState(false);
   const [integrationError, setIntegrationError] = useState('');
+
+  const selectedPatientId = location.state?.patientId;
+
+  if (selectedPatientId) {
+    return (
+      <PreDialysisDashboardView
+        patientId={selectedPatientId}
+        onBack={() => navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId: selectedPatientId } })}
+      />
+    );
+  }
 
   const fetchIntegrationContext = useCallback(async () => {
     setIntegrationLoading(true);
