@@ -19,6 +19,7 @@ import PreDialysisDashboardView from '../../dialysis/PreDialysisDashboardView';
 import PatientVerificationView from '../../dialysis/PatientVerificationView';
 import VitalsMeasurementsView from '../../dialysis/VitalsMeasurementsView';
 import PatientAssessmentView from '../../dialysis/PatientAssessmentView';
+import VascularAccessAssessmentView from '../../dialysis/VascularAccessAssessmentView';
 
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../routes/routeConstants';
@@ -1456,6 +1457,13 @@ const navigate = useNavigate();
                     <PatientAssessmentView
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-05')}
+                      onNext={() => setBeforeStep('P2-07')}
+                    />
+                  )}
+                  {beforeStep === 'P2-07' && (
+                    <VascularAccessAssessmentView
+                      patientId={patient?.patient_id || patient?.id}
+                      onBack={() => setBeforeStep('P2-06')}
                       onNext={() => {
                         if (onStageChange) onStageChange('during');
                         setStage('during');
