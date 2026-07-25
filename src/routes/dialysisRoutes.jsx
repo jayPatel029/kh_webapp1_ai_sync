@@ -55,7 +55,7 @@ export const getDialysisRoutes = ({ guard, ROUTE_NAMES }) => [
         element: guard(
           <DialysisPatients />,
           ROUTE_NAMES.DIALYSIS_PATIENTS,
-          ['Dialysis Technician', 'Admin', 'PSadmin']
+          ['Dialysis Technician', 'Doctor', 'Medical Staff']
         ),
       },
       {

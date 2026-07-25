@@ -1,395 +1,324 @@
 /**
- * Dialysis Patients Queue Page
- * Queue-style UI for dialysis patients while preserving existing timeline/calendar flows.
+ * Dialysis Patients — P2-01 Queue / P2-02 Summary Container
+ * Renders the Today's Patient Queue (P2-01) or Patient Summary (P2-02)
+ * depending on whether a patient is selected via route state.
  *
  * @file src/pages/dialysis/DialysisPatients.jsx
  */
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Box, Input, Button } from '../../component-library';
-import { BaseModal } from '../../component-library/modals/BaseModal';
-import DialysisAppointmentsDashboard from '../adminDashboard/components/DialysisAppointmentsDashboard';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import UnifiedListTable from '../../components/table/UnifiedListTable';
-import PatientAppointmentTimeline from '../../components/PatientAppointmentTimeline';
-import { getPatients } from '../../ApiCalls/patientAPis';
-import { getAppointments } from '../../ApiCalls/clinicApis';
-import { useAdminToast } from '../../components/AdminToast';
+import useDialysisQueue from '../../hooks/useDialysisQueue';
+import PatientSummaryView from './PatientSummaryView';
 import { ROUTES } from '../../routes/routeConstants';
+import {
+  EMERGENCY_ACTION_ROLES,
+  SHIFT_LABELS,
+  QUEUE_STATUS_STYLES,
+  PRIORITY_COLORS,
+  KPI_TONES,
+  getStatusStyle,
+  normalizeStatus,
+} from './dialysisQueueConstants';
 
-const STATUS_STYLES = {
-  SCHEDULED: { bg: '#dbeafe', text: '#1d4ed8', label: 'Scheduled' },
-  BOOKED: { bg: '#dbeafe', text: '#1d4ed8', label: 'Scheduled' },
-  ARRIVED: { bg: '#ede9fe', text: '#7c3aed', label: 'Arrived' },
-  WAITING: { bg: '#fff7ed', text: '#d97706', label: 'Pending' },
-  IN_PROGRESS: { bg: '#fff7ed', text: '#d97706', label: 'In Progress' },
-  COMPLETED: { bg: '#ecfdf5', text: '#16a34a', label: 'Completed' },
-  CANCELLED: { bg: '#f3f4f6', text: '#6b7280', label: 'Cancelled' },
-  MISSED: { bg: '#fef2f2', text: '#dc2626', label: 'Delayed' },
-  PENDING: { bg: '#fef2f2', text: '#dc2626', label: 'Pending' },
-};
-
-const formatToday = () => new Date().toISOString().split('T')[0];
-
-const calculateAgeFromDOB = (dobString) => {
-  if (!dobString) return '—';
-  const today = new Date();
-  const birthDate = new Date(dobString);
-
-  if (Number.isNaN(birthDate.getTime())) return '—';
-
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age -= 1;
-  }
-
-  return age < 0 ? 0 : age;
-};
-
-const normalizeStatus = (status) => {
-  const normalized = String(status || 'PENDING').toUpperCase();
-  return normalized === 'CONFIRMED' ? 'BOOKED' : normalized;
-};
-
-const formatTime12Hour = (timeStr) => {
-  if (!timeStr) return '—';
-  try {
-    const parts = String(timeStr).split(':');
-    let h = parseInt(parts[0], 10);
-    const m = parts[1] || '00';
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    return `${String(h).padStart(2, '0')}:${m} ${ampm}`;
-  } catch {
-    return timeStr;
-  }
-};
-
-const normalizeAppointmentTime = (appointment) => {
-  const startTime = appointment?.start_time || appointment?.startTime;
-  if (startTime) return formatTime12Hour(startTime);
-  if (appointment?.startUTC) {
-    const timePart = String(appointment.startUTC).split('T')[1]?.slice(0, 8);
-    return formatTime12Hour(timePart);
-  }
-  return '—';
-};
-
-const deriveShiftLabel = (formattedTime) => {
-  if (!formattedTime || formattedTime === '—') return 'Pending';
-  const [timePart, period] = formattedTime.split(' ');
-  const [rawHour] = timePart.split(':').map(Number);
-  if (Number.isNaN(rawHour)) return 'Pending';
-
-  let hour = rawHour;
-  if (period === 'PM' && hour !== 12) hour += 12;
-  if (period === 'AM' && hour === 12) hour = 0;
-
-  if (hour < 11) return 'Morning';
-  if (hour < 15) return 'Mid-day';
-  if (hour < 19) return 'Evening';
-  return 'Night';
-};
-
-const isDialysisPatient = (patient) => {
-  const rawAilments = patient.ailments || patient.patient_ailments || patient.aliments || patient.medical_history || '';
-  const ailments = Array.isArray(rawAilments) ? rawAilments.join(', ') : String(rawAilments);
-  const normalized = ailments.toLowerCase();
-  return normalized.includes('dialysis') || normalized.includes('hemodialysis') || normalized.includes('hemo dialysis');
-};
-
-const pickPrimaryAppointment = (appointments) => {
-  if (!appointments.length) return null;
-
-  const order = {
-    IN_PROGRESS: 1,
-    WAITING: 2,
-    ARRIVED: 3,
-    BOOKED: 4,
-    SCHEDULED: 5,
-    COMPLETED: 6,
-    MISSED: 7,
-    CANCELLED: 8,
-  };
-
-  return [...appointments].sort((left, right) => {
-    const statusDelta = (order[normalizeStatus(left.status)] || 99) - (order[normalizeStatus(right.status)] || 99);
-    if (statusDelta !== 0) return statusDelta;
-    return String(left.start_time || left.startUTC || '').localeCompare(String(right.start_time || right.startUTC || ''));
-  })[0];
-};
-
-const derivePriority = (appointment) => {
-  const raw = appointment || {};
-  const status = normalizeStatus(raw.status);
-  if (raw.is_emergency || raw.priority === 'HIGH' || raw.severity === 'HIGH') return 'High';
-  if (['WAITING', 'IN_PROGRESS', 'ARRIVED'].includes(status)) return 'Medium';
-  return 'Low';
-};
-
-const deriveBed = (appointment) =>
-  appointment?.bed_number ||
-  appointment?.bedNo ||
-  appointment?.bed_id ||
-  appointment?.bedId ||
-  appointment?.bed?.bed_number ||
-  '—';
-
-const getStatusStyle = (status) => STATUS_STYLES[normalizeStatus(status)] || STATUS_STYLES.PENDING;
+// ---------------------------------------------------------------------------
+// QueueMetricCard — small KPI tile used in the metrics row
+// ---------------------------------------------------------------------------
 
 const QueueMetricCard = ({ value, label, tone }) => {
-  const tones = {
-    blue: { bg: '#eff6ff', border: '#bfdbfe', color: '#2563eb' },
-    green: { bg: '#ecfdf5', border: '#bbf7d0', color: '#16a34a' },
-    amber: { bg: '#fff7ed', border: '#fed7aa', color: '#d97706' },
-    red: { bg: '#fef2f2', border: '#fecaca', color: '#dc2626' },
-  };
-  const palette = tones[tone] || tones.blue;
+  const palette = KPI_TONES[tone] || KPI_TONES.blue;
 
   return (
-    <div style={{ background: palette.bg, border: `1px solid ${palette.border}`, borderRadius: '20px', padding: '18px' }}>
-      <div style={{ fontSize: '30px', fontWeight: 800, color: palette.color }}>{value}</div>
-      <div style={{ marginTop: '8px', fontSize: '14px', color: '#334155', fontWeight: 600 }}>{label}</div>
+    <div
+      style={{
+        background: palette.bg,
+        border: `1px solid ${palette.border}`,
+        borderRadius: '20px',
+        padding: '18px',
+      }}
+    >
+      <div style={{ fontSize: '30px', fontWeight: 800, color: palette.color }}>
+        {value}
+      </div>
+      <div style={{ marginTop: '8px', fontSize: '14px', color: '#334155', fontWeight: 600 }}>
+        {label}
+      </div>
     </div>
   );
 };
 
+// ---------------------------------------------------------------------------
+// Shift label helper — maps raw value to display text
+// ---------------------------------------------------------------------------
+
+const getShiftDisplayLabel = (value) => {
+  if (value === 'ALL') return 'All Shifts';
+  const match = SHIFT_LABELS.find((s) => s.value === value);
+  return match ? match.label : value;
+};
+
+// ---------------------------------------------------------------------------
+// DialysisPatients — P2-01 Queue / P2-02 Summary router
+// ---------------------------------------------------------------------------
+
 const DialysisPatients = () => {
   const { isMobile } = useIsMobile();
-  const { ToastContainer } = useAdminToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const roleName = useSelector((state) => state.permission?.role_name);
 
-  const [queueRows, setQueueRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedShift, setSelectedShift] = useState('ALL');
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
-  const [selectedBed, setSelectedBed] = useState('ALL');
-  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
-  const [selectedPatientId, setSelectedPatientId] = useState(null);
-  const [selectedPatientName, setSelectedPatientName] = useState('');
+  // If route state carries a patientId, render Patient Summary (P2-02)
+  const selectedPatientId = location.state?.patientId;
 
-  const fetchQueue = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const today = formatToday();
-      const [patientResult, appointmentResult] = await Promise.all([
-        getPatients(),
-        getAppointments({
-          from: `${today}T00:00:00Z`,
-          to: `${today}T23:59:59Z`,
-        }),
-      ]);
+  if (selectedPatientId) {
+    return (
+      <PatientSummaryView
+        patientId={selectedPatientId}
+        appointment={location.state?.appointment}
+        onBack={() => navigate(ROUTES.DIALYSIS_PATIENTS, { replace: true })}
+      />
+    );
+  }
 
-      if (!patientResult.success) {
-        setError(patientResult.error || 'Failed to fetch patients');
-        setLoading(false);
-        return;
-      }
+  // Otherwise render the Queue view (P2-01)
+  return <QueueView isMobile={isMobile} navigate={navigate} roleName={roleName} />;
+};
 
-      const allPatients = Array.isArray(patientResult.data?.data)
-        ? patientResult.data.data
-        : Array.isArray(patientResult.data)
-          ? patientResult.data
-          : [];
+// ---------------------------------------------------------------------------
+// QueueView — the P2-01 Today's Patient Queue
+// ---------------------------------------------------------------------------
 
-      const dialysisPatients = allPatients.filter(isDialysisPatient);
-      const appointmentRows = appointmentResult.success
-        ? (Array.isArray(appointmentResult.data?.data)
-          ? appointmentResult.data.data
-          : Array.isArray(appointmentResult.data)
-            ? appointmentResult.data
-            : [])
-        : [];
+const QueueView = ({ isMobile, navigate, roleName }) => {
+  const {
+    queueRows,
+    loading,
+    error,
+    refresh,
+    markEmergency,
+    searchQuery,
+    setSearchQuery,
+    selectedShift,
+    setSelectedShift,
+    selectedStatus,
+    setSelectedStatus,
+    selectedBed,
+    setSelectedBed,
+    shiftOptions,
+    statusOptions,
+    bedOptions,
+    totalPatients,
+    completedCount,
+    inProgressCount,
+    pendingCount,
+  } = useDialysisQueue();
 
-      const queueData = dialysisPatients.map((patient, index) => {
-        const matchingAppointments = appointmentRows.filter(
-          (appointment) => String(appointment.patient_id || appointment.patientId) === String(patient.id)
-        );
-        const primaryAppointment = pickPrimaryAppointment(matchingAppointments);
-        const status = primaryAppointment ? normalizeStatus(primaryAppointment.status || primaryAppointment.appointmentStatus) : 'PENDING';
-        const timeLabel = primaryAppointment ? normalizeAppointmentTime(primaryAppointment) : '—';
-        const shiftLabel = primaryAppointment ? deriveShiftLabel(timeLabel) : 'Pending';
-        const priority = derivePriority(primaryAppointment);
-        const ailment = Array.isArray(patient.ailments) ? patient.ailments.join(', ') : String(patient.ailments || patient.patient_ailments || 'Dialysis');
+  // ---- Navigate to Patient Summary ----
 
-        return {
-          id: patient.id,
-          queueIndex: index + 1,
-          patientCode: patient.patient_code || patient.patientCode || `P${String(patient.id).padStart(5, '0')}`,
-          name: patient.name || patient.patient_name || `Patient #${patient.id}`,
-          age: patient.age || patient.patient_age || calculateAgeFromDOB(patient.dob),
-          gender: patient.gender || patient.patient_gender || patient.sex || '—',
-          phone: patient.number || patient.phone_number || patient.phone || patient.mobile_no || patient.phone_no || '—',
-          status,
-          shiftLabel,
-          appointmentTime: timeLabel,
-          bedLabel: deriveBed(primaryAppointment),
-          priority,
-          ailment: ailment || 'Dialysis',
-          appointment: primaryAppointment,
-          raw: patient,
-        };
-      });
-
-      setQueueRows(queueData);
-    } catch (err) {
-      setError(err.message || 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchQueue();
-  }, [fetchQueue]);
-
-  const filteredRows = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
-    return queueRows.filter((row) => {
-      const matchesQuery = !query || [row.name, row.patientCode, row.phone, row.ailment]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
-      const matchesShift = selectedShift === 'ALL' || row.shiftLabel === selectedShift;
-      const matchesStatus = selectedStatus === 'ALL' || normalizeStatus(row.status) === selectedStatus;
-      const matchesBed = selectedBed === 'ALL' || row.bedLabel === selectedBed;
-      return matchesQuery && matchesShift && matchesStatus && matchesBed;
+  const goToSummary = (row) => {
+    navigate(ROUTES.DIALYSIS_PATIENTS, {
+      state: { patientId: row.id, appointment: row.appointment },
     });
-  }, [queueRows, searchQuery, selectedShift, selectedStatus, selectedBed]);
+  };
 
-  const shiftOptions = useMemo(() => ['ALL', ...Array.from(new Set(queueRows.map((row) => row.shiftLabel)))], [queueRows]);
-  const statusOptions = useMemo(() => ['ALL', ...Array.from(new Set(queueRows.map((row) => normalizeStatus(row.status))))], [queueRows]);
-  const bedOptions = useMemo(() => ['ALL', ...Array.from(new Set(queueRows.map((row) => row.bedLabel).filter((bed) => bed && bed !== '—')))], [queueRows]);
+  // ---- Column definitions ----
 
-  const totalPatients = filteredRows.length;
-  const completedCount = filteredRows.filter((row) => normalizeStatus(row.status) === 'COMPLETED').length;
-  const inProgressCount = filteredRows.filter((row) => normalizeStatus(row.status) === 'IN_PROGRESS').length;
-  const pendingCount = filteredRows.filter((row) => ['PENDING', 'WAITING', 'ARRIVED', 'MISSED', 'CANCELLED'].includes(normalizeStatus(row.status))).length;
-
-  const columns = [
-    {
-      key: 'queueIndex',
-      label: '#',
-      type: 'custom',
-      width: '56px',
-      render: (row) => <div style={{ fontWeight: 700, color: '#334155', fontSize: '14px' }}>{row.queueIndex}</div>,
-    },
-    {
-      key: 'patient',
-      label: 'PATIENT',
-      type: 'custom',
-      width: '320px',
-      render: (row) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-          <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>{row.name}</div>
-          <div style={{ fontSize: '12px', color: '#64748b' }}>PID: {row.patientCode}</div>
-          <div style={{ fontSize: '12px', color: '#475569' }}>
-            {row.gender} · {row.age} · {row.phone}
+  const columns = useMemo(
+    () => [
+      {
+        key: 'queueIndex',
+        label: '#',
+        type: 'custom',
+        width: '56px',
+        render: (row) => (
+          <div style={{ fontWeight: 700, color: '#334155', fontSize: '14px' }}>
+            {row.queueIndex}
           </div>
-        </div>
-      ),
-    },
-    {
-      key: 'shift',
-      label: 'SHIFT / TIME',
-      type: 'custom',
-      width: '150px',
-      render: (row) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>{row.shiftLabel}</span>
-          <span style={{ fontSize: '12px', color: '#64748b' }}>{row.appointmentTime}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'bed',
-      label: 'BED',
-      type: 'custom',
-      width: '100px',
-      render: (row) => <span style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>{row.bedLabel}</span>,
-    },
-    {
-      key: 'status',
-      label: 'STATUS',
-      type: 'custom',
-      width: '140px',
-      render: (row) => {
-        const style = getStatusStyle(row.status);
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minWidth: '108px',
-              padding: '6px 12px',
-              borderRadius: '9999px',
-              background: style.bg,
-              color: style.text,
-              fontSize: '12px',
-              fontWeight: 700,
-            }}
-          >
-            {style.label}
+        ),
+      },
+      {
+        key: 'patient',
+        label: 'PATIENT',
+        type: 'custom',
+        width: '320px',
+        render: (row) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>{row.name}</div>
+            <div style={{ fontSize: '12px', color: '#64748b' }}>PID: {row.patientCode}</div>
+            <div style={{ fontSize: '12px', color: '#475569' }}>
+              {row.gender} · {row.age} · {row.phone}
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: 'shift',
+        label: 'SHIFT / TIME',
+        type: 'custom',
+        width: '150px',
+        render: (row) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+              {row.shiftLabel}
+            </span>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>{row.appointmentTime}</span>
+          </div>
+        ),
+      },
+      {
+        key: 'bed',
+        label: 'BED',
+        type: 'custom',
+        width: '100px',
+        render: (row) => (
+          <span style={{ fontSize: '14px', fontWeight: 700, color: '#334155' }}>
+            {row.bedLabel}
           </span>
-        );
+        ),
       },
-    },
-    {
-      key: 'priority',
-      label: 'PRIORITY',
-      type: 'custom',
-      width: '120px',
-      render: (row) => {
-        const color = row.priority === 'High' ? '#ef4444' : row.priority === 'Medium' ? '#f59e0b' : '#10b981';
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-            <span style={{ width: '9px', height: '9px', borderRadius: '9999px', background: color }} />
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{row.priority}</span>
-          </div>
-        );
+      {
+        key: 'status',
+        label: 'STATUS',
+        type: 'custom',
+        width: '140px',
+        render: (row) => {
+          const style = getStatusStyle(row.status);
+          return (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '108px',
+                padding: '6px 12px',
+                borderRadius: '9999px',
+                background: style.bg,
+                color: style.text,
+                fontSize: '12px',
+                fontWeight: 700,
+              }}
+            >
+              {style.label}
+            </span>
+          );
+        },
       },
-    },
-    {
-      key: 'actions',
-      label: 'ACTIONS',
-      type: 'custom',
-      width: '180px',
-      render: (row) => (
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedPatientId(row.id);
-              setSelectedPatientName(row.name);
-              setIsTimelineOpen(true);
+      {
+        key: 'priority',
+        label: 'PRIORITY',
+        type: 'custom',
+        width: '120px',
+        render: (row) => {
+          const dotColor = PRIORITY_COLORS[row.priority] || PRIORITY_COLORS.Low;
+          return (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                justifyContent: 'center',
+              }}
+            >
+              <span
+                style={{
+                  width: '9px',
+                  height: '9px',
+                  borderRadius: '9999px',
+                  background: dotColor,
+                }}
+              />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                {row.priority}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        key: 'actions',
+        label: 'ACTIONS',
+        type: 'custom',
+        width: '180px',
+        render: (row) => (
+          <div
+            style={{
+              display: 'flex',
+              gap: '8px',
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexWrap: 'wrap',
             }}
-            style={{ width: '34px', height: '34px', borderRadius: '10px', border: '1px solid #dbeafe', background: '#eff6ff', color: '#2563eb', cursor: 'pointer', fontSize: '15px' }}
-            title="Timeline"
           >
-            👁
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate(ROUTES.userProfile(row.id), { state: row.raw })}
-            style={{ width: '34px', height: '34px', borderRadius: '10px', border: '1px solid #dbeafe', background: '#fff', color: '#2563eb', cursor: 'pointer', fontSize: '18px', fontWeight: 700 }}
-            title="Open full profile"
-          >
-            →
-          </button>
-        </div>
-      ),
-    },
-  ];
+            {/* View — opens patient summary */}
+            <button
+              type="button"
+              onClick={() => goToSummary(row)}
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
+                border: '1px solid #dbeafe',
+                background: '#eff6ff',
+                color: '#2563eb',
+                cursor: 'pointer',
+                fontSize: '15px',
+              }}
+              title="View patient summary"
+            >
+              👁
+            </button>
+
+            {/* Proceed — also opens patient summary */}
+            <button
+              type="button"
+              onClick={() => goToSummary(row)}
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
+                border: '1px solid #dbeafe',
+                background: '#fff',
+                color: '#2563eb',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: 700,
+              }}
+              title="Proceed to summary"
+            >
+              →
+            </button>
+
+            {/* Mark Emergency — role-gated */}
+            {EMERGENCY_ACTION_ROLES.includes(roleName) && (
+              <button
+                type="button"
+                onClick={() => markEmergency(row.appointmentId)}
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '10px',
+                  border: '1px solid #fed7aa',
+                  background: '#fff7ed',
+                  color: '#d97706',
+                  cursor: 'pointer',
+                  fontSize: '15px',
+                }}
+                title="Mark as emergency"
+              >
+                ⚡
+              </button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    [roleName, markEmergency] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   return (
     <ThemeProvider>
@@ -404,8 +333,20 @@ const DialysisPatients = () => {
           />
         </Box>
 
-        <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : ''}`} style={{ background: '#f8fafc' }}>
-          <div style={{ maxWidth: '1320px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <div
+          className={`admin-page-content ${isMobile ? 'px-3 pb-20' : ''}`}
+          style={{ background: '#f8fafc' }}
+        >
+          <div
+            style={{
+              maxWidth: '1320px',
+              margin: '0 auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '18px',
+            }}
+          >
+            {/* ---- Header Card ---- */}
             <div
               style={{
                 background: '#fff',
@@ -415,11 +356,22 @@ const DialysisPatients = () => {
                 boxShadow: '0 15px 35px rgba(15, 23, 42, 0.04)',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'stretch' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: '14px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: isMobile ? 'stretch' : 'center',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  gap: '14px',
+                }}
+              >
                 <div>
-                  <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>Today's Patient Queue</div>
+                  <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
+                    Today's Patient Queue
+                  </div>
                   <div style={{ marginTop: '4px', color: '#64748b', fontSize: '14px' }}>
-                    Dialysis patient list restructured into the queue layout, with existing timeline and profile access preserved.
+                    Appointment-driven dialysis queue for today. View patient summaries, track
+                    progress, and manage emergencies.
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -437,21 +389,34 @@ const DialysisPatients = () => {
                       fontWeight: 600,
                     }}
                   >
-                    {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    {new Date().toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
                   </div>
-                  <Button variant="outline" onClick={fetchQueue}>Refresh</Button>
-                  <Button variant="outline" onClick={() => setIsDashboardOpen(true)}>Overall Calendar View</Button>
+                  <Button variant="outline" onClick={refresh}>
+                    Refresh
+                  </Button>
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))', gap: '14px' }}>
+            {/* ---- KPI Row ---- */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))',
+                gap: '14px',
+              }}
+            >
               <QueueMetricCard value={totalPatients} label="Total Patients" tone="blue" />
               <QueueMetricCard value={completedCount} label="Completed" tone="green" />
               <QueueMetricCard value={inProgressCount} label="In Progress" tone="amber" />
               <QueueMetricCard value={pendingCount} label="Pending / Delayed" tone="red" />
             </div>
 
+            {/* ---- Filter Bar ---- */}
             <div
               style={{
                 background: '#fff',
@@ -461,50 +426,143 @@ const DialysisPatients = () => {
                 boxShadow: '0 15px 35px rgba(15, 23, 42, 0.04)',
               }}
             >
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(220px, 1.2fr) repeat(3, minmax(150px, 0.8fr))', gap: '12px', alignItems: 'end' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isMobile
+                    ? '1fr'
+                    : 'minmax(220px, 1.2fr) repeat(3, minmax(150px, 0.8fr))',
+                  gap: '12px',
+                  alignItems: 'end',
+                }}
+              >
+                {/* Search */}
                 <div>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, marginBottom: '6px' }}>Search</div>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      color: '#64748b',
+                      fontWeight: 700,
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Search
+                  </div>
                   <Input
                     type="text"
-                    placeholder="Search by name, ID, phone, ailment..."
+                    placeholder="Search by name or ID"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     style={{ margin: 0 }}
                   />
                 </div>
+
+                {/* Shift */}
                 <div>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, marginBottom: '6px' }}>Shift</div>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      color: '#64748b',
+                      fontWeight: 700,
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Shift
+                  </div>
                   <select
                     value={selectedShift}
                     onChange={(e) => setSelectedShift(e.target.value)}
-                    style={{ width: '100%', height: '40px', borderRadius: '10px', border: '1px solid #d1d5db', padding: '0 12px', background: '#fff', fontSize: '14px' }}
+                    style={{
+                      width: '100%',
+                      height: '40px',
+                      borderRadius: '10px',
+                      border: '1px solid #d1d5db',
+                      padding: '0 12px',
+                      background: '#fff',
+                      fontSize: '14px',
+                    }}
                   >
-                    {shiftOptions.map((option) => <option key={option} value={option}>{option === 'ALL' ? 'All Shifts' : option}</option>)}
+                    {shiftOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {getShiftDisplayLabel(option)}
+                      </option>
+                    ))}
                   </select>
                 </div>
+
+                {/* Status */}
                 <div>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, marginBottom: '6px' }}>Status</div>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      color: '#64748b',
+                      fontWeight: 700,
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Status
+                  </div>
                   <select
                     value={selectedStatus}
                     onChange={(e) => setSelectedStatus(e.target.value)}
-                    style={{ width: '100%', height: '40px', borderRadius: '10px', border: '1px solid #d1d5db', padding: '0 12px', background: '#fff', fontSize: '14px' }}
+                    style={{
+                      width: '100%',
+                      height: '40px',
+                      borderRadius: '10px',
+                      border: '1px solid #d1d5db',
+                      padding: '0 12px',
+                      background: '#fff',
+                      fontSize: '14px',
+                    }}
                   >
-                    {statusOptions.map((option) => <option key={option} value={option}>{option === 'ALL' ? 'All Status' : getStatusStyle(option).label}</option>)}
+                    {statusOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option === 'ALL' ? 'All Status' : getStatusStyle(option).label}
+                      </option>
+                    ))}
                   </select>
                 </div>
+
+                {/* Bed */}
                 <div>
-                  <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, marginBottom: '6px' }}>Bed</div>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      color: '#64748b',
+                      fontWeight: 700,
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Bed
+                  </div>
                   <select
                     value={selectedBed}
                     onChange={(e) => setSelectedBed(e.target.value)}
-                    style={{ width: '100%', height: '40px', borderRadius: '10px', border: '1px solid #d1d5db', padding: '0 12px', background: '#fff', fontSize: '14px' }}
+                    style={{
+                      width: '100%',
+                      height: '40px',
+                      borderRadius: '10px',
+                      border: '1px solid #d1d5db',
+                      padding: '0 12px',
+                      background: '#fff',
+                      fontSize: '14px',
+                    }}
                   >
-                    {bedOptions.map((option) => <option key={option} value={option}>{option === 'ALL' ? 'All Beds' : option}</option>)}
+                    {bedOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option === 'ALL' ? 'All Beds' : option}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
             </div>
 
+            {/* ---- Data Table ---- */}
             <div
               style={{
                 background: '#fff',
@@ -515,25 +573,34 @@ const DialysisPatients = () => {
               }}
             >
               {loading ? (
-                <div className="flex items-center justify-center" style={{ minHeight: '240px' }}>
+                <div
+                  className="flex items-center justify-center"
+                  style={{ minHeight: '240px' }}
+                >
                   <p style={{ color: '#6B7280' }}>Loading patient queue...</p>
                 </div>
               ) : error ? (
-                <div className="flex flex-col items-center justify-center" style={{ minHeight: '240px', gap: '12px' }}>
+                <div
+                  className="flex flex-col items-center justify-center"
+                  style={{ minHeight: '240px', gap: '12px' }}
+                >
                   <p style={{ color: '#DC2626' }}>{error}</p>
-                  <Button variant="outline" onClick={fetchQueue}>Retry</Button>
+                  <Button variant="outline" onClick={refresh}>
+                    Retry
+                  </Button>
                 </div>
               ) : (
                 <UnifiedListTable
                   columns={columns}
-                  data={filteredRows}
-                  emptyMessage="No dialysis patients found for the queue"
+                  data={queueRows}
+                  emptyMessage="No patients scheduled for today"
                   displayMode="table"
                   rowsPerPage={10}
                 />
               )}
             </div>
 
+            {/* ---- Footer Legend ---- */}
             <div
               style={{
                 background: '#fff',
@@ -547,31 +614,85 @@ const DialysisPatients = () => {
               }}
             >
               <div>
-                <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '10px' }}>Status Legend</div>
-                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', color: '#475569', fontSize: '13px' }}>
+                <div
+                  style={{
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                    marginBottom: '10px',
+                  }}
+                >
+                  Status Legend
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '16px',
+                    flexWrap: 'wrap',
+                    color: '#475569',
+                    fontSize: '13px',
+                  }}
+                >
                   {[
                     ['Scheduled', '#2563eb'],
                     ['Pending', '#ef4444'],
                     ['In Progress', '#f59e0b'],
                     ['Completed', '#10b981'],
                   ].map(([label, color]) => (
-                    <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '9999px', background: color }} />
+                    <span
+                      key={label}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <span
+                        style={{
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '9999px',
+                          background: color,
+                        }}
+                      />
                       {label}
                     </span>
                   ))}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '10px' }}>Priority</div>
-                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', color: '#475569', fontSize: '13px' }}>
+                <div
+                  style={{
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    color: '#0f172a',
+                    marginBottom: '10px',
+                  }}
+                >
+                  Priority
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '16px',
+                    flexWrap: 'wrap',
+                    color: '#475569',
+                    fontSize: '13px',
+                  }}
+                >
                   {[
                     ['High', '#ef4444'],
                     ['Medium', '#f59e0b'],
                     ['Low', '#10b981'],
                   ].map(([label, color]) => (
-                    <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '9999px', background: color }} />
+                    <span
+                      key={label}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <span
+                        style={{
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '9999px',
+                          background: color,
+                        }}
+                      />
                       {label}
                     </span>
                   ))}
@@ -580,26 +701,6 @@ const DialysisPatients = () => {
             </div>
           </div>
         </div>
-
-        <BaseModal
-          isOpen={isDashboardOpen}
-          onClose={() => setIsDashboardOpen(false)}
-          title="Dialysis Booking Dashboard"
-          size="full"
-        >
-          <DialysisAppointmentsDashboard clinicId={1} />
-        </BaseModal>
-
-        <BaseModal
-          isOpen={isTimelineOpen}
-          onClose={() => setIsTimelineOpen(false)}
-          title={`${selectedPatientName} - Appointment Timeline`}
-          size="xl"
-        >
-          {selectedPatientId ? <PatientAppointmentTimeline patientId={selectedPatientId} /> : null}
-        </BaseModal>
-
-        <ToastContainer />
       </Box>
     </ThemeProvider>
   );
