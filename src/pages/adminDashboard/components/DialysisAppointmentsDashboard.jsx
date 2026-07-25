@@ -128,16 +128,16 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
     };
 
     return (
-        <Box className="flex flex-col gap-6 p-4 h-full" style={{ maxHeight: '90vh' }}>
+        <Box className="flex flex-col gap-6 p-4 h-full" style={{ maxHeight: '90vh', background: '#f8fafc' }}>
             {/* Controls */}
-            <Box className="bg-white shadow-lg border border-gray-100 rounded-3xl p-6">
+            <Box className="bg-white shadow-lg border border-blue-100 rounded-3xl p-6" style={{ boxShadow: '0 18px 40px rgba(37, 99, 235, 0.08)' }}>
                 <Flex direction="column" gap={4}>
                     <Flex justify="between" align="center" className="flex-wrap gap-4">
                         <Box>
                             <Heading size="lg" fontWeight="800" color="gray.900">Dialysis Scheduler</Heading>
-                            <Text color="gray.500" fontSize="sm" fontWeight="600">Hour-wise clinical occupancy tracking</Text>
+                            <Text color="gray.500" fontSize="sm" fontWeight="600">Use the queue-friendly calendar to book, inspect, and hand off dialysis sessions.</Text>
                         </Box>
-                        <Flex gap={4} align="center" className="bg-gray-50 p-2 rounded-2xl">
+                        <Flex gap={4} align="center" className="bg-blue-50 p-2 rounded-2xl">
                             <Box>
                                 <Text fontSize="9px" fontWeight="900" color="gray.400" textTransform="uppercase" ml={2}>Start Date</Text>
                                 <Input variant="unstyled" px={2} size="xs" type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} fontWeight="700" color="blue.600" />
@@ -155,7 +155,7 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
                             <select 
                                 value={selectedOrgId} 
                                 onChange={e => { setSelectedOrgId(e.target.value); setSelectedClinicId(''); }}
-                                style={{ width: '100%', height: '40px', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '0 12px', fontSize: '14px', fontWeight: '600', backgroundColor: '#fff' }}
+                                style={{ width: '100%', height: '42px', borderRadius: '14px', border: '1px solid #DBEAFE', padding: '0 12px', fontSize: '14px', fontWeight: '600', backgroundColor: '#fff' }}
                             >
                                 <option value="">Select Organization</option>
                                 {organizations.map(org => (<option key={org.id} value={org.id}>{org.name}</option>))}
@@ -166,18 +166,31 @@ const DialysisAppointmentsDashboard = ({ clinicId: initialClinicId, onSelectSlot
                                 value={selectedClinicId} 
                                 onChange={e => setSelectedClinicId(e.target.value)}
                                 disabled={!selectedOrgId}
-                                style={{ width: '100%', height: '40px', borderRadius: '12px', border: '1px solid #E5E7EB', padding: '0 12px', fontSize: '14px', fontWeight: '600', backgroundColor: selectedOrgId ? '#fff' : '#f9fafb' }}
+                                style={{ width: '100%', height: '42px', borderRadius: '14px', border: '1px solid #DBEAFE', padding: '0 12px', fontSize: '14px', fontWeight: '600', backgroundColor: selectedOrgId ? '#fff' : '#f9fafb' }}
                             >
                                 <option value="">Select Clinic</option>
                                 {clinics.map(clinic => (<option key={clinic.id} value={clinic.id}>{clinic.clinic_name || clinic.name}</option>))}
                             </select>
                         </FormControl>
                     </Flex>
+
+                    <Flex gap={3} wrap="wrap">
+                        {[
+                            { label: 'Blue blocks', value: 'Appointments' },
+                            { label: 'Outlined slots', value: 'Available capacity' },
+                            { label: 'Date window', value: `${dayList.length} day${dayList.length === 1 ? '' : 's'}` },
+                        ].map((item) => (
+                            <Box key={item.label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '9999px', padding: '8px 12px' }}>
+                                <Text fontSize="11px" color="gray.500" fontWeight="700" textTransform="uppercase">{item.label}</Text>
+                                <Text fontSize="13px" color="gray.800" fontWeight="700">{item.value}</Text>
+                            </Box>
+                        ))}
+                    </Flex>
                 </Flex>
             </Box>
 
             {/* Scheduler Grid Wrapper - Handles Horizontal Scroll */}
-            <Box className="bg-white shadow-xl border border-gray-100 rounded-3xl flex flex-col flex-1 overflow-hidden">
+            <Box className="bg-white shadow-xl border border-gray-100 rounded-3xl flex flex-col flex-1 overflow-hidden" style={{ boxShadow: '0 20px 50px rgba(15, 23, 42, 0.08)' }}>
                 <Box className="flex-1 overflow-x-auto">
                     <Box style={{ minWidth: `${(dayList.length * 250) + 80}px`, display: 'flex', flexDirection: 'column', height: '100%' }}>
                         {selectedClinicId ? (
