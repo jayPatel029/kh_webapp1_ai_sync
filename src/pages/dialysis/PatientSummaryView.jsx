@@ -107,7 +107,7 @@ const KVRow = ({ label, value }) => (
 // Main component
 // ---------------------------------------------------------------------------
 
-const PatientSummaryView = ({ patientId, appointment, onBackToQueue }) => {
+const PatientSummaryView = ({ patientId, appointment, onBackToQueue, onProceedToPreDialysis }) => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
   const roleName = useSelector((state) => state.permission?.role_name);
@@ -177,9 +177,13 @@ const PatientSummaryView = ({ patientId, appointment, onBackToQueue }) => {
 
   const handleProceedToPreDialysis = () => {
     if (hasActivePrescription) {
-      navigate(ROUTES.DIALYSIS_PATIENTS, {
-        state: { patientId, view: 'dashboard', step: 'P2-03', patient: patientBanner?.raw },
-      });
+      if (onProceedToPreDialysis) {
+        onProceedToPreDialysis();
+      } else {
+        navigate(ROUTES.DIALYSIS_PATIENTS, {
+          state: { patientId, view: 'dashboard', step: 'P2-03', patient: patientBanner?.raw },
+        });
+      }
     }
   };
 

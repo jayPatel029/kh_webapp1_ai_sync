@@ -240,7 +240,7 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
       <Box className="flex-1 flex flex-col min-w-0 bg-[#F9FAFB]">
         {/* Sticky Header */}
         <Box className="sticky top-[56px] z-20 bg-white shadow-sm">
-          <PageHeader
+          {/* <PageHeader
             title="P2-03 – Pre-Dialysis Dashboard"
             subtitle="Ensure all safety checks and assessments are completed before starting dialysis"
             breadcrumbs={[
@@ -248,7 +248,7 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
               { label: 'Patient Summary', onClick: handleBackClick },
               { label: 'Pre-Dialysis Dashboard', active: true },
             ]}
-          />
+          /> */}
         </Box>
 
         <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : 'p-6'}`}>

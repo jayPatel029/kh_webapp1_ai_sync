@@ -14,6 +14,14 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+
+import PreDialysisDashboardView from '../../dialysis/PreDialysisDashboardView';
+import PatientVerificationView from '../../dialysis/PatientVerificationView';
+import VitalsMeasurementsView from '../../dialysis/VitalsMeasurementsView';
+import PatientAssessmentView from '../../dialysis/PatientAssessmentView';
+
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../../routes/routeConstants';
 import {
   Box,
   Button,
@@ -417,6 +425,9 @@ export default function DialysisParametersModal({
   demoData = null,
   demoAutoOpenFirstParameter = false,
 }) {
+  
+  const [beforeStep, setBeforeStep] = useState('P2-03');
+const navigate = useNavigate();
   const [stage, setStage] = useState('before'); // 'before', 'during', 'after'
   const [completePatientData, setCompletePatientData] = useState(null);
   const [dialysisReadings, setDialysisReadings] = useState(null);
@@ -1365,362 +1376,111 @@ export default function DialysisParametersModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="full" isCentered scrollBehavior="inside">
       <ModalOverlay />
-      <ModalContent maxH="88vh" className="dialysis-modal__content" style={{ width: '95vw', maxWidth: '100vw' }}>
-        <ModalHeader className="dialysis-modal__header">
-          <VStack align="start" spacing={3} width="100%">
-            <Box className="dialysis-modal__title-group">
-              <Heading as="h2" size="lg" className="dialysis-modal__title">
-                Dialysis Session Management
-              </Heading>
-              {/* <ModalCloseButton className="dialysis-modal__close-button" /> */}
-            </Box>
+      
+      <ModalContent bg="#F9FAFB" className="dialysis-modal__content m-0 max-w-[100vw] h-[100vh] rounded-none">
+        {/* Top Navigation Tabs */}
+        <Box className="bg-white border-b border-gray-200 px-6 pt-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+          <HStack spacing={8}>
+            <button 
+              className={`pb-4 px-2 font-bold text-sm border-b-2 transition-colors ${stage === 'before' ? 'border-[#4164df] text-[#4164df]' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
+              onClick={() => setStage('before')}
+            >
+              Pre-Dialysis
+            </button>
+            <button 
+              className={`pb-4 px-2 font-bold text-sm border-b-2 transition-colors ${stage === 'during' ? 'border-[#4164df] text-[#4164df]' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
+              onClick={() => setStage('during')}
+            >
+              Session Monitoring
+            </button>
+            <button 
+              className={`pb-4 px-2 font-bold text-sm border-b-2 transition-colors ${stage === 'after' ? 'border-[#4164df] text-[#4164df]' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
+              onClick={() => setStage('after')}
+            >
+              Post-Dialysis
+            </button>
+          </HStack>
+          
+          <HStack spacing={4} pb={2}>
+            {stage === 'during' && (
+              <HStack spacing={2}>
+                <Button size="sm" variant="outline" colorScheme="warning" onClick={() => handleOpenAbort(false)}>
+                  Abort
+                </Button>
+                <Button size="sm" colorScheme="red" onClick={() => handleOpenAbort(true)} fontWeight="bold">
+                  🚨 Emergency
+                </Button>
+              </HStack>
+            )}
+            {isSaving && (
+              <Badge colorScheme="info" variant="solid" px={3} py={1} borderRadius="full">
+                {savingMessage || 'Saving…'}
+              </Badge>
+            )}
+            <ModalCloseButton position="static" />
+          </HStack>
+        </Box>
 
-            <Box className="dialysis-modal__header-summary">
-              <div className="dialysis-modal__summary-pill">
-                <span className="dialysis-modal__summary-label">Patient</span>
-                <span className="dialysis-modal__summary-value">
-                  {completePatientData?.name || patient?.patient_id || '—'}
-                </span>
-              </div>
-              <div className="dialysis-modal__summary-pill">
-                <span className="dialysis-modal__summary-label">Duration</span>
-                <span className="dialysis-modal__summary-value">
-                  {stage === 'during' ? (
-                    <span style={{ color: timeLeft < 300 ? '#ef4444' : '#f59e0b', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                      {formatTimeLeft(timeLeft)}
-                    </span>
-                  ) : (
-                    currentAppointment?.start_time && currentAppointment?.end_time
-                      ? (() => {
-                        const s = currentAppointment.start_time.split(':');
-                        const e = currentAppointment.end_time.split(':');
-                        let diff = (parseInt(e[0], 10) * 60 + parseInt(e[1], 10)) - (parseInt(s[0], 10) * 60 + parseInt(s[1], 10));
-                        if (diff < 0) diff += 24 * 60;
-                        const h = Math.floor(diff / 60);
-                        const m = diff % 60;
-                        return h > 0 ? `${h}h ${m}m` : `${m}m`;
-                      })()
-                      : '—'
-                  )}
-                </span>
-              </div>
-              <div className="dialysis-modal__summary-pill">
-                <span className="dialysis-modal__summary-label">Bed</span>
-                <span className="dialysis-modal__summary-value">
-                  {bed?.bed_number || '—'}
-                </span>
-              </div>
-              <div className="dialysis-modal__summary-pill">
-                <span className="dialysis-modal__summary-label">Appt Status</span>
-                <span className="dialysis-modal__summary-value">
-                  {/* Status badge + small selector */}
-                  {/** Render current status badge */}
-                  {(() => {
-                    const status = appointmentStatus || currentAppointment?.status || patient?.appointment_status || '—';
-                    const badgeStyle = ({
-                      ACTIVE: { background: '#10B981', color: '#fff' }, // green
-                      WAIT_LISTED: { background: '#00CCCC', color: '#fff' }, // cyan
-                      VACATION: { background: '#F59E0B', color: '#fff' }, // turmeric/amber
-                      DECEASED: { background: '#EF4444', color: '#fff' }, // red
-                      LEFT: { background: '#DC2626', color: '#fff' }, // red
-                      HOSPITALIZED: { background: '#F59E0B', color: '#fff' },
-                    }[status] || {});
-
-                    return (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 700, ...badgeStyle }}>
-                          {String(status).replaceAll('_', ' ')}
-                        </span>
-                        <Select
-                          size="xs"
-                          width="160px"
-                          value={appointmentStatus || currentAppointment?.status || patient?.appointment_status || ''}
-                          onChange={(e) => {
-                            const next = e.target.value;
-                            // For VACATION, DECEASED, LEFT, HOSPITALIZED open modal to collect extra data
-                            if (['VACATION', 'DECEASED', 'LEFT', 'HOSPITALIZED'].includes(next)) {
-                              setStatusModal({ isOpen: true, status: next, reason: '', durationDays: '' });
-                            } else {
-                              // immediate apply for ACTIVE and WAIT_LISTED
-                              (async () => {
-                                try {
-                                  if (!patient?.appointment_id) throw new Error('No appointment to update');
-                                  const res = await updateAppointment(patient.appointment_id, { status: next });
-                                  if (res.success) {
-                                    setAppointmentStatus(next);
-                                    setCurrentAppointment(prev => ({ ...(prev || {}), status: next }));
-                                    showToast && showToast(`Appointment set to ${next}`, 'success');
-                                  } else {
-                                    throw new Error(res.data?.message || 'Failed to update appointment');
-                                  }
-                                } catch (err) {
-                                  console.error('Failed to change appointment status:', err);
-                                  alert(err?.message || 'Failed to update appointment status');
-                                }
-                              })();
-                            }
-                          }}
-                        >
-                          <option value="">Select status</option>
-                          <option value="ACTIVE">ACTIVE</option>
-                          <option value="WAIT_LISTED">WAIT_LISTED</option>
-                          <option value="VACATION">VACATION (set duration)</option>
-                          <option value="DECEASED">DECEASED</option>
-                          <option value="LEFT">LEFT</option>
-                          <option value="HOSPITALIZED">HOSPITALIZED</option>
-                        </Select>
-                      </span>
-                    );
-                  })()}
-                </span>
-              </div>
-              <div className="dialysis-modal__summary-pill dialysis-modal__summary-pill--stage">
-                <span className="dialysis-modal__summary-label">Stage</span>
-                <Badge
-                  colorScheme={
-                    stage === 'before' ? 'info' : stage === 'during' ? 'warning' : 'success'
-                  }
-                  variant="solid"
-                >
-                  {stage === 'before'
-                    ? 'Before Dialysis'
-                    : stage === 'during'
-                    ? 'During Dialysis'
-                    : 'After Dialysis'}
-                </Badge>
-              </div>
-              {/* Abort controls — only relevant while dialysis is running */}
-              {stage === 'during' && (
-                <HStack spacing={2} ml="auto">
-                  <Button size="xs" variant="outline" colorScheme="warning" onClick={() => handleOpenAbort(false)}>
-                    Abort
-                  </Button>
-                  <Button size="xs" colorScheme="red" onClick={() => handleOpenAbort(true)} fontWeight="bold">
-                    🚨 Emergency
-                  </Button>
-                </HStack>
-              )}
-              {/* Saving indicator in header */}
-              {isSaving && (
-                <div className="dialysis-modal__saving-banner">
-                  <span className="dialysis-modal__saving-dot" />
-                  {savingMessage || 'Saving…'}
-                </div>
-              )}
-            </Box>
-          </VStack>
-          <ModalCloseButton
-            onClick={onClose} />
-        </ModalHeader>
-
-        <ModalBody py={6} className="dialysis-modal__body">
+        <ModalBody p={0} className="dialysis-modal__body bg-[#F9FAFB] overflow-y-auto overflow-x-hidden">
           {loadingData ? (
-            <VStack spacing={4} justify="center" align="center" minH="300px">
+            <VStack spacing={4} justify="center" align="center" minH="300px" pt={20}>
               <div className="dialysis-modal__loader" />
               <Text fontSize="sm" color="slate.500" fontWeight="500">Loading patient data…</Text>
             </VStack>
           ) : (
-            <Box className="dialysis-modal__workspace">
-              <Box className="dialysis-modal__main-layout">
-                {/* LEFT SIDEBAR: Patient Info */}
-                <Box flex={2.5} className="dialysis-modal__left-sidebar">
+            <Box w="full" h="full">
+              {stage === 'before' && (
+                <Box w="full" h="full">
+                  {beforeStep === 'P2-03' && (
+                    <PreDialysisDashboardView
+                      patientId={patient?.patient_id || patient?.id}
+                      onBack={onClose}
+                      onNavigateStep={setBeforeStep}
+                    />
+                  )}
+                  {beforeStep === 'P2-04' && (
+                    <PatientVerificationView
+                      patientId={patient?.patient_id || patient?.id}
+                      onBack={() => setBeforeStep('P2-03')}
+                      onNext={() => setBeforeStep('P2-05')}
+                    />
+                  )}
+                  {beforeStep === 'P2-05' && (
+                    <VitalsMeasurementsView
+                      patientId={patient?.patient_id || patient?.id}
+                      onBack={() => setBeforeStep('P2-04')}
+                      onNext={() => setBeforeStep('P2-06')}
+                    />
+                  )}
+                  {beforeStep === 'P2-06' && (
+                    <PatientAssessmentView
+                      patientId={patient?.patient_id || patient?.id}
+                      onBack={() => setBeforeStep('P2-05')}
+                      onNext={() => {
+                        if (onStageChange) onStageChange('during');
+                        setStage('during');
+                      }}
+                    />
+                  )}
+                </Box>
+              )}
+
+              {stage !== 'before' && (
+                <Box className="dialysis-modal__workspace" p={6}>
+                  <Box className="dialysis-modal__main-layout" display="flex" gap={6}>
+                    <Box flex={2.5} className="dialysis-modal__left-sidebar">
                   <PatientProfileCard 
                     userData={completePatientData || patient} 
                     role={{ role_name: 'Medical Staff' }} 
                     showAilmentDetails={false} 
                   />
                 </Box>
-
-                {/* CENTER AREA: Session Stages */}
-                <VStack flex={6.5} align="stretch" spacing={6} className="dialysis-modal__center-content">
-
-                    {/* SESSION STAGES ACCORDION — key forces re-mount with correct open panel on stage change */}
-                    <Accordion key={stage} defaultIndex={stage === 'before' ? 0 : stage === 'during' ? 1 : 2}>
-                      {/* BEFORE DIALYSIS */}
-                      <AccordionItem
-                        title="Before Dialysis Assessment"
-                        badge="STEP 1"
-                        badgeColor="info"
-                        className="dialysis-modal__accordion-item"
-                      >
-                        <VStack spacing={6} align="stretch">
-                        <Box className="dialysis-modal__step1-layout">
-                          {/* 1. Checklist (Actual API Data) */}
-                            {orgConfig.hasChecklists && (
-                              <VStack flex={1} align="stretch" spacing={3}>
-                                <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Checklist</Heading>
-                                <Box className="dialysis-modal__checklist-container" p={4} bg="slate.50" borderRadius="xl" border="1px solid" borderColor="slate.100">
-                                  <VStack align="start" spacing={3}>
-                                    {/* Checklist items mapped to 'before' stage (flexible type matching) */}
-                                    {orgChecklists.filter(c => String(c.type || '').toLowerCase().includes('pre')).map((gl, i) => (
-                                      <Checkbox
-                                        key={`org_checklist_${i}`}
-                                        checked={dynamicChecklist[`checklist_before_${i}`]}
-                                        onChange={(e) => setDynamicChecklist(prev => ({ ...prev, [`checklist_before_${i}`]: e.target.checked }))}
-                                        disabled={stage !== 'before'}
-                                        size="sm"
-                                        colorScheme="info"
-                                      >
-                                        <Text fontSize="xs" fontWeight="500">{gl.text}</Text>
-                                      </Checkbox>
-                                    ))}
-                                    {orgChecklists.filter(c => String(c.type || '').toLowerCase().includes('pre')).length === 0 && (
-                                      <Text fontSize="xs" color="slate.400 italic">No preparation checklist items.</Text>
-                                    )}
-                                  </VStack>
-                                </Box>
-
-                                {stage === 'before' && (
-                                  <Box mt={4}>
-                                    <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500" mb={2}>Planned Duration</Heading>
-                                    <HStack>
-                                      <Input
-                                        type="number"
-                                        size="sm"
-                                        value={manualDuration}
-                                        onChange={(e) => setManualDuration(e.target.value)}
-                                        placeholder="Duration in hours"
-                                        maxW="120px"
-                                      />
-                                      <Text fontSize="xs" color="slate.500">Hours</Text>
-                                    </HStack>
-                                    <Text fontSize="xs" color="slate.400" mt={1}>Defaults to appointment duration if empty</Text>
-                                  </Box>
-                                )}
-                              </VStack>
-                            )}
-
-                            {/* 2. Readings & Parameters (with charts) */}
-                          <VStack flex={2} align="stretch" spacing={3}>
-                            <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Readings & Parameters</Heading>
-                              {hemoParams.length > 0 ? (
-                                <Box className="space-y-4">
-                                  <Box className="grid grid-cols-2 gap-3">
-                                    {hemoParams.map((question, index) => {
-                                      const questionTitle = question.title || '';
-                                      const normalizedTitle = normalizeQuestionTitle(questionTitle);
-                                      // Render as patient-profile-style buttons that open a popup
-                                      return (
-                                        <button
-                                          key={question.id || index}
-                                          className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-left hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
-                                          onClick={() => setSelectedDialysisParam({ question })}
-                                          title={questionTitle}
-                                        >
-                                          {questionTitle}
-                                        </button>
-                                      );
-                                    })}
-                                  </Box>
-                                </Box>
-                              ) : (
-                                <Text fontSize="xs" color="slate.400 italic">No specific parameters configured.</Text>
-                              )}
-                          </VStack>
-
-                          {/* 3. Guidelines (Actual API Data) */}
-                            {orgConfig.hasGuidelines && (
-                              <VStack flex={1} align="stretch" spacing={3}>
-                                <Heading as="h5" size="xs" textTransform="uppercase" letterSpacing="wider" color="slate.500">Guidelines</Heading>
-                                <Box className="dialysis-modal__guidelines-container" p={4} bg="slate.50" borderRadius="xl" border="1px solid" borderColor="slate.100">
-                                  <VStack align="start" spacing={3}>
-                                    {/* Pre-dialysis Guidelines rendered as informational text (not checkboxes) */}
-                                    {orgGuidelines.filter(g => String(g.type || '').toLowerCase().includes('pre')).map((gl, i) => (
-                                      <Text key={`org_guideline_${i}`} fontSize="xs" color="slate.700">{gl.text}</Text>
-                                    ))}
-                                    {orgGuidelines.filter(g => String(g.type || '').toLowerCase().includes('pre')).length === 0 && (
-                                      <Text fontSize="xs" color="slate.400 italic">No specific pre-dialysis instructions.</Text>
-                                    )}
-                                  </VStack>
-                                </Box>
-                              </VStack>
-                            )}
-                        </Box>
-
-                        {/* Heparin Calculations Row */}
-                        <Box p={4} bg="info.50" borderRadius="xl" border="1px dashed" borderColor="info.200">
-                          <HStack justify="space-between" align="center">
-                            <VStack align="start" spacing={1}>
-                              <Heading as="h6" size="xs" color="info.700">Heparin Calculations</Heading>
-                              <Text fontSize="10px" color="info.600">Based on Dry Weight: {completePatientData?.dry_weight || 'N/A'} kg</Text>
-                            </VStack>
-                            <HStack spacing={6}>
-                              <HStack spacing={2}>
-                                <Text fontSize="xs" fontWeight="600">Suggested Dose:</Text>
-                                <Badge colorScheme="info" variant="solid" fontSize="sm" px={3} py={1} borderRadius="lg">
-                                  {effectiveHeparinInfo?.doseIU ? `${effectiveHeparinInfo.doseIU} IU` : '—'}
-                                </Badge>
-                              </HStack>
-                              <Select
-                                value={heparinOverride}
-                                onChange={(e) => setHeparinOverride(e.target.value)}
-                                disabled={stage !== 'before' || isHeparinDoctorLocked}
-                                size="xs"
-                                width="120px"
-                                borderRadius="md"
-                              >
-                                <option value="auto">Auto-Dose</option>
-                                <option value="low">Low Dose</option>
-                                <option value="standard">Standard</option>
-                                <option value="high">High Dose</option>
-                              </Select>
-                            </HStack>
-                          </HStack>
-                          {isHeparinDoctorLocked && (
-                            <Text mt={2} fontSize="10px" color="warning.700" fontWeight="600">
-                              Doctor-prescribed heparin dose is locked and cannot be changed by DT.
-                            </Text>
-                          )}
-                        </Box>
-
-                        {/* Bottom Row: Notes & Start Button */}
-                        <Box className="dialysis-modal__step1-actions">
-                          <FormControl className="dialysis-modal__notes-control">
-                            <FormLabel fontSize="xs" fontWeight="700">Pre-Dialysis Notes</FormLabel>
-                            <Textarea
-                              placeholder="Add any observations..."
-                              value={beforeNotes}
-                              onChange={(e) => setBeforeNotes(e.target.value)}
-                              disabled={stage !== 'before'}
-                              rows={2}
-                              size="sm"
-                              borderRadius="xl"
-                            />
-                          </FormControl>
-                          <VStack align="end" spacing={2} className="dialysis-modal__button-control">
-                            <Button
-                              colorScheme="success"
-                              size="lg"
-                              onClick={handleStartDialysis}
-                              isLoading={isSaving}
-                              isDisabled={stage !== 'before'}
-                              height="60px"
-                              px={12}
-                              borderRadius="xl"
-                              shadow="lg"
-                              _hover={{ transform: 'translateY(-2px)', shadow: 'xl' }}
-                              transition="all 0.2s"
-                              width="100%"
-                            >
-                              START SESSION →
-                            </Button>
-                            {stage !== 'before' && (
-                              <Text fontSize="xs" color="slate.400">
-                                Session already started
-                              </Text>
-                            )}
-                          </VStack>
-                        </Box>
-                      </VStack>
-                      </AccordionItem>
-                    <AccordionItem
-                      title="During Dialysis Monitoring"
-                      badge="STEP 2"
-                      badgeColor="warning"
-                      className="dialysis-modal__accordion-item"
-                    >
-                      <VStack spacing={4} align="stretch">
-                          {/* Live session timer banner */}
+                    
+                    <VStack flex={6.5} align="stretch" spacing={6} className="dialysis-modal__center-content">
+                      {stage === 'during' && (
+                        <Box bg="white" p={6} borderRadius="xl" shadow="sm" border="1px solid" borderColor="gray.200">
+                          <VStack spacing={4} align="stretch">
+                            {/* Live session timer banner */}
                           {stage === 'during' && timeLeft > 0 && (
                             <Box
                               className="dialysis-modal__timer-banner"
@@ -1807,17 +1567,14 @@ export default function DialysisParametersModal({
                               ⏹ Stop Dialysis
                             </Button>
                           )}
-                      </VStack>
-                    </AccordionItem>
-
-                    <AccordionItem
-                      title="Post-Dialysis Assessment"
-                      badge="STEP 3"
-                      badgeColor="success"
-                      className="dialysis-modal__accordion-item"
-                    >
-                      <VStack spacing={4} align="stretch">
-                          {(orgConfig.hasGuidelines || orgConfig.hasChecklists) && (
+                          </VStack>
+                        </Box>
+                      )}
+                      
+                      {stage === 'after' && (
+                        <Box bg="white" p={6} borderRadius="xl" shadow="sm" border="1px solid" borderColor="gray.200">
+                          <VStack spacing={6} align="stretch">
+                            {(orgConfig.hasGuidelines || orgConfig.hasChecklists) && (
                             <Card variant="outline" size="sm" className="dialysis-modal__panel-card">
                               <CardHeader><Heading as="h4" size="sm">Post-Session Checks</Heading></CardHeader>
                               <CardBody>
@@ -1895,144 +1652,18 @@ export default function DialysisParametersModal({
                             Complete & Close Session
                           </Button>
                         </HStack>
-                      </VStack>
-                    </AccordionItem>
-                  </Accordion>
-
-
-                </VStack>
-
-                {/* RIGHT SIDEBAR: Supplies & Inventory */}
-                <Box flex={2.5} className="dialysis-modal__right-sidebar">
-                  <Card variant="elevated" className="dialysis-modal__inventory-card" height="100%" shadow="md" borderRadius="20px">
-                    <CardHeader bg="slate.50" borderTopRadius="20px" py={4}>
-                      <VStack align="start" spacing={1}>
-                        <Heading as="h4" size="sm" color="slate.800">Supplies & Inventory</Heading>
-                        <Text fontSize="xs" color="slate.500">Track items consumed during this session</Text>
-                      </VStack>
-                    </CardHeader>
-                    <CardBody p={4}>
-                      <VStack spacing={4} align="stretch">
-                        {/* APPOINTMENT SERVICES SECTION */}
-                        {/* <Box borderBottom="1px solid" borderColor="slate.100" pb={4} mb={2}>
-                          <HStack justify="space-between" mb={3}>
-                            <Text fontSize="xs" fontWeight="bold" color="slate.600">Appointment Services</Text>
-                            {servicesLoading && <Text fontSize="10px" color="info.500">Updating...</Text>}
-                          </HStack>
-                          <VStack align="stretch" spacing={2}>
-                            {appointmentServices.length > 0 ? (
-                              appointmentServices.map((svc, idx) => {
-                                const isUsed = String(svc.status).toUpperCase() === 'USED';
-                                return (
-                                  <HStack 
-                                    key={svc.id || idx} 
-                                    justify="space-between" 
-                                    p={3} 
-                                    bg={isUsed ? "slate.50" : "info.50"} 
-                                    borderRadius="xl" 
-                                    border="1px solid" 
-                                    borderColor={isUsed ? "slate.200" : "info.100"}
-                                    transition="all 0.2s"
-                                  >
-                                    <VStack align="start" spacing={0} flex={1}>
-                                      <Text fontSize="xs" fontWeight="700" color={isUsed ? "slate.500" : "info.800"}>
-                                        {svc.service_name || svc.name || 'Dialysis Session'}
-                                      </Text>
-                                      <Text fontSize="10px" color={isUsed ? "slate.400" : "info.600"}>
-                                        Status: {svc.status || 'PENDING'}
-                                      </Text>
-                                    </VStack>
-                                    <Button
-                                      size="xs"
-                                      colorScheme={isUsed ? "slate" : "info"}
-                                      variant={isUsed ? "ghost" : "solid"}
-                                      onClick={() => handleConsumeService(svc.id || svc.service_id)}
-                                      isDisabled={isUsed || stage === 'before' || servicesLoading}
-                                      px={4}
-                                      borderRadius="full"
-                                    >
-                                      {isUsed ? 'Consumed' : 'Mark Used'}
-                                    </Button>
-                                  </HStack>
-                                );
-                              })
-                            ) : (
-                              <Box p={4} textAlign="center" border="1px dashed" borderColor="slate.200" borderRadius="lg">
-                                <Text fontSize="xs" color="slate.400 italic">No services listed</Text>
-                              </Box>
-                            )}
                           </VStack>
-                        </Box> */}
-
-                        <FormControl>
-                          <FormLabel fontSize="xs" fontWeight="bold">Select Item</FormLabel>
-                          <Select
-                            placeholder="Choose supply item..."
-                            onChange={(e) => {
-                              const itemId = e.target.value;
-                              if (itemId) handleIssueItem(itemId, 1);
-                            }}
-                            disabled={stage === 'before'}
-                            size="sm"
-                          >
-                            {inventoryItems.map(item => (
-                              <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>
-                            ))}
-                          </Select>
-                        </FormControl>
-
-                        <FormControl>
-                          <FormLabel fontSize="xs" fontWeight="bold">Dialyzer Usage</FormLabel>
-                          <HStack>
-                            <Select
-                              placeholder="Select Dialyzer..."
-                              value={selectedDialyzerId}
-                              onChange={(e) => setSelectedDialyzerId(e.target.value)}
-                              disabled={stage === 'before'}
-                              size="sm"
-                            >
-                              {dialyzers.map(d => (
-                                <option key={d.id} value={d.id}>Dialyzer #{d.id} ({d.usage_count}/{d.max_usage})</option>
-                              ))}
-                            </Select>
-                            <Button
-                              size="sm"
-                              colorScheme="info"
-                              onClick={handleUseDialyzer}
-                              isDisabled={!selectedDialyzerId || stage === 'before'}
-                            >
-                              Use
-                            </Button>
-                          </HStack>
-                        </FormControl>
-
-                        <Box mt={4}>
-                          <Text fontSize="xs" fontWeight="bold" mb={2} color="slate.600">Consumed Items List</Text>
-                          {consumedItems.length > 0 ? (
-                            <VStack align="stretch" spacing={2}>
-                              {consumedItems.map(item => (
-                                <HStack key={item.id} justify="space-between" p={2} bg="blue.50" borderRadius="md" border="1px solid" borderColor="blue.100">
-                                  <Text fontSize="xs" fontWeight="600" color="blue.800">{item.name}</Text>
-                                  <Badge size="xs" colorScheme="blue" variant="solid">Qty: {item.quantity}</Badge>
-                                </HStack>
-                              ))}
-                            </VStack>
-                          ) : (
-                            <Box p={4} textAlign="center" border="1px dashed" borderColor="slate.200" borderRadius="lg">
-                              <Text fontSize="xs" color="slate.400 italic">No items linked yet</Text>
-                            </Box>
-                          )}
                         </Box>
-                      </VStack>
-                    </CardBody>
-                  </Card>
+                      )}
+                    </VStack>
+                  </Box>
                 </Box>
-              </Box>
+              )}
             </Box>
           )}
         </ModalBody>
-
       </ModalContent>
+
 
       <PaymentModal
         isOpen={billModalOpen}

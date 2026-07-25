@@ -4,7 +4,11 @@ import { Box, Button, Card, CardBody, Heading, Text } from '../../component-libr
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
+import PatientSummaryView from './PatientSummaryView';
 import PreDialysisDashboardView from './PreDialysisDashboardView';
+import PatientVerificationView from './PatientVerificationView';
+import VitalsMeasurementsView from './VitalsMeasurementsView';
+import PatientAssessmentView from './PatientAssessmentView';
 import BedManagementDashboard from '../adminDashboard/components/BedManagementDashboard';
 import DialysisAppointmentsDashboard from '../adminDashboard/components/DialysisAppointmentsDashboard';
 import UpcomingAppointmentsPanel from '../adminDashboard/components/UpcomingAppointmentsPanel';
@@ -59,15 +63,16 @@ const DialysisSessions = () => {
   const [integrationError, setIntegrationError] = useState('');
 
   const selectedPatientId = location.state?.patientId;
+  const currentStep = location.state?.step;
+  const isDashboardView =
+    location.state?.view === 'dashboard' || currentStep === 'P2-03';
+  const isVerificationStep = currentStep === 'P2-04' || currentStep === 'verification';
+  const isVitalsStep = currentStep === 'P2-05' || currentStep === 'vitals';
+  const isAssessmentStep = currentStep === 'P2-06' || currentStep === 'assessment';
 
-  if (selectedPatientId) {
-    return (
-      <PreDialysisDashboardView
-        patientId={selectedPatientId}
-        onBack={() => navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId: selectedPatientId } })}
-      />
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // React Hooks (MUST be invoked unconditionally before any early return)
+  // ---------------------------------------------------------------------------
 
   const fetchIntegrationContext = useCallback(async () => {
     setIntegrationLoading(true);
@@ -118,70 +123,67 @@ const DialysisSessions = () => {
       }, {});
 
       const occupiedBeds = mergedBeds.filter(
-        (bed) => String(bed?.status || '').toUpperCase() === 'OCCUPIED' && bed?.patient_id
+        (bed) => String(bed?.status || '').toUpperCase() === 'OCCUPIED'
       );
 
-      const readingSettled = await Promise.allSettled(
-        occupiedBeds.map(async (bed) => {
-          const appointmentId = bed?.appointment_id || bed?.source_dialysis_appointment_id;
-          const appointment = appointmentId ? appointmentMap[String(appointmentId)] : null;
+      const candidates = [];
+      occupiedBeds.forEach((bed) => {
+        const appt =
+          bed?.current_appointment ||
+          bed?.active_appointment ||
+          appointmentMap[String(bed?.current_appointment_id)] ||
+          null;
 
-          const sessionId =
-            resolveSessionIdFromRecord(bed) ||
-            resolveSessionIdFromRecord(appointment);
+        const candidateSessionId =
+          resolveSessionIdFromRecord(bed) || resolveSessionIdFromRecord(appt);
 
-          if (!sessionId) return null;
-
-          const sessionResult = await getDialysisSessionById(sessionId);
-          if (!sessionResult.success) return null;
-
-          const session = sessionResult.data?.data || sessionResult.data || {};
-          const readingsResult = await getSessionReadings(sessionId);
-          if (!readingsResult.success) return null;
-
-          const allReadings = unwrapApiArray(readingsResult);
-          const filteredReadings = allReadings.filter((reading) => {
-            const readingPatientId = reading?.patient_id ?? reading?.patientId ?? session?.patient_id;
-            if (!readingPatientId) return true;
-            return Number(readingPatientId) === Number(session?.patient_id || bed?.patient_id);
+        if (candidateSessionId) {
+          candidates.push({
+            bed,
+            appointment: appt,
+            sessionId: candidateSessionId,
           });
+        }
+      });
 
-          const sortedReadings = [...(filteredReadings.length ? filteredReadings : allReadings)].sort(
-            (a, b) => {
-              const t1 = new Date(a?.timestamp || a?.created_at || 0).getTime();
-              const t2 = new Date(b?.timestamp || b?.created_at || 0).getTime();
-              return t2 - t1;
-            }
-          );
+      const settledReadings = await Promise.allSettled(
+        candidates.map((c) =>
+          getDialysisSessionById(c.sessionId)
+            .then((res) => {
+              if (res?.success && res?.data) return res.data;
+              return getSessionReadings(c.sessionId).then((rRes) => rRes?.data || null);
+            })
+            .catch(() => null)
+        )
+      );
 
-          const latest = sortedReadings[0];
-          if (!latest) return null;
+      const readingsPreview = settledReadings
+        .map((sr, idx) => {
+          if (sr.status !== 'fulfilled' || !sr.value) return null;
+          const candidate = candidates[idx];
+          const rawData = sr.value;
+          const readings = Array.isArray(rawData?.readings)
+            ? rawData.readings
+            : Array.isArray(rawData)
+            ? rawData
+            : [];
 
-          const readingPayloadRaw = latest?.reading_json || latest?.reading || {};
-          const readingPayload = typeof readingPayloadRaw === 'object' ? readingPayloadRaw : {};
+          const latestReading = readings.length > 0 ? readings[readings.length - 1] : null;
 
           return {
-            id: `${sessionId}-${bed?.id}`,
-            sessionId,
-            patientId: session?.patient_id || bed?.patient_id,
-            patientName: bed?.patient_name || appointment?.patient_name || 'Patient',
-            bedNumber: bed?.bed_number || '-',
-            appointmentId: session?.appointment_id || appointmentId || '-',
-            timestamp: latest?.timestamp || latest?.created_at,
-            bloodFlow: readingPayload?.blood_flow_rate_ml_min ?? readingPayload?.blood_flow_rate ?? '-',
-            dialysateFlow:
-              readingPayload?.dialysate_flow_rate_ml_min ?? readingPayload?.dialysate_flow_rate ?? '-',
-            arterialPressure:
-              readingPayload?.arterial_pressure_mmhg ?? readingPayload?.arterial_pressure ?? '-',
-            venousPressure:
-              readingPayload?.venous_pressure_mmhg ?? readingPayload?.venous_pressure ?? '-',
+            bed_id: candidate.bed?.id,
+            bed_number: candidate.bed?.bed_number || candidate.bed?.name || `Bed #${candidate.bed?.id}`,
+            patient_name:
+              candidate.bed?.patient_name || candidate.appointment?.patient_name || 'Assigned Patient',
+            session_id: candidate.sessionId,
+            sys_bp: latestReading?.systolic_bp || latestReading?.sys_bp || null,
+            dia_bp: latestReading?.diastolic_bp || latestReading?.dia_bp || null,
+            pulse: latestReading?.pulse_rate || latestReading?.pulse || null,
+            uf_removed: latestReading?.uf_removed || latestReading?.uf_rate || null,
+            timestamp: latestReading?.timestamp || latestReading?.recorded_at || null,
           };
         })
-      );
-
-      const readingsPreview = readingSettled
-        .filter((result) => result.status === 'fulfilled' && result.value)
-        .map((result) => result.value)
+        .filter(Boolean)
         .sort((a, b) => {
           const t1 = new Date(a?.timestamp || 0).getTime();
           const t2 = new Date(b?.timestamp || 0).getTime();
@@ -217,6 +219,106 @@ const DialysisSessions = () => {
     [beds]
   );
 
+  // ---------------------------------------------------------------------------
+  // Conditional Step Routing (P2-02 to P2-06) — AFTER all hooks to adhere to rules-of-hooks
+  // ---------------------------------------------------------------------------
+
+  // If Patient Assessment (P2-06) step requested
+  if (selectedPatientId && isAssessmentStep) {
+    return (
+      <PatientAssessmentView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_SESSIONS, {
+            state: { patientId: selectedPatientId, step: 'P2-05' },
+          })
+        }
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_SESSIONS, {
+            state: { patientId: selectedPatientId, step: 'P2-07' },
+          })
+        }
+      />
+    );
+  }
+
+  // If Vitals & Measurements (P2-05) step requested
+  if (selectedPatientId && isVitalsStep) {
+    return (
+      <VitalsMeasurementsView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_SESSIONS, {
+            state: { patientId: selectedPatientId, step: 'P2-04' },
+          })
+        }
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_SESSIONS, {
+            state: { patientId: selectedPatientId, step: 'P2-06' },
+          })
+        }
+      />
+    );
+  }
+
+  // If Patient Verification (P2-04) step requested
+  if (selectedPatientId && isVerificationStep) {
+    return (
+      <PatientVerificationView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_SESSIONS, {
+            state: { patientId: selectedPatientId, view: 'dashboard', step: 'P2-03' },
+          })
+        }
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_SESSIONS, {
+            state: { patientId: selectedPatientId, step: 'P2-05' },
+          })
+        }
+      />
+    );
+  }
+
+  // If Pre-Dialysis Dashboard (P2-03) requested
+  if (selectedPatientId && isDashboardView) {
+    return (
+      <PreDialysisDashboardView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_SESSIONS, {
+            state: { patientId: selectedPatientId },
+          })
+        }
+        onNavigateStep={(stepCode) =>
+          navigate(ROUTES.DIALYSIS_SESSIONS, {
+            state: { patientId: selectedPatientId, step: stepCode },
+          })
+        }
+      />
+    );
+  }
+
+  // If patientId is present, render Patient Summary (P2-02)
+  if (selectedPatientId) {
+    return (
+      <PatientSummaryView
+        patientId={selectedPatientId}
+        appointment={location.state?.appointment}
+        onBackToQueue={() => navigate(ROUTES.DIALYSIS_SESSIONS, { replace: true })}
+        onProceedToPreDialysis={() =>
+          navigate(ROUTES.DIALYSIS_SESSIONS, {
+            state: { patientId: selectedPatientId, view: 'dashboard', step: 'P2-03' },
+          })
+        }
+      />
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Default Session Management Dashboard View
+  // ---------------------------------------------------------------------------
+
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0 bg-[#F9FAFB]">
@@ -244,103 +346,19 @@ const DialysisSessions = () => {
             }
           `}</style>
 
-          {/* <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-            <Card variant="outline">
-              <CardBody>
-                <Text fontSize="xs" color="textMuted">Total Beds (API)</Text>
-                <Heading as="h4" size="md">{beds.length}</Heading>
-              </CardBody>
-            </Card>
-            <Card variant="outline">
-              <CardBody>
-                <Text fontSize="xs" color="textMuted">Normal Beds</Text>
-                <Heading as="h4" size="md">{normalBedsCount}</Heading>
-              </CardBody>
-            </Card>
-            <Card variant="outline" className="border-yellow-300">
-              <CardBody>
-                <Text fontSize="xs" color="textMuted">Isolated Beds</Text>
-                <Heading as="h4" size="md">{isolatedBedsCount}</Heading>
-              </CardBody>
-            </Card>
-            <Card variant="outline">
-              <CardBody>
-                <Text fontSize="xs" color="textMuted">Occupied Beds</Text>
-                <Heading as="h4" size="md">{occupiedBedsCount}</Heading>
-              </CardBody>
-            </Card>
-          </div> */}
+          <section aria-labelledby="bed-management-title">
+            <Box className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <BedManagementDashboard hideAppointments={true} />
+            </Box>
+          </section>
 
-          {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start"> */}
-            {/* Bed Management Section - Hide internal list as we use the full dashboard below */}
-            <section aria-labelledby="bed-management-title">
-              <Box className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              {/* <div className="flex items-center justify-between px-4 pt-4">
-                  <Text fontSize="sm" color="textMuted">
-                    Normal beds are standard bordered. Isolated beds are highlighted with a yellow border.
-                  </Text>
-                  <Button size="sm" variant="outline" onClick={fetchIntegrationContext} isLoading={integrationLoading}>
-                    Refresh Integration
-                  </Button>
-                </div> */}
-                <BedManagementDashboard hideAppointments={true} />
-              </Box>
-            </section>
+          <div className="mt-8">
+            <DialysisAppointmentsDashboard hideBeds={true} />
+          </div>
 
-          {/* Appointments (drag source) side-by-side for easy drag & drop */}
-          {/* <section aria-labelledby="appointments-dashboard-title">
-              <UpcomingAppointmentsPanel />
-            </section> */}
-          {/* </div> */}
-
-          {/* <div className="mt-8">
-            <section aria-labelledby="session-readings-title">
-              <Box className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <Heading as="h3" size="md" id="session-readings-title">
-                    Live Session Readings (patient-wise)
-                  </Heading>
-                  <Text fontSize="xs" color="textMuted">
-                    Source: `/dt/dialysis/sessions/:id/readings`
-                  </Text>
-                </div>
-
-                {integrationError ? (
-                  <Text fontSize="sm" className="text-red-600">{integrationError}</Text>
-                ) : patientSessionReadings.length === 0 ? (
-                  <Text fontSize="sm" color="textMuted">
-                    No active patient readings available yet. Readings appear automatically once a linked session is running.
-                  </Text>
-                ) : (
-                  <div className="space-y-3">
-                    {patientSessionReadings.map((row) => (
-                      <div key={row.id} className="rounded-lg border border-gray-200 p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <Text fontWeight="600">{row.patientName} (ID: {row.patientId})</Text>
-                          <Text fontSize="xs" color="textMuted">
-                            Bed {row.bedNumber} • Session {row.sessionId} • Appointment {row.appointmentId}
-                          </Text>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                          <Text fontSize="sm">Blood Flow: {row.bloodFlow}</Text>
-                          <Text fontSize="sm">Dialysate Flow: {row.dialysateFlow}</Text>
-                          <Text fontSize="sm">Arterial: {row.arterialPressure}</Text>
-                          <Text fontSize="sm">Venous: {row.venousPressure}</Text>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Box>
-            </section>
-          </div> */}
-
-          {/* Full booking schedule (weekly) shown below the side-by-side layout */}
-          {/* <div className="mt-8">
-            <section aria-labelledby="full-bookings-title">
-              <DialysisAppointmentsDashboard />
-            </section>
-          </div> */}
+          <div className="mt-8">
+            <UpcomingAppointmentsPanel />
+          </div>
         </div>
       </Box>
     </ThemeProvider>

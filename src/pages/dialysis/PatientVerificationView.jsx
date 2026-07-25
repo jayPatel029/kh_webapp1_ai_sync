@@ -209,7 +209,7 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
       <Box className="flex-1 flex flex-col min-w-0 bg-[#F9FAFB]">
         {/* Sticky Header */}
         <Box className="sticky top-[56px] z-20 bg-white shadow-sm">
-          <PageHeader
+          {/* <PageHeader
             title="P2-04 – Patient Verification"
             subtitle="Verify patient identity and prescription before proceeding."
             breadcrumbs={[
@@ -217,7 +217,7 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
               { label: 'Pre-Dialysis Dashboard', onClick: handleCancelClick },
               { label: 'Patient Verification', active: true },
             ]}
-          />
+          /> */}
         </Box>
 
         <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : 'p-6'}`}>

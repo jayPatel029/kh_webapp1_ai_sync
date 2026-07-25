@@ -152,7 +152,7 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
       <Box className="flex-1 flex flex-col min-w-0 bg-[#F9FAFB]">
         {/* Sticky Header */}
         <Box className="sticky top-[56px] z-20 bg-white shadow-sm">
-          <PageHeader
+          {/* <PageHeader
             title="P2-06 – Patient Assessment"
             subtitle="Assess patient symptoms and clinical status before dialysis."
             breadcrumbs={[
@@ -160,7 +160,7 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
               { label: 'Vitals & Measurements', onClick: handleBackClick },
               { label: 'Patient Assessment', active: true },
             ]}
-          />
+          /> */}
         </Box>
 
         <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : 'p-6'}`}>

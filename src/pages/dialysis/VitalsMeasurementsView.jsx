@@ -163,7 +163,7 @@ const VitalsMeasurementsView = ({ patientId, onBack, onNext }) => {
       <Box className="flex-1 flex flex-col min-w-0 bg-[#F9FAFB]">
         {/* Sticky Header */}
         <Box className="sticky top-[56px] z-20 bg-white shadow-sm">
-          <PageHeader
+          {/* <PageHeader
             title="P2-05 – Vitals & Measurements"
             subtitle="Record patient vital signs and pre-dialysis measurements."
             breadcrumbs={[
@@ -171,7 +171,7 @@ const VitalsMeasurementsView = ({ patientId, onBack, onNext }) => {
               { label: 'Patient Verification', onClick: handleBackClick },
               { label: 'Vitals & Measurements', active: true },
             ]}
-          />
+          /> */}
         </Box>
 
         <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : 'p-6'}`}>
