@@ -23,6 +23,7 @@ import VascularAccessAssessmentView from '../../dialysis/VascularAccessAssessmen
 import MachineSafetyView from '../../dialysis/MachineSafetyView';
 import WaterSafetyView from '../../dialysis/WaterSafetyView';
 import InfectionControlView from '../../dialysis/InfectionControlView';
+import SafetyValidationView from '../../dialysis/SafetyValidationView';
 
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../routes/routeConstants';
@@ -1488,6 +1489,13 @@ const navigate = useNavigate();
                     <InfectionControlView
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-09')}
+                      onNext={() => setBeforeStep('P2-11')}
+                    />
+                  )}
+                  {beforeStep === 'P2-11' && (
+                    <SafetyValidationView
+                      patientId={patient?.patient_id || patient?.id}
+                      onBack={() => setBeforeStep('P2-10')}
                       onNext={() => {
                         if (onStageChange) onStageChange('during');
                         setStage('during');
