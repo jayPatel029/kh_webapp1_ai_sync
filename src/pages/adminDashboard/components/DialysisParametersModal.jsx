@@ -24,6 +24,7 @@ import MachineSafetyView from '../../dialysis/MachineSafetyView';
 import WaterSafetyView from '../../dialysis/WaterSafetyView';
 import InfectionControlView from '../../dialysis/InfectionControlView';
 import SafetyValidationView from '../../dialysis/SafetyValidationView';
+import StartDialysisConfirmationView from '../../dialysis/StartDialysisConfirmationView';
 
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../routes/routeConstants';
@@ -1496,6 +1497,13 @@ const navigate = useNavigate();
                     <SafetyValidationView
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-10')}
+                      onNext={() => setBeforeStep('P2-12')}
+                    />
+                  )}
+                  {beforeStep === 'P2-12' && (
+                    <StartDialysisConfirmationView
+                      patientId={patient?.patient_id || patient?.id}
+                      onBack={() => setBeforeStep('P2-11')}
                       onNext={() => {
                         if (onStageChange) onStageChange('during');
                         setStage('during');
