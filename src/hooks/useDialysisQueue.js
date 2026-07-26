@@ -13,9 +13,10 @@
  * @file src/hooks/useDialysisQueue.js
  */
 
-import { useCallback, useMemo, useState, useEffect } from 'react';
-import { getPatients } from '../ApiCalls/patientAPis';
-import { getAppointments, updateAppointment } from '../ApiCalls/clinicApis';
+import {
+  getTodaySessions,
+  markSessionEmergency,
+} from '../ApiCalls/preDialysisApis';
 import { notifyError, notifySuccess } from '../helpers/notify';
 import {
   SHIFT_ORDER,

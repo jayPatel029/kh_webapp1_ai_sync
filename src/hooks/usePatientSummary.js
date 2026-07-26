@@ -16,9 +16,15 @@
  * @file src/hooks/usePatientSummary.js
  */
 
-import { useCallback, useState, useEffect } from 'react';
-import { getPatientById } from '../ApiCalls/patientAPis';
-import { getHemoDialysisParameters } from '../ApiCalls/dialysisSessionApis';
+import {
+  getPatientDetails,
+  getPatientLatestPrescription,
+  getPatientLatestVitals,
+  getPatientLatestLabs,
+  getPatientAlerts,
+  getPatientNotes,
+  proceedPatientToPredialysis,
+} from '../ApiCalls/preDialysisApis';
 import { notifyError } from '../helpers/notify';
 import { ALERT_SEVERITY } from '../pages/dialysis/dialysisQueueConstants';
 

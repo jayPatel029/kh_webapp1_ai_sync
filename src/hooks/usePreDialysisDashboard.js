@@ -8,11 +8,19 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getPatientById } from '../ApiCalls/patientAPis';
-import { getHemoDialysisParameters } from '../ApiCalls/dialysisSessionApis';
+import {
+  getPatientDetails,
+  getPatientLatestPrescription,
+  getPatientLatestVitals,
+  getPatientLatestLabs,
+  getPatientAlerts,
+  getPatientNotes,
+  getPredialysisStatus,
+  printSessionSummary,
+} from '../ApiCalls/preDialysisApis';
 import { calculateAge, formatDate, calcDialysisDuration } from './usePatientSummary';
 import { ALERT_SEVERITY } from '../pages/dialysis/dialysisQueueConstants';
-import { notifyError } from '../helpers/notify';
+import { notifyError, notifySuccess } from '../helpers/notify';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -278,7 +286,7 @@ export const normalizeNotesList = (patient) => {
 // Hook Definition
 // ---------------------------------------------------------------------------
 
-export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis Technician') {
+export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis Technician', sessionId = 1) {
   const [patientRaw, setPatientRaw] = useState(null);
   const [prescriptionRaw, setPrescriptionRaw] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -311,11 +319,11 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
     setError(null);
 
     try {
-      const patientRes = await getPatientById(patientId);
+      const patientRes = await getPatientDetails(patientId);
       let patientData = null;
 
       if (patientRes?.success) {
-        patientData = patientRes.data?.data || patientRes.data || null;
+        patientData = patientRes.data;
       } else {
         // Fallback default mock data for patient if ID is provided
         patientData = {
@@ -341,14 +349,14 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
 
       setPatientRaw(patientData);
 
-      try {
-        const rxRes = await getHemoDialysisParameters(patientId);
-        if (rxRes?.success) {
-          const rxData = Array.isArray(rxRes.data) ? rxRes.data[0] : rxRes.data;
-          setPrescriptionRaw(rxData);
-        }
-      } catch (_) {
-        // Prescription fetch error swallowed gracefully with defaults
+      const rxRes = await getPatientLatestPrescription(patientId);
+      if (rxRes?.success) {
+        setPrescriptionRaw(rxRes.data);
+      }
+
+      const statusRes = await getPredialysisStatus(sessionId);
+      if (statusRes?.success && statusRes.data?.steps) {
+        setStepStatuses(statusRes.data.steps);
       }
 
       setNotes(normalizeNotesList(patientData));
@@ -356,11 +364,10 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
     } catch (err) {
       const errMsg = err?.message || 'Failed to load pre-dialysis dashboard data';
       setError(errMsg);
-      notifyError(errMsg);
     } finally {
       setLoading(false);
     }
-  }, [patientId]);
+  }, [patientId, sessionId]);
 
   useEffect(() => {
     loadDashboardData();

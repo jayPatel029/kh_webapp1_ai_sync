@@ -7,9 +7,10 @@
  * @file src/hooks/useVitalsMeasurements.js
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getPatientById } from '../ApiCalls/patientAPis';
-import { getHemoDialysisParameters } from '../ApiCalls/dialysisSessionApis';
+import {
+  getPatientDetails,
+  submitSessionVitals,
+} from '../ApiCalls/preDialysisApis';
 import { formatDate } from './usePatientSummary';
 import { notifyError } from '../helpers/notify';
 
