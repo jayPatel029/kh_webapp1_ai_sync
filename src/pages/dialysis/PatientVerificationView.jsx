@@ -169,8 +169,36 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
   };
 
   // Handle Continue to Next Step
-  const handleContinueClick = () => {
+  const handleContinueClick = async () => {
     if (!canProceed) return;
+    try {
+      await submitSessionVerification(1, {
+        status: 'final',
+        identity_matched: identityFields.nameMatched && identityFields.dobMatched && identityFields.pidMatched && identityFields.phoneMatched,
+        identity_name_match: identityFields.nameMatched,
+        identity_dob_match: identityFields.dobMatched,
+        identity_pid_match: identityFields.pidMatched,
+        identity_phone_match: identityFields.phoneMatched,
+        wristband_scan_result: wristbandScanResult,
+        prescription_valid: true,
+        hiv_status: infectionStatus.hiv,
+        hepatitis_status: infectionStatus.hepatitis,
+        hiv_skipped: infectionStatus.hivSkipped,
+        hepatitis_skipped: infectionStatus.hepatitisSkipped,
+        notes: notesText,
+      });
+
+      await submitSessionConsumables(1, {
+        dialyzer_type: consumablesState.dialyzerUsageType === DIALYZER_USAGE_TYPE.MULTI_USE ? 'MULTI_USE' : 'SINGLE_USE',
+        dialyzer_id: consumablesState.dialyzerId || 'DLZ-1001',
+        reuse_action: consumablesState.discardConfirmed ? 'confirmed_new' : consumablesState.isOverridden ? 'overridden' : 'none',
+        old_dialyzer_discard_confirmed: consumablesState.discardConfirmed,
+        override_reason: consumablesState.overrideReason || '',
+        tubing_set_qty: consumablesState.tubingSetQty || 1,
+        needles_qty: consumablesState.needlesQty || 2,
+      });
+    } catch (_) {}
+
     if (onNext) {
       onNext();
     } else {

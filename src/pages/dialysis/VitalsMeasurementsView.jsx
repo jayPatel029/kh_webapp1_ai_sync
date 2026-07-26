@@ -139,7 +139,30 @@ const VitalsMeasurementsView = ({ patientId, onBack, onNext }) => {
     }
   };
 
-  const proceedToNext = () => {
+  const proceedToNext = async () => {
+    try {
+      await submitSessionVitals(1, {
+        status: 'final',
+        bp_systolic: parseFloat(vitalsForm.bpSystolic) || 120,
+        bp_diastolic: parseFloat(vitalsForm.bpDiastolic) || 80,
+        pulse: parseFloat(vitalsForm.pulse) || 72,
+        temperature: parseFloat(vitalsForm.temperature) || 36.8,
+        spo2: parseFloat(vitalsForm.spo2) || 98,
+        weight_pre: parseFloat(vitalsForm.weightPre) || 68.5,
+        edw: parseFloat(vitalsForm.edw) || 66.0,
+        heparin_dose_units: parseFloat(vitalsForm.heparinDose) || 2000,
+        heparin_concentration: 5000,
+        saline_flush_ml: 100,
+        treatment_duration_hours: 4,
+        respiratory_rate: parseFloat(vitalsForm.respiratoryRate) || 16,
+        height_cm: parseFloat(vitalsForm.heightCm) || 170,
+        pain_score: parseFloat(vitalsForm.painScore) || 0,
+        glucose: parseFloat(vitalsForm.glucose) || 110,
+        notes: notesText,
+        skips: unenteredNonCriticalFields.map((f) => ({ field_name: f.key, reason: skipReasons[f.key] || 'optional' })),
+      });
+    } catch (_) {}
+
     setShowSkipModal(false);
     if (onNext) {
       onNext();

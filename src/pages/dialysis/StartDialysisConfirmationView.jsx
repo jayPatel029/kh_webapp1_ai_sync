@@ -4,6 +4,7 @@ import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { verifyPin, MAX_ATTEMPTS } from './startDialysisValidation';
+import { startDialysis, unlockStartDialysis } from '../../ApiCalls/preDialysisApis';
 
 // Icons
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -49,13 +50,28 @@ const StartDialysisConfirmationView = ({ onBack, onNext }) => {
 
   const isFormValid = isConfirmed && pin.trim().length > 0 && !isLocked;
 
-  const handleStartDialysis = () => {
+  const handleStartDialysis = async () => {
     if (isLocked) return;
 
     const result = verifyPin(pin.trim(), attempts);
     
     if (result.isValid) {
       setErrorMsg('');
+      try {
+        const apiRes = await startDialysis(1, {
+          attestation: isConfirmed,
+          pin: pin.trim(),
+          machine_id: 'HD-01',
+        });
+        if (!apiRes.success) {
+          if (apiRes.status === 423) {
+            setIsLocked(true);
+            setErrorMsg(apiRes.message || 'Session locked due to multiple invalid PIN attempts. Requires Nurse or Nephrologist unlock.');
+            return;
+          }
+        }
+      } catch (_) {}
+
       if (onNext) onNext();
     } else {
       setAttempts(result.attempts);

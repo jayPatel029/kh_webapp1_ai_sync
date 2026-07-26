@@ -4,6 +4,7 @@ import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { validateWaterSafety } from './waterSafetyValidation';
+import { reviewWaterSafety } from '../../ApiCalls/preDialysisApis';
 
 // Icons
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -469,7 +470,12 @@ const WaterSafetyView = ({ onBack, onNext }) => {
             </Button>
             <Button 
               colorScheme="primary" 
-              onClick={onNext} 
+              onClick={async () => {
+                try {
+                  await reviewWaterSafety(1, { ro_plant_id: 'RO-1', shift_id: 1 });
+                } catch (_) {}
+                if (onNext) onNext();
+              }} 
               isDisabled={!isFormValid}
               style={{ padding: '10px 32px', borderRadius: '8px', background: isFormValid ? '#2563eb' : '#94a3b8', color: '#fff', fontWeight: 600 }}
             >

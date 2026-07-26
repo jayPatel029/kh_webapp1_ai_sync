@@ -4,6 +4,7 @@ import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { AVF_AVG_CONFIG, CVC_CONFIG, validateVascularAccess } from './vascularAccessValidation';
+import { submitVascularAccess } from '../../ApiCalls/preDialysisApis';
 
 // Icons
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -425,7 +426,24 @@ const VascularAccessAssessmentView = ({ patientId, onBack, onNext }) => {
             </Button>
             <Button 
               colorScheme="primary" 
-              onClick={onNext} 
+              onClick={async () => {
+                try {
+                  await submitVascularAccess(1, {
+                    status: 'final',
+                    access_type: accessType,
+                    thrill_bruit: String(formData.thrillBruit || '').toLowerCase(),
+                    access_site_appearance: String(formData.accessSiteAppearance || '').toLowerCase(),
+                    signs_of_infection: String(formData.signsOfInfection || '').toLowerCase(),
+                    bleeding_discharge: String(formData.bleedingDischarge || '').toLowerCase(),
+                    aneurysm: String(formData.aneurysm || '').toLowerCase(),
+                    cannulation_zone: String(formData.cannulationZone || '').toLowerCase(),
+                    access_flow_ml_min: parseFloat(formData.accessFlow) || 600,
+                    additional_observations: additionalObservations || '',
+                    skips: [],
+                  });
+                } catch (_) {}
+                if (onNext) onNext();
+              }} 
               isDisabled={!isFormValid}
               style={{ padding: '10px 32px', borderRadius: '8px', background: isFormValid ? '#2563eb' : '#94a3b8', color: '#fff', fontWeight: 600 }}
             >

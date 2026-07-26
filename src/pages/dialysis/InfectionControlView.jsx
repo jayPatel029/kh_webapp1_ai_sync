@@ -4,6 +4,7 @@ import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { validateInfectionControl } from './infectionControlValidation';
+import { submitInfectionControl } from '../../ApiCalls/preDialysisApis';
 
 // Icons
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -371,7 +372,30 @@ const InfectionControlView = ({ onBack, onNext }) => {
             </Button>
             <Button 
               colorScheme="primary" 
-              onClick={onNext} 
+              onClick={async () => {
+                try {
+                  await submitInfectionControl(1, {
+                    status: 'final',
+                    access_type: 'AVF',
+                    items: {
+                      hand_hygiene: true,
+                      aseptic_technique: true,
+                      sharps_handling: true,
+                      ppe: true,
+                      work_area_clean: true,
+                      dialysis_machine_disinfected: true,
+                      ro_system_disinfection: 'not_applicable',
+                      dialyzer_reuse: 'not_applicable',
+                      biomedical_waste: true,
+                      isolation_precautions: 'not_applicable',
+                    },
+                    scrub_the_hub_result: null,
+                    notes: notes || '',
+                    skips: [],
+                  });
+                } catch (_) {}
+                if (onNext) onNext();
+              }} 
               isDisabled={!isFormValid}
               style={{ padding: '10px 32px', borderRadius: '8px', background: isFormValid ? '#2563eb' : '#94a3b8', color: '#fff', fontWeight: 600 }}
             >

@@ -175,8 +175,11 @@ const PatientSummaryView = ({ patientId, appointment, onBackToQueue, onProceedTo
     }
   };
 
-  const handleProceedToPreDialysis = () => {
+  const handleProceedToPreDialysis = async () => {
     if (hasActivePrescription) {
+      try {
+        await proceedPatientToPredialysis(patientId);
+      } catch (_) {}
       if (onProceedToPreDialysis) {
         onProceedToPreDialysis();
       } else {

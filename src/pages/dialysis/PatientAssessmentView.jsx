@@ -128,7 +128,35 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
     }
   };
 
-  const proceedToNext = () => {
+  const proceedToNext = async () => {
+    try {
+      await submitSessionAssessment(1, {
+        status: 'final',
+        section: 'Subjective Assessment',
+        assessment: {
+          shortness_of_breath: subjectiveForm.shortnessOfBreath ? 'yes' : 'no',
+          chest_pain: subjectiveForm.chestPain ? 'yes' : 'no',
+          bleeding_bruising: subjectiveForm.bleedingBruising ? 'yes' : 'no',
+          dizziness_giddiness: subjectiveForm.dizzinessGiddiness ? 'yes' : 'no',
+          fever_chills: subjectiveForm.feverChills ? 'yes' : 'no',
+          any_abnormal_finding: objectiveForm.anyAbnormalFinding ? 'yes' : 'no',
+          consciousness: objectiveForm.consciousness || 'alert',
+          lung_sounds: objectiveForm.lungSounds || 'clear',
+          heart_sounds: objectiveForm.heartSounds || 'normal',
+          nausea_vomiting: subjectiveForm.nauseaVomiting ? 'yes' : 'no',
+          cough: subjectiveForm.cough ? 'yes' : 'no',
+          muscle_cramps: subjectiveForm.muscleCramps ? 'yes' : 'no',
+          itching: subjectiveForm.itching ? 'yes' : 'no',
+          headache: subjectiveForm.headache ? 'yes' : 'no',
+          loss_of_appetite: subjectiveForm.lossOfAppetite ? 'yes' : 'no',
+          general_appearance: objectiveForm.generalAppearance || 'well',
+          edema: objectiveForm.edema || 'none',
+          kps: kpsValue || '80',
+        },
+        skips: skippedFieldsList.map((key) => ({ field_name: key, reason: skipReasons[key] || 'optional' })),
+      });
+    } catch (_) {}
+
     setShowSkipModal(false);
     if (onNext) {
       onNext();

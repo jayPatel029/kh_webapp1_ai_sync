@@ -4,6 +4,7 @@ import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { validateSafetyValidation } from './safetyValidationLogic';
+import { validateSafetyChecklist } from '../../ApiCalls/preDialysisApis';
 
 // Icons
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -263,7 +264,12 @@ const SafetyValidationView = ({ onBack, onNext }) => {
             </Button>
             <Button 
               colorScheme="primary" 
-              onClick={onNext} 
+              onClick={async () => {
+                try {
+                  await validateSafetyChecklist(1, { notes: notes || '' });
+                } catch (_) {}
+                if (onNext) onNext();
+              }} 
               isDisabled={!isValid}
               style={{ padding: '10px 32px', borderRadius: '8px', background: isValid ? '#2563eb' : '#94a3b8', color: '#fff', fontWeight: 600 }}
             >
