@@ -17,6 +17,7 @@ import PageHeader from '../../components/PageHeader';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { ROUTES } from '../../routes/routeConstants';
 import usePatientSummary from '../../hooks/usePatientSummary';
+import { proceedPatientToPredialysis } from '../../ApiCalls/preDialysisApis';
 import {
   TECHNICIAN_ROLE,
   SUMMARY_TABS,

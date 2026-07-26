@@ -26,6 +26,7 @@ import usePatientAssessment, {
 } from '../../hooks/usePatientAssessment';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { ROUTES } from '../../routes/routeConstants';
+import { submitSessionAssessment } from '../../ApiCalls/preDialysisApis';
 
 // ---------------------------------------------------------------------------
 // Styling Tokens
@@ -134,24 +135,24 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
         status: 'final',
         section: 'Subjective Assessment',
         assessment: {
-          shortness_of_breath: subjectiveForm.shortnessOfBreath ? 'yes' : 'no',
-          chest_pain: subjectiveForm.chestPain ? 'yes' : 'no',
-          bleeding_bruising: subjectiveForm.bleedingBruising ? 'yes' : 'no',
-          dizziness_giddiness: subjectiveForm.dizzinessGiddiness ? 'yes' : 'no',
-          fever_chills: subjectiveForm.feverChills ? 'yes' : 'no',
-          any_abnormal_finding: objectiveForm.anyAbnormalFinding ? 'yes' : 'no',
-          consciousness: objectiveForm.consciousness || 'alert',
-          lung_sounds: objectiveForm.lungSounds || 'clear',
-          heart_sounds: objectiveForm.heartSounds || 'normal',
-          nausea_vomiting: subjectiveForm.nauseaVomiting ? 'yes' : 'no',
-          cough: subjectiveForm.cough ? 'yes' : 'no',
-          muscle_cramps: subjectiveForm.muscleCramps ? 'yes' : 'no',
-          itching: subjectiveForm.itching ? 'yes' : 'no',
-          headache: subjectiveForm.headache ? 'yes' : 'no',
-          loss_of_appetite: subjectiveForm.lossOfAppetite ? 'yes' : 'no',
-          general_appearance: objectiveForm.generalAppearance || 'well',
-          edema: objectiveForm.edema || 'none',
-          kps: kpsValue || '80',
+          shortness_of_breath: subjective.shortnessOfBreath ? 'yes' : 'no',
+          chest_pain: subjective.chestPain ? 'yes' : 'no',
+          bleeding_bruising: subjective.bleedingBruising ? 'yes' : 'no',
+          dizziness_giddiness: subjective.dizzinessGiddiness ? 'yes' : 'no',
+          fever_chills: subjective.feverChills ? 'yes' : 'no',
+          any_abnormal_finding: objective.anyAbnormalFinding ? 'yes' : 'no',
+          consciousness: objective.consciousness || 'alert',
+          lung_sounds: objective.lungSounds || 'clear',
+          heart_sounds: objective.heartSounds || 'normal',
+          nausea_vomiting: subjective.nauseaVomiting ? 'yes' : 'no',
+          cough: subjective.cough ? 'yes' : 'no',
+          muscle_cramps: subjective.muscleCramps ? 'yes' : 'no',
+          itching: subjective.itching ? 'yes' : 'no',
+          headache: subjective.headache ? 'yes' : 'no',
+          loss_of_appetite: subjective.lossOfAppetite ? 'yes' : 'no',
+          general_appearance: objective.generalAppearance || 'well',
+          edema: objective.edema || 'none',
+          kps: functional.kps || '80',
         },
         skips: skippedFieldsList.map((key) => ({ field_name: key, reason: skipReasons[key] || 'optional' })),
       });

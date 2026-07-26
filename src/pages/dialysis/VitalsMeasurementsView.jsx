@@ -20,6 +20,7 @@ import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import useVitalsMeasurements, { VITAL_SEVERITY } from '../../hooks/useVitalsMeasurements';
+import { submitSessionVitals } from '../../ApiCalls/preDialysisApis';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { ROUTES } from '../../routes/routeConstants';
 
@@ -143,23 +144,23 @@ const VitalsMeasurementsView = ({ patientId, onBack, onNext }) => {
     try {
       await submitSessionVitals(1, {
         status: 'final',
-        bp_systolic: parseFloat(vitalsForm.bpSystolic) || 120,
-        bp_diastolic: parseFloat(vitalsForm.bpDiastolic) || 80,
-        pulse: parseFloat(vitalsForm.pulse) || 72,
-        temperature: parseFloat(vitalsForm.temperature) || 36.8,
-        spo2: parseFloat(vitalsForm.spo2) || 98,
-        weight_pre: parseFloat(vitalsForm.weightPre) || 68.5,
-        edw: parseFloat(vitalsForm.edw) || 66.0,
-        heparin_dose_units: parseFloat(vitalsForm.heparinDose) || 2000,
+        bp_systolic: parseFloat(formState.systolic) || 120,
+        bp_diastolic: parseFloat(formState.diastolic) || 80,
+        pulse: parseFloat(formState.pulse) || 72,
+        temperature: parseFloat(formState.temperature) || 36.8,
+        spo2: parseFloat(formState.spo2) || 98,
+        weight_pre: parseFloat(formState.weightPre) || 68.5,
+        edw: parseFloat(formState.edw) || 66.0,
+        heparin_dose_units: parseFloat(formState.heparinDose) || 2000,
         heparin_concentration: 5000,
         saline_flush_ml: 100,
         treatment_duration_hours: 4,
-        respiratory_rate: parseFloat(vitalsForm.respiratoryRate) || 16,
-        height_cm: parseFloat(vitalsForm.heightCm) || 170,
-        pain_score: parseFloat(vitalsForm.painScore) || 0,
-        glucose: parseFloat(vitalsForm.glucose) || 110,
-        notes: notesText,
-        skips: unenteredNonCriticalFields.map((f) => ({ field_name: f.key, reason: skipReasons[f.key] || 'optional' })),
+        respiratory_rate: parseFloat(formState.respRate) || 16,
+        height_cm: parseFloat(formState.height) || 170,
+        pain_score: parseFloat(formState.painScore) || 0,
+        glucose: parseFloat(formState.glucose) || 110,
+        notes: formState.notes || '',
+        skips: skippedFieldsList.map((f) => ({ field_name: f, reason: skipReasons[f] || 'optional' })),
       });
     } catch (_) {}
 

@@ -21,6 +21,10 @@ import { Box, Button } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
+import {
+  submitSessionVerification,
+  submitSessionConsumables,
+} from '../../ApiCalls/preDialysisApis';
 import usePatientVerification, {
   VERIFICATION_STEPS_7,
   INFECTION_STATUS,
@@ -136,6 +140,7 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
   const {
     patientDetails,
     prescriptionDetails,
+    identityMatches: identityFields,
     verificationMethods,
     setVerificationMethods,
     wristbandScan,
@@ -168,7 +173,6 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
     }
   };
 
-  // Handle Continue to Next Step
   const handleContinueClick = async () => {
     if (!canProceed) return;
     try {
@@ -179,17 +183,17 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
         identity_dob_match: identityFields.dobMatched,
         identity_pid_match: identityFields.pidMatched,
         identity_phone_match: identityFields.phoneMatched,
-        wristband_scan_result: wristbandScanResult,
+        wristband_scan_result: wristbandScan,
         prescription_valid: true,
-        hiv_status: infectionStatus.hiv,
-        hepatitis_status: infectionStatus.hepatitis,
-        hiv_skipped: infectionStatus.hivSkipped,
-        hepatitis_skipped: infectionStatus.hepatitisSkipped,
+        hiv_status: infectionState.hivStatus,
+        hepatitis_status: infectionState.hepatitisStatus,
+        hiv_skipped: infectionState.skipped,
+        hepatitis_skipped: infectionState.skipped,
         notes: notesText,
       });
 
       await submitSessionConsumables(1, {
-        dialyzer_type: consumablesState.dialyzerUsageType === DIALYZER_USAGE_TYPE.MULTI_USE ? 'MULTI_USE' : 'SINGLE_USE',
+        dialyzer_type: consumablesState.dialyzerUsageType === 'MULTI_USE' ? 'MULTI_USE' : 'SINGLE_USE',
         dialyzer_id: consumablesState.dialyzerId || 'DLZ-1001',
         reuse_action: consumablesState.discardConfirmed ? 'confirmed_new' : consumablesState.isOverridden ? 'overridden' : 'none',
         old_dialyzer_discard_confirmed: consumablesState.discardConfirmed,
