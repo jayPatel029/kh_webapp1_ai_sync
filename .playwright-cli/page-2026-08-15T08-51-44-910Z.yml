@@ -1,0 +1,14 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img "Kifayti Health" [ref=e6]
+      - generic [ref=e7]:
+        - heading "Welcome to Kifayti Health" [level=1] [ref=e8]
+        - paragraph [ref=e9]: Please log in to your doctors portal
+    - generic [ref=e11]:
+      - textbox "Enter your email address" [ref=e13]
+      - button "Send OTP" [ref=e14] [cursor=pointer]
+      - generic [ref=e19]:
+        - button "Resend OTP" [disabled]
+      - generic [ref=e20]: Didn't receive the OTP? Check your spam/junk folder.
+  - region "Notifications alt+T"

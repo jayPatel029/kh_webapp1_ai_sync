@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { Box, Button, Input, Textarea } from '../../component-library';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Box, Button } from '../../component-library';
+import AutoCollapseTextarea from '../../components/AutoCollapseTextarea';
+import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { AVF_AVG_CONFIG, CVC_CONFIG, validateVascularAccess } from './vascularAccessValidation';
-import { submitVascularAccess } from '../../ApiCalls/preDialysisApis';
+import { submitVascularAccess, getPatientDetails } from '../../ApiCalls/preDialysisApis';
 
 // Icons
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -20,6 +22,7 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import MedicalServicesOutlinedIcon from '@mui/icons-material/MedicalServicesOutlined';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import './duringDialysis.css';
 
 const CARD_STYLE = {
   background: '#ffffff',
@@ -50,12 +53,133 @@ const ICON_MAP = {
   exitSiteClean: VisibilityOutlinedIcon,
 };
 
-const VascularAccessAssessmentView = ({ patientId, onBack, onNext }) => {
-  const isMobile = useIsMobile();
-  const [accessType, setAccessType] = useState('AVF'); // Default to AVF as seen in P2-07-3
-  const [formData, setFormData] = useState({ thrillBruit: 'Present', accessSiteAppearance: 'Normal', signsOfInfection: 'No', bleedingDischarge: 'No', aneurysm: 'No', cannulationZone: 'Good', accessFlow: '650' });
+const FIELD_API_KEYS = {
+  thrillBruit: 'thrill_bruit',
+  accessSiteAppearance: 'access_site_appearance',
+  signsOfInfection: 'signs_of_infection',
+  bleedingDischarge: 'bleeding_discharge',
+  aneurysm: 'aneurysm',
+  cannulationZone: 'cannulation_zone',
+  accessFlow: 'access_flow_ml_min',
+  dressingIntact: 'dressing_intact',
+  tendernessPain: 'tenderness_pain',
+  exitSiteClean: 'exit_site_clean',
+  signsOfInfectionCVC: 'cvc_signs_of_infection',
+  catheterPatent: 'catheter_patent',
+};
+
+const readFirstValue = (source, keys = []) => {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') return value;
+  }
+  return '';
+};
+
+const resolveAccessType = (patient = {}) => {
+  const raw = String(readFirstValue(patient, ['access_type', 'vascular_access', 'accessType', 'vascularAccess'])).toLowerCase();
+  if (raw.includes('cvc') || raw.includes('catheter')) return 'CVC';
+  if (raw.includes('avg') || raw.includes('graft')) return 'AVG';
+  if (raw.includes('avf') || raw.includes('fistula')) return 'AVF';
+  return '';
+};
+
+const normalizeFieldValue = (fieldId, value) => {
+  if (value === undefined || value === null || value === '') return value;
+  const raw = String(value).toLowerCase();
+  if (fieldId === 'cannulationZone') {
+    if (raw === 'adequate' || raw === 'good') return 'Good';
+    if (raw === 'limited') return 'Limited';
+    if (raw === 'poor') return 'Poor';
+  }
+  const option = String(value).trim();
+  const known = {
+    yes: 'Yes',
+    no: 'No',
+    present: 'Present',
+    weak: 'Weak',
+    absent: 'Absent',
+    normal: 'Normal',
+    redness: 'Redness',
+    swelling: 'Swelling',
+    other: 'Other',
+  }[raw];
+  return known || option;
+};
+
+const getAssessmentSource = (patient = {}) => patient?.vascular_access_assessment || patient?.vascularAccessAssessment || patient;
+
+const hydrateAssessment = (patient = {}) => {
+  const source = getAssessmentSource(patient);
+  return Object.entries(FIELD_API_KEYS).reduce((result, [fieldId, apiKey]) => {
+    const value = source?.[apiKey];
+    if (value !== undefined && value !== null && value !== '') {
+      result[fieldId] = fieldId === 'accessFlow' ? String(value) : normalizeFieldValue(fieldId, value);
+    }
+    return result;
+  }, {});
+};
+
+const resolveSessionId = (explicitSessionId, patient = {}) => explicitSessionId || readFirstValue(patient, [
+  'session_id',
+  'dialysis_session_id',
+  'active_session_id',
+  'current_session_id',
+  'sessionId',
+  'dialysisSessionId',
+]);
+
+const formatAssessmentTime = (value) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return 'Not available';
+  return date.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+};
+
+const VascularAccessAssessmentView = ({ patientId, sessionId, onBack, onNext, onNavigateStep }) => {
+  const { isMobile } = useIsMobile();
+  const [accessType, setAccessType] = useState('');
+  const [patientData, setPatientData] = useState(null);
+  const [loading, setLoading] = useState(Boolean(patientId));
+  const [loadError, setLoadError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [assessmentTime, setAssessmentTime] = useState(() => new Date());
+  useEffect(() => {
+    if (!patientId) {
+      setLoading(false);
+      return undefined;
+    }
+    let mounted = true;
+    setLoading(true);
+    setLoadError('');
+    getPatientDetails(patientId)
+      .then((res) => {
+        if (!mounted) return;
+        if (!res?.success) {
+          setLoadError(res?.message || 'Unable to load patient details.');
+          return;
+        }
+        const data = res.data?.data || res.data || {};
+        const derivedAccessType = resolveAccessType(data);
+        const source = getAssessmentSource(data);
+        setPatientData(data);
+        setAccessType(derivedAccessType);
+        setFormData(hydrateAssessment(data));
+        setDetailsData(source?.details || {});
+        setAdditionalObservations(source?.additional_observations || '');
+        setAssessmentTime(source?.recorded_at || source?.assessed_at || new Date());
+      })
+      .catch((error) => {
+        if (mounted) setLoadError(error?.message || 'Unable to load patient details.');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
+  }, [patientId]);
+  const [formData, setFormData] = useState({});
   const [detailsData, setDetailsData] = useState({});
-  const [additionalObservations, setAdditionalObservations] = useState('Good thrill and bruit. No signs of infection. Ready for cannulation.');
+  const [additionalObservations, setAdditionalObservations] = useState('');
 
   // Auto-calculation and Validation
   const currentConfig = useMemo(() => {
@@ -76,6 +200,50 @@ const VascularAccessAssessmentView = ({ patientId, onBack, onNext }) => {
 
   const handleDetailsChange = (id, val) => {
     setDetailsData(prev => ({ ...prev, [id]: val }));
+  };
+
+  const effectiveSessionId = resolveSessionId(sessionId, patientData);
+
+  const navigateToStep = (stepCode) => {
+    if (stepCode === 'P2-07') return;
+    if (onNavigateStep) {
+      onNavigateStep(stepCode);
+    } else if (stepCode === 'P2-06' && onBack) {
+      onBack();
+    } else if (stepCode === 'P2-08' && onNext) {
+      onNext();
+    }
+  };
+
+  const buildSubmissionPayload = () => {
+    const payload = {
+      status: 'final',
+      access_type: accessType,
+      additional_observations: additionalObservations,
+      skips: [],
+    };
+
+    if (accessType === 'CVC') {
+      payload.dressing_intact = String(formData.dressingIntact || '').toLowerCase();
+      payload.tenderness_pain = String(formData.tendernessPain || '').toLowerCase();
+      payload.exit_site_clean = String(formData.exitSiteClean || '').toLowerCase();
+      payload.cvc_signs_of_infection = String(formData.signsOfInfectionCVC || '').toLowerCase();
+      payload.catheter_patent = String(formData.catheterPatent || '').toLowerCase();
+    } else {
+      payload.thrill_bruit = String(formData.thrillBruit || '').toLowerCase();
+      payload.access_site_appearance = String(formData.accessSiteAppearance || '').toLowerCase();
+      payload.signs_of_infection = String(formData.signsOfInfection || '').toLowerCase();
+      payload.bleeding_discharge = String(formData.bleedingDischarge || '').toLowerCase();
+      payload.aneurysm = String(formData.aneurysm || '').toLowerCase();
+      payload.cannulation_zone = formData.cannulationZone === 'Good'
+        ? 'adequate'
+        : String(formData.cannulationZone || '').toLowerCase();
+      payload.access_flow_ml_min = formData.accessFlow === '' || formData.accessFlow === undefined
+        ? null
+        : Number(formData.accessFlow);
+    }
+
+    return payload;
   };
 
   return (
@@ -150,6 +318,8 @@ const VascularAccessAssessmentView = ({ patientId, onBack, onNext }) => {
             </div>
           </div>
 
+          <PreDialysisPatientProfileCard patient={patientData} isMobile={isMobile} />
+
           {/* Main Grid */}
           <div
             style={{
@@ -198,98 +368,93 @@ const VascularAccessAssessmentView = ({ patientId, onBack, onNext }) => {
                 </div>
               </div>
 
-              {/* Assessment Table */}
+              {/* Access Assessment */}
               {accessType && (
                 <div style={{ ...CARD_STYLE }}>
-                  <div className="p-6 pb-2">
-                    <h3 style={SECTION_TITLE_STYLE}>Access Assessment</h3>
-                    <p className="text-sm text-[#475569]">Examine access site and function.</p>
+                  <div style={{ padding: '24px 24px 16px' }}>
+                    <h3 style={{ ...SECTION_TITLE_STYLE, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <HealingIcon style={{ fontSize: '20px', color: '#2563eb' }} />
+                      Access Assessment
+                    </h3>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                      Examine access site and function.
+                    </p>
                   </div>
                   
                   {criticalErrors.length > 0 && (
-                    <div className="mx-6 p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
-                      <p className="text-red-700 font-bold mb-2">Action Required / Escalation</p>
-                      <ul className="list-disc pl-5 text-sm text-red-800">
+                    <div style={{ margin: '0 24px 16px', padding: '14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px' }}>
+                      <p style={{ color: '#b91c1c', fontWeight: 700, fontSize: '13px', margin: '0 0 8px' }}>Action Required / Escalation</p>
+                      <ul style={{ margin: 0, paddingLeft: '20px', color: '#991b1b', fontSize: '12px' }}>
                         {criticalErrors.map((err, i) => <li key={i}>{err}</li>)}
                       </ul>
                     </div>
                   )}
 
-                  <div className="w-full text-sm">
-                    {/* Header row */}
-                    <div className="flex border-b border-[#e2e8f0] px-6 py-3 text-[#64748b] font-semibold text-xs uppercase tracking-wider">
-                      <div className="w-2/5">Assessment Item</div>
-                      <div className="w-2/5">Findings</div>
-                      <div className="w-1/5">Details (if Abnormal)</div>
-                    </div>
-
-                    {/* Table Rows */}
-                    <div className="flex flex-col">
-                      {currentConfig.map((field, idx) => {
-                        const Icon = ICON_MAP[field.id] || InfoOutlinedIcon;
-                        return (
-                          <div key={field.id} className={`flex items-center px-6 py-4 ${idx !== currentConfig.length - 1 ? 'border-b border-[#f1f5f9]' : ''}`}>
-                            {/* Column 1: Item */}
-                            <div className="w-2/5 flex items-center gap-3">
-                              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#f0fdf4] text-[#16a34a]">
-                                <Icon style={{ fontSize: '18px' }} />
-                              </div>
-                              <span className="font-semibold text-[#334155]">{field.label}</span>
-                              <InfoOutlinedIcon style={{ fontSize: '14px', color: '#94a3b8' }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: '14px', padding: '0 24px 24px' }}>
+                    {currentConfig.map((field) => {
+                      const Icon = ICON_MAP[field.id] || InfoOutlinedIcon;
+                      return (
+                        <div key={field.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '30px', height: '30px', borderRadius: '9999px', background: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <Icon style={{ fontSize: '17px' }} />
                             </div>
-
-                            {/* Column 2: Findings */}
-                            <div className="w-2/5 pr-4">
-                              {field.type === 'radio' && (
-                                <div className="flex gap-4 flex-wrap">
-                                  {field.options.map(opt => {
-                                    const isSelected = formData[field.id] === opt;
-                                    const isGreenOpt = opt === 'No' && field.critical || opt === 'Normal' || opt === 'Good' || opt === 'Present' || opt === 'Yes' && !field.critical; // Rough heuristics for green
-                                    return (
-                                      <label key={opt} className="flex items-center gap-2 cursor-pointer">
-                                        {isSelected ? (
-                                          <CheckCircleIcon style={{ fontSize: '18px', color: '#16a34a' }} />
-                                        ) : (
-                                          <div className="w-[16px] h-[16px] rounded-full border border-gray-300" />
-                                        )}
-                                        <span className={`text-sm ${isSelected ? 'font-semibold text-[#0f172a]' : 'text-[#475569]'}`}>{opt}</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                              {field.type === 'number' && (
-                                <div className="flex items-center gap-3">
-                                  <input 
-                                    type="number" 
-                                    className="border border-[#e2e8f0] rounded-md px-3 py-1.5 w-24 text-sm focus:outline-none focus:border-blue-500"
-                                    value={formData[field.id] || ''}
-                                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                                  />
-                                  <span className="text-[#64748b]">mL/min</span>
-                                  {field.id === 'accessFlow' && formData[field.id] && (
-                                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${Number(formData[field.id]) >= 500 ? 'bg-[#dcfce7] text-[#166534]' : 'bg-[#fee2e2] text-[#991b1b]'}`}>
-                                      {Number(formData[field.id]) >= 500 ? 'Adequate (≥ 500 mL/min)' : 'Low (< 500 mL/min)'}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Column 3: Details */}
-                            <div className="w-1/5">
-                              <input 
-                                type="text"
-                                className="w-full border border-[#e2e8f0] rounded-md px-3 py-1.5 text-sm placeholder-[#94a3b8] focus:outline-none focus:border-blue-500"
-                                placeholder={field.type === 'number' ? '—' : 'Describe (if abnormal)'}
-                                value={detailsData[field.id] || ''}
-                                onChange={(e) => handleDetailsChange(field.id, e.target.value)}
-                              />
-                            </div>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+                              {field.label}{field.critical ? '*' : ''}
+                            </span>
+                            <InfoOutlinedIcon style={{ fontSize: '14px', color: '#94a3b8' }} />
                           </div>
-                        );
-                      })}
-                    </div>
+
+                          {field.type === 'radio' && (
+                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                              {field.options.map((opt) => {
+                                const isSelected = formData[field.id] === opt;
+                                return (
+                                  <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                                    <input
+                                      type="radio"
+                                      name={field.id}
+                                      value={opt}
+                                      checked={isSelected}
+                                      onChange={() => handleFieldChange(field.id, opt)}
+                                      style={{ accentColor: '#2563eb' }}
+                                    />
+                                    <span style={{ color: isSelected ? '#0f172a' : '#475569', fontWeight: isSelected ? 700 : 400 }}>{opt}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {field.type === 'number' && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              <input
+                                type="number"
+                                value={formData[field.id] || ''}
+                                onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                                style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 10px', width: '96px', fontSize: '13px' }}
+                              />
+                              <span style={{ color: '#64748b', fontSize: '12px' }}>mL/min</span>
+                              {field.id === 'accessFlow' && formData[field.id] && (
+                                <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, background: Number(formData[field.id]) >= 500 ? '#dcfce7' : '#fee2e2', color: Number(formData[field.id]) >= 500 ? '#166534' : '#991b1b' }}>
+                                  {Number(formData[field.id]) >= 500 ? 'Adequate (≥ 500 mL/min)' : 'Low (< 500 mL/min)'}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          <AutoCollapseTextarea
+                            aria-label={`${field.label} details`}
+                            autoFocus={field.id === currentConfig[0]?.id}
+                            maxLength={300}
+                            value={detailsData[field.id] || ''}
+                            onChange={(e) => handleDetailsChange(field.id, e.target.value)}
+                            placeholder={field.type === 'number' ? 'Add notes...' : 'Describe if abnormal...'}
+                            style={{ fontSize: '12px' }}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -336,30 +501,6 @@ const VascularAccessAssessmentView = ({ patientId, onBack, onNext }) => {
             {/* Right 4/12 Sidebar */}
             <div style={{ gridColumn: isMobile ? 'span 1' : 'span 4', display: 'flex', flexDirection: 'column', gap: '24px' }}>
               
-              {/* Patient Summary Card */}
-              <div style={{ ...CARD_STYLE, padding: '24px' }}>
-                <h3 style={SECTION_TITLE_STYLE}>Patient Summary</h3>
-                <div className="flex gap-4 items-center mb-6 mt-4">
-                  <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
-                    <img src="https://ui-avatars.com/api/?name=Ramesh+Kumar&background=cbd5e1&color=334155" alt="Patient" className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-[#0f172a] text-lg">Ramesh Kumar</h4>
-                      <span className="px-2 py-0.5 bg-[#dcfce7] text-[#166534] text-xs font-semibold rounded-full">Active Patient</span>
-                    </div>
-                    <p className="text-sm text-[#475569] mt-1">PID: P10023 &nbsp;|&nbsp; 58 Years, Male</p>
-                    <p className="text-sm font-semibold text-[#0f172a] mt-1">Blood Group: <span className="font-bold">O+</span></p>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-3 text-sm border-t border-[#f1f5f9] pt-4">
-                  <div className="flex justify-between"><span className="text-[#64748b]">Last Dialysis</span><span className="font-semibold text-[#0f172a]">12 Jan 2023 (2y 4m)</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Schedule</span><span className="font-semibold text-[#0f172a]">Mon, Wed, Fri</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Shift / Time</span><span className="font-semibold text-[#0f172a]">Morning (07:00 AM)</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Machine / Bed</span><span className="font-semibold text-[#0f172a]">B-02 / HD-01</span></div>
-                </div>
-              </div>
-
               {/* Access Details Card */}
               <div style={{ ...CARD_STYLE, padding: '24px' }}>
                 <div className="flex justify-between items-center mb-4">

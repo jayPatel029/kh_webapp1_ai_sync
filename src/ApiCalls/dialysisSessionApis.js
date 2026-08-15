@@ -149,6 +149,62 @@ export async function getHemoDialysisParameters(pid) {
   }
 }
 
+// Part 3 (During-Dialysis) API. These endpoints intentionally live beside the
+// legacy telemetry API because the backend stores P3 records in separate tables.
+async function p3Request(method, path, payload, config = {}) {
+  try {
+    const response = await axiosInstance[method](path, ...(payload === undefined ? [config] : [payload, config]));
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+const p3Path = (path) => `${server_url}/dt${path}`;
+
+export const getDuringDialysisDashboard = (sessionId, config) =>
+  p3Request('get', p3Path(`/sessions/${sessionId}/dashboard`), undefined, config);
+export const createIntradialyticVitals = (sessionId, payload, config) =>
+  p3Request('post', p3Path(`/sessions/${sessionId}/vitals-intradialytic`), payload, config);
+export const getIntradialyticVitals = (sessionId, range = '2h', config) =>
+  p3Request('get', p3Path(`/sessions/${sessionId}/vitals-intradialytic?range=${encodeURIComponent(range)}`), undefined, config);
+export const getOverdueVitals = (technicianId, config) =>
+  p3Request('get', p3Path(`/technicians/${technicianId}/overdue-vitals`), undefined, config);
+export const skipOverdueVital = (logId, payload = {}, config) =>
+  p3Request('post', p3Path(`/overdue-vitals/${logId}/skip`), payload, config);
+export const skipAllOverdueVitals = (payload, config) =>
+  p3Request('post', p3Path('/overdue-vitals/skip-all'), payload, config);
+export const createMachineParameters = (sessionId, payload, config) =>
+  p3Request('post', p3Path(`/sessions/${sessionId}/machine-parameters`), payload, config);
+export const getMachineParameters = (sessionId, range = '2h', config) =>
+  p3Request('get', p3Path(`/sessions/${sessionId}/machine-parameters?range=${encodeURIComponent(range)}`), undefined, config);
+export const createSymptom = (sessionId, payload, config) =>
+  p3Request('post', p3Path(`/sessions/${sessionId}/symptoms`), payload, config);
+export const updateSymptom = (sessionId, symptomId, payload, config) =>
+  p3Request('patch', p3Path(`/sessions/${sessionId}/symptoms/${symptomId}`), payload, config);
+export const createVascularAccessMonitoring = (sessionId, payload, config) =>
+  p3Request('post', p3Path(`/sessions/${sessionId}/vascular-access-monitoring`), payload, config);
+export const createMedicationAdministration = (sessionId, payload, config) =>
+  p3Request('post', p3Path(`/sessions/${sessionId}/medications`), payload, config);
+export const getDueMedications = (sessionId, config) =>
+  p3Request('get', p3Path(`/sessions/${sessionId}/medications/due`), undefined, config);
+export const getPatientAllergies = (patientId, config) =>
+  p3Request('get', p3Path(`/patients/${patientId}/allergies`), undefined, config);
+export const createAlarm = (sessionId, payload, config) =>
+  p3Request('post', p3Path(`/sessions/${sessionId}/alarms`), payload, config);
+export const updateDuringDialysisAlarm = (sessionId, alarmId, payload, config) =>
+  p3Request('patch', p3Path(`/sessions/${sessionId}/alarms/${alarmId}`), payload, config);
+export const getDuringDialysisProgress = (sessionId, config) =>
+  p3Request('get', p3Path(`/sessions/${sessionId}/progress`), undefined, config);
+export const createTreatmentEvent = (sessionId, payload, config) =>
+  p3Request('post', p3Path(`/sessions/${sessionId}/events`), payload, config);
+export const createIncident = (sessionId, payload, config) =>
+  p3Request('post', p3Path(`/sessions/${sessionId}/incidents`), payload, config);
+export const getIncidents = (sessionId, config) =>
+  p3Request('get', p3Path(`/sessions/${sessionId}/incidents`), undefined, config);
+export const endDuringDialysisTreatment = (sessionId, payload, config) =>
+  p3Request('post', p3Path(`/sessions/${sessionId}/end-treatment`), payload, config);
+
 export default {
   startDialysisSession,
   getDialysisSessionById,
@@ -158,4 +214,25 @@ export default {
   updateSessionParameters,
   submitSessionAction,
   getHemoDialysisParameters,
+  getDuringDialysisDashboard,
+  createIntradialyticVitals,
+  getIntradialyticVitals,
+  getOverdueVitals,
+  skipOverdueVital,
+  skipAllOverdueVitals,
+  createMachineParameters,
+  getMachineParameters,
+  createSymptom,
+  updateSymptom,
+  createVascularAccessMonitoring,
+  createMedicationAdministration,
+  getDueMedications,
+  getPatientAllergies,
+  createAlarm,
+  updateDuringDialysisAlarm,
+  getDuringDialysisProgress,
+  createTreatmentEvent,
+  createIncident,
+  getIncidents,
+  endDuringDialysisTreatment,
 };

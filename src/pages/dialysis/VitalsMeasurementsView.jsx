@@ -17,6 +17,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
+import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import useVitalsMeasurements, { VITAL_SEVERITY } from '../../hooks/useVitalsMeasurements';
@@ -255,6 +256,8 @@ const VitalsMeasurementsView = ({ patientId, onBack, onNext }) => {
               })}
             </div>
           </div>
+
+          <PreDialysisPatientProfileCard patient={patientRaw} isMobile={isMobile} />
 
           {/* ----------------------------------------------------------------- */}
           {/* Main 12-Column Layout Grid (8/12 Form + 4/12 Right Rail)          */}
@@ -586,39 +589,6 @@ const VitalsMeasurementsView = ({ patientId, onBack, onNext }) => {
             {/* Right 4/12 Rail Cards                                           */}
             {/* --------------------------------------------------------------- */}
             <div style={{ gridColumn: isMobile ? 'span 1' : 'span 4', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* Card 1: Patient Summary */}
-              <div style={CARD_STYLE}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '9999px', background: '#2563eb', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 800 }}>
-                    R
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>Ramesh Kumar</div>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>PID: P10023 · 58 Years, Male</div>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>Blood Group: O+</div>
-                  </div>
-                </div>
-
-                <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Last Dialysis:</span>
-                    <strong>12 Jan 2023 (2y 4m)</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Schedule:</span>
-                    <strong>Mon, Wed, Fri</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Shift / Time:</span>
-                    <strong>Morning (07:00 AM)</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Machine / Bed:</span>
-                    <strong style={{ color: '#2563eb' }}>B-02 / HD-01</strong>
-                  </div>
-                </div>
-              </div>
-
               {/* Card 2: Pre-Dialysis Alerts */}
               <div style={{ ...CARD_STYLE, background: '#fffbeb', borderColor: '#fde68a' }}>
                 <div style={{ fontSize: '14px', fontWeight: 800, color: '#b45309', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>

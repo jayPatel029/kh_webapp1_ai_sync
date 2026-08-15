@@ -225,9 +225,12 @@ const DialysisDashboard = () => {
 
   const [organizations, setOrganizations] = useState([]);
   const [clinics, setClinics] = useState([]);
-  const [selectedOrgId, setSelectedOrgId] = useState('');
-  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [selectedOrgId, setSelectedOrgId] = useState(() => localStorage.getItem('organization_id') || '');
+  const [selectedClinicId, setSelectedClinicId] = useState(() => localStorage.getItem('clinic_id') || '');
   const [clinicsLoading, setClinicsLoading] = useState(false);
+  const storedOrgId = localStorage.getItem('organization_id') || '';
+  const storedClinicId = localStorage.getItem('clinic_id') || '';
+  const isStaticSelection = !!storedOrgId;
 
   const user = useSelector((state) => state.auth?.user || {});
 
@@ -367,11 +370,16 @@ const DialysisDashboard = () => {
     }
   }, [showToast, selectedClinicId, selectedOrgId]);
 
+  const userOrgId = String(user?.organization_id || user?.org_id || user?.organizationId || user?.organization || '').trim();
+  const userClinicId = String(user?.clinic_id || user?.clinicId || user?.clinic || '').trim();
+
   useEffect(() => {
+    let cancelled = false;
     const fetchSelectionData = async () => {
       setClinicsLoading(true);
       try {
         const [orgsRes, clinicsRes] = await Promise.all([getOrganizations(), getClinics()]);
+        if (cancelled) return;
         if (orgsRes.success) {
           const orgList = Array.isArray(orgsRes.data?.data) ? orgsRes.data.data : (orgsRes.data || []);
           setOrganizations(orgList);
@@ -380,39 +388,30 @@ const DialysisDashboard = () => {
           const clinicList = Array.isArray(clinicsRes.data?.data) ? clinicsRes.data.data : (clinicsRes.data || []);
           setClinics(clinicList);
         }
-        // Auto-select org/clinic from user profile when available
-        const userOrg = String(user?.organization_id || user?.org_id || user?.organizationId || user?.organization || '').trim();
-        const userClinic = String(user?.clinic_id || user?.clinicId || user?.clinic || '').trim();
-        if (userOrg) {
-          setSelectedOrgId(String(userOrg));
-        }
-        if (userClinic) {
-          setSelectedClinicId(String(userClinic));
-        }
+        if (userOrgId) setSelectedOrgId(prev => prev || String(userOrgId));
+        if (userClinicId) setSelectedClinicId(prev => prev || String(userClinicId));
       } catch (err) {
         console.warn('Error loading organizations or clinics:', err);
       } finally {
-        setClinicsLoading(false);
+        if (!cancelled) setClinicsLoading(false);
       }
     };
     fetchSelectionData();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [userOrgId, userClinicId]);
 
   useEffect(() => {
-    if (selectedOrgId && clinics.length > 0) {
-      const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
-      if (orgClinics.length > 0) {
-        const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(selectedClinicId));
-        if (!isCurrentInOrg) {
-          setSelectedClinicId(String(orgClinics[0].id));
-        }
-      } else {
-        setSelectedClinicId('');
-      }
-    } else {
-      setSelectedClinicId('');
+    if (!selectedOrgId || clinics.length === 0) return;
+    const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
+    if (orgClinics.length === 0) {
+      setSelectedClinicId(prev => prev ? '' : prev);
+      return;
     }
-  }, [selectedOrgId, clinics, selectedClinicId]);
+    const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(selectedClinicId));
+    if (!isCurrentInOrg) {
+      setSelectedClinicId(String(orgClinics[0].id));
+    }
+  }, [selectedOrgId, clinics]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -433,24 +432,30 @@ const DialysisDashboard = () => {
             className="border-b border-gray-200"
             style={{ padding: '14px 16px' }}
           >
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
-              <OrganizationSelector
-                orgId={selectedOrgId}
-                setOrgId={setSelectedOrgId}
-                organizations={organizations}
-                label=""
-                minW="220px"
-                size="sm"
-              />
-              <ClinicSelector
-                clinicId={selectedClinicId}
-                setClinicId={setSelectedClinicId}
-                orgId={selectedOrgId}
-                clinics={clinics}
-                label=""
-                minW="220px"
-                size="sm"
-              />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <OrganizationSelector
+                  orgId={selectedOrgId}
+                  setOrgId={setSelectedOrgId}
+                  organizations={organizations}
+                  label=""
+                  minW="180px"
+                  size="sm"
+                  disabled={isStaticSelection}
+                />
+              </div>
+              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <ClinicSelector
+                  clinicId={selectedClinicId}
+                  setClinicId={setSelectedClinicId}
+                  orgId={selectedOrgId}
+                  clinics={clinics}
+                  label=""
+                  minW="180px"
+                  size="sm"
+                  disabled={isStaticSelection || !selectedOrgId}
+                />
+              </div>
               {(selectedOrgId || selectedClinicId) && (
                 <Text size="sm" style={{ color: '#6B7280', marginTop: '2px' }}>
                   {selectedOrgId ? `Organization: ${organizations.find(o => String(o.id) === String(selectedOrgId))?.name || selectedOrgId}` : ''}
@@ -474,7 +479,7 @@ const DialysisDashboard = () => {
             </div>
           ) : (
             <>
-              <div
+              {/* <div
                 style={{
                   width: '100%',
                   background: 'linear-gradient(135deg, #ffffff 0%, #eff6ff 55%, #f8fafc 100%)',
@@ -520,7 +525,7 @@ const DialysisDashboard = () => {
                     ))}
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* ─── Today's Appointments ─────────────── */}
               <div style={{ marginBottom: '12px' }}>

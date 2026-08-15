@@ -62,6 +62,8 @@ import {
 } from '../../../ApiCalls/clinicApis';
 
 import OrganizationSelector from '../../../components/OrganizationSelector';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../../routes/routeConstants';
 import './BedManagementDashboard.css';
 
 // Bed statuses
@@ -861,6 +863,7 @@ const AssignmentModal = ({
 // Main BedManagementDashboard Component
 // ============================================================================
 export default function BedManagementDashboard(props) {
+  const navigate = useNavigate();
   const {
     beds,
     bedsByStatus,
@@ -1030,15 +1033,7 @@ export default function BedManagementDashboard(props) {
         );
 
         if (result.success) {
-          // Section 2.5: Transitions Appt -> Session (RUNNING)
-          // Open dialysis modal with patient data and selected bed
-          setDialysisPatientData({
-            patient_id: patientData.patient_id,
-            patient_name: patientData.patient_name,
-            appointment_id: patientData.appointment_id,
-          });
-          setDialysisBedData(targetBed);
-          setIsDialysisModalOpen(true);
+          navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId: patientData.patient_id } });
 
           showNotification('Success', `Patient assigned to Bed ${targetBed.bed_number}`, 'success');
           loadAppointments(clinicId);
@@ -1086,9 +1081,14 @@ export default function BedManagementDashboard(props) {
         const result = await assignPatient(
           assignmentData.bed_id,
           assignmentData.patient_id,
-          null, // explicit manual assignment has no appointment_id in this simplified modal
+          null,
           assignmentData.notes
         );
+        if (result?.success) {
+          setIsAssignmentModalOpen(false);
+          navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId: assignmentData.patient_id } });
+          return;
+        }
 
         if (result.success) {
           showNotification('Success', `Patient assigned to Bed ${selectedBed.bed_number}`, 'success');

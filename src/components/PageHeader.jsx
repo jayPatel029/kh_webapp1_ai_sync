@@ -119,12 +119,14 @@ export const PageHeader = ({
       ];
     }
 
-    // Technician: Dialysis, Appointments, Patients
+    // Technician: Dashboard, Sessions, Appointments, Patients, Billing (no Inventory)
     if (sub === 'technician') {
       return [
-        { id: 'dialysis-sessions', label: 'Dialysis', href: ROUTES.DIALYSIS_SESSIONS, icon: LocalHospitalIcon, showInMobileBar: true },
+        { id: 'dialysis-dashboard', label: 'Dashboard', href: ROUTES.DIALYSIS_DASHBOARD, icon: DashboardIcon, showInMobileBar: true },
+        { id: 'dialysis-sessions', label: 'Sessions', href: ROUTES.DIALYSIS_SESSIONS, icon: LocalHospitalIcon, showInMobileBar: true },
         { id: 'dialysis-appointments', label: 'Appointments', href: ROUTES.DIALYSIS_APPOINTMENTS, icon: EventNoteIcon, showInMobileBar: true },
-        { id: 'dialysis-patients', label: 'Patients', href: ROUTES.DIALYSIS_PATIENTS, icon: PeopleAltIcon, showInMobileBar: true },
+        { id: 'dialysis-patients', label: 'Patients', href: ROUTES.DIALYSIS_PATIENTS, icon: PeopleAltIcon },
+        { id: 'dialysis-billing', label: 'Billing', href: ROUTES.DIALYSIS_BILLING, icon: ReceiptLongIcon },
       ];
     }
 
@@ -138,9 +140,13 @@ export const PageHeader = ({
       ];
     }
 
-    // Other / unset: Dashboard only (blank)
+    // Default (Dialysis Technician without sub-role): Dashboard, Sessions, Appointments, Patients, Billing
     return [
       { id: 'dialysis-dashboard', label: 'Dashboard', href: ROUTES.DIALYSIS_DASHBOARD, icon: DashboardIcon, showInMobileBar: true },
+      { id: 'dialysis-sessions', label: 'Sessions', href: ROUTES.DIALYSIS_SESSIONS, icon: LocalHospitalIcon, showInMobileBar: true },
+      { id: 'dialysis-appointments', label: 'Appointments', href: ROUTES.DIALYSIS_APPOINTMENTS, icon: EventNoteIcon, showInMobileBar: true },
+      { id: 'dialysis-patients', label: 'Patients', href: ROUTES.DIALYSIS_PATIENTS, icon: PeopleAltIcon },
+      { id: 'dialysis-billing', label: 'Billing', href: ROUTES.DIALYSIS_BILLING, icon: ReceiptLongIcon },
     ];
   }, [isDialysisMember, dialysisSubRole]);
 

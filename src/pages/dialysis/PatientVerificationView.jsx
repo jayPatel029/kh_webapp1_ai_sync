@@ -2,10 +2,10 @@
  * PatientVerificationView — P2-04 Patient Verification Screen
  *
  * Full implementation of P2-04 Patient Verification per the Part 2 specification and P2-04.jpeg:
- *  - 7-step condensed progress bar (Step 1 active: Patient Verification).
- *  - Patient Banner with photo, PID, dry weight, shift, and bed/machine B-02 / HD-01.
- *  - Card 1: 1. Verify Patient Identity (4 matching identifiers + Identity Verified banner).
- *  - Right Panels: Verification Method checkboxes & Wristband / Barcode Scan result.
+ *  - 9-step progress bar (Step 1 active: Patient Verification) — aligned with all P2-05..P2-12 screens.
+ *  - Patient Banner with photo, dry weight, shift, and bed/machine B-02 / HD-01.
+ *  - Card 1: 1. Verify Patient Identity (3 visible matching identifiers + Identity Verified banner).
+ *  - Right Panel: Verification Method checkboxes.
  *  - Card 2: 2. Infection Status Check (HIV & Hepatitis B/C status pills, Enter Now / Skip buttons).
  *  - Card 3: 3. Verify Prescription (Valid badge, prescription details, dialysate composition).
  *  - Card 4: 4. Consumables Confirmation (Single/Multi-Use dialyzer, reuse count tracking, max limit alert, Confirm New + physical discard checkbox, Override + mandatory reason, tubing set, needles).
@@ -17,16 +17,22 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
+import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import { Box, Button } from '../../component-library';
+import AutoCollapseTextarea from '../../components/AutoCollapseTextarea';
 import PageHeader from '../../components/PageHeader';
+import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import {
   submitSessionVerification,
   submitSessionConsumables,
 } from '../../ApiCalls/preDialysisApis';
+import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import usePatientVerification, {
-  VERIFICATION_STEPS_7,
   INFECTION_STATUS,
   DIALYZER_USAGE_TYPE,
 } from '../../hooks/usePatientVerification';
@@ -143,7 +149,6 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
     identityMatches: identityFields,
     verificationMethods,
     setVerificationMethods,
-    wristbandScan,
     infectionState,
     consumablesState,
     updateConsumables,
@@ -183,7 +188,6 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
         identity_dob_match: identityFields.dobMatched,
         identity_pid_match: identityFields.pidMatched,
         identity_phone_match: identityFields.phoneMatched,
-        wristband_scan_result: wristbandScan,
         prescription_valid: true,
         hiv_status: infectionState.hivStatus,
         hepatitis_status: infectionState.hepatitisStatus,
@@ -234,8 +238,6 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
     );
   }
 
-  const nameInitial = patientDetails.name ? patientDetails.name[0].toUpperCase() : '?';
-
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0 bg-[#F9FAFB]">
@@ -254,14 +256,14 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
 
         <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : 'p-6'}`}>
           {/* ----------------------------------------------------------------- */}
-          {/* 7-Step Condensed Progress Bar                                     */}
+          {/* 9-Step Progress Bar — aligned with P2-05..P2-12 (Step 1 active)    */}
           {/* ----------------------------------------------------------------- */}
           <div
             style={{
-              ...CARD_STYLE,
               padding: '16px 24px',
               marginBottom: '24px',
               overflowX: 'auto',
+              background: 'transparent',
             }}
           >
             <div
@@ -269,10 +271,11 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                minWidth: '680px',
+                minWidth: '780px',
               }}
             >
-              {VERIFICATION_STEPS_7.map((step, idx) => {
+              {PRE_DIALYSIS_STEPS.map((step, idx) => {
+                const isPast = step.id < 1;
                 const isActive = step.id === 1;
                 return (
                   <React.Fragment key={step.id}>
@@ -282,8 +285,8 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
                           width: '28px',
                           height: '28px',
                           borderRadius: '9999px',
-                          background: isActive ? '#2563eb' : '#f1f5f9',
-                          color: isActive ? '#ffffff' : '#64748b',
+                          background: isPast ? '#10b981' : isActive ? '#2563eb' : '#f1f5f9',
+                          color: isPast || isActive ? '#ffffff' : '#64748b',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -291,13 +294,13 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
                           fontWeight: 700,
                         }}
                       >
-                        {step.id}
+                        {isPast ? '✓' : step.id}
                       </div>
                       <span
                         style={{
                           fontSize: '12px',
                           fontWeight: isActive ? 700 : 500,
-                          color: isActive ? '#2563eb' : '#64748b',
+                          color: isActive ? '#2563eb' : isPast ? '#10b981' : '#64748b',
                           textAlign: 'center',
                           whiteSpace: 'nowrap',
                         }}
@@ -305,13 +308,13 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
                         {step.name}
                       </span>
                     </div>
-                    {idx < VERIFICATION_STEPS_7.length - 1 && (
+                    {idx < PRE_DIALYSIS_STEPS.length - 1 && (
                       <div
                         style={{
                           flex: 1,
                           height: '2px',
-                          background: '#e2e8f0',
-                          margin: '0 12px',
+                          background: isPast ? '#10b981' : '#e2e8f0',
+                          margin: '0 8px',
                           marginTop: '-16px',
                         }}
                       />
@@ -322,111 +325,7 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
             </div>
           </div>
 
-          {/* ----------------------------------------------------------------- */}
-          {/* Patient Banner                                                    */}
-          {/* ----------------------------------------------------------------- */}
-          <div
-            style={{
-              ...CARD_STYLE,
-              background: '#ffffff',
-              marginBottom: '24px',
-            }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
-                gap: '20px',
-                alignItems: 'center',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div
-                  style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '9999px',
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '24px',
-                    fontWeight: 800,
-                  }}
-                >
-                  {nameInitial}
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                      {patientDetails.name}
-                    </h2>
-                    <span
-                      style={{
-                        background: '#dcfce7',
-                        color: '#15803d',
-                        padding: '2px 10px',
-                        borderRadius: '9999px',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                      }}
-                    >
-                      Active Patient
-                    </span>
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '16px',
-                      fontSize: '13px',
-                      color: '#475569',
-                      marginTop: '6px',
-                    }}
-                  >
-                    <span>PID: <strong>{patientDetails.patientCode}</strong></span>
-                    <span><strong>{patientDetails.age} Years, {patientDetails.gender}</strong></span>
-                    <span>Blood Group: <strong>{patientDetails.bloodGroup}</strong></span>
-                  </div>
-
-                  <div style={{ fontSize: '13px', color: '#475569', marginTop: '4px' }}>
-                    Weight (Dry): <strong>{patientDetails.dryWeight} kg</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* Today's Schedule & Assignment */}
-              <div
-                style={{
-                  background: '#f8fafc',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  border: '1px solid #e2e8f0',
-                  fontSize: '13px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0369a1', fontWeight: 700 }}>
-                  <span>📅</span>
-                  <span>Today's Schedule</span>
-                </div>
-                <div style={{ fontWeight: 600, color: '#0f172a' }}>{patientDetails.schedule}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
-                  <span>Shift / Time:</span>
-                  <strong>{patientDetails.shift}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
-                  <span>Bed / Machine:</span>
-                  <strong style={{ color: '#2563eb' }}>{patientDetails.bedMachine}</strong>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PreDialysisPatientProfileCard patient={patientDetails} isMobile={isMobile} showPatientId={false} />
 
           {/* ----------------------------------------------------------------- */}
           {/* Row 1: Identity Card + Verification Method Cards                  */}
@@ -457,7 +356,7 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#334155' }}>
-                    <span>👤</span>
+                    <PersonOutlineIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />
                     <span>Full Name</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -478,7 +377,7 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#334155' }}>
-                    <span>📅</span>
+                    <CalendarTodayOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />
                     <span>Date of Birth</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -499,28 +398,7 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#334155' }}>
-                    <span>🛡</span>
-                    <span>Patient ID</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <strong style={{ color: '#0f172a', fontSize: '14px' }}>{patientDetails.patientCode}</strong>
-                    <MatchBadge />
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#f8fafc',
-                    border: '1px solid #f1f5f9',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#334155' }}>
-                    <span>📞</span>
+                    <PhoneOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />
                     <span>Phone Number</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -555,7 +433,7 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
                     fontSize: '14px',
                   }}
                 >
-                  🛡
+                  <VerifiedUserOutlinedIcon aria-hidden="true" sx={{ fontSize: 18 }} />
                 </div>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: '#15803d' }}>
@@ -568,9 +446,9 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
               </div>
             </div>
 
-            {/* Right Stack: Verification Method & Barcode Scan */}
+            {/* Right Stack: Verification Method */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* Panel 1: Verification Method */}
+              {/* Verification Method */}
               <div style={CARD_STYLE}>
                 <div style={SECTION_HEADER_STYLE}>Verification Method</div>
 
@@ -599,75 +477,6 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
                     <span>ID Card</span>
                   </label>
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#0f172a', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={verificationMethods.wristbandVerified}
-                      onChange={(e) =>
-                        setVerificationMethods((prev) => ({ ...prev, wristbandVerified: e.target.checked }))
-                      }
-                      style={{ width: '18px', height: '18px', accentColor: '#2563eb' }}
-                    />
-                    <span>Wristband</span>
-                    <span style={{ fontSize: '12px', color: '#64748b' }} title="Scan patient wristband RFID / Barcode">ⓘ</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Panel 2: Wristband / Barcode Scan */}
-              <div style={CARD_STYLE}>
-                <div style={SECTION_HEADER_STYLE}>Wristband / Barcode Scan</div>
-
-                <div
-                  style={{
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    padding: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '12px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div
-                      style={{
-                        fontFamily: 'monospace',
-                        letterSpacing: '4px',
-                        fontSize: '18px',
-                        fontWeight: 800,
-                        color: '#334155',
-                      }}
-                    >
-                      ||||| | |||| |||
-                    </div>
-                  </div>
-
-                  <span
-                    style={{
-                      background: '#dcfce7',
-                      color: '#15803d',
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                    }}
-                  >
-                    Scanned
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: '14px',
-                  }}
-                >
-                  <span style={{ color: '#475569' }}>Wristband ID: <strong>{wristbandScan.wristbandId}</strong></span>
-                  <MatchBadge />
                 </div>
               </div>
             </div>
@@ -1138,18 +947,13 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
           {/* ----------------------------------------------------------------- */}
           <div style={{ ...CARD_STYLE, marginBottom: '32px' }}>
             <div style={SECTION_HEADER_STYLE}>Notes (Optional)</div>
-            <textarea
-              rows={3}
+            <AutoCollapseTextarea
+              aria-label="Patient verification notes"
               value={notesText}
               onChange={(e) => setNotesText(e.target.value)}
               placeholder="Add any notes if required..."
               style={{
-                width: '100%',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
                 padding: '10px',
-                fontSize: '13px',
-                outline: 'none',
               }}
             />
           </div>

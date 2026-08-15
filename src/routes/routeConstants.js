@@ -83,6 +83,7 @@ export const ROUTES = {
   DIALYSIS_APPOINTMENTS: "/dialysis/appointments",
   DIALYSIS_PATIENTS: "/dialysis/patients",
   DIALYSIS_BILLING: "/dialysis/billing",
+  DIALYSIS_DURING: (sessionId = ":sessionId", screenId = "P3-01") => `/dialysis/during/${sessionId}/${screenId}`,
 
   // Clinic / Organization management
   CLINIC_MANAGEMENT: "/clinic",
@@ -134,6 +135,7 @@ export const ROUTE_NAMES = {
   DIALYSIS_APPOINTMENTS: "DialysisAppointments",
   DIALYSIS_PATIENTS: "DialysisPatients",
   DIALYSIS_BILLING: "DialysisBilling",
+  DIALYSIS_DURING: "DuringDialysis",
 
   // Clinic
   CLINIC_MANAGEMENT: "ClinicManagement",

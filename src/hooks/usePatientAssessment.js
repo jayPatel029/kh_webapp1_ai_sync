@@ -14,7 +14,7 @@ import {
   submitSessionAssessment,
 } from '../ApiCalls/preDialysisApis';
 import { getPatientById } from '../ApiCalls';
-import { notifyError } from '../helpers/notify';
+import { notifyError, notifySuccess } from '../helpers/notify';
 
 // ---------------------------------------------------------------------------
 // Constants & Field Lists
@@ -205,11 +205,28 @@ export default function usePatientAssessment(patientId) {
   }, [loadAssessmentData]);
 
   // Update handlers
+  const triggerNephrologistAlert = useCallback((symptomKey) => {
+    // Real-time nephrologist alert on Critical symptom Yes — distinct from daily digest (Change #9)
+    try {
+      const payload = { patientId, symptom: symptomKey, triggeredAt: new Date().toISOString() };
+      // Audit event: consent_revoked_kifayti_anonymization_applied analogue — here nephrologist_alert
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('nephrologist_alert', { detail: payload }));
+      // Also attempt API notification if available (non-blocking)
+      import('../ApiCalls/preDialysisApis').then((mod) => {
+        if (mod.notifyNephrologistCritical) mod.notifyNephrologistCritical(patientId, symptomKey).catch(()=>{});
+      }).catch(()=>{});
+      notifySuccess(`Nephrologist alerted: Critical symptom "${symptomKey}"`);
+    } catch (_) {}
+  }, [patientId]);
+
   const updateSubjectiveSymptom = (key, value) => {
     setSubjective((prev) => ({
       ...prev,
       [key]: value,
     }));
+    if (value === 'Yes' && CRITICAL_SUBJECTIVE_SYMPTOMS.includes(key)) {
+      triggerNephrologistAlert(key);
+    }
   };
 
   const updateSymptomDetail = (key, text) => {

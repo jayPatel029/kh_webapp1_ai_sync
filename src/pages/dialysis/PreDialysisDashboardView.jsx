@@ -16,8 +16,16 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import ChecklistOutlinedIcon from '@mui/icons-material/ChecklistOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
+import NoteAltOutlinedIcon from '@mui/icons-material/NoteAltOutlined';
+import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNoneOutlined';
+import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import { Box, Button } from '../../component-library';
+import AutoCollapseTextarea from '../../components/AutoCollapseTextarea';
 import PageHeader from '../../components/PageHeader';
+import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import usePreDialysisDashboard, {
@@ -233,8 +241,6 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
     );
   }
 
-  const nameInitial = patientInfo.name ? patientInfo.name[0].toUpperCase() : '?';
-
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0 bg-[#F9FAFB]">
@@ -287,164 +293,11 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
             )}
           </div>
 
-          {/* ----------------------------------------------------------------- */}
-          {/* Patient Info Bar                                                  */}
-          {/* ----------------------------------------------------------------- */}
-          <div
-            style={{
-              ...CARD_STYLE,
-              background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-              borderColor: '#cbd5e1',
-              marginBottom: '24px',
-            }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : '3fr 1fr',
-                gap: '20px',
-                alignItems: 'center',
-              }}
-            >
-              {/* Left Patient Detail Column */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
-                  {patientInfo.photo ? (
-                    <img
-                      src={patientInfo.photo}
-                      alt={patientInfo.name}
-                      style={{ width: '48px', height: '48px', borderRadius: '9999px', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '9999px',
-                        background: '#2563eb',
-                        color: '#ffffff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '20px',
-                        fontWeight: 800,
-                      }}
-                    >
-                      {nameInitial}
-                    </div>
-                  )}
-
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
-                        {patientInfo.name}
-                      </span>
-                      <span
-                        style={{
-                          background: '#e0f2fe',
-                          color: '#0369a1',
-                          padding: '2px 8px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {patientInfo.statusBadge}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
-                      PID: {patientInfo.patientCode} · {patientInfo.age}y {patientInfo.gender} · 📞 {patientInfo.phone}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2x4 Details Grid */}
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-                    gap: '12px 20px',
-                    fontSize: '13px',
-                    color: '#334155',
-                    paddingTop: '12px',
-                    borderTop: '1px solid #f1f5f9',
-                  }}
-                >
-                  <div>
-                    <span style={{ color: '#64748b' }}>Weight (Dry):</span>{' '}
-                    <strong>{patientInfo.dryWeight} kg</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b' }}>Blood Group:</span>{' '}
-                    <strong>{patientInfo.bloodGroup}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b' }}>📅 Last Dialysis:</span>{' '}
-                    <strong>{patientInfo.lastDialysisDate} {patientInfo.lastDialysisDuration}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b' }}>🩸 Vascular Access:</span>{' '}
-                    <strong>{patientInfo.vascularAccess}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b' }}>📅 Next Schedule:</span>{' '}
-                    <strong>{patientInfo.nextSchedule}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b' }}>👤 Nephrologist:</span>{' '}
-                    <strong>{patientInfo.nephrologist}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b' }}>💧 Dialysis Type:</span>{' '}
-                    <strong>{patientInfo.dialysisType}</strong>
-                  </div>
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => navigate(ROUTES.userProfile(patientInfo.id))}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#2563eb',
-                        fontWeight: 700,
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        padding: 0,
-                      }}
-                    >
-                      View Full Profile →
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Today's Assignment Card */}
-              <div
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '12px',
-                  padding: '14px',
-                }}
-              >
-                <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>
-                  Today's Assignment
-                </div>
-                <div style={{ fontSize: '13px', color: '#0f172a', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div>
-                    <span style={{ color: '#64748b' }}>Shift:</span> <strong>{patientInfo.assignment.shift}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b' }}>Bed / Machine:</span>{' '}
-                    <strong style={{ color: '#2563eb' }}>{patientInfo.assignment.bedMachine}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: '#64748b' }}>Tech:</span> <strong>{patientInfo.assignment.technician}</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PreDialysisPatientProfileCard
+            patient={patientInfo}
+            isMobile={isMobile}
+            onViewProfile={() => navigate(ROUTES.userProfile(patientInfo.id))}
+          />
 
           {/* ----------------------------------------------------------------- */}
           {/* 3-Column Body Layout                                              */}
@@ -463,7 +316,10 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
             <div style={{ gridColumn: isMobile ? 'span 1' : 'span 4' }}>
               <div style={CARD_STYLE}>
                 <div style={SECTION_HEADER_STYLE}>
-                  <span>Pre-Dialysis Workflow</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <ChecklistOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 20 }} />
+                    Pre-Dialysis Workflow
+                  </span>
                   <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
                     9 Steps
                   </span>
@@ -559,7 +415,7 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
                     gap: '8px',
                   }}
                 >
-                  <span>ℹ</span>
+                  <InfoOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />
                   <span>Complete all mandatory steps to enable Start Dialysis.</span>
                 </div>
               </div>
@@ -572,7 +428,10 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
               {/* Latest Vitals Card */}
               <div style={CARD_STYLE}>
                 <div style={SECTION_HEADER_STYLE}>
-                  <span>Latest Vitals</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <MonitorHeartOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 20 }} />
+                    Latest Vitals
+                  </span>
                   <span style={{ fontSize: '12px', color: '#64748b' }}>Reference Ranges</span>
                 </div>
 
@@ -629,7 +488,10 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
               {/* Pre-Dialysis Summary Card */}
               <div style={CARD_STYLE}>
                 <div style={SECTION_HEADER_STYLE}>
-                  <span>Pre-Dialysis Summary</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <TaskAltOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 20 }} />
+                    Pre-Dialysis Summary
+                  </span>
                   <button
                     type="button"
                     onClick={handleBackClick}
@@ -675,7 +537,10 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
               {/* Alerts & Notifications Card */}
               <div style={CARD_STYLE}>
                 <div style={SECTION_HEADER_STYLE}>
-                  <span>Alerts & Notifications</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <NotificationsNoneOutlinedIcon aria-hidden="true" sx={{ color: '#dc2626', fontSize: 20 }} />
+                    Alerts & Notifications
+                  </span>
                   <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: 700 }}>
                     {alerts.length} Active
                   </span>
@@ -710,7 +575,10 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
               {/* Pending Tasks Card */}
               <div style={CARD_STYLE}>
                 <div style={SECTION_HEADER_STYLE}>
-                  <span>Pending Tasks</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <TaskAltOutlinedIcon aria-hidden="true" sx={{ color: '#d97706', fontSize: 20 }} />
+                    Pending Tasks
+                  </span>
                   <span style={{ fontSize: '12px', color: '#d97706', fontWeight: 700 }}>
                     {pendingTasks.length} Remaining
                   </span>
@@ -746,7 +614,10 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
               {/* Notes Card */}
               <div style={CARD_STYLE}>
                 <div style={SECTION_HEADER_STYLE}>
-                  <span>Notes</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <NoteAltOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 20 }} />
+                    Notes
+                  </span>
                   {!showAddNoteInput && (
                     <button
                       type="button"
@@ -760,18 +631,13 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
 
                 {showAddNoteInput && (
                   <form onSubmit={handleAddNoteSubmit} style={{ marginBottom: '14px' }}>
-                    <textarea
-                      rows={2}
+                    <AutoCollapseTextarea
+                      aria-label="Pre-dialysis note"
                       value={newNoteText}
                       onChange={(e) => setNewNoteText(e.target.value)}
                       placeholder="Type note here..."
                       style={{
-                        width: '100%',
-                        borderRadius: '8px',
-                        border: '1px solid #cbd5e1',
-                        padding: '8px',
                         fontSize: '13px',
-                        outline: 'none',
                         marginBottom: '8px',
                       }}
                     />

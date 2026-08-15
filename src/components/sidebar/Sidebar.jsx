@@ -144,13 +144,22 @@ const Sidebar = ({ mobile = false }) => {
       });
     }
 
-    if (hasAnyPermission(role, "dialysisReadings")) {
+    if (hasAnyPermission(role, "dialysisReadings") || isRole(role, 'Dialysis Technician')) {
       items.push({
         id: 'dialysis-readings',
         label: 'Dialysis Readings',
         href: ROUTES.READINGS_DIALYSIS,
         icon: BloodtypeIcon,
       });
+    }
+
+    if (isRole(role, 'Dialysis Technician')) {
+      items.push({ id: 'dialysis-dashboard', label: 'Dashboard', href: ROUTES.DIALYSIS_DASHBOARD, icon: LocalHospitalIcon });
+      items.push({ id: 'dialysis-inventory', label: 'Inventory', href: ROUTES.DIALYSIS_INVENTORY, icon: LocalHospitalIcon });
+      items.push({ id: 'dialysis-sessions', label: 'Sessions', href: ROUTES.DIALYSIS_SESSIONS, icon: LocalHospitalIcon });
+      items.push({ id: 'dialysis-appointments', label: 'Appointments', href: ROUTES.DIALYSIS_APPOINTMENTS, icon: LocalHospitalIcon });
+      items.push({ id: 'dialysis-patients', label: 'Patients', href: ROUTES.DIALYSIS_PATIENTS, icon: LocalHospitalIcon });
+      items.push({ id: 'dialysis-billing', label: 'Billing', href: ROUTES.DIALYSIS_BILLING, icon: LocalHospitalIcon });
     }
 
     // Add KFRE to navigation for dashboard access users
@@ -238,7 +247,8 @@ const Sidebar = ({ mobile = false }) => {
   // Show Chats group only for admin-type roles
   const chatsGroupVisible = !!isRole(role, ['Admin', 'PSadmin']);
 
-  const dialysisGroupVisible = !!isRole(role, ['Admin', 'PSadmin']);
+  const isDialysisTech = !!isRole(role, 'Dialysis Technician');
+  const dialysisGroupVisible = !!isRole(role, ['Admin', 'PSadmin']) || isDialysisTech;
 
   const renderDesktopNavItem = (item) => {
     const Icon = item.icon;

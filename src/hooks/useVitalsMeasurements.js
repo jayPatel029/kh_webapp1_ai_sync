@@ -15,6 +15,7 @@ import {
 import { getPatientById, getHemoDialysisParameters } from '../ApiCalls';
 import { formatDate } from './usePatientSummary';
 import { notifyError } from '../helpers/notify';
+import { getVitalsThresholds, getUfThresholds } from '../config/vitalsThresholds';
 
 // ---------------------------------------------------------------------------
 // Constants & Threshold Enums
@@ -76,7 +77,8 @@ export const calculateUFGoal = (weightPre, edw, fluidAllowance = 0.5) => {
 };
 
 // ---------------------------------------------------------------------------
-// Clinical Threshold Evaluators
+// Clinical Threshold Evaluators — admin-configurable via src/config/vitalsThresholds.js
+// Resolved per Change Requirements #6: literature-backed defaults, editable by admin.
 // ---------------------------------------------------------------------------
 
 export const evaluateBp = (systolic, diastolic) => {
@@ -85,15 +87,15 @@ export const evaluateBp = (systolic, diastolic) => {
   if (Number.isNaN(sys) || Number.isNaN(dia)) {
     return { severity: VITAL_SEVERITY.NORMAL, label: 'Target: < 140/90' };
   }
-
-  if (sys > 160 || dia > 100 || sys < 90 || dia < 60) {
-    return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical' };
-  }
+  const t = getVitalsThresholds();
+  const sysCrit = sys < t.systolic.criticalLow || sys > t.systolic.criticalHigh;
+  const diaCrit = dia < t.diastolic.criticalLow || dia > t.diastolic.criticalHigh;
+  if (sysCrit || diaCrit) return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical' };
+  const sysWarn = (sys >= t.systolic.warningLow[0] && sys <= t.systolic.warningLow[1]) || (sys >= t.systolic.warningHigh[0] && sys <= t.systolic.warningHigh[1]);
+  const diaWarn = (dia >= t.diastolic.warningLow[0] && dia <= t.diastolic.warningLow[1]) || (dia >= t.diastolic.warningHigh[0] && dia <= t.diastolic.warningHigh[1]);
+  if (sysWarn || diaWarn) return { severity: VITAL_SEVERITY.WARNING, label: sys >= t.systolic.warningHigh[0] || dia >= t.diastolic.warningHigh[0] ? 'High' : 'Low' };
   if (sys >= 140 || dia >= 90 || sys < 100) {
-    return {
-      severity: VITAL_SEVERITY.WARNING,
-      label: sys >= 140 || dia >= 90 ? 'High' : 'Low',
-    };
+    return { severity: VITAL_SEVERITY.WARNING, label: sys >= 140 || dia >= 90 ? 'High' : 'Low' };
   }
   return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal (Target: < 140/90)' };
 };
@@ -101,40 +103,46 @@ export const evaluateBp = (systolic, diastolic) => {
 export const evaluatePulse = (pulse) => {
   const p = parseFloat(pulse);
   if (Number.isNaN(p)) return { severity: VITAL_SEVERITY.NORMAL, label: '60–100 bpm' };
-
-  if (p < 50 || p > 110) {
-    return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical' };
-  }
-  if ((p >= 50 && p < 60) || (p > 100 && p <= 110)) {
-    return { severity: VITAL_SEVERITY.WARNING, label: p > 100 ? 'High' : 'Low' };
-  }
+  const t = getVitalsThresholds().pulse;
+  if (p < t.criticalLow || p > t.criticalHigh) return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical' };
+  if ((p >= t.warningLow[0] && p <= t.warningLow[1]) || (p >= t.warningHigh[0] && p <= t.warningHigh[1])) return { severity: VITAL_SEVERITY.WARNING, label: p > 100 ? 'High' : 'Low' };
   return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal (60–100 bpm)' };
 };
 
 export const evaluateTemp = (temp) => {
-  const t = parseFloat(temp);
-  if (Number.isNaN(t)) return { severity: VITAL_SEVERITY.NORMAL, label: '36.0–37.5 °C' };
-
-  if (t < 35.5 || t > 38.0) {
-    return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical' };
-  }
-  if ((t >= 35.5 && t < 36.0) || (t > 37.5 && t <= 38.0)) {
-    return { severity: VITAL_SEVERITY.WARNING, label: t > 37.5 ? 'High' : 'Low' };
-  }
+  const v = parseFloat(temp);
+  if (Number.isNaN(v)) return { severity: VITAL_SEVERITY.NORMAL, label: '36.0–37.5 °C' };
+  const t = getVitalsThresholds().temperature;
+  if (v < t.criticalLow || v > t.criticalHigh) return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical' };
+  if ((v >= t.warningLow[0] && v <= t.warningLow[1]) || (v >= t.warningHigh[0] && v <= t.warningHigh[1])) return { severity: VITAL_SEVERITY.WARNING, label: v > 37.5 ? 'High' : 'Low' };
   return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal (36.0–37.5 °C)' };
 };
 
 export const evaluateSpo2 = (spo2) => {
   const s = parseFloat(spo2);
   if (Number.isNaN(s)) return { severity: VITAL_SEVERITY.NORMAL, label: '≥ 95%' };
-
-  if (s < 90) {
-    return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical (< 90%)' };
-  }
-  if (s >= 90 && s < 95) {
-    return { severity: VITAL_SEVERITY.WARNING, label: 'Low (90–94%)' };
-  }
+  const t = getVitalsThresholds().spo2;
+  if (s < t.criticalLow) return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical (< 90%)' };
+  if (s >= t.warning[0] && s <= t.warning[1]) return { severity: VITAL_SEVERITY.WARNING, label: 'Low (90–94%)' };
   return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal (≥ 95%)' };
+};
+
+export const evaluateRespRate = (resp) => {
+  const r = parseFloat(resp);
+  if (Number.isNaN(r)) return { severity: VITAL_SEVERITY.NORMAL, label: '12–20 bpm' };
+  const t = getVitalsThresholds().respiration;
+  if (r < t.criticalLow || r > t.criticalHigh) return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical' };
+  if ((r >= t.warningLow[0] && r <= t.warningLow[1]) || (r >= t.warningHigh[0] && r <= t.warningHigh[1])) return { severity: VITAL_SEVERITY.WARNING, label: 'Warning' };
+  return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal (12–20 bpm)' };
+};
+
+export const evaluateUfRate = (ufRate) => {
+  const v = parseFloat(ufRate);
+  if (Number.isNaN(v)) return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal' };
+  const t = getUfThresholds();
+  if (v >= t.critical) return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical ≥13 mL/kg/hr (hard block)' };
+  if (v >= t.warning) return { severity: VITAL_SEVERITY.WARNING, label: 'Warning ≥10 mL/kg/hr' };
+  return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal' };
 };
 
 // ---------------------------------------------------------------------------

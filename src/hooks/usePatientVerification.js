@@ -1,8 +1,8 @@
 /**
  * usePatientVerification — P2-04 Patient Verification Hook
  *
- * Manages patient identity verification, wristband/barcode scanning,
- * Infection Status Check gate (HIV & Hepatitis B/C), prescription verification,
+ * Manages patient identity verification, Infection Status Check gate
+ * (HIV & Hepatitis B/C), prescription verification,
  * and Consumables Confirmation (Multi-Use dialyzer reuse tracking & limit rules).
  *
  * @file src/hooks/usePatientVerification.js
@@ -130,14 +130,6 @@ export default function usePatientVerification(patientId) {
   const [verificationMethods, setVerificationMethods] = useState({
     patientConfirmed: true,
     idCardVerified: true,
-    wristbandVerified: true,
-  });
-
-  // Wristband Scan state
-  const [wristbandScan, setWristbandScan] = useState({
-    scanned: true,
-    wristbandId: 'P10023',
-    matched: true,
   });
 
   // Infection Status Check state
@@ -183,24 +175,23 @@ export default function usePatientVerification(patientId) {
       if (patientRes?.success) {
         patientData = patientRes.data?.data || patientRes.data || null;
       } else {
-        // Fallback default mockup values matching P2-04 export
         patientData = {
           id: patientId,
-          patient_code: `P${String(patientId).padStart(5, '0')}`,
-          name: 'Ramesh Kumar',
-          dob: '1966-08-15',
-          gender: 'Male',
-          number: '+91 98765 43210',
-          dry_weight: '68.5',
-          blood_group: 'O+',
-          last_dialysis_date: '2023-01-12',
-          vascular_access: 'AV Fistula (Left)',
-          shift_time: 'Morning (07:00 AM)',
-          bed_number: 'B-02',
-          machine_number: 'HD-01',
-          primary_doctor_name: 'Dr. Neha Mehta',
-          hiv_status: INFECTION_STATUS.PENDING,
-          hepatitis_status: INFECTION_STATUS.NEGATIVE,
+          patient_code: '',
+          name: '',
+          dob: '',
+          gender: '',
+          number: '',
+          dry_weight: '',
+          blood_group: '',
+          last_dialysis_date: '',
+          vascular_access: '',
+          shift_time: '',
+          bed_number: '',
+          machine_number: '',
+          primary_doctor_name: '',
+          hiv_status: '',
+          hepatitis_status: '',
         };
       }
 
@@ -213,12 +204,6 @@ export default function usePatientVerification(patientId) {
           hepatitisStatus: patientData.hepatitis_status || INFECTION_STATUS.NEGATIVE,
         }));
       }
-
-      setWristbandScan((prev) => ({
-        ...prev,
-        wristbandId: patientData.patient_code || `P${String(patientId).padStart(5, '0')}`,
-        matched: true,
-      }));
 
       try {
         const rxRes = await getHemoDialysisParameters(patientId);
@@ -315,8 +300,7 @@ export default function usePatientVerification(patientId) {
   const identityValid = checkIdentityMatch(identityMatches);
   const methodValid = Boolean(
     verificationMethods.patientConfirmed ||
-    verificationMethods.idCardVerified ||
-    verificationMethods.wristbandVerified
+    verificationMethods.idCardVerified
   );
   const infectionValid = checkInfectionGateResolved(
     infectionState.hivStatus,
@@ -334,8 +318,6 @@ export default function usePatientVerification(patientId) {
     setIdentityMatches,
     verificationMethods,
     setVerificationMethods,
-    wristbandScan,
-    setWristbandScan,
     infectionState,
     consumablesState,
     updateConsumables,

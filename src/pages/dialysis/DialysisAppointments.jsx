@@ -446,6 +446,9 @@ const DialysisAppointments = () => {
   const [clinics, setClinics] = useState([]);
   const [patients, setPatients] = useState([]);
   const [clinicsLoading, setClinicsLoading] = useState(false);
+  const storedOrgId = localStorage.getItem('organization_id') || '';
+  const storedClinicId = localStorage.getItem('clinic_id') || '';
+  const isStaticSelection = !!storedOrgId;
 
   // ─── Filter state ─────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');

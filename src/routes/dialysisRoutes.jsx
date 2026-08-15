@@ -6,6 +6,7 @@
  */
 
 import React, { lazy } from 'react';
+import DialysisLayout from '../pages/dialysis/DialysisLayout';
 
 const DialysisDashboard = lazy(() => import('../pages/dialysis/DialysisDashboard'));
 const DialysisInventory = lazy(() => import('../pages/dialysis/DialysisInventory'));
@@ -13,11 +14,18 @@ const DialysisSessions = lazy(() => import('../pages/dialysis/DialysisSessions')
 const DialysisAppointments = lazy(() => import('../pages/dialysis/DialysisAppointments'));
 const DialysisPatients = lazy(() => import('../pages/dialysis/DialysisPatients'));
 const DialysisBilling = lazy(() => import('../pages/dialysis/DialysisBilling'));
+const DuringDialysisPage = lazy(() => import('../pages/dialysis/DuringDialysisPage'));
+const PostDialysisPage = lazy(() => import('../pages/dialysis/PostDialysisPage'));
 
 export const getDialysisRoutes = ({ guard, ROUTE_NAMES }) => [
   {
     path: 'dialysis',
+    element: guard(<DialysisLayout />, ROUTE_NAMES.DIALYSIS_DASHBOARD, ['Dialysis Technician', 'Admin', 'PSadmin']),
     children: [
+      {
+        index: true,
+        element: <DialysisDashboard />,
+      },
       {
         path: 'dashboard',
         element: guard(
@@ -64,6 +72,22 @@ export const getDialysisRoutes = ({ guard, ROUTE_NAMES }) => [
           <DialysisBilling />,
           ROUTE_NAMES.DIALYSIS_BILLING,
           ['Dialysis Technician', 'Admin', 'PSadmin']
+        ),
+      },
+      {
+        path: 'during/:sessionId/:screenId',
+        element: guard(
+          <DuringDialysisPage />,
+          ROUTE_NAMES.DIALYSIS_DURING,
+          ['Dialysis Technician', 'Nurse', 'Nephrologist', 'Doctor', 'Medical Staff']
+        ),
+      },
+      {
+        path: 'post/:sessionId/:screenId',
+        element: guard(
+          <PostDialysisPage />,
+          ROUTE_NAMES.DIALYSIS_DURING,
+          ['Dialysis Technician', 'Nurse', 'Nephrologist', 'Doctor', 'Medical Staff']
         ),
       },
     ],

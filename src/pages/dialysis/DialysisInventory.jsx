@@ -110,9 +110,13 @@ const DialysisInventory = () => {
 
   const [organizations, setOrganizations] = useState([]);
   const [clinics, setClinics] = useState([]);
-  const [selectedOrgId, setSelectedOrgId] = useState('');
-  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [selectedOrgId, setSelectedOrgId] = useState(() => localStorage.getItem('organization_id') || '');
+  const [selectedClinicId, setSelectedClinicId] = useState(() => localStorage.getItem('clinic_id') || '');
+  const [filterDate, setFilterDate] = useState('');
   const [clinicsLoading, setClinicsLoading] = useState(false);
+  const storedOrgId = localStorage.getItem('organization_id') || '';
+  const storedClinicId = localStorage.getItem('clinic_id') || '';
+  const isStaticSelection = !!storedOrgId;
 
   const selectionParams = useMemo(() => ({
     params: {
@@ -970,26 +974,16 @@ const DialysisInventory = () => {
             ]}
           />
           <Box className="border-b border-gray-200" style={{ padding: '14px 16px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
-              <OrganizationSelector
-                orgId={selectedOrgId}
-                setOrgId={setSelectedOrgId}
-                organizations={organizations}
-                label=""
-                minW="220px"
-                size="sm"
-              />
-              <ClinicSelector
-                clinicId={selectedClinicId}
-                setClinicId={setSelectedClinicId}
-                orgId={selectedOrgId}
-                clinics={clinics}
-                label=""
-                minW="220px"
-                size="sm"
-              />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <OrganizationSelector orgId={selectedOrgId} setOrgId={setSelectedOrgId} organizations={organizations} label="" minW="180px" size="sm" disabled={isStaticSelection} />
+              </div>
+              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <ClinicSelector clinicId={selectedClinicId} setClinicId={setSelectedClinicId} orgId={selectedOrgId} clinics={clinics} label="" minW="180px" size="sm" disabled={isStaticSelection || !selectedOrgId} />
+              </div>
+              <Input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} style={{ height: '40px', margin: 0, width: '180px', flexShrink: 0 }} />
               {(selectedOrgId || selectedClinicId) && (
-                <div style={{ color: '#6B7280', marginTop: '2px', fontSize: '13px' }}>
+                <div style={{ color: '#6B7280', fontSize: '13px', marginLeft: '4px' }}>
                   {selectedOrgId ? `Organization: ${organizations.find(o => String(o.id) === String(selectedOrgId))?.name || selectedOrgId}` : ''}
                   {selectedOrgId && selectedClinicId ? ' · ' : ''}
                   {selectedClinicId ? `Clinic: ${clinics.find(c => String(c.id) === String(selectedClinicId))?.clinic_name || clinics.find(c => String(c.id) === String(selectedClinicId))?.name || selectedClinicId}` : ''}

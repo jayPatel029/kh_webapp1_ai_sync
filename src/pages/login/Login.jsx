@@ -61,10 +61,14 @@ function Login() {
             exp: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null,
           });
         }
-        localStorage.setItem("firstname", decoded?.firstname || "");
+        localStorage.setItem("firstname", decoded?.firstname || response?.data?.user?.firstname || "");
         localStorage.setItem("email", decoded?.email || email);
         localStorage.setItem("token", response?.data?.token);
-        localStorage.setItem("role", decoded?.role || "");
+        localStorage.setItem("role", response?.data?.user?.role || decoded?.role || "");
+        const u = response?.data?.user || {};
+        if (u.organization_id != null) localStorage.setItem("organization_id", String(u.organization_id));
+        if (u.clinic_id != null) localStorage.setItem("clinic_id", String(u.clinic_id));
+        if (u.clinicId != null) localStorage.setItem("clinic_id", String(u.clinicId));
         try {
           const role = await identifyRole();
           if (role.success) {

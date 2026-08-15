@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Button } from '../../component-library';
+import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { validateSafetyValidation } from './safetyValidationLogic';
-import { validateSafetyChecklist } from '../../ApiCalls/preDialysisApis';
+import { validateSafetyChecklist, getPatientDetails } from '../../ApiCalls/preDialysisApis';
 
 // Icons
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -35,9 +36,16 @@ const VALIDATION_STEPS = [
   { id: 7, name: 'Infection Control', status: 'Completed', completedBy: 'Rahul Singh', time: '07:05 AM' },
 ];
 
-const SafetyValidationView = ({ onBack, onNext }) => {
-  const isMobile = useIsMobile();
+const SafetyValidationView = ({ patientId, onBack, onNext }) => {
+  const { isMobile } = useIsMobile();
   const [notes, setNotes] = useState('');
+  const [patientData, setPatientData] = useState(null);
+  useEffect(() => {
+    if (!patientId) return;
+    let mounted = true;
+    getPatientDetails(patientId).then((res) => { if (mounted && res?.success) setPatientData(res.data?.data || res.data); }).catch(()=>{});
+    return () => { mounted = false; };
+  }, [patientId]);
 
   const { isValid, blockingIssues } = useMemo(() => {
     return validateSafetyValidation(VALIDATION_STEPS);
@@ -114,6 +122,8 @@ const SafetyValidationView = ({ onBack, onNext }) => {
               })}
             </div>
           </div>
+
+          <PreDialysisPatientProfileCard patient={patientData} isMobile={isMobile} />
 
           {/* Main 12-Column Grid */}
           <div
@@ -200,30 +210,6 @@ const SafetyValidationView = ({ onBack, onNext }) => {
             {/* Right 4/12 Sidebar */}
             <div style={{ gridColumn: isMobile ? 'span 1' : 'span 4', display: 'flex', flexDirection: 'column', gap: '24px' }}>
               
-              {/* Patient Summary Card */}
-              <div style={{ ...CARD_STYLE, padding: '24px' }}>
-                <h3 style={SECTION_TITLE_STYLE}>Patient Summary</h3>
-                <div className="flex gap-4 items-center mb-6 mt-4">
-                  <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
-                    <img src="https://ui-avatars.com/api/?name=Ramesh+Kumar&background=cbd5e1&color=334155" alt="Patient" className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-[#0f172a] text-lg">Ramesh Kumar</h4>
-                      <span className="px-2 py-0.5 bg-[#dcfce7] text-[#166534] text-xs font-semibold rounded-full">Active Patient</span>
-                    </div>
-                    <p className="text-sm text-[#475569] mt-1">PID: P10023 &nbsp;|&nbsp; 58y, Male</p>
-                    <p className="text-sm font-semibold text-[#0f172a] mt-1">Blood Group: <span className="font-bold">O+</span></p>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-3 text-sm border-t border-[#f1f5f9] pt-4">
-                  <div className="flex justify-between"><span className="text-[#64748b]">Last Dialysis</span><span className="font-semibold text-[#0f172a]">12 Jan 2023 (2y 4m)</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Schedule</span><span className="font-semibold text-[#0f172a]">Mon, Wed, Fri</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Shift / Time</span><span className="font-semibold text-[#2563eb]">Morning (07:00 AM)</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Machine / Bed</span><span className="font-semibold text-[#2563eb]">B-02 / HD-01</span></div>
-                </div>
-              </div>
-
               {/* Pre-Dialysis Alerts Card */}
               <div style={{ ...CARD_STYLE, padding: '24px', background: '#fef2f2', borderColor: '#fecaca' }}>
                 <div className="flex items-center gap-2 mb-3">

@@ -25,6 +25,8 @@ import WaterSafetyView from '../../dialysis/WaterSafetyView';
 import InfectionControlView from '../../dialysis/InfectionControlView';
 import SafetyValidationView from '../../dialysis/SafetyValidationView';
 import StartDialysisConfirmationView from '../../dialysis/StartDialysisConfirmationView';
+import DuringDialysisPage from '../../dialysis/DuringDialysisPage';
+import PostDialysisPage from '../../dialysis/PostDialysisPage';
 
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../routes/routeConstants';
@@ -1403,7 +1405,7 @@ const navigate = useNavigate();
               className={`pb-4 px-2 font-bold text-sm border-b-2 transition-colors ${stage === 'after' ? 'border-[#4164df] text-[#4164df]' : 'border-transparent text-gray-500 hover:text-gray-900'}`}
               onClick={() => setStage('after')}
             >
-              Post-Dialysis
+              Post-Session
             </button>
           </HStack>
           
@@ -1515,6 +1517,31 @@ const navigate = useNavigate();
 
               {stage !== 'before' && (
                 <Box className="dialysis-modal__workspace" p={6}>
+                  {stage === 'during' ? (
+                    <DuringDialysisPage
+                      embedded
+                      sessionId={sessionId}
+                      patientData={completePatientData || patient}
+                      parameterQuestions={hemoParams}
+                      patientId={patient?.patient_id || patient?.id}
+                      onCompleted={() => {
+                        setStage('after');
+                        setTimerActive(false);
+                        onStageChange?.('after');
+                      }}
+                    />
+                  ) : stage === 'after' ? (
+                    <PostDialysisPage
+                      embedded
+                      sessionId={sessionId}
+                      patientData={completePatientData || patient}
+                      onCompleted={() => {
+                        setTimerActive(false);
+                        onStageChange?.('closed');
+                        onClose?.();
+                      }}
+                    />
+                  ) : (
                   <Box className="dialysis-modal__main-layout" display="flex" gap={6}>
                     <Box flex={2.5} className="dialysis-modal__left-sidebar">
                   <PatientProfileCard 
@@ -1705,6 +1732,7 @@ const navigate = useNavigate();
                       )}
                     </VStack>
                   </Box>
+                  )}
                 </Box>
               )}
             </Box>

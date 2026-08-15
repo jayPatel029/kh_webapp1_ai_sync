@@ -15,8 +15,13 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AccessibilityNewOutlinedIcon from '@mui/icons-material/AccessibilityNewOutlined';
+import MedicalInformationOutlinedIcon from '@mui/icons-material/MedicalInformationOutlined';
+import NoteAltOutlinedIcon from '@mui/icons-material/NoteAltOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import { Box, Button } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
+import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import usePatientAssessment, {
@@ -250,6 +255,8 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
             </div>
           </div>
 
+          <PreDialysisPatientProfileCard patient={patientRaw} isMobile={isMobile} />
+
           {/* ----------------------------------------------------------------- */}
           {/* Main 12-Column Layout Grid (8/12 Form + 4/12 Right Rail)          */}
           {/* ----------------------------------------------------------------- */}
@@ -270,7 +277,7 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <div>
                     <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ color: '#2563eb' }}>👤</span> Subjective Assessment
+                      <PersonOutlineIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 20 }} /> Subjective Assessment
                     </h2>
                     <p style={{ fontSize: '12px', color: '#64748b', margin: 0, marginTop: '2px' }}>
                       Ask patient and record their responses.
@@ -318,7 +325,7 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
                           </label>
                         </div>
 
-                        {/* Conditional Description Textarea when "Yes" */}
+                        {/* Conditional Description field when "Yes" */}
                         {isYes && (
                           <div style={{ marginTop: '10px' }}>
                             <input
@@ -334,7 +341,7 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
                     );
                   })}
 
-                  {/* Any Other Symptoms Textarea */}
+                  {/* Any Other Symptoms */}
                   <div style={{ ...SYMPTOM_CARD_STYLE, gridColumn: isMobile ? 'span 1' : 'span 1' }}>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
                       Any Other Symptoms?
@@ -355,7 +362,7 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
               <div style={CARD_STYLE}>
                 <div style={{ marginBottom: '16px' }}>
                   <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#2563eb' }}>🩺</span> Objective Assessment
+                    <MedicalInformationOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 20 }} /> Objective Assessment
                   </h2>
                   <p style={{ fontSize: '12px', color: '#64748b', margin: 0, marginTop: '2px' }}>
                     Clinical observations by technician.
@@ -563,7 +570,7 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
               <div style={CARD_STYLE}>
                 <div style={{ marginBottom: '16px' }}>
                   <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#2563eb' }}>🏃</span> Functional Assessment
+                    <AccessibilityNewOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 20 }} /> Functional Assessment
                   </h2>
                   <p style={{ fontSize: '12px', color: '#64748b', margin: 0, marginTop: '2px' }}>
                     Evaluate patient's functional status.
@@ -654,43 +661,10 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
             {/* Right 4/12 Rail Cards                                           */}
             {/* --------------------------------------------------------------- */}
             <div style={{ gridColumn: isMobile ? 'span 1' : 'span 4', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* Card 1: Patient Summary */}
-              <div style={CARD_STYLE}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '9999px', background: '#2563eb', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 800 }}>
-                    R
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a' }}>Ramesh Kumar</div>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>PID: P10023 · 58 Years, Male</div>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>Blood Group: O+</div>
-                  </div>
-                </div>
-
-                <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Last Dialysis:</span>
-                    <strong>12 Jan 2023 (2y 4m)</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Schedule:</span>
-                    <strong>Mon, Wed, Fri</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Shift / Time:</span>
-                    <strong>Morning (07:00 AM)</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Machine / Bed:</span>
-                    <strong style={{ color: '#2563eb' }}>B-02 / HD-01</strong>
-                  </div>
-                </div>
-              </div>
-
               {/* Card 2: Pre-Dialysis Alerts */}
               <div style={{ ...CARD_STYLE, background: '#fffbeb', borderColor: '#fde68a' }}>
                 <div style={{ fontSize: '14px', fontWeight: 800, color: '#b45309', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>⚠</span>
+                  <MedicalInformationOutlinedIcon aria-hidden="true" sx={{ color: '#b45309', fontSize: 18 }} />
                   <span>Pre-Dialysis Alerts</span>
                 </div>
                 <div style={{ fontSize: '12px', color: '#92400e', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -744,8 +718,8 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
                     Add Note
                   </button>
                 </div>
-                <div style={{ width: '48px', height: '48px', margin: '0 auto 8px auto', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-                  📝
+                <div style={{ width: '48px', height: '48px', margin: '0 auto 8px auto', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <NoteAltOutlinedIcon aria-hidden="true" sx={{ color: '#94a3b8', fontSize: 24 }} />
                 </div>
                 <div style={{ fontSize: '12px', color: '#64748b' }}>No notes added yet.</div>
               </div>

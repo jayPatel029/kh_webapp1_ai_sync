@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Button } from '../../component-library';
+import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { verifyPin, MAX_ATTEMPTS } from './startDialysisValidation';
-import { startDialysis, unlockStartDialysis } from '../../ApiCalls/preDialysisApis';
+import { startDialysis, unlockStartDialysis, getPatientDetails } from '../../ApiCalls/preDialysisApis';
 
 // Icons
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -39,8 +40,15 @@ const SUMMARY_ROWS = [
   { id: 8, item: 'Safety Validation', status: 'Completed', details: 'All safety criteria met', completedBy: 'Rahul Singh', time: '06:51 AM' },
 ];
 
-const StartDialysisConfirmationView = ({ onBack, onNext }) => {
-  const isMobile = useIsMobile();
+const StartDialysisConfirmationView = ({ patientId, onBack, onNext }) => {
+  const { isMobile } = useIsMobile();
+  const [patientData, setPatientData] = useState(null);
+  useEffect(() => {
+    if (!patientId) return;
+    let mounted = true;
+    getPatientDetails(patientId).then((res) => { if (mounted && res?.success) setPatientData(res.data?.data || res.data); }).catch(()=>{});
+    return () => { mounted = false; };
+  }, [patientId]);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -153,33 +161,7 @@ const StartDialysisConfirmationView = ({ onBack, onNext }) => {
             </div>
           </div>
 
-          {/* Patient Banner */}
-          <div style={{ ...CARD_STYLE, padding: '20px', marginBottom: '24px' }}>
-            <div className="flex justify-between items-center flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden border border-gray-300">
-                  <img src="https://ui-avatars.com/api/?name=Ramesh+Kumar&background=cbd5e1&color=334155" alt="Ramesh Kumar" className="w-full h-full object-cover" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-[#0f172a] text-lg">Ramesh Kumar</h3>
-                    <span className="px-2 py-0.5 bg-[#dcfce7] text-[#166534] text-xs font-semibold rounded-full">Active Patient</span>
-                  </div>
-                  <p className="text-xs text-[#64748b] mt-0.5">PID: P10023 &nbsp;|&nbsp; 58y &nbsp;|&nbsp; Blood Group: <span className="font-bold text-[#0f172a]">O+</span></p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-6 text-sm">
-                <div><span className="text-[#64748b] text-xs block">Weight (Dry)</span><span className="font-bold text-[#0f172a]">68.5 kg</span></div>
-                <div className="h-8 w-px bg-gray-200" />
-                <div><span className="text-[#64748b] text-xs block">Today's Schedule</span><span className="font-bold text-[#0f172a]">12 Jan 2023 (2y 4m)</span></div>
-                <div className="h-8 w-px bg-gray-200" />
-                <div><span className="text-[#64748b] text-xs block">Shift</span><span className="font-bold text-[#2563eb]">Morning (07:00 AM)</span></div>
-                <div className="h-8 w-px bg-gray-200" />
-                <div><span className="text-[#64748b] text-xs block">Bed / Machine</span><span className="font-bold text-[#2563eb]">B-02 / HD-01</span></div>
-              </div>
-            </div>
-          </div>
+          <PreDialysisPatientProfileCard patient={patientData} isMobile={isMobile} />
 
           {/* Pre-Dialysis Checklist Summary Table Card */}
           <div style={{ ...CARD_STYLE, marginBottom: '24px' }}>

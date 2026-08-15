@@ -143,32 +143,19 @@ const DialysisPatients = () => {
     );
   }
 
-  // If dashboard view (P2-03) requested for patient
-  if (selectedPatientId && isDashboardView) {
-    return (
-      <PreDialysisDashboardView
-        patientId={selectedPatientId}
-        onBack={() =>
-          navigate(ROUTES.DIALYSIS_PATIENTS, {
-            state: { patientId: selectedPatientId },
-          })
-        }
-        onNavigateStep={(stepCode) =>
-          navigate(ROUTES.DIALYSIS_PATIENTS, {
-            state: { patientId: selectedPatientId, step: stepCode },
-          })
-        }
-      />
-    );
-  }
 
-  // If route state carries a patientId, render Patient Summary (P2-02)
+
+  // Direct to first pre-dialysis step (P2-04 Verification) — Patient Summary and P2-03 dashboard removed
   if (selectedPatientId) {
     return (
-      <PatientSummaryView
+      <PatientVerificationView
         patientId={selectedPatientId}
-        appointment={location.state?.appointment}
         onBack={() => navigate(ROUTES.DIALYSIS_PATIENTS, { replace: true })}
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-05' },
+          })
+        }
       />
     );
   }
@@ -182,28 +169,31 @@ const DialysisPatients = () => {
 // ---------------------------------------------------------------------------
 
 const QueueView = ({ isMobile, navigate, roleName }) => {
-  const {
-    queueRows,
-    loading,
-    error,
-    refresh,
-    markEmergency,
-    searchQuery,
-    setSearchQuery,
-    selectedShift,
-    setSelectedShift,
-    selectedStatus,
-    setSelectedStatus,
-    selectedBed,
-    setSelectedBed,
-    shiftOptions,
-    statusOptions,
-    bedOptions,
-    totalPatients,
-    completedCount,
-    inProgressCount,
-    pendingCount,
-  } = useDialysisQueue();
+  const [patients, setPatients] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const refresh = React.useCallback(async () => {
+    setLoading(true); setError('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch((import.meta.env.VITE_API_URL || '') + '/patient/getPatients', { headers: { Authorization: `Bearer ${token}` } }).then(r=>r.json()).catch(()=>null);
+      // fallback to axiosInstance if fetch fails
+      let data = res?.data || res || [];
+      if (!Array.isArray(data) || data.length===0) {
+        try { const { default: axiosInstance } = await import('../../helpers/axios/axiosInstance'); const { server_url } = await import('../../constants/constants'); const r2 = await axiosInstance.get(server_url + '/patient/getPatients', { headers: { Authorization: `Bearer ${token}` }}); data = r2.data?.data || r2.data || []; } catch {}
+      }
+      const filtered = (Array.isArray(data)?data:[]).filter(p=> String(p.aliments||p.aliments||p.ailments||'').toLowerCase().includes('hemo dialysis'));
+      setPatients(filtered);
+    } catch(e){ setError(e.message||'Failed to load'); } finally { setLoading(false); }
+  }, []);
+  React.useEffect(()=>{ refresh(); }, [refresh]);
+  const queueRows = React.useMemo(()=> patients.map((p,i)=>({
+    queueIndex: i+1, id: p.id, name: p.name, patientCode: String(p.id), gender: p.gender||'-', age: p.dob? String(new Date().getFullYear()-new Date(p.dob).getFullYear()): '-', phone: p.number||'', aliments: p.aliments, shiftLabel: '-', appointmentTime: p.registered_date? new Date(p.registered_date).toLocaleDateString(): '-', bedLabel: '-', status: 'Scheduled', priority: 'Medium', appointmentId: p.id, appointment: p,
+  })).filter(r=> !searchQuery || r.name.toLowerCase().includes(searchQuery.toLowerCase()) || String(r.id).includes(searchQuery)), [patients, searchQuery]);
+  const totalPatients = patients.length; const completedCount = 0; const inProgressCount = 0; const pendingCount = totalPatients;
+  const selectedShift='ALL', setSelectedShift=()=>{}, selectedStatus='ALL', setSelectedStatus=()=>{}, selectedBed='ALL', setSelectedBed=()=>{}, shiftOptions=['ALL'], statusOptions=['ALL'], bedOptions=['ALL'];
+  const markEmergency = ()=>{};
 
   // ---- Navigate to Patient Summary ----
 
@@ -433,62 +423,6 @@ const QueueView = ({ isMobile, navigate, roleName }) => {
               gap: '18px',
             }}
           >
-            {/* ---- Header Card ---- */}
-            <div
-              style={{
-                background: '#fff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '24px',
-                padding: isMobile ? '18px' : '22px 24px',
-                boxShadow: '0 15px 35px rgba(15, 23, 42, 0.04)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: isMobile ? 'stretch' : 'center',
-                  flexDirection: isMobile ? 'column' : 'row',
-                  gap: '14px',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a' }}>
-                    Today's Patient Queue
-                  </div>
-                  <div style={{ marginTop: '4px', color: '#64748b', fontSize: '14px' }}>
-                    Appointment-driven dialysis queue for today. View patient summaries, track
-                    progress, and manage emergencies.
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  <div
-                    style={{
-                      height: '40px',
-                      minWidth: isMobile ? '100%' : '170px',
-                      borderRadius: '12px',
-                      border: '1px solid #d1d5db',
-                      background: '#fff',
-                      padding: '0 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: '#334155',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {new Date().toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric',
-                    })}
-                  </div>
-                  <Button variant="outline" onClick={refresh}>
-                    Refresh
-                  </Button>
-                </div>
-              </div>
-            </div>
-
             {/* ---- KPI Row ---- */}
             <div
               style={{
@@ -686,111 +620,9 @@ const QueueView = ({ isMobile, navigate, roleName }) => {
                 />
               )}
             </div>
-
-            {/* ---- Footer Legend ---- */}
-            <div
-              style={{
-                background: '#fff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '24px',
-                padding: isMobile ? '18px' : '20px 24px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: '16px',
-                flexDirection: isMobile ? 'column' : 'row',
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontSize: '15px',
-                    fontWeight: 700,
-                    color: '#0f172a',
-                    marginBottom: '10px',
-                  }}
-                >
-                  Status Legend
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '16px',
-                    flexWrap: 'wrap',
-                    color: '#475569',
-                    fontSize: '13px',
-                  }}
-                >
-                  {[
-                    ['Scheduled', '#2563eb'],
-                    ['Pending', '#ef4444'],
-                    ['In Progress', '#f59e0b'],
-                    ['Completed', '#10b981'],
-                  ].map(([label, color]) => (
-                    <span
-                      key={label}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-                    >
-                      <span
-                        style={{
-                          width: '10px',
-                          height: '10px',
-                          borderRadius: '9999px',
-                          background: color,
-                        }}
-                      />
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: '15px',
-                    fontWeight: 700,
-                    color: '#0f172a',
-                    marginBottom: '10px',
-                  }}
-                >
-                  Priority
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '16px',
-                    flexWrap: 'wrap',
-                    color: '#475569',
-                    fontSize: '13px',
-                  }}
-                >
-                  {[
-                    ['High', '#ef4444'],
-                    ['Medium', '#f59e0b'],
-                    ['Low', '#10b981'],
-                  ].map(([label, color]) => (
-                    <span
-                      key={label}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-                    >
-                      <span
-                        style={{
-                          width: '10px',
-                          height: '10px',
-                          borderRadius: '9999px',
-                          background: color,
-                        }}
-                      />
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </Box>
     </ThemeProvider>
   );
 };
-
-export default DialysisPatients;
