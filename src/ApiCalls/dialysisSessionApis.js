@@ -180,6 +180,8 @@ export const getMachineParameters = (sessionId, range = '2h', config) =>
   p3Request('get', p3Path(`/sessions/${sessionId}/machine-parameters?range=${encodeURIComponent(range)}`), undefined, config);
 export const createSymptom = (sessionId, payload, config) =>
   p3Request('post', p3Path(`/sessions/${sessionId}/symptoms`), payload, config);
+export const getSymptoms = (sessionId, config) =>
+  p3Request('get', p3Path(`/sessions/${sessionId}/symptoms`), undefined, config);
 export const updateSymptom = (sessionId, symptomId, payload, config) =>
   p3Request('patch', p3Path(`/sessions/${sessionId}/symptoms/${symptomId}`), payload, config);
 export const createVascularAccessMonitoring = (sessionId, payload, config) =>

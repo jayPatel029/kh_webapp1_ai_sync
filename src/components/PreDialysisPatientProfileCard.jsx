@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { getPatientDetails } from '../ApiCalls/preDialysisApis';
+import { getPatientById } from '../ApiCalls/patientAPis';
+import { calculateAge, formatDate, calcDialysisDuration } from '../hooks/usePatientSummary';
 
 const DEFAULT_PROFILE = {
   id: 1,
@@ -26,6 +29,7 @@ const DEFAULT_PROFILE = {
 };
 
 const readFirst = (source, keys) => {
+  if (!source || typeof source !== 'object') return '';
   for (const key of keys) {
     const value = source?.[key];
     if (value !== undefined && value !== null && String(value).trim() !== '') {
@@ -35,53 +39,127 @@ const readFirst = (source, keys) => {
   return '';
 };
 
-export const normalizePreDialysisProfileData = (patient = {}) => {
-  const patientCode = readFirst(patient, ['patientCode', 'patient_code', 'patientId']) || DEFAULT_PROFILE.patientCode;
-  const age = readFirst(patient, ['age']) || DEFAULT_PROFILE.age;
-  const gender = readFirst(patient, ['gender', 'sex']) || DEFAULT_PROFILE.gender;
-  const phone = readFirst(patient, ['phone', 'number', 'phone_number', 'mobile_no']) || DEFAULT_PROFILE.phone;
-  const dryWeightRaw = readFirst(patient, ['dryWeight', 'dry_weight', 'target_weight', 'weight_dry']);
-  const bloodGroup = readFirst(patient, ['bloodGroup', 'blood_group']) || DEFAULT_PROFILE.bloodGroup;
-  const lastDialysisRaw = readFirst(patient, ['lastDialysis', 'last_dialysis', 'lastDialysisDate', 'last_dialysis_date']) || DEFAULT_PROFILE.lastDialysis;
-  // split last dialysis into date + elapsed if contains parentheses
+export const normalizePreDialysisProfileData = (patientInput = {}) => {
+  const patient = typeof patientInput === 'object' && patientInput !== null ? patientInput : {};
+  const rawId = typeof patientInput === 'number' || typeof patientInput === 'string'
+    ? patientInput
+    : (patient.id || patient.patient_id || patient.patientId || null);
+
+  let patientCode = readFirst(patient, ['patientCode', 'patient_code', 'patientId', 'uhid', 'patient_uhid']);
+  if (!patientCode) {
+    if (rawId != null && rawId !== '') {
+      const numericId = String(rawId).replace(/\D/g, '');
+      patientCode = numericId ? `P${numericId.padStart(5, '0')}` : `P${rawId}`;
+    } else {
+      patientCode = DEFAULT_PROFILE.patientCode;
+    }
+  }
+
+  let name = readFirst(patient, ['name', 'patient_name', 'patientName', 'fullName', 'displayName']);
+  if (!name) {
+    if (rawId != null && rawId !== '') {
+      name = `Patient #${rawId}`;
+    } else {
+      name = DEFAULT_PROFILE.name;
+    }
+  }
+
+  const status = readFirst(patient, ['statusBadge', 'status', 'patient_status', 'condition']) || DEFAULT_PROFILE.status;
+
+  let age = readFirst(patient, ['age']);
+  if (!age || age === '—') {
+    const dob = readFirst(patient, ['dob', 'date_of_birth', 'birth_date', 'birthDate']);
+    if (dob) {
+      const calculated = calculateAge(dob);
+      if (calculated !== '—' && calculated !== null && calculated !== undefined) {
+        age = String(calculated);
+      }
+    }
+  }
+  if (!age || age === '—') {
+    age = DEFAULT_PROFILE.age;
+  }
+
+  const gender = readFirst(patient, ['gender', 'sex', 'patient_gender']) || DEFAULT_PROFILE.gender;
+  const phone = readFirst(patient, ['phone', 'number', 'phone_number', 'mobile_no', 'phone_no', 'contact_number', 'mobile']) || DEFAULT_PROFILE.phone;
+
+  const dryWeightRaw = readFirst(patient, ['dryWeight', 'dry_weight', 'target_weight', 'weight_dry', 'dryweight', 'weight_target']);
+  const dryWeight = dryWeightRaw
+    ? (String(dryWeightRaw).includes('kg') ? String(dryWeightRaw) : `${dryWeightRaw} kg`)
+    : DEFAULT_PROFILE.dryWeight;
+
+  const bloodGroup = readFirst(patient, ['bloodGroup', 'blood_group', 'blood_type', 'bloodType']) || DEFAULT_PROFILE.bloodGroup;
+
+  let lastDialysisRaw = readFirst(patient, ['lastDialysis', 'last_dialysis', 'lastDialysisDate', 'last_dialysis_date', 'first_dialysis_date', 'schedule']);
   let lastDialysisDate = DEFAULT_PROFILE.lastDialysisDate;
   let lastDialysisElapsed = DEFAULT_PROFILE.lastDialysisElapsed;
-  if (lastDialysisRaw && lastDialysisRaw.includes('(')) {
-    const m = lastDialysisRaw.match(/^(.*?)\s*\((.*?)\)\s*$/);
-    if (m) {
-      lastDialysisDate = m[1].trim();
-      lastDialysisElapsed = m[2].trim();
+
+  if (lastDialysisRaw) {
+    if (String(lastDialysisRaw).includes('(')) {
+      const m = String(lastDialysisRaw).match(/^(.*?)\s*\((.*?)\)\s*$/);
+      if (m) {
+        lastDialysisDate = m[1].trim();
+        lastDialysisElapsed = m[2].trim();
+      } else {
+        lastDialysisDate = String(lastDialysisRaw);
+      }
     } else {
-      lastDialysisDate = lastDialysisRaw;
+      const formatted = formatDate(lastDialysisRaw);
+      lastDialysisDate = formatted !== '—' ? formatted : String(lastDialysisRaw);
+      const elapsed = readFirst(patient, ['lastDialysisElapsed', 'lastDialysisDuration', 'last_dialysis_duration']);
+      if (elapsed) {
+        lastDialysisElapsed = String(elapsed).replace(/^\(|\)$/g, '');
+      } else {
+        const computed = calcDialysisDuration(lastDialysisRaw);
+        if (computed) {
+          lastDialysisElapsed = computed.replace(/^\(|\)$/g, '');
+        } else {
+          lastDialysisElapsed = DEFAULT_PROFILE.lastDialysisElapsed;
+        }
+      }
     }
-  } else if (lastDialysisRaw) {
-    lastDialysisDate = lastDialysisRaw;
-    const elapsed = readFirst(patient, ['lastDialysisElapsed', 'lastDialysisDuration']);
-    if (elapsed) lastDialysisElapsed = elapsed;
-    else lastDialysisElapsed = DEFAULT_PROFILE.lastDialysisElapsed;
   }
   const lastDialysis = `${lastDialysisDate} (${lastDialysisElapsed})`;
 
-  const nextScheduleRaw = readFirst(patient, ['nextSchedule', 'next_schedule', 'nextScheduleDate']);
-  const nextScheduleDate = nextScheduleRaw || readFirst(patient, ['nextScheduleDate']) || DEFAULT_PROFILE.nextScheduleDate;
-  const nextScheduleTime = readFirst(patient, ['nextScheduleTime', 'shift_time', 'shift', 'nextScheduleShift']) || DEFAULT_PROFILE.nextScheduleTime;
-  const nephrologist = readFirst(patient, ['nephrologist', 'primary_doctor_name', 'doctor_name']) || DEFAULT_PROFILE.nephrologist;
+  const nextScheduleRaw = readFirst(patient, ['nextSchedule', 'next_schedule', 'nextScheduleDate', 'next_schedule_date', 'schedule']);
+  const nextScheduleDate = nextScheduleRaw || DEFAULT_PROFILE.nextScheduleDate;
+  const nextScheduleTime = readFirst(patient, ['nextScheduleTime', 'shift_time', 'shift', 'nextScheduleShift', 'shift_name']) || DEFAULT_PROFILE.nextScheduleTime;
+
+  const nephrologist = readFirst(patient, ['nephrologist', 'primary_doctor_name', 'doctor_name', 'nephrologist_name', 'doctor', 'physician']) || DEFAULT_PROFILE.nephrologist;
+
   const dialysisType = readFirst(patient, ['dialysisType', 'dialysis_type']) || DEFAULT_PROFILE.dialysisType;
-  const vascularAccess = readFirst(patient, ['vascularAccess', 'vascular_access', 'access_type']) || DEFAULT_PROFILE.vascularAccess;
+
+  const vascularAccess = readFirst(patient, ['vascularAccess', 'vascular_access', 'access_type', 'accessType']) || DEFAULT_PROFILE.vascularAccess;
+
+  const bedNo = readFirst(patient, ['bed_number', 'bedNo', 'bed']);
+  const machineNo = readFirst(patient, ['machine_number', 'machineNo', 'machine']);
   const bedMachine =
+    readFirst(patient?.assignment, ['bedMachine']) ||
     readFirst(patient, ['bedMachine']) ||
-    [readFirst(patient, ['bed_number', 'bedNo', 'bed']), readFirst(patient, ['machine_number', 'machineNo', 'machine'])].filter(Boolean).join(' / ');
+    ([bedNo, machineNo].filter(Boolean).join(' / ') || DEFAULT_PROFILE.assignment.bedMachine);
+
+  const shift =
+    readFirst(patient?.assignment, ['shift']) ||
+    readFirst(patient, ['shift', 'shift_time', 'shift_name']) ||
+    DEFAULT_PROFILE.assignment.shift;
+
+  const technician =
+    readFirst(patient?.assignment, ['technician']) ||
+    readFirst(patient, ['attending_technician', 'technician_name', 'technician']) ||
+    DEFAULT_PROFILE.assignment.technician;
+
+  const photo = readFirst(patient, ['photo', 'avatar', 'profile_photo', 'profilePhoto', 'image']);
 
   return {
-    id: patient?.id || DEFAULT_PROFILE.id,
-    photo: readFirst(patient, ['photo', 'avatar', 'profile_photo', 'profilePhoto']),
-    name: readFirst(patient, ['name', 'patient_name']) || DEFAULT_PROFILE.name,
-    status: readFirst(patient, ['statusBadge', 'status']) || DEFAULT_PROFILE.status,
+    id: rawId || DEFAULT_PROFILE.id,
+    photo,
+    name,
+    status,
     patientCode,
     age,
     gender,
     phone,
-    dryWeight: dryWeightRaw ? (String(dryWeightRaw).includes('kg') ? String(dryWeightRaw) : `${dryWeightRaw} kg`) : DEFAULT_PROFILE.dryWeight,
+    dryWeight,
     bloodGroup,
     lastDialysis,
     lastDialysisDate,
@@ -93,9 +171,9 @@ export const normalizePreDialysisProfileData = (patient = {}) => {
     nephrologist,
     dialysisType,
     assignment: {
-      shift: readFirst(patient?.assignment, ['shift']) || readFirst(patient, ['shift', 'shift_time']) || DEFAULT_PROFILE.assignment.shift,
-      bedMachine: readFirst(patient?.assignment, ['bedMachine']) || bedMachine || DEFAULT_PROFILE.assignment.bedMachine,
-      technician: readFirst(patient?.assignment, ['technician']) || readFirst(patient, ['attending_technician', 'technician_name']) || DEFAULT_PROFILE.assignment.technician,
+      shift,
+      bedMachine,
+      technician,
     },
   };
 };
@@ -187,14 +265,60 @@ const MetricItem = ({ icon, label, value, subValue }) => (
         {value}
         {subValue ? <span style={{ fontWeight: 500, color: '#475569' }}> ({subValue})</span> : null}
       </span>
-      {/* For Next Schedule time on second line */}
       {label === 'Next Schedule' && subValue == null && null}
     </div>
   </div>
 );
 
-const PreDialysisPatientProfileCard = ({ patient, isMobile = false, onViewProfile, showPatientId = true }) => {
-  const profile = normalizePreDialysisProfileData(patient);
+const PreDialysisPatientProfileCard = ({ patient, patientId: propPatientId, isMobile = false, onViewProfile, showPatientId = true }) => {
+  const [fetchedPatient, setFetchedPatient] = useState(null);
+
+  const rawPatientId = useMemo(() => {
+    if (typeof patient === 'number' || typeof patient === 'string') {
+      return patient;
+    }
+    return patient?.id || patient?.patient_id || patient?.patientId || propPatientId || null;
+  }, [patient, propPatientId]);
+
+  const activePatientData = useMemo(() => {
+    if (patient && typeof patient === 'object' && (patient.name || patient.patient_name || patient.patientCode || patient.patient_code)) {
+      return patient;
+    }
+    if (fetchedPatient) {
+      return { ...(typeof patient === 'object' ? patient : {}), ...fetchedPatient };
+    }
+    return patient;
+  }, [patient, fetchedPatient]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const hasSufficientDetails = patient && typeof patient === 'object' && (patient.name || patient.patient_name);
+
+    if (!rawPatientId || hasSufficientDetails) {
+      return () => { isMounted = false; };
+    }
+
+    const fetchDetails = async () => {
+      try {
+        const res = await getPatientDetails(rawPatientId);
+        let data = res?.success ? (res.data?.data || res.data) : null;
+        if (!data) {
+          const res2 = await getPatientById(rawPatientId);
+          data = res2?.success ? (res2.data?.data || res2.data) : null;
+        }
+        if (isMounted && data) {
+          setFetchedPatient(data);
+        }
+      } catch (err) {
+        console.error('Error auto-fetching patient details in PreDialysisPatientProfileCard:', err);
+      }
+    };
+
+    fetchDetails();
+    return () => { isMounted = false; };
+  }, [rawPatientId, patient]);
+
+  const profile = normalizePreDialysisProfileData(activePatientData);
 
   const handleViewProfile = () => {
     if (onViewProfile) onViewProfile();

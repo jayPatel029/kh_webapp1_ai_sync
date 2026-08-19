@@ -165,7 +165,7 @@ const SystolicDiastolicGraph = ({
   );
 };
 
-const ParameterDetailView = ({
+export const ParameterDetailView = ({
   question,
   userId,
   isDialysis = false,
