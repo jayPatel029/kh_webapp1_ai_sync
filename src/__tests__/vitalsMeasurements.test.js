@@ -59,10 +59,14 @@ describe('P2-05 Vitals & Measurements Unit Logic & Threshold Rules (Node environ
         expect(resHigh.label).toBe('High');
       });
 
-      it('evaluates Critical tier BP (> 160 or > 100 or < 90)', () => {
-        const resCritical = evaluateBp('170', '105');
+      it('evaluates Critical tier BP (> 180 or > 110 or < 50)', () => {
+        const resCritical = evaluateBp('185', '115');
         expect(resCritical.severity).toBe(VITAL_SEVERITY.CRITICAL);
         expect(resCritical.label).toBe('Critical');
+      });
+      it('evaluates Warning tier BP (160-180 or 100-110) correctly', () => {
+        const resWarn = evaluateBp('170', '105');
+        expect(resWarn.severity).toBe(VITAL_SEVERITY.WARNING);
       });
     });
 

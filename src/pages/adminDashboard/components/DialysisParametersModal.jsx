@@ -1439,18 +1439,19 @@ const navigate = useNavigate();
             <Box w="full" h="full">
               {stage === 'before' && (
                 <Box w="full" h="full">
-                  {beforeStep === 'P2-03' && (
+                  {/* {beforeStep === 'P2-03' && (
                     <PreDialysisDashboardView
                       patientId={patient?.patient_id || patient?.id}
                       onBack={onClose}
-                      onNavigateStep={setBeforeStep}
+                      onNavigateStep={setBefView AAMI Guidelines →oreStep}
                     />
-                  )}
-                  {beforeStep === 'P2-04' && (
+                  )} */}
+                  {beforeStep === 'P2-03' && (
                     <PatientVerificationView
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-03')}
                       onNext={() => setBeforeStep('P2-05')}
+                      onNavigateStep={setBeforeStep}
                     />
                   )}
                   {beforeStep === 'P2-05' && (
@@ -1458,6 +1459,7 @@ const navigate = useNavigate();
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-04')}
                       onNext={() => setBeforeStep('P2-06')}
+                      onNavigateStep={setBeforeStep}
                     />
                   )}
                   {beforeStep === 'P2-06' && (
@@ -1465,6 +1467,7 @@ const navigate = useNavigate();
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-05')}
                       onNext={() => setBeforeStep('P2-07')}
+                      onNavigateStep={setBeforeStep}
                     />
                   )}
                   {beforeStep === 'P2-07' && (
@@ -1472,6 +1475,7 @@ const navigate = useNavigate();
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-06')}
                       onNext={() => setBeforeStep('P2-08')}
+                      onNavigateStep={setBeforeStep}
                     />
                   )}
                   {beforeStep === 'P2-08' && (
@@ -1479,6 +1483,7 @@ const navigate = useNavigate();
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-07')}
                       onNext={() => setBeforeStep('P2-09')}
+                      onNavigateStep={setBeforeStep}
                     />
                   )}
                   {beforeStep === 'P2-09' && (
@@ -1486,6 +1491,7 @@ const navigate = useNavigate();
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-08')}
                       onNext={() => setBeforeStep('P2-10')}
+                      onNavigateStep={setBeforeStep}
                     />
                   )}
                   {beforeStep === 'P2-10' && (
@@ -1493,6 +1499,7 @@ const navigate = useNavigate();
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-09')}
                       onNext={() => setBeforeStep('P2-11')}
+                      onNavigateStep={setBeforeStep}
                     />
                   )}
                   {beforeStep === 'P2-11' && (
@@ -1500,6 +1507,7 @@ const navigate = useNavigate();
                       patientId={patient?.patient_id || patient?.id}
                       onBack={() => setBeforeStep('P2-10')}
                       onNext={() => setBeforeStep('P2-12')}
+                      onNavigateStep={setBeforeStep}
                     />
                   )}
                   {beforeStep === 'P2-12' && (
@@ -1510,6 +1518,7 @@ const navigate = useNavigate();
                         if (onStageChange) onStageChange('during');
                         setStage('during');
                       }}
+                      onNavigateStep={setBeforeStep}
                     />
                   )}
                 </Box>

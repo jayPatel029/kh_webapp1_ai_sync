@@ -13,8 +13,8 @@
  * @file src/pages/dialysis/VitalsMeasurementsView.jsx
  */
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Box, Button } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
@@ -23,6 +23,7 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import useVitalsMeasurements, { VITAL_SEVERITY } from '../../hooks/useVitalsMeasurements';
 import { submitSessionVitals } from '../../ApiCalls/preDialysisApis';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
+import './duringDialysis.css';
 import { ROUTES } from '../../routes/routeConstants';
 
 // ---------------------------------------------------------------------------
@@ -82,9 +83,19 @@ const BADGE_STYLE = (severity = VITAL_SEVERITY.NORMAL) => {
 // VitalsMeasurementsView Component
 // ---------------------------------------------------------------------------
 
-const VitalsMeasurementsView = ({ patientId, onBack, onNext }) => {
+const VitalsMeasurementsView = ({ patientId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
+  const effectiveSessionId = useMemo(() => {
+    try {
+      const fromState = location.state?.sessionId || location.state?.session_id;
+      if (fromState) return fromState;
+      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
+      if (persisted) return persisted;
+    } catch {}
+    return patientId || 1;
+  }, [location.state, patientId]);
 
   const {
     patientRaw,
@@ -143,7 +154,7 @@ const VitalsMeasurementsView = ({ patientId, onBack, onNext }) => {
 
   const proceedToNext = async () => {
     try {
-      await submitSessionVitals(1, {
+      await submitSessionVitals(effectiveSessionId, {
         status: 'final',
         bp_systolic: parseFloat(formState.systolic) || 120,
         bp_diastolic: parseFloat(formState.diastolic) || 80,
@@ -203,59 +214,22 @@ const VitalsMeasurementsView = ({ patientId, onBack, onNext }) => {
           {/* ----------------------------------------------------------------- */}
           {/* 9-Step Progress Bar                                               */}
           {/* ----------------------------------------------------------------- */}
-          <div style={{ ...CARD_STYLE, padding: '16px 24px', marginBottom: '24px', overflowX: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '780px' }}>
-              {PRE_DIALYSIS_STEPS.map((step, idx) => {
-                const isStep1Done = step.id === 1;
-                const isStep2Active = step.id === 2;
-
-                return (
-                  <React.Fragment key={step.id}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                      <div
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '9999px',
-                          background: isStep1Done ? '#16a34a' : isStep2Active ? '#2563eb' : '#f1f5f9',
-                          color: isStep1Done || isStep2Active ? '#ffffff' : '#64748b',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {isStep1Done ? '✓' : step.id}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: isStep2Active ? 700 : 500,
-                          color: isStep2Active ? '#2563eb' : isStep1Done ? '#16a34a' : '#64748b',
-                          textAlign: 'center',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {step.name}
-                      </span>
-                    </div>
-                    {idx < PRE_DIALYSIS_STEPS.length - 1 && (
-                      <div
-                        style={{
-                          flex: 1,
-                          height: '2px',
-                          background: idx === 0 ? '#16a34a' : '#e2e8f0',
-                          margin: '0 8px',
-                          marginTop: '-16px',
-                        }}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </div>
+          <nav className="during-stepper" aria-label="Pre-Dialysis steps">
+            {PRE_DIALYSIS_STEPS.map((step, idx) => (
+              <React.Fragment key={step.id}>
+                <button
+                  type="button"
+                  className={step.id === 2 ? 'active' : ''}
+                  onClick={() => { if (onNavigateStep) onNavigateStep(step.code); else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, step: step.code } }); }}
+                  aria-current={step.id === 2 ? 'step' : undefined}
+                >
+                  <span className="during-step-number">{step.id}</span>
+                  <span>{step.name}</span>
+                </button>
+                {idx < PRE_DIALYSIS_STEPS.length - 1 && <span className="during-step-line" aria-hidden="true" />}
+              </React.Fragment>
+            ))}
+          </nav>
 
           <PreDialysisPatientProfileCard patient={patientRaw} isMobile={isMobile} />
 

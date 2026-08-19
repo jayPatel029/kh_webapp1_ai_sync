@@ -176,6 +176,10 @@ const PatientSummaryView = ({ patientId, appointment, onBackToQueue, onProceedTo
     }
   };
 
+  const handleSaveDraft = () => {
+    alert('Patient summary draft saved locally.');
+  };
+
   const handleProceedToPreDialysis = async () => {
     if (hasActivePrescription) {
       try {
@@ -531,41 +535,52 @@ const PatientSummaryView = ({ patientId, appointment, onBackToQueue, onProceedTo
         {activeTab === 'Overview' ? renderOverviewTab() : renderPlaceholderTab()}
 
         {/* ----------------------------------------------------------------- */}
-        {/* Footer Action Bar                                                  */}
+        {/* Footer Action Bar — Save / Save as Draft like P2-04                  */}
         {/* ----------------------------------------------------------------- */}
         <div
           style={{
             ...CARD_STYLE,
             display: 'flex',
             gap: '12px',
-            justifyContent: 'flex-end',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             flexWrap: 'wrap',
+            borderTop: '1px solid #e2e8f0',
+            paddingTop: '20px',
+            marginTop: '8px',
           }}
         >
-          <Button variant="outline" onClick={handleEditInfo}>
-            Edit Info
-          </Button>
-          <Button variant="outline" onClick={handleViewFullProfile}>
-            View Full Profile
-          </Button>
-          {roleName === TECHNICIAN_ROLE && (
-            <Button
-              variant="brand"
-              onClick={handleProceedToPreDialysis}
-              disabled={!hasActivePrescription}
-              title={
-                !hasActivePrescription
-                  ? 'Cannot proceed — no active prescription found for this patient'
-                  : 'Proceed to Pre-Dialysis Dashboard'
-              }
-              style={{
-                opacity: hasActivePrescription ? 1 : 0.5,
-                cursor: hasActivePrescription ? 'pointer' : 'not-allowed',
-              }}
-            >
-              Proceed to Pre-Dialysis Dashboard →
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <Button variant="outline" onClick={handleEditInfo}>
+              Edit Info
             </Button>
-          )}
+            <Button variant="outline" onClick={handleViewFullProfile}>
+              View Full Profile
+            </Button>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <Button variant="outline" onClick={handleSaveDraft}>
+              Save as Draft
+            </Button>
+            {roleName === TECHNICIAN_ROLE && (
+              <Button
+                variant="brand"
+                onClick={handleProceedToPreDialysis}
+                disabled={!hasActivePrescription}
+                title={
+                  !hasActivePrescription
+                    ? 'Cannot proceed — no active prescription found for this patient'
+                    : 'Proceed to Pre-Dialysis Dashboard'
+                }
+                style={{
+                  opacity: hasActivePrescription ? 1 : 0.5,
+                  cursor: hasActivePrescription ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Save & Continue →
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

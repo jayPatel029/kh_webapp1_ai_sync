@@ -30,16 +30,17 @@ describe('Dialysis Route Access Restrictions', () => {
     const patientsRoute = dialysisRoot.children.find(c => c.path === 'patients');
     expect(patientsRoute).toBeDefined();
 
-    // Verify the allowedRoles passed to the guard
+    // Verify the allowedRoles passed to the guard — Admin/PSadmin now allowed per whole-workflow plan (P2→P3→P4)
     expect(patientsRoute.element.allowedRoles).toEqual([
       'Dialysis Technician',
       'Doctor',
-      'Medical Staff'
+      'Medical Staff',
+      'Admin',
+      'PSadmin'
     ]);
 
-    // Verify Admin and PSadmin are NOT in the allowed roles for patients
-    expect(patientsRoute.element.allowedRoles).not.toContain('Admin');
-    expect(patientsRoute.element.allowedRoles).not.toContain('PSadmin');
+    expect(patientsRoute.element.allowedRoles).toContain('Admin');
+    expect(patientsRoute.element.allowedRoles).toContain('PSadmin');
   });
 
   it('keeps other routes like dashboard, billing, and sessions accessible to Dialysis Technician, Admin, and PSadmin', () => {

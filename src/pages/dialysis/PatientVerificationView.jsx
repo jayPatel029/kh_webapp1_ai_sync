@@ -15,8 +15,8 @@
  * @file src/pages/dialysis/PatientVerificationView.jsx
  */
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
@@ -37,6 +37,7 @@ import usePatientVerification, {
   DIALYZER_USAGE_TYPE,
 } from '../../hooks/usePatientVerification';
 import { ROUTES } from '../../routes/routeConstants';
+import './duringDialysis.css';
 
 // ---------------------------------------------------------------------------
 // Styling Tokens
@@ -139,9 +140,19 @@ const renderInfectionPill = (status) => {
 // PatientVerificationView Component
 // ---------------------------------------------------------------------------
 
-const PatientVerificationView = ({ patientId, onBack, onNext }) => {
+const PatientVerificationView = ({ patientId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
+  const effectiveSessionId = useMemo(() => {
+    try {
+      const fromState = location.state?.sessionId || location.state?.session_id;
+      if (fromState) return fromState;
+      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
+      if (persisted) return persisted;
+    } catch {}
+    return patientId || 1;
+  }, [location.state, patientId]);
 
   const {
     patientDetails,
@@ -181,7 +192,7 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
   const handleContinueClick = async () => {
     if (!canProceed) return;
     try {
-      await submitSessionVerification(1, {
+      await submitSessionVerification(effectiveSessionId, {
         status: 'final',
         identity_matched: identityFields.nameMatched && identityFields.dobMatched && identityFields.pidMatched && identityFields.phoneMatched,
         identity_name_match: identityFields.nameMatched,
@@ -196,7 +207,7 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
         notes: notesText,
       });
 
-      await submitSessionConsumables(1, {
+      await submitSessionConsumables(effectiveSessionId, {
         dialyzer_type: consumablesState.dialyzerUsageType === 'MULTI_USE' ? 'MULTI_USE' : 'SINGLE_USE',
         dialyzer_id: consumablesState.dialyzerId || 'DLZ-1001',
         reuse_action: consumablesState.discardConfirmed ? 'confirmed_new' : consumablesState.isOverridden ? 'overridden' : 'none',
@@ -255,75 +266,22 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
         </Box>
 
         <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : 'p-6'}`}>
-          {/* ----------------------------------------------------------------- */}
-          {/* 9-Step Progress Bar — aligned with P2-05..P2-12 (Step 1 active)    */}
-          {/* ----------------------------------------------------------------- */}
-          <div
-            style={{
-              padding: '16px 24px',
-              marginBottom: '24px',
-              overflowX: 'auto',
-              background: 'transparent',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                minWidth: '780px',
-              }}
-            >
-              {PRE_DIALYSIS_STEPS.map((step, idx) => {
-                const isPast = step.id < 1;
-                const isActive = step.id === 1;
-                return (
-                  <React.Fragment key={step.id}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                      <div
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '9999px',
-                          background: isPast ? '#10b981' : isActive ? '#2563eb' : '#f1f5f9',
-                          color: isPast || isActive ? '#ffffff' : '#64748b',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {isPast ? '✓' : step.id}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: isActive ? 700 : 500,
-                          color: isActive ? '#2563eb' : isPast ? '#10b981' : '#64748b',
-                          textAlign: 'center',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {step.name}
-                      </span>
-                    </div>
-                    {idx < PRE_DIALYSIS_STEPS.length - 1 && (
-                      <div
-                        style={{
-                          flex: 1,
-                          height: '2px',
-                          background: isPast ? '#10b981' : '#e2e8f0',
-                          margin: '0 8px',
-                          marginTop: '-16px',
-                        }}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </div>
+          <nav className="during-stepper" aria-label="Pre-Dialysis steps">
+            {PRE_DIALYSIS_STEPS.map((step, idx) => (
+              <React.Fragment key={step.id}>
+                <button
+                  type="button"
+                  className={step.id === 1 ? 'active' : ''}
+                  onClick={() => { if (onNavigateStep) onNavigateStep(step.code); else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, step: step.code } }); }}
+                  aria-current={step.id === 1 ? 'step' : undefined}
+                >
+                  <span className="during-step-number">{step.id}</span>
+                  <span>{step.name}</span>
+                </button>
+                {idx < PRE_DIALYSIS_STEPS.length - 1 && <span className="during-step-line" aria-hidden="true" />}
+              </React.Fragment>
+            ))}
+          </nav>
 
           <PreDialysisPatientProfileCard patient={patientDetails} isMobile={isMobile} showPatientId={false} />
 
@@ -968,23 +926,30 @@ const PatientVerificationView = ({ patientId, onBack, onNext }) => {
               alignItems: 'center',
               paddingTop: '16px',
               borderTop: '1px solid #e2e8f0',
+              flexWrap: 'wrap',
+              gap: '12px',
             }}
           >
             <Button variant="outline" onClick={handleCancelClick}>
               Cancel
             </Button>
 
-            <Button
-              variant="brand"
-              onClick={handleContinueClick}
-              disabled={!canProceed}
-              style={{
-                opacity: canProceed ? 1 : 0.5,
-                cursor: canProceed ? 'pointer' : 'not-allowed',
-              }}
-            >
-              Continue to Next Step →
-            </Button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Button variant="outline" onClick={() => alert('Verification draft saved locally.')}>
+                Save as Draft
+              </Button>
+              <Button
+                variant="brand"
+                onClick={handleContinueClick}
+                disabled={!canProceed}
+                style={{
+                  opacity: canProceed ? 1 : 0.5,
+                  cursor: canProceed ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Save & Continue →
+              </Button>
+            </div>
           </div>
         </div>
       </Box>

@@ -13,12 +13,20 @@
  * @file src/pages/dialysis/PatientAssessmentView.jsx
  */
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AccessibilityNewOutlinedIcon from '@mui/icons-material/AccessibilityNewOutlined';
+import AirOutlinedIcon from '@mui/icons-material/AirOutlined';
+import BloodtypeOutlinedIcon from '@mui/icons-material/BloodtypeOutlined';
+import DeviceThermostatOutlinedIcon from '@mui/icons-material/DeviceThermostatOutlined';
+import FavoriteBorderOutlinedIcon from '@mui/icons-material/FavoriteBorderOutlined';
+import FitnessCenterOutlinedIcon from '@mui/icons-material/FitnessCenterOutlined';
+import HealingOutlinedIcon from '@mui/icons-material/HealingOutlined';
 import MedicalInformationOutlinedIcon from '@mui/icons-material/MedicalInformationOutlined';
 import NoteAltOutlinedIcon from '@mui/icons-material/NoteAltOutlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import PsychologyOutlinedIcon from '@mui/icons-material/PsychologyOutlined';
+import RestaurantOutlinedIcon from '@mui/icons-material/RestaurantOutlined';
 import { Box, Button } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
@@ -30,6 +38,7 @@ import usePatientAssessment, {
   KPS_DESCRIPTIONS,
 } from '../../hooks/usePatientAssessment';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
+import './duringDialysis.css';
 import { ROUTES } from '../../routes/routeConstants';
 import { submitSessionAssessment } from '../../ApiCalls/preDialysisApis';
 
@@ -60,6 +69,20 @@ const SYMPTOM_CARD_STYLE = {
 // Symptom Item Definitions for Display Labels
 // ---------------------------------------------------------------------------
 
+const SYMPTOM_ICON_MAP = {
+  shortnessOfBreath: AirOutlinedIcon,
+  chestPain: FavoriteBorderOutlinedIcon,
+  nauseaVomiting: MedicalInformationOutlinedIcon,
+  feverChills: DeviceThermostatOutlinedIcon,
+  cough: AirOutlinedIcon,
+  dizzinessGiddiness: PsychologyOutlinedIcon,
+  muscleCramps: FitnessCenterOutlinedIcon,
+  itching: HealingOutlinedIcon,
+  headache: PsychologyOutlinedIcon,
+  bleedingBruising: BloodtypeOutlinedIcon,
+  lossOfAppetite: RestaurantOutlinedIcon,
+};
+
 const SYMPTOM_DEFINITIONS = [
   { key: 'shortnessOfBreath', label: 'Shortness of Breath', critical: true },
   { key: 'chestPain', label: 'Chest Pain', critical: true },
@@ -78,9 +101,19 @@ const SYMPTOM_DEFINITIONS = [
 // PatientAssessmentView Component
 // ---------------------------------------------------------------------------
 
-const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
+const PatientAssessmentView = ({ patientId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
+  const effectiveSessionId = useMemo(() => {
+    try {
+      const fromState = location.state?.sessionId || location.state?.session_id;
+      if (fromState) return fromState;
+      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
+      if (persisted) return persisted;
+    } catch {}
+    return patientId || 1;
+  }, [location.state, patientId]);
 
   const {
     patientRaw,
@@ -104,6 +137,8 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
     loading,
     error,
   } = usePatientAssessment(patientId);
+
+  const [focusedSymptom, setFocusedSymptom] = useState(null);
 
   // Handle Back Click
   const handleBackClick = () => {
@@ -136,7 +171,7 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
 
   const proceedToNext = async () => {
     try {
-      await submitSessionAssessment(1, {
+      await submitSessionAssessment(effectiveSessionId, {
         status: 'final',
         section: 'Subjective Assessment',
         assessment: {
@@ -201,59 +236,22 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
           {/* ----------------------------------------------------------------- */}
           {/* 9-Step Progress Bar                                               */}
           {/* ----------------------------------------------------------------- */}
-          <div style={{ ...CARD_STYLE, padding: '16px 24px', marginBottom: '24px', overflowX: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '780px' }}>
-              {PRE_DIALYSIS_STEPS.map((step, idx) => {
-                const isStepDone = step.id === 1 || step.id === 2;
-                const isStep3Active = step.id === 3;
-
-                return (
-                  <React.Fragment key={step.id}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                      <div
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '9999px',
-                          background: isStepDone ? '#16a34a' : isStep3Active ? '#2563eb' : '#f1f5f9',
-                          color: isStepDone || isStep3Active ? '#ffffff' : '#64748b',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {isStepDone ? '✓' : step.id}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: isStep3Active ? 700 : 500,
-                          color: isStep3Active ? '#2563eb' : isStepDone ? '#16a34a' : '#64748b',
-                          textAlign: 'center',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {step.name}
-                      </span>
-                    </div>
-                    {idx < PRE_DIALYSIS_STEPS.length - 1 && (
-                      <div
-                        style={{
-                          flex: 1,
-                          height: '2px',
-                          background: idx < 2 ? '#16a34a' : '#e2e8f0',
-                          margin: '0 8px',
-                          marginTop: '-16px',
-                        }}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </div>
+          <nav className="during-stepper" aria-label="Pre-Dialysis steps">
+            {PRE_DIALYSIS_STEPS.map((step, idx) => (
+              <React.Fragment key={step.id}>
+                <button
+                  type="button"
+                  className={step.id === 3 ? 'active' : ''}
+                  onClick={() => { if (onNavigateStep) onNavigateStep(step.code); else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, step: step.code } }); }}
+                  aria-current={step.id === 3 ? 'step' : undefined}
+                >
+                  <span className="during-step-number">{step.id}</span>
+                  <span>{step.name}</span>
+                </button>
+                {idx < PRE_DIALYSIS_STEPS.length - 1 && <span className="during-step-line" aria-hidden="true" />}
+              </React.Fragment>
+            ))}
+          </nav>
 
           <PreDialysisPatientProfileCard patient={patientRaw} isMobile={isMobile} />
 
@@ -290,13 +288,15 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
 
                 {/* 11 Symptoms Grid (4 columns) */}
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: '14px', marginBottom: '16px' }}>
-                  {SYMPTOM_DEFINITIONS.map((sym) => {
+                  {SYMPTOM_DEFINITIONS.map((sym, idx) => {
                     const isYes = subjective[sym.key] === 'Yes';
+                    const IconComp = SYMPTOM_ICON_MAP[sym.key] || MedicalInformationOutlinedIcon;
 
                     return (
                       <div key={sym.key} style={SYMPTOM_CARD_STYLE}>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-                          {sym.label}{sym.critical ? '*' : ''}
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <IconComp aria-hidden="true" sx={{ color: '#2563eb', fontSize: 16 }} />
+                          <span>{sym.label}{sym.critical ? '*' : ''}</span>
                         </div>
 
                         <div style={{ display: 'flex', gap: '16px', marginTop: '10px' }}>
@@ -325,35 +325,60 @@ const PatientAssessmentView = ({ patientId, onBack, onNext }) => {
                           </label>
                         </div>
 
-                        {/* Conditional Description field when "Yes" */}
-                        {isYes && (
-                          <div style={{ marginTop: '10px' }}>
-                            <input
-                              type="text"
-                              placeholder="Describe symptom details..."
-                              value={subjective.symptomDetails[sym.key] || ''}
-                              onChange={(e) => updateSymptomDetail(sym.key, e.target.value)}
-                              style={{ width: '100%', padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '11px' }}
-                            />
-                          </div>
-                        )}
+                        <div style={{ marginTop: '10px' }}>
+                          <textarea
+                            autoFocus={idx === 0}
+                            rows={focusedSymptom === sym.key ? 2 : 1}
+                            placeholder="Describe symptom details..."
+                            value={subjective.symptomDetails[sym.key] || ''}
+                            onFocus={() => setFocusedSymptom(sym.key)}
+                            onBlur={() => setFocusedSymptom(null)}
+                            onChange={(e) => updateSymptomDetail(sym.key, e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '6px 8px',
+                              borderRadius: '6px',
+                              border: `1px solid ${focusedSymptom === sym.key ? '#2563eb' : '#cbd5e1'}`,
+                              fontSize: '11px',
+                              resize: 'vertical',
+                              minHeight: focusedSymptom === sym.key ? '44px' : '28px',
+                              transition: 'all 0.15s ease',
+                              background: focusedSymptom === sym.key ? '#fff' : '#f8fafc',
+                            }}
+                          />
+                        </div>
                       </div>
                     );
                   })}
 
                   {/* Any Other Symptoms */}
                   <div style={{ ...SYMPTOM_CARD_STYLE, gridColumn: isMobile ? 'span 1' : 'span 1' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-                      Any Other Symptoms?
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <NoteAltOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 16 }} />
+                      <span>Any Other Symptoms?</span>
                     </div>
-                    <input
-                      type="text"
+                    <textarea
+                      autoFocus={false}
+                      rows={focusedSymptom === 'anyOtherSymptoms' ? 3 : 1}
                       placeholder="Describe other symptoms..."
                       value={subjective.anyOtherSymptoms}
+                      onFocus={() => setFocusedSymptom('anyOtherSymptoms')}
+                      onBlur={() => setFocusedSymptom(null)}
                       onChange={(e) => updateSubjectiveSymptom('anyOtherSymptoms', e.target.value)}
-                      style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', marginTop: '8px' }}
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        border: `1px solid ${focusedSymptom === 'anyOtherSymptoms' ? '#2563eb' : '#cbd5e1'}`,
+                        fontSize: '12px',
+                        marginTop: '8px',
+                        resize: 'vertical',
+                        minHeight: focusedSymptom === 'anyOtherSymptoms' ? '60px' : '28px',
+                        transition: 'all 0.15s ease',
+                        background: focusedSymptom === 'anyOtherSymptoms' ? '#fff' : '#f8fafc',
+                      }}
                     />
-                    <div style={{ fontSize: '10px', color: '#94a3b8', textAlign: 'right', marginTop: '4px' }}>0 / 200</div>
+                    <div style={{ fontSize: '10px', color: '#94a3b8', textAlign: 'right', marginTop: '4px' }}>{(subjective.anyOtherSymptoms?.length || 0)} / 200</div>
                   </div>
                 </div>
               </div>

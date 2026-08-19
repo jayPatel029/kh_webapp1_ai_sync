@@ -1,9 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Box, Button } from '../../component-library';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
+import { ROUTES } from '../../routes/routeConstants';
+import './duringDialysis.css';
 import { verifyPin, MAX_ATTEMPTS } from './startDialysisValidation';
 import { startDialysis, unlockStartDialysis, getPatientDetails } from '../../ApiCalls/preDialysisApis';
 
@@ -40,8 +43,19 @@ const SUMMARY_ROWS = [
   { id: 8, item: 'Safety Validation', status: 'Completed', details: 'All safety criteria met', completedBy: 'Rahul Singh', time: '06:51 AM' },
 ];
 
-const StartDialysisConfirmationView = ({ patientId, onBack, onNext }) => {
+const StartDialysisConfirmationView = ({ patientId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const effectiveSessionId = React.useMemo(() => {
+    try {
+      const fromState = location.state?.sessionId || location.state?.session_id;
+      if (fromState) return fromState;
+      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
+      if (persisted) return persisted;
+    } catch {}
+    return patientId || 1;
+  }, [location.state, patientId]);
   const [patientData, setPatientData] = useState(null);
   useEffect(() => {
     if (!patientId) return;
@@ -65,22 +79,41 @@ const StartDialysisConfirmationView = ({ patientId, onBack, onNext }) => {
     
     if (result.isValid) {
       setErrorMsg('');
+      let sessionId = null;
       try {
-        const apiRes = await startDialysis(1, {
+        const apiRes = await startDialysis(effectiveSessionId, {
           attestation: isConfirmed,
           pin: pin.trim(),
           machine_id: 'HD-01',
         });
+        sessionId = apiRes?.data?.session_id || apiRes?.data?.data?.session_id || apiRes?.data?.id || null;
         if (!apiRes.success) {
           if (apiRes.status === 423) {
             setIsLocked(true);
             setErrorMsg(apiRes.message || 'Session locked due to multiple invalid PIN attempts. Requires Nurse or Nephrologist unlock.');
             return;
           }
+        } else if (!sessionId) {
+          sessionId = String(patientId || Date.now());
         }
-      } catch (_) {}
+      } catch (_) {
+        sessionId = String(patientId || Date.now());
+      }
 
-      if (onNext) onNext();
+      // Whole-workflow handoff: P2-12 → P3-01 During Dialysis
+      if (sessionId) {
+        try {
+          localStorage.setItem('lastDialysisSessionId', String(sessionId));
+          sessionStorage.setItem('lastDialysisSessionId', String(sessionId));
+          if (patientId) {
+            localStorage.setItem('lastDialysisPatientId', String(patientId));
+            sessionStorage.setItem('lastDialysisPatientId', String(patientId));
+          }
+        } catch {}
+        navigate(`/dialysis/during/${sessionId}/P3-01`, { state: { patientId, sessionId } });
+        return;
+      }
+      if (onNext) onNext(sessionId);
     } else {
       setAttempts(result.attempts);
       setIsLocked(result.isLocked);
@@ -107,59 +140,23 @@ const StartDialysisConfirmationView = ({ patientId, onBack, onNext }) => {
 
         <div className={`admin-page-content ${isMobile ? 'px-3' : 'px-8'}`}>
           {/* 9-Step Progress Bar */}
-          <div style={{ padding: '16px 24px', marginBottom: '24px', overflowX: 'auto', background: 'transparent' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '780px' }}>
-              {PRE_DIALYSIS_STEPS.map((step, idx) => {
-                const isPast = step.id < 9;
-                const isActive = step.id === 9;
-
-                return (
-                  <React.Fragment key={step.id}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                      <div
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '9999px',
-                          background: isPast ? '#10b981' : isActive ? '#2563eb' : '#f1f5f9',
-                          color: isPast || isActive ? '#ffffff' : '#64748b',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {isPast ? '✓' : step.id}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: isActive ? 700 : 500,
-                          color: isActive ? '#2563eb' : isPast ? '#10b981' : '#64748b',
-                          textAlign: 'center',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {step.name}
-                      </span>
-                    </div>
-                    {idx < PRE_DIALYSIS_STEPS.length - 1 && (
-                      <div
-                        style={{
-                          flex: 1,
-                          height: '2px',
-                          background: isPast ? '#10b981' : '#e2e8f0',
-                          margin: '0 8px',
-                          marginTop: '-16px',
-                        }}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </div>
+          
+          <nav className="during-stepper" aria-label="Pre-Dialysis steps">
+            {PRE_DIALYSIS_STEPS.map((step, idx) => (
+              <React.Fragment key={step.id}>
+                <button
+                  type="button"
+                  className={step.id === 9 ? 'active' : ''}
+                  onClick={() => { if (onNavigateStep) onNavigateStep(step.code); else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, step: step.code } }); }}
+                  aria-current={step.id === 9 ? 'step' : undefined}
+                >
+                  <span className="during-step-number">{step.id}</span>
+                  <span>{step.name}</span>
+                </button>
+                {idx < PRE_DIALYSIS_STEPS.length - 1 && <span className="during-step-line" aria-hidden="true" />}
+              </React.Fragment>
+            ))}
+          </nav>
 
           <PreDialysisPatientProfileCard patient={patientData} isMobile={isMobile} />
 

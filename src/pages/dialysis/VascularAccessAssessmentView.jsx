@@ -1,3 +1,4 @@
+import { useNavigate, useLocation } from 'react-router-dom';
 import React, { useState, useMemo, useEffect } from 'react';
 import { Box, Button } from '../../component-library';
 import AutoCollapseTextarea from '../../components/AutoCollapseTextarea';
@@ -5,6 +6,7 @@ import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientPr
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
+import { ROUTES } from '../../routes/routeConstants';
 import { AVF_AVG_CONFIG, CVC_CONFIG, validateVascularAccess } from './vascularAccessValidation';
 import { submitVascularAccess, getPatientDetails } from '../../ApiCalls/preDialysisApis';
 
@@ -137,6 +139,19 @@ const formatAssessmentTime = (value) => {
 
 const VascularAccessAssessmentView = ({ patientId, sessionId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const effectiveSessionId = useMemo(() => {
+    try {
+      const fromProp = sessionId;
+      if (fromProp) return fromProp;
+      const fromState = location.state?.sessionId || location.state?.session_id;
+      if (fromState) return fromState;
+      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
+      if (persisted) return persisted;
+    } catch {}
+    return patientId || 1;
+  }, [sessionId, location.state, patientId]);
   const [accessType, setAccessType] = useState('');
   const [patientData, setPatientData] = useState(null);
   const [loading, setLoading] = useState(Boolean(patientId));
@@ -202,8 +217,6 @@ const VascularAccessAssessmentView = ({ patientId, sessionId, onBack, onNext, on
     setDetailsData(prev => ({ ...prev, [id]: val }));
   };
 
-  const effectiveSessionId = resolveSessionId(sessionId, patientData);
-
   const navigateToStep = (stepCode) => {
     if (stepCode === 'P2-07') return;
     if (onNavigateStep) {
@@ -264,59 +277,23 @@ const VascularAccessAssessmentView = ({ patientId, sessionId, onBack, onNext, on
 
         <div className={`admin-page-content ${isMobile ? 'px-3' : 'px-8'}`}>
           {/* 9-Step Progress Bar */}
-          <div style={{ padding: '16px 24px', marginBottom: '24px', overflowX: 'auto', background: 'transparent' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '780px' }}>
-              {PRE_DIALYSIS_STEPS.map((step, idx) => {
-                const isPast = step.id < 4;
-                const isActive = step.id === 4;
-
-                return (
-                  <React.Fragment key={step.id}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                      <div
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '9999px',
-                          background: isPast ? '#10b981' : isActive ? '#2563eb' : '#f1f5f9',
-                          color: isPast || isActive ? '#ffffff' : '#64748b',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {isPast ? '✓' : step.id}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: isActive ? 700 : 500,
-                          color: isActive ? '#2563eb' : isPast ? '#10b981' : '#64748b',
-                          textAlign: 'center',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {step.name}
-                      </span>
-                    </div>
-                    {idx < PRE_DIALYSIS_STEPS.length - 1 && (
-                      <div
-                        style={{
-                          flex: 1,
-                          height: '2px',
-                          background: isPast ? '#10b981' : '#e2e8f0',
-                          margin: '0 8px',
-                          marginTop: '-16px',
-                        }}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </div>
+          
+          <nav className="during-stepper" aria-label="Pre-Dialysis steps">
+            {PRE_DIALYSIS_STEPS.map((step, idx) => (
+              <React.Fragment key={step.id}>
+                <button
+                  type="button"
+                  className={step.id === 4 ? 'active' : ''}
+                  onClick={() => { if (onNavigateStep) onNavigateStep(step.code); else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, step: step.code } }); }}
+                  aria-current={step.id === 4 ? 'step' : undefined}
+                >
+                  <span className="during-step-number">{step.id}</span>
+                  <span>{step.name}</span>
+                </button>
+                {idx < PRE_DIALYSIS_STEPS.length - 1 && <span className="during-step-line" aria-hidden="true" />}
+              </React.Fragment>
+            ))}
+          </nav>
 
           <PreDialysisPatientProfileCard patient={patientData} isMobile={isMobile} />
 
@@ -569,7 +546,7 @@ const VascularAccessAssessmentView = ({ patientId, sessionId, onBack, onNext, on
               colorScheme="primary" 
               onClick={async () => {
                 try {
-                  await submitVascularAccess(1, {
+                  await submitVascularAccess(effectiveSessionId, {
                     status: 'final',
                     access_type: accessType,
                     thrill_bruit: String(formData.thrillBruit || '').toLowerCase(),

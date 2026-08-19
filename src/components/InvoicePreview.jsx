@@ -151,13 +151,40 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
 
   // ── Derive billing amounts from fetched invoice or appointment fields ──
   const invoice = fetchedInvoice || fetchedBill;
-  const totalDue = Number(invoice?.total_amt || invoice?.total_amount || appointment?.total_amount || appointment?.totalAmount || appointment?.total_amt || 0);
-  
-  // Robust paid amount logic: use paid_amt if exists, otherwise fallback to total_amt if a receipt exists
-  const amountPaid = fetchedBill 
-    ? Number(fetchedBill.paid_amt || (fetchedBill.payment_receipt ? fetchedBill.total_amt : 0) || 0) 
-    : (Number(appointment?.amount_paid || 0) || Number(appointment?.amountPaid || appointment?.received_amt || 0));
-  
+  const pickNumeric = (obj, keys) => {
+    if (!obj) return undefined;
+    let zeroVal;
+    for (const k of keys) {
+      const v = obj[k];
+      if (v !== undefined && v !== null && v !== '') {
+        const n = Number(v);
+        if (!Number.isNaN(n)) {
+          if (n !== 0) return n;
+          if (zeroVal === undefined) zeroVal = 0;
+        }
+      }
+    }
+    return zeroVal;
+  };
+  const totalDueKeysInvoice = ['total_amt','total_amount','totalAmount','amountDue','amount_due','unit_price','unitPrice','amount','price','bill_amount'];
+  const totalDueKeysAppt = ['totalAmount','total_amount','total_amt','amountDue','amount_due','unit_price','unitPrice','amount','price'];
+  const totalDue = pickNumeric(invoice, totalDueKeysInvoice) ?? pickNumeric(appointment, totalDueKeysAppt) ?? pickNumeric(appointment?._raw, totalDueKeysAppt) ?? 0;
+  const getAmountPaid = () => {
+    if (fetchedBill) {
+      const billPaidKeys = ['paid_amt','paid_amount','paidAmount','amount_paid','amountPaid','received_amt','receivedAmount','paid'];
+      const v = pickNumeric(fetchedBill, billPaidKeys);
+      if (v !== undefined) return v;
+      if (fetchedBill.payment_receipt) {
+        const t = pickNumeric(fetchedBill, totalDueKeysInvoice);
+        if (t !== undefined) return t;
+      }
+      if (fetchedPayments.length) return fetchedPayments.reduce((s,p)=> s+Number(p.amount||0),0);
+      return 0;
+    }
+    const apptPaidKeys = ['amount_paid','amountPaid','received_amt','receivedAmount','paid_amt','paid_amount','paidAmount','amount','paid'];
+    return pickNumeric(appointment, apptPaidKeys) ?? pickNumeric(appointment?._raw, apptPaidKeys) ?? 0;
+  };
+  const amountPaid = getAmountPaid();
   const outstanding = Math.max(0, totalDue - amountPaid);
 
   let payStatus = fetchedBill 
@@ -282,7 +309,7 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
 
     if (invoice) {
       const svcName = invoice.service || invoice.bill_description || 'Dialysis Session';
-      const unitPrice = Number(invoice.unit_price || invoice.total_amt || 0);
+      const unitPrice = pickNumeric(invoice, totalDueKeysInvoice) ?? 0;
       const discount = Number(invoice.discount || 0);
       const count = fetchedBillAppointments.length || 1;
       // If it's a single price for the whole bill, but multiple appts, we might need to divide

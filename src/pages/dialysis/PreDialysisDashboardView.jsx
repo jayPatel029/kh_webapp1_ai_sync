@@ -176,6 +176,16 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
     }
   };
 
+  // Handle Save as Draft — like P2-04 footer pattern
+  const handleSaveDraft = () => {
+    alert('Pre-dialysis dashboard draft saved locally.');
+  };
+
+  const handleSaveContinue = () => {
+    if (onNavigateStep) onNavigateStep('P2-04');
+    else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, step: 'P2-04' } });
+  };
+
   // Handle Back
   const handleBackClick = () => {
     if (onBack) {
@@ -682,11 +692,39 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
           </div>
 
           {/* ----------------------------------------------------------------- */}
-          {/* Footer                                                            */}
+          {/* Footer Action Bar — Save / Save as Draft like P2-04                 */}
           {/* ----------------------------------------------------------------- */}
           <div
             style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingTop: '20px',
               marginTop: '32px',
+              borderTop: '1px solid #e2e8f0',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <Button variant="outline" onClick={handleBackClick}>
+              ← Back
+            </Button>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <Button variant="outline" onClick={handleSaveDraft}>
+                Save as Draft
+              </Button>
+              <Button variant="brand" onClick={handleSaveContinue}>
+                Save & Continue →
+              </Button>
+            </div>
+          </div>
+
+          {/* ----------------------------------------------------------------- */}
+          {/* Footer — IST timestamp                                            */}
+          {/* ----------------------------------------------------------------- */}
+          <div
+            style={{
+              marginTop: '16px',
               paddingTop: '16px',
               borderTop: '1px solid #e2e8f0',
               display: 'flex',

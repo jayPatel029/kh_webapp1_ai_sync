@@ -20,6 +20,12 @@ import PreDialysisDashboardView from './PreDialysisDashboardView';
 import PatientVerificationView from './PatientVerificationView';
 import VitalsMeasurementsView from './VitalsMeasurementsView';
 import PatientAssessmentView from './PatientAssessmentView';
+import VascularAccessAssessmentView from './VascularAccessAssessmentView';
+import MachineSafetyView from './MachineSafetyView';
+import WaterSafetyView from './WaterSafetyView';
+import InfectionControlView from './InfectionControlView';
+import SafetyValidationView from './SafetyValidationView';
+import StartDialysisConfirmationView from './StartDialysisConfirmationView';
 import { ROUTES } from '../../routes/routeConstants';
 import {
   EMERGENCY_ACTION_ROLES,
@@ -85,6 +91,125 @@ const DialysisPatients = () => {
   const isVerificationStep = currentStep === 'P2-04' || currentStep === 'verification';
   const isVitalsStep = currentStep === 'P2-05' || currentStep === 'vitals';
   const isAssessmentStep = currentStep === 'P2-06' || currentStep === 'assessment';
+  const isAccessStep = currentStep === 'P2-07' || currentStep === 'access';
+  const isMachineStep = currentStep === 'P2-08' || currentStep === 'machine';
+  const isWaterStep = currentStep === 'P2-09' || currentStep === 'water';
+  const isInfectionStep = currentStep === 'P2-10' || currentStep === 'infection';
+  const isValidationStep = currentStep === 'P2-11' || currentStep === 'validation';
+  const isStartStep = currentStep === 'P2-12' || currentStep === 'start';
+
+  // P2-07 Vascular Access
+  if (selectedPatientId && isAccessStep) {
+    return (
+      <VascularAccessAssessmentView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-06' },
+          })
+        }
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-08' },
+          })
+        }
+      />
+    );
+  }
+
+  // P2-08 Machine Safety
+  if (selectedPatientId && isMachineStep) {
+    return (
+      <MachineSafetyView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-07' },
+          })
+        }
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-09' },
+          })
+        }
+      />
+    );
+  }
+
+  // P2-09 Water Safety
+  if (selectedPatientId && isWaterStep) {
+    return (
+      <WaterSafetyView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-08' },
+          })
+        }
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-10' },
+          })
+        }
+      />
+    );
+  }
+
+  // P2-10 Infection Control
+  if (selectedPatientId && isInfectionStep) {
+    return (
+      <InfectionControlView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-09' },
+          })
+        }
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-11' },
+          })
+        }
+      />
+    );
+  }
+
+  // P2-11 Safety Validation
+  if (selectedPatientId && isValidationStep) {
+    return (
+      <SafetyValidationView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-10' },
+          })
+        }
+        onNext={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-12' },
+          })
+        }
+      />
+    );
+  }
+
+  // P2-12 Start Dialysis Confirmation
+  if (selectedPatientId && isStartStep) {
+    return (
+      <StartDialysisConfirmationView
+        patientId={selectedPatientId}
+        onBack={() =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: 'P2-11' },
+          })
+        }
+        onNext={(sessionId) => {
+          if (sessionId) navigate(`/dialysis/during/${sessionId}/P3-01`, { state: { patientId: selectedPatientId, sessionId } });
+          else navigate(ROUTES.DIALYSIS_PATIENTS, { replace: true });
+        }}
+      />
+    );
+  }
 
   // If Patient Assessment (P2-06) step requested
   if (selectedPatientId && isAssessmentStep) {
@@ -145,7 +270,22 @@ const DialysisPatients = () => {
 
 
 
-  // Direct to first pre-dialysis step (P2-04 Verification) — Patient Summary and P2-03 dashboard removed
+  // Pre-Dialysis Dashboard (P2-03) — restored: after P2-03, step click goes to correct P2-0x instead of back to P2-01
+  if (selectedPatientId && isDashboardView) {
+    return (
+      <PreDialysisDashboardView
+        patientId={selectedPatientId}
+        onBack={() => navigate(ROUTES.DIALYSIS_PATIENTS, { replace: true })}
+        onNavigateStep={(stepCode) =>
+          navigate(ROUTES.DIALYSIS_PATIENTS, {
+            state: { patientId: selectedPatientId, step: stepCode },
+          })
+        }
+      />
+    );
+  }
+
+  // Direct to first pre-dialysis step (P2-04 Verification) — Patient Summary removed, default to P2-04
   if (selectedPatientId) {
     return (
       <PatientVerificationView
@@ -620,9 +760,38 @@ const QueueView = ({ isMobile, navigate, roleName }) => {
                 />
               )}
             </div>
+
+            {/* Footer Action Bar — Save / Save as Draft like P2-04 */}
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: '24px',
+                border: '1px solid #e5e7eb',
+                padding: '16px 20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+              }}
+            >
+              <Button variant="outline" onClick={() => navigate(ROUTES.DIALYSIS_DASHBOARD || '/')}>
+                ← Back
+              </Button>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <Button variant="outline" onClick={() => alert('Queue draft saved locally.')}>
+                  Save as Draft
+                </Button>
+                <Button variant="brand" onClick={refresh}>
+                  Save
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </Box>
     </ThemeProvider>
   );
 };
+
+export default DialysisPatients;

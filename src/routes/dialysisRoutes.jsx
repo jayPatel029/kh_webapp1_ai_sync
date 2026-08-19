@@ -63,7 +63,7 @@ export const getDialysisRoutes = ({ guard, ROUTE_NAMES }) => [
         element: guard(
           <DialysisPatients />,
           ROUTE_NAMES.DIALYSIS_PATIENTS,
-          ['Dialysis Technician', 'Doctor', 'Medical Staff']
+          ['Dialysis Technician', 'Doctor', 'Medical Staff', 'Admin', 'PSadmin']
         ),
       },
       {
@@ -79,7 +79,15 @@ export const getDialysisRoutes = ({ guard, ROUTE_NAMES }) => [
         element: guard(
           <DuringDialysisPage />,
           ROUTE_NAMES.DIALYSIS_DURING,
-          ['Dialysis Technician', 'Nurse', 'Nephrologist', 'Doctor', 'Medical Staff']
+          ['Dialysis Technician', 'Nurse', 'Nephrologist', 'Doctor', 'Medical Staff', 'Admin', 'PSadmin']
+        ),
+      },
+      {
+        path: 'during/:screenId',
+        element: guard(
+          <DuringDialysisPage />,
+          ROUTE_NAMES.DIALYSIS_DURING,
+          ['Dialysis Technician', 'Nurse', 'Nephrologist', 'Doctor', 'Medical Staff', 'Admin', 'PSadmin']
         ),
       },
       {
@@ -87,7 +95,15 @@ export const getDialysisRoutes = ({ guard, ROUTE_NAMES }) => [
         element: guard(
           <PostDialysisPage />,
           ROUTE_NAMES.DIALYSIS_DURING,
-          ['Dialysis Technician', 'Nurse', 'Nephrologist', 'Doctor', 'Medical Staff']
+          ['Dialysis Technician', 'Nurse', 'Nephrologist', 'Doctor', 'Medical Staff', 'Admin', 'PSadmin']
+        ),
+      },
+      {
+        path: 'post/:screenId',
+        element: guard(
+          <PostDialysisPage />,
+          ROUTE_NAMES.DIALYSIS_DURING,
+          ['Dialysis Technician', 'Nurse', 'Nephrologist', 'Doctor', 'Medical Staff', 'Admin', 'PSadmin']
         ),
       },
     ],

@@ -1,9 +1,28 @@
+import { useNavigate, useLocation } from 'react-router-dom';
 import React, { useMemo, useState, useEffect } from 'react';
-import { Box, Button } from '../../component-library';
+import {
+  Box,
+  Button,
+  Card,
+  CardHeader,
+  CardBody,
+  CardFooter,
+  Input,
+  InputGroup,
+  InputRightAddon,
+  Select,
+  Textarea,
+  Badge,
+  FormControl,
+  FormLabel,
+  Text,
+} from '../../component-library';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
+import { ROUTES } from '../../routes/routeConstants';
+import './duringDialysis.css';
 import { validateWaterSafety } from './waterSafetyValidation';
 import { reviewWaterSafety, getPatientDetails } from '../../ApiCalls/preDialysisApis';
 
@@ -17,6 +36,10 @@ import OpacityIcon from '@mui/icons-material/Opacity';
 import BiotechIcon from '@mui/icons-material/Biotech';
 import DeviceThermostatIcon from '@mui/icons-material/DeviceThermostat';
 import SpeedIcon from '@mui/icons-material/Speed';
+import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
+import CleaningServicesOutlinedIcon from '@mui/icons-material/CleaningServicesOutlined';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 
 const CARD_STYLE = {
   background: '#ffffff',
@@ -52,8 +75,19 @@ const WATER_QUALITY_CHECKLIST = [
   { id: 'turbidity', label: 'Turbidity', icon: DeviceThermostatIcon, result: '0.10', unit: 'NTU', range: '≤ 1.0 NTU', method: 'Turbidity Meter', status: 'OK', action: '—' },
 ];
 
-const WaterSafetyView = ({ patientId, onBack, onNext }) => {
+const WaterSafetyView = ({ patientId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const effectiveSessionId = useMemo(() => {
+    try {
+      const fromState = location.state?.sessionId || location.state?.session_id;
+      if (fromState) return fromState;
+      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
+      if (persisted) return persisted;
+    } catch {}
+    return patientId || 1;
+  }, [location.state, patientId]);
   const [patientData, setPatientData] = useState(null);
   useEffect(() => {
     if (!patientId) return;
@@ -97,59 +131,23 @@ const WaterSafetyView = ({ patientId, onBack, onNext }) => {
 
         <div className={`admin-page-content ${isMobile ? 'px-3' : 'px-8'}`}>
           {/* 9-Step Progress Bar */}
-          <div style={{ padding: '16px 24px', marginBottom: '24px', overflowX: 'auto', background: 'transparent' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minWidth: '780px' }}>
-              {PRE_DIALYSIS_STEPS.map((step, idx) => {
-                const isPast = step.id < 6;
-                const isActive = step.id === 6;
-
-                return (
-                  <React.Fragment key={step.id}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                      <div
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '9999px',
-                          background: isPast ? '#10b981' : isActive ? '#2563eb' : '#f1f5f9',
-                          color: isPast || isActive ? '#ffffff' : '#64748b',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {isPast ? '✓' : step.id}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: isActive ? 700 : 500,
-                          color: isActive ? '#2563eb' : isPast ? '#10b981' : '#64748b',
-                          textAlign: 'center',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {step.name}
-                      </span>
-                    </div>
-                    {idx < PRE_DIALYSIS_STEPS.length - 1 && (
-                      <div
-                        style={{
-                          flex: 1,
-                          height: '2px',
-                          background: isPast ? '#10b981' : '#e2e8f0',
-                          margin: '0 8px',
-                          marginTop: '-16px',
-                        }}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </div>
+          
+          <nav className="during-stepper" aria-label="Pre-Dialysis steps">
+            {PRE_DIALYSIS_STEPS.map((step, idx) => (
+              <React.Fragment key={step.id}>
+                <button
+                  type="button"
+                  className={step.id === 6 ? 'active' : ''}
+                  onClick={() => { if (onNavigateStep) onNavigateStep(step.code); else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, step: step.code } }); }}
+                  aria-current={step.id === 6 ? 'step' : undefined}
+                >
+                  <span className="during-step-number">{step.id}</span>
+                  <span>{step.name}</span>
+                </button>
+                {idx < PRE_DIALYSIS_STEPS.length - 1 && <span className="during-step-line" aria-hidden="true" />}
+              </React.Fragment>
+            ))}
+          </nav>
 
           <PreDialysisPatientProfileCard patient={patientData} isMobile={isMobile} />
 
@@ -267,132 +265,206 @@ const WaterSafetyView = ({ patientId, onBack, onNext }) => {
                 </div>
               </div>
 
-              {/* Bottom Split (Additional Checks & Sanitization Record) */}
-              <div className="grid grid-cols-2 gap-6">
+              {/* Bottom Split (Additional Checks & Sanitization Record) — component-library uniform */}
+              <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
                 {/* Additional Checks */}
-                <div style={{ ...CARD_STYLE, padding: '24px' }}>
-                  <h3 style={SECTION_TITLE_STYLE}>Additional Checks</h3>
-                  <div className="flex flex-col gap-4 mt-4 text-sm">
+                <Card variant="outline" size="md" className="overflow-hidden flex flex-col">
+                  <CardHeader className="px-5 pt-5 pb-4 bg-[#f8fafc] border-b border-[#f1f5f9]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-white border border-[#e2e8f0] flex items-center justify-center text-[#2563eb] shadow-sm">
+                          <SpeedIcon style={{ fontSize: 16 }} />
+                        </div>
+                        <div>
+                          <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] leading-none !text-[13px]">Additional Checks</Text>
+                          <Text as="p" size="xs" className="text-[#64748b] mt-1 font-medium !text-[11px]">RO performance &amp; filtration</Text>
+                        </div>
+                      </div>
+                      <Badge variant="subtle" colorScheme="success" size="sm" isPill className="shrink-0 bg-white border border-[#bbf7d0] !text-[#15803d] font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] mr-1.5 inline-block" aria-hidden /> 4 / 4 OK
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardBody className="p-0 divide-y divide-[#f1f5f9] flex-1">
                     {/* RO Pressure */}
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-[#334155] w-1/3">RO Pressure</span>
-                      <div className="flex items-center gap-2 w-2/3 justify-end">
-                        <input 
-                          type="number" 
-                          value={additionalChecks.roPressure}
-                          onChange={(e) => setAdditionalChecks(prev => ({ ...prev, roPressure: e.target.value }))}
-                          className="w-16 border border-[#e2e8f0] rounded px-2 py-1 text-sm text-center"
-                        />
-                        <span className="text-[#64748b] text-xs">psi</span>
-                        <span className="text-[#64748b] text-xs font-medium mr-2">50 – 80 psi</span>
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded text-xs font-semibold">
-                          <CheckCircleIcon style={{ fontSize: '14px' }} /> OK
-                        </div>
+                    <div className="px-5 py-3.5 flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-md bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center text-[#475569] shrink-0">
+                        <SpeedIcon style={{ fontSize: 14 }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Text as="div" size="sm" weight="semibold" className="text-[#0f172a] leading-none !text-[13px]">RO Pressure</Text>
+                        <Text as="div" size="xs" className="text-[#64748b] mt-1 !text-[11px]">Range <span className="font-semibold text-[#334155]">50 – 80 psi</span></Text>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <InputGroup size="sm" className="w-[92px]">
+                          <Input
+                            type="number"
+                            size="sm"
+                            value={additionalChecks.roPressure}
+                            onChange={(e) => setAdditionalChecks(prev => ({ ...prev, roPressure: e.target.value }))}
+                            className="text-center font-semibold !text-[13px]"
+                            aria-label="RO Pressure"
+                          />
+                          <InputRightAddon className="!text-[11px] font-semibold text-[#64748b] bg-[#f8fafc]">psi</InputRightAddon>
+                        </InputGroup>
+                        <Badge variant="subtle" colorScheme="success" size="sm" isPill className="font-bold">
+                          <CheckCircleIcon style={{ fontSize: 12 }} className="mr-1" /> OK
+                        </Badge>
                       </div>
                     </div>
-
                     {/* RO Flow Rate */}
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-[#334155] w-1/3">RO Flow Rate</span>
-                      <div className="flex items-center gap-2 w-2/3 justify-end">
-                        <input 
-                          type="number" 
-                          value={additionalChecks.roFlowRate}
-                          onChange={(e) => setAdditionalChecks(prev => ({ ...prev, roFlowRate: e.target.value }))}
-                          className="w-16 border border-[#e2e8f0] rounded px-2 py-1 text-sm text-center"
-                        />
-                        <span className="text-[#64748b] text-xs">L/hr</span>
-                        <span className="text-[#64748b] text-xs font-medium mr-2">100 – 150 L/hr</span>
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded text-xs font-semibold">
-                          <CheckCircleIcon style={{ fontSize: '14px' }} /> OK
-                        </div>
+                    <div className="px-5 py-3.5 flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-md bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center text-[#475569] shrink-0">
+                        <OpacityIcon style={{ fontSize: 14 }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Text as="div" size="sm" weight="semibold" className="text-[#0f172a] leading-none !text-[13px]">RO Flow Rate</Text>
+                        <Text as="div" size="xs" className="text-[#64748b] mt-1 !text-[11px]">Range <span className="font-semibold text-[#334155]">100 – 150 L/hr</span></Text>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <InputGroup size="sm" className="w-[106px]">
+                          <Input
+                            type="number"
+                            size="sm"
+                            value={additionalChecks.roFlowRate}
+                            onChange={(e) => setAdditionalChecks(prev => ({ ...prev, roFlowRate: e.target.value }))}
+                            className="text-center font-semibold !text-[13px]"
+                            aria-label="RO Flow Rate"
+                          />
+                          <InputRightAddon className="!text-[11px] font-semibold text-[#64748b] bg-[#f8fafc]">L/hr</InputRightAddon>
+                        </InputGroup>
+                        <Badge variant="subtle" colorScheme="success" size="sm" isPill className="font-bold">
+                          <CheckCircleIcon style={{ fontSize: 12 }} className="mr-1" /> OK
+                        </Badge>
                       </div>
                     </div>
-
                     {/* Carbon Filter Status */}
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-[#334155] w-1/3">Carbon Filter Status</span>
-                      <div className="flex items-center gap-2 w-2/3 justify-end">
-                        <select 
+                    <div className="px-5 py-3.5 flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-md bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center text-[#475569] shrink-0">
+                        <FilterAltOutlinedIcon style={{ fontSize: 14 }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Text as="div" size="sm" weight="semibold" className="text-[#0f172a] leading-none !text-[13px]">Carbon Filter</Text>
+                        <Text as="div" size="xs" className="text-[#64748b] mt-1 !text-[11px]">Replace per schedule</Text>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Select
+                          size="sm"
                           value={additionalChecks.carbonFilterStatus}
                           onChange={(e) => setAdditionalChecks(prev => ({ ...prev, carbonFilterStatus: e.target.value }))}
-                          className="border border-[#e2e8f0] rounded px-3 py-1 text-sm bg-white focus:outline-none"
+                          className="min-w-[132px]"
                         >
                           <option value="Good">Good</option>
                           <option value="Fair">Fair</option>
                           <option value="Replace Soon">Replace Soon</option>
-                        </select>
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded text-xs font-semibold">
-                          <CheckCircleIcon style={{ fontSize: '14px' }} /> OK
-                        </div>
+                        </Select>
+                        <Badge variant="subtle" colorScheme="success" size="sm" isPill className="font-bold">
+                          <CheckCircleIcon style={{ fontSize: 12 }} className="mr-1" /> OK
+                        </Badge>
                       </div>
                     </div>
-
                     {/* Softener Status */}
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-[#334155] w-1/3">Softener Status</span>
-                      <div className="flex items-center gap-2 w-2/3 justify-end">
-                        <select 
+                    <div className="px-5 py-3.5 flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-md bg-[#f1f5f9] border border-[#e2e8f0] flex items-center justify-center text-[#475569] shrink-0">
+                        <TuneOutlinedIcon style={{ fontSize: 14 }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <Text as="div" size="sm" weight="semibold" className="text-[#0f172a] leading-none !text-[13px]">Softener Status</Text>
+                        <Text as="div" size="xs" className="text-[#64748b] mt-1 !text-[11px]">Regeneration cycle</Text>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Select
+                          size="sm"
                           value={additionalChecks.softenerStatus}
                           onChange={(e) => setAdditionalChecks(prev => ({ ...prev, softenerStatus: e.target.value }))}
-                          className="border border-[#e2e8f0] rounded px-3 py-1 text-sm bg-white focus:outline-none"
+                          className="min-w-[132px]"
                         >
                           <option value="Good">Good</option>
                           <option value="Fair">Fair</option>
                           <option value="Regenerate">Regenerate</option>
-                        </select>
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded text-xs font-semibold">
-                          <CheckCircleIcon style={{ fontSize: '14px' }} /> OK
-                        </div>
+                        </Select>
+                        <Badge variant="subtle" colorScheme="success" size="sm" isPill className="font-bold">
+                          <CheckCircleIcon style={{ fontSize: 12 }} className="mr-1" /> OK
+                        </Badge>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </CardBody>
+                </Card>
 
                 {/* Sanitization Record */}
-                <div style={{ ...CARD_STYLE, padding: '24px' }}>
-                  <h3 style={SECTION_TITLE_STYLE}>Sanitization Record</h3>
-                  <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
-                    <div>
-                      <label className="block text-xs font-semibold text-[#64748b] mb-1">Last Sanitization Type</label>
-                      <select 
-                        value={sanitizationRecord.type}
-                        onChange={(e) => setSanitizationRecord(prev => ({ ...prev, type: e.target.value }))}
-                        className="w-full border border-[#e2e8f0] rounded px-3 py-1.5 text-sm bg-white focus:outline-none"
-                      >
-                        <option value="Heat Disinfection">Heat Disinfection</option>
-                        <option value="Chemical Disinfection">Chemical Disinfection</option>
-                        <option value="Ozone Treatment">Ozone Treatment</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-[#64748b] mb-1">Next Due Date</label>
-                      <div className="flex items-center gap-2 border border-[#e2e8f0] px-3 py-1.5 rounded bg-white text-sm">
-                        <span className="flex-1">{sanitizationRecord.nextDueDate}</span>
-                        <CalendarTodayIcon style={{ fontSize: '14px', color: '#64748b' }} />
+                <Card variant="outline" size="md" className="overflow-hidden flex flex-col">
+                  <CardHeader className="px-5 pt-5 pb-4 bg-[#f8fafc] border-b border-[#f1f5f9]">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-white border border-[#e2e8f0] flex items-center justify-center text-[#0f766e] shadow-sm">
+                        <CleaningServicesOutlinedIcon style={{ fontSize: 16 }} />
+                      </div>
+                      <div>
+                        <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] leading-none !text-[13px]">Sanitization Record</Text>
+                        <Text as="p" size="xs" className="text-[#64748b] mt-1 font-medium !text-[11px]">Last cycle &amp; next due</Text>
                       </div>
                     </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-[#64748b] mb-1">Performed By</label>
-                      <input 
-                        type="text" 
-                        value={sanitizationRecord.performedBy}
-                        onChange={(e) => setSanitizationRecord(prev => ({ ...prev, performedBy: e.target.value }))}
-                        className="w-full border border-[#e2e8f0] rounded px-3 py-1.5 text-sm bg-white focus:outline-none"
-                      />
+                  </CardHeader>
+                  <CardBody className="p-5 flex-1">
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormControl>
+                        <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Last type</FormLabel>
+                        <Select
+                          size="sm"
+                          value={sanitizationRecord.type}
+                          onChange={(e) => setSanitizationRecord(prev => ({ ...prev, type: e.target.value }))}
+                        >
+                          <option value="Heat Disinfection">Heat Disinfection</option>
+                          <option value="Chemical Disinfection">Chemical Disinfection</option>
+                          <option value="Ozone Treatment">Ozone Treatment</option>
+                        </Select>
+                      </FormControl>
+                      <FormControl>
+                        <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Next due</FormLabel>
+                        <div className="flex items-center gap-2 bg-white border border-[var(--color-accent)] rounded-[var(--radius-md)] px-3 h-8">
+                          <CalendarTodayIcon style={{ fontSize: 14, color: '#64748b' }} />
+                          <span className="flex-1 text-[13px] font-semibold text-[#0f172a]">{sanitizationRecord.nextDueDate}</span>
+                          <Badge variant="subtle" colorScheme="warning" size="sm" className="font-bold !text-[10px]">DUE</Badge>
+                        </div>
+                      </FormControl>
                     </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-[#64748b] mb-1">Notes (Optional)</label>
-                      <textarea 
-                        className="w-full border border-[#e2e8f0] rounded-lg p-2.5 text-sm focus:outline-none focus:border-blue-500 resize-none h-16"
-                        placeholder="Enter any notes..."
+                    <FormControl className="mt-3">
+                      <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Performed by</FormLabel>
+                      <InputGroup size="sm">
+                        <Input
+                          size="sm"
+                          value={sanitizationRecord.performedBy}
+                          onChange={(e) => setSanitizationRecord(prev => ({ ...prev, performedBy: e.target.value }))}
+                          placeholder="Technician name"
+                          className="!pl-8 !text-[13px]"
+                        />
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none z-10">
+                          <PersonOutlineOutlinedIcon style={{ fontSize: 16 }} />
+                        </span>
+                      </InputGroup>
+                    </FormControl>
+                    <FormControl className="mt-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !m-0">Notes <span className="normal-case font-normal text-[#94a3b8]">(optional)</span></FormLabel>
+                        <Text as="span" size="xs" className="!text-[11px] font-medium text-[#94a3b8]">{sanitizationNotes.length} / 200</Text>
+                      </div>
+                      <Textarea
+                        size="sm"
+                        resize="none"
+                        placeholder="Add observations from this cycle…"
                         value={sanitizationNotes}
                         onChange={(e) => setSanitizationNotes(e.target.value)}
+                        maxLength={200}
+                        className="min-h-[68px] !text-[13px]"
                       />
-                      <div className="text-right text-xs text-[#94a3b8]">{sanitizationNotes.length} / 200</div>
-                    </div>
-                  </div>
-                </div>
+                    </FormControl>
+                  </CardBody>
+                  <CardFooter className="mx-5 mb-5 mt-0 p-0 rounded-md border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2.5 flex items-center justify-between">
+                    <Text as="span" size="xs" weight="semibold" className="tracking-wide uppercase text-[#64748b] !text-[11px]">Compliance</Text>
+                    <Badge variant="subtle" colorScheme="success" size="sm" isPill className="font-bold">
+                      <CheckCircleIcon style={{ fontSize: 14, color: '#16a34a' }} className="mr-1" /> Cycle logged &amp; up to date
+                    </Badge>
+                  </CardFooter>
+                </Card>
               </div>
 
             </div>
@@ -412,9 +484,9 @@ const WaterSafetyView = ({ patientId, onBack, onNext }) => {
                   <div className="flex justify-between"><span className="text-[#64748b]">Bacteria (HPC)</span><span className="font-semibold text-[#0f172a]">≤ 100 CFU/mL</span></div>
                   <div className="flex justify-between"><span className="text-[#64748b]">Endotoxin</span><span className="font-semibold text-[#0f172a]">≤ 0.25 EU/mL</span></div>
                 </div>
-                <div className="mt-4 text-right">
+                {/* <div className="mt-4 text-right">
                   <a href="#" className="text-blue-600 text-sm font-semibold">View AAMI Guidelines →</a>
-                </div>
+                </div> */}
               </div>
 
               {/* Water Alerts Card */}
@@ -458,7 +530,7 @@ const WaterSafetyView = ({ patientId, onBack, onNext }) => {
               colorScheme="primary" 
               onClick={async () => {
                 try {
-                  await reviewWaterSafety(1, { ro_plant_id: 'RO-1', shift_id: 1 });
+                  await reviewWaterSafety(effectiveSessionId, { ro_plant_id: 'RO-1', shift_id: 1 });
                 } catch (_) {}
                 if (onNext) onNext();
               }} 

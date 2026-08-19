@@ -381,3 +381,114 @@
     flex-basis: 24px;
   }
 }
+
+.during-overdue-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.during-overdue-modal {
+  width: min(760px, 100%);
+  max-height: 85vh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+
+.during-overdue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.during-overdue-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #991b1b;
+}
+
+.during-overdue-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid #fecaca;
+}
+
+.during-overdue-table-wrap {
+  overflow-x: auto;
+  margin: 12px 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.during-overdue-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.during-overdue-table th,
+.during-overdue-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.during-overdue-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.during-overdue-row:hover {
+  background: #f8fafc;
+}
+
+.during-overdue-reason {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.during-overdue-reason-actions,
+.during-overdue-footer {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.during-overdue-footer {
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.during-overdue-skipall-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}

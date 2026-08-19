@@ -1033,9 +1033,16 @@ export default function BedManagementDashboard(props) {
         );
 
         if (result.success) {
-          navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId: patientData.patient_id } });
+          setIsAssignmentModalOpen(false);
+          setDialysisPatientData({
+            patient_id: patientData.patient_id,
+            patient_name: patientData.patient_name,
+            appointment_id: patientData.appointment_id,
+          });
+          setDialysisBedData(targetBed);
+          setIsDialysisModalOpen(true);
 
-          showNotification('Success', `Patient assigned to Bed ${targetBed.bed_number}`, 'success');
+          showNotification('Success', `Patient assigned to Bed ${targetBed.bed_number} — opening workflow`, 'success');
           loadAppointments(clinicId);
           fetchAllBeds(); // Refresh beds to show occupation
         } else {
@@ -1086,7 +1093,17 @@ export default function BedManagementDashboard(props) {
         );
         if (result?.success) {
           setIsAssignmentModalOpen(false);
-          navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId: assignmentData.patient_id } });
+          setDialysisPatientData({
+            patient_id: assignmentData.patient_id,
+            patient_name: assignmentData.patient_name,
+            appointment_id: assignmentData.appointment_id,
+          });
+          const bedForModal = selectedBed || { id: assignmentData.bed_id, bed_number: selectedBed?.bed_number || `Bed ${assignmentData.bed_id}` };
+          setDialysisBedData(bedForModal);
+          setIsDialysisModalOpen(true);
+          showNotification('Success', `Patient assigned — opening workflow`, 'success');
+          loadAppointments(clinicId);
+          fetchAllBeds();
           return;
         }
 
