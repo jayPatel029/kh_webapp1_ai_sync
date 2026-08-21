@@ -13,9 +13,9 @@
  * @file src/pages/dialysis/PreDialysisDashboardView.jsx
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ChecklistOutlinedIcon from '@mui/icons-material/ChecklistOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import MonitorHeartOutlinedIcon from '@mui/icons-material/MonitorHeartOutlined';
@@ -122,10 +122,22 @@ const renderStepStatusBadge = (status) => {
 // PreDialysisDashboardView Component
 // ---------------------------------------------------------------------------
 
-const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
+const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
   const roleName = useSelector((state) => state.permission?.role_name) || 'Dialysis Technician';
+
+  const effectiveSessionId = useMemo(() => {
+    if (propSessionId) return propSessionId;
+    try {
+      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
+      if (fromState) return fromState;
+      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
+      if (persisted) return persisted;
+    } catch {}
+    return patientId || 1;
+  }, [propSessionId, location.state, patientId]);
 
   const {
     patientInfo,
@@ -144,7 +156,7 @@ const PreDialysisDashboardView = ({ patientId, onBack, onNavigateStep }) => {
     lastRefreshed,
     refresh,
     addNote,
-  } = usePreDialysisDashboard(patientId, roleName);
+  } = usePreDialysisDashboard(patientId, roleName, effectiveSessionId);
 
   const [newNoteText, setNewNoteText] = useState('');
   const [showAddNoteInput, setShowAddNoteInput] = useState(false);

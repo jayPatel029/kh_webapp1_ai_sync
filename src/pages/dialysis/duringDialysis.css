@@ -1700,6 +1700,268 @@
   gap: 6px;
 }
 
+/* P3-01 Treatment Dashboard Refined Styles */
+.during-dashboard-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.during-progress-card-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.during-progress-metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.during-progress-metric-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.during-progress-metric-item small {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.during-progress-metric-item strong {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.during-progress-footer-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.during-machine-status-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.during-machine-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  font-size: 11px;
+}
+
+.during-machine-detail-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.during-machine-detail-row small {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.during-machine-detail-row strong {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.during-machine-alert-strip {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #166534;
+}
+
+.during-active-alerts-container {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.during-active-alert-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #fee2e2;
+}
+
+.during-active-alert-row:last-child {
+  border-bottom: none;
+}
+
+.during-active-alert-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.during-active-alert-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: #991b1b;
+}
+
+.during-active-alert-desc {
+  font-size: 11px;
+  color: #7f1d1d;
+  margin-top: 2px;
+}
+
+.during-vitals-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12px;
+}
+
+.during-vitals-list-item:last-child {
+  border-bottom: none;
+}
+
+.during-vitals-list-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+}
+
+.during-blood-flow-gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.during-blood-flow-callout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.during-blood-flow-callout strong {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.during-blood-flow-callout span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.during-blood-flow-bar-container {
+  width: 100%;
+  padding: 0 8px;
+}
+
+.during-blood-flow-bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #ef4444, #f59e0b, #16a34a);
+  position: relative;
+  margin-bottom: 6px;
+}
+
+.during-blood-flow-pin {
+  position: absolute;
+  top: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #16a34a;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+}
+
+.during-blood-flow-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.during-quick-action-full-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-bottom: 6px;
+}
+
+.during-quick-action-full-tile:hover {
+  border-color: #2563eb;
+  background: #f8fafc;
+}
+
+.during-quick-action-full-tile-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.during-quick-action-full-tile-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.during-quick-action-full-tile-info strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.during-quick-action-full-tile-info small {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.during-session-time-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ==========================================================================
    P3-03 Machine Parameters — UI Styling
    ========================================================================== */

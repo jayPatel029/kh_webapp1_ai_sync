@@ -116,41 +116,49 @@ export const checkPrintSummaryAllowed = (roleName) => {
 /**
  * Normalize patient info bar details with optional ABDM anonymization for Doctor role.
  */
-export const normalizePatientInfoBar = (patient, isAnonymized = false) => {
-  if (!patient) return null;
+export const normalizePatientInfoBar = (patientInput, isAnonymized = false) => {
+  if (!patientInput) return null;
+
+  const patient = (typeof patientInput === 'object' && patientInput !== null)
+    ? (patientInput.patient || patientInput.data?.patient || patientInput.data || patientInput)
+    : {};
 
   const dob = patient.dob || patient.date_of_birth || patient.birth_date || null;
-  const patientCode = patient.patient_code || patient.patientCode || `P${String(patient.id || '').padStart(5, '0')}`;
-  const rawName = patient.name || patient.patient_name || `Patient #${patient.id}`;
+  const patientCode = patient.patient_code || patient.patientCode || (patient.id ? `P${String(patient.id).padStart(5, '0')}` : '—');
+  const rawName = patient.name || patient.patient_name || (patient.id ? `Patient #${patient.id}` : '—');
 
   const displayName = isAnonymized ? `ANON-${patientCode}` : rawName;
-  const displayPhone = isAnonymized ? 'XXXXXXXXXX' : (patient.number || patient.phone_number || patient.phone || patient.mobile_no || '+91 98765 43210');
+  const displayPhone = isAnonymized ? 'XXXXXXXXXX' : (patient.phone_no || patient.number || patient.phone_number || patient.phone || patient.mobile_no || '—');
 
-  const bedNo = patient.bed_number || patient.bedNo || patient.bed || 'B-02';
-  const machineNo = patient.machine_number || patient.machineNo || patient.machine || 'HD-01';
-  const bedMachineLabel = `${bedNo} / ${machineNo}`;
+  const bedNo = patient.bed_number || patient.bedNo || patient.bed || '—';
+  const machineNo = patient.machine_number || patient.machineNo || patient.machine || '—';
+  const bedMachineLabel = (bedNo !== '—' || machineNo !== '—') ? `${bedNo} / ${machineNo}` : '— / —';
+
+  const rawGender = patient.gender || patient.sex || patient.patient_gender;
+  const gender = rawGender === 'F' ? 'Female' : rawGender === 'M' ? 'Male' : (rawGender || '—');
+  const ageVal = patient.age ? String(patient.age) : (dob ? calculateAge(dob) : '—');
 
   return {
-    id: patient.id,
+    id: patient.id || '',
     patientCode,
     name: displayName,
     photo: isAnonymized ? null : patient.photo || patient.avatar || null,
-    statusBadge: patient.status || 'Active Patient',
-    age: calculateAge(dob) || '58',
-    gender: patient.gender || patient.sex || 'Male',
+    statusBadge: patient.patient_status || patient.status || 'Active Patient',
+    age: ageVal || '—',
+    gender,
     phone: displayPhone,
-    dryWeight: patient.dry_weight || patient.target_weight || '68.5',
-    bloodGroup: patient.blood_group || patient.bloodGroup || 'O+',
-    lastDialysisDate: formatDate(patient.last_dialysis_date || patient.first_dialysis_date || '2023-01-12'),
-    lastDialysisDuration: calcDialysisDuration(patient.last_dialysis_date || patient.first_dialysis_date || '2023-01-12') || '(2y 4m)',
-    vascularAccess: patient.vascular_access || patient.access_type || 'AV Fistula (Left)',
-    nextSchedule: patient.next_schedule || 'Today 26 May, 07:00 AM Shift 1',
-    nephrologist: patient.primary_doctor_name || patient.doctor_name || 'Dr. Neha Mehta',
+    dryWeight: patient.dry_weight || patient.target_weight ? `${patient.dry_weight || patient.target_weight} kg` : '—',
+    bloodGroup: patient.blood_group || patient.bloodGroup || '—',
+    lastDialysisDate: patient.last_dialysis_date ? formatDate(patient.last_dialysis_date) : '—',
+    lastDialysisDuration: patient.last_dialysis_date ? calcDialysisDuration(patient.last_dialysis_date) : '',
+    vascularAccess: patient.vascular_access || patient.access_type || '—',
+    nextSchedule: patient.next_schedule || '—',
+    nephrologist: patient.primary_doctor_name || patient.doctor_name || '—',
     dialysisType: patient.dialysis_type || 'Hemodialysis',
     assignment: {
-      shift: patient.shift_time || '07:00 AM',
+      shift: patient.shift_time || '—',
       bedMachine: bedMachineLabel,
-      technician: patient.attending_technician || 'Rahul Singh',
+      technician: patient.attending_technician || '—',
     },
     raw: patient,
   };
@@ -286,7 +294,16 @@ export const normalizeNotesList = (patient) => {
 // Hook Definition
 // ---------------------------------------------------------------------------
 
-export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis Technician', sessionId = 1) {
+export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis Technician', rawSessionId) {
+  const activeSessionId = useMemo(() => {
+    if (rawSessionId && rawSessionId !== 1 && rawSessionId !== '1') return rawSessionId;
+    try {
+      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
+      if (persisted) return persisted;
+    } catch {}
+    return rawSessionId || 1;
+  }, [rawSessionId]);
+
   const [patientRaw, setPatientRaw] = useState(null);
   const [prescriptionRaw, setPrescriptionRaw] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -323,28 +340,10 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
       let patientData = null;
 
       if (patientRes?.success) {
-        patientData = patientRes.data;
+        const raw = patientRes.data;
+        patientData = raw?.patient || raw?.data?.patient || raw?.data || raw;
       } else {
-        // Fallback default mock data for patient if ID is provided
-        patientData = {
-          id: patientId,
-          patient_code: `P${String(patientId).padStart(5, '0')}`,
-          name: 'Ramesh Kumar',
-          gender: 'Male',
-          dob: '1967-04-20',
-          number: '+91 98765 43210',
-          dry_weight: '68.5',
-          blood_group: 'O+',
-          last_dialysis_date: '2023-01-12',
-          vascular_access: 'AV Fistula (Left)',
-          next_schedule: 'Today 26 May, 07:00 AM Shift 1',
-          primary_doctor_name: 'Dr. Neha Mehta',
-          dialysis_type: 'Hemodialysis',
-          shift_time: '07:00 AM',
-          bed_number: 'B-02',
-          machine_number: 'HD-01',
-          attending_technician: 'Rahul Singh',
-        };
+        patientData = { id: patientId };
       }
 
       setPatientRaw(patientData);
@@ -354,7 +353,7 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
         setPrescriptionRaw(rxRes.data);
       }
 
-      const statusRes = await getPredialysisStatus(sessionId);
+      const statusRes = await getPredialysisStatus(activeSessionId);
       if (statusRes?.success && statusRes.data?.steps) {
         setStepStatuses(statusRes.data.steps);
       }
@@ -367,7 +366,7 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
     } finally {
       setLoading(false);
     }
-  }, [patientId, sessionId]);
+  }, [patientId, activeSessionId]);
 
   useEffect(() => {
     loadDashboardData();

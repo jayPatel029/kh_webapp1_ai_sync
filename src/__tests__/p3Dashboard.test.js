@@ -42,4 +42,61 @@ describe('P3-01 Treatment Dashboard Verification', () => {
     expect(res.data.data.active_alerts).toHaveLength(1);
     expect(res.data.data.active_alerts[0].title).toBe('High TMP');
   });
+
+  test('correctly parses session 19 dashboard endpoint structure (machine_latest, flags_json, uf target)', async () => {
+    const session19Payload = {
+      success: true,
+      data: {
+        session_id: 19,
+        state: 'STARTED',
+        progress: {
+          elapsed: 0.15193333333333334,
+          remaining: null,
+          total: null,
+          percent: null,
+          uf: { removed: 1.6, target: 1600, percent_of_goal: 0.1 },
+          blood_processed: 0,
+          kt_v: { value: null, measured_at: null, display: 'Not available' }
+        },
+        uf: { removed: 1.6, target: 1600, percent_of_goal: 0.1 },
+        machine_latest: {
+          id: '14',
+          session_id: 19,
+          reading_time: '2026-08-21T18:30:15.000Z',
+          bfr: '300.00',
+          dfr: '500.00',
+          arterial_pressure: '-120.00',
+          venous_pressure: '150.00',
+          tmp: '380.00',
+          conductivity: '14.00',
+          dialysate_temp: '36.50',
+          ufr: '500.00',
+          uf_removed: '1.60',
+          blood_volume_processed: '32.50',
+          flags_json: [{ field: 'tmp', severity: 'critical', value: 380 }]
+        },
+        machine_status: {
+          id: '9',
+          session_id: 19,
+          power_supply_ok: 0,
+          dialysate_system_ok: 0,
+          heparin_system_ok: 0,
+          air_detector_ok: 0,
+          blood_leak_detector_ok: 0
+        },
+        unresolved: { alarms: [], incidents: [], symptoms: [] },
+        deferred_consent: false
+      }
+    };
+    axiosInstance.get.mockResolvedValueOnce({ data: session19Payload });
+
+    const res = await getDuringDialysisDashboard(19);
+    expect(res.success).toBe(true);
+    const d = res.data.data;
+    expect(d.session_id).toBe(19);
+    expect(d.state).toBe('STARTED');
+    expect(d.machine_latest.bfr).toBe('300.00');
+    expect(d.machine_latest.flags_json[0].field).toBe('tmp');
+    expect(d.uf.target).toBe(1600);
+  });
 });

@@ -11,10 +11,13 @@ import {
   getSymptoms,
   updateSymptom,
   createVascularAccessMonitoring,
+  getVascularAccessMonitoring,
   createMedicationAdministration,
+  getMedications,
   getDueMedications,
   getPatientAllergies,
   createAlarm,
+  getAlarms,
   updateDuringDialysisAlarm,
   getDuringDialysisProgress,
   createTreatmentEvent,
@@ -28,6 +31,7 @@ import {
 import { getVitalsThresholds } from '../../config/vitalsThresholds';
 import { getDialysisSystolicIdByTitle, getSystolicIdByTitle } from '../../ApiCalls/readingsApis';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
+import { calculateAge } from '../../hooks/usePatientSummary';
 import P303MachineParameters from './P303MachineParameters';
 import { ParameterDetailView } from '../userprofile2/UserProfile';
 import LineChartDialysis from '../../components/Linechart/Linechart_Dialysis/LineChartDialysis';
@@ -72,6 +76,10 @@ import VaccinesOutlinedIcon from '@mui/icons-material/VaccinesOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import WaterDropOutlinedIcon from '@mui/icons-material/WaterDropOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
+import SpeedOutlinedIcon from '@mui/icons-material/SpeedOutlined';
+import dialysisMachineImg from '../../assets/dialysis_machine.png';
 import './duringDialysis.css';
 
 const SCREENS = [
@@ -88,6 +96,13 @@ const writeDraft = (sessionId, value) => {
 const nowTime = () => new Date().toISOString().slice(0, 16);
 const initialPatient = { name: '', pid: '', bed: '', access: '', nephrologist: '', targetWeight: '', dryWeight: '' };
 const responseData = (result) => result?.data?.data ?? result?.data ?? {};
+const getValidSessionId = (sessionId, currentPatientId) => {
+  const activeSessionId = String(sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '').trim();
+  if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') {
+    return null;
+  }
+  return activeSessionId;
+};
 const getTechnicianId = () => {
   try {
     const raw = localStorage.getItem('id') || localStorage.getItem('userId') || localStorage.getItem('user_id') || localStorage.getItem('technicianId');
@@ -122,19 +137,22 @@ function Textarea(props) { return <LibraryTextarea size="sm" className="during-i
 function Card({ title, children, className = '' }) { return <LibraryCard variant="outline" className={`during-card ${className}`}><LibraryCardBody><h2>{title}</h2>{children}</LibraryCardBody></LibraryCard>; }
 
 function PatientBanner({ patient = {}, session = {} }) {
-  const patientName = patient.name || patient.patient_name || 'Ramesh Kumar';
-  const pid = patient.pid || patient.patient_id || 'P10023';
-  const ageGender = patient.age && patient.gender ? `${patient.age} Years, ${patient.gender}` : '58 Years, Male';
-  const bloodGroup = patient.bloodGroup || patient.blood_group || 'O+';
-  const dateStr = session.date || '26 May 2025 (Mon)';
-  const shiftStr = session.shift || 'Morning (07:00 AM)';
-  const bedStr = session.bed || patient.bed || 'B-02';
-  const machineModel = session.machine || patient.machine || 'Fresenius 4008S';
-  const accessType = patient.access || session.access || 'AV Fistula (Left)';
-  const prescribedBFR = session.prescribedBFR || '300 mL/min';
-  const prescribedDFR = session.prescribedDFR || '500 mL/min';
-  const ufGoal = session.ufGoal || '2.40 L';
-  const elapsedTime = session.elapsedTime || '01:32 Elapsed';
+  const p = patient.patient || patient.data?.patient || patient.data || patient || {};
+  const patientName = p.name || p.patient_name || (p.id ? `Patient #${p.id}` : '—');
+  const pid = p.patient_code || p.patientCode || p.pid || p.patient_id || p.id || '—';
+  const rawGender = p.gender || p.sex || p.patient_gender;
+  const gender = rawGender === 'F' ? 'Female' : rawGender === 'M' ? 'Male' : (rawGender || '—');
+  const ageVal = p.age ? String(p.age) : (p.dob ? calculateAge(p.dob) : '—');
+  const ageGender = ageVal !== '—' && gender !== '—' ? `${ageVal} Years, ${gender}` : (ageVal !== '—' ? `${ageVal} Years` : gender);
+  const bloodGroup = p.bloodGroup || p.blood_group || '—';
+  const dateStr = session.date || (session.created_at ? new Date(session.created_at).toLocaleDateString() : '—');
+  const shiftStr = session.shift || session.shift_name || p.shift_time || '—';
+  const bedStr = session.bed || p.bed_number || p.bed || session.bed_number || '—';
+  const accessType = p.vascular_access || p.access || session.access || session.access_type || '—';
+  const nephrologist = p.primary_doctor_name || p.nephrologist || session.nephrologist || session.doctor_name || p.doctor_name || '—';
+  const prescription = session.prescription || session.dialysis_type || p.dialysis_type || 'Hemodialysis';
+  const targetWeight = session.targetWeight || (session.target_weight ? `${session.target_weight} kg` : (session.uf_target ? `${session.uf_target} L` : '—'));
+  const dryWeight = p.dryWeight || (p.dry_weight ? `${p.dry_weight} kg` : '—');
 
   return (
     <div className="during-existing-patient-card">
@@ -144,13 +162,13 @@ function PatientBanner({ patient = {}, session = {} }) {
             {patient.avatarUrl ? (
               <img src={patient.avatarUrl} alt={patientName} />
             ) : (
-              <span>{patientName.charAt(0)}</span>
+              <span>{patientName !== '—' ? patientName.charAt(0) : '?'}</span>
             )}
           </div>
           <div className="p303-patient-details">
             <div className="p303-patient-title-row">
               <h2>{patientName}</h2>
-              <span className="p303-status-active">Active</span>
+              <span className="p303-status-active">{patient.status || 'Active'}</span>
             </div>
             <div className="p303-patient-meta">
               <span>PID: <strong>{pid}</strong></span>
@@ -165,32 +183,45 @@ function PatientBanner({ patient = {}, session = {} }) {
               <span>Shift: <strong>{shiftStr}</strong></span>
               <span className="p303-dot">•</span>
               <span>Bed: <strong>{bedStr}</strong></span>
-              <span className="p303-dot">•</span>
-              <span>Machine: <strong>{machineModel}</strong></span>
             </div>
           </div>
         </div>
 
         <div className="p303-patient-pills">
           <div className="p303-pill-item">
-            <span className="p303-pill-label">Access Type</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <HealingOutlinedIcon fontSize="small" sx={{ color: '#64748b', fontSize: 14 }} />
+              <span className="p303-pill-label">Access Type</span>
+            </div>
             <strong className="p303-pill-val">{accessType}</strong>
           </div>
           <div className="p303-pill-item">
-            <span className="p303-pill-label">Prescribed BFR</span>
-            <strong className="p303-pill-val">{prescribedBFR}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <PersonOutlineIcon fontSize="small" sx={{ color: '#64748b', fontSize: 14 }} />
+              <span className="p303-pill-label">Nephrologist</span>
+            </div>
+            <strong className="p303-pill-val">{nephrologist}</strong>
           </div>
           <div className="p303-pill-item">
-            <span className="p303-pill-label">Prescribed DFR</span>
-            <strong className="p303-pill-val">{prescribedDFR}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <ChecklistOutlinedIcon fontSize="small" sx={{ color: '#64748b', fontSize: 14 }} />
+              <span className="p303-pill-label">Prescription</span>
+            </div>
+            <strong className="p303-pill-val">{prescription}</strong>
           </div>
           <div className="p303-pill-item">
-            <span className="p303-pill-label">UF Goal</span>
-            <strong className="p303-pill-val">{ufGoal}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <SpeedOutlinedIcon fontSize="small" sx={{ color: '#64748b', fontSize: 14 }} />
+              <span className="p303-pill-label">Target Weight</span>
+            </div>
+            <strong className="p303-pill-val">{targetWeight}</strong>
           </div>
           <div className="p303-pill-item">
-            <span className="p303-pill-label">Session Time</span>
-            <strong className="p303-pill-val p303-pill-highlight">{elapsedTime}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <ShieldOutlinedIcon fontSize="small" sx={{ color: '#64748b', fontSize: 14 }} />
+              <span className="p303-pill-label">Dry Weight</span>
+            </div>
+            <strong className="p303-pill-val">{dryWeight}</strong>
           </div>
         </div>
       </div>
@@ -200,151 +231,150 @@ function PatientBanner({ patient = {}, session = {} }) {
 
 function Metric({ label, value, hint }) { return <div className="during-metric"><small>{label}</small><strong>{value}</strong>{hint && <span>{hint}</span>}</div>; }
 
-function TreatmentProgressRingSVG({ percent = 0 }) {
-  const radius = 48;
+function TreatmentProgressRingSVG({ percent = 66, elapsedTime = '01:32', remainingTime = '00:48', totalTime = '04:00' }) {
+  const radius = 42;
   const strokeWidth = 10;
   const circumference = 2 * Math.PI * radius;
-  const validPercent = Math.max(0, Math.min(100, Number(percent) || 0));
+  const validPercent = Math.max(0, Math.min(100, Number(percent) || 66));
   const offset = circumference - (validPercent / 100) * circumference;
 
   return (
-    <div className="during-svg-ring-container">
-      <div className="during-svg-ring-wrap">
-        <svg width="120" height="120" viewBox="0 0 120 120">
+    <div className="during-progress-card-body">
+      <div style={{ position: 'relative', width: '100px', height: '100px', flexShrink: 0 }}>
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r={radius} fill="none" stroke="#e2e8f0" strokeWidth={strokeWidth} />
           <circle
-            cx="60"
-            cy="60"
+            cx="50"
+            cy="50"
             r={radius}
             fill="none"
-            stroke="#e2e8f0"
-            strokeWidth={strokeWidth}
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            fill="none"
-            stroke="#2563eb"
+            stroke="#16a34a"
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
             strokeDashoffset={offset}
             strokeLinecap="round"
-            transform="rotate(-90 60 60)"
+            transform="rotate(-90 50 50)"
             style={{ transition: 'stroke-dashoffset 0.5s ease-in-out' }}
           />
         </svg>
-        <div className="during-svg-ring-content">
-          <strong>{validPercent}%</strong>
-          <span>Completed</span>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <strong style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>{validPercent}%</strong>
+          <span style={{ fontSize: '10px', color: '#64748b' }}>Completed</span>
+        </div>
+      </div>
+      <div className="during-progress-metrics-list">
+        <div className="during-progress-metric-item">
+          <small>Elapsed Time</small>
+          <strong style={{ color: '#16a34a' }}>{elapsedTime}</strong>
+        </div>
+        <div className="during-progress-metric-item">
+          <small>Remaining Time</small>
+          <strong style={{ color: '#2563eb' }}>{remainingTime}</strong>
+        </div>
+        <div className="during-progress-metric-item">
+          <small>Total Prescribed Time</small>
+          <strong style={{ color: '#0f172a' }}>{totalTime}</strong>
         </div>
       </div>
     </div>
   );
 }
 
-function UfProgressRingSVG({ removed = 0, target = 1 }) {
-  const radius = 48;
-  const strokeWidth = 10;
-  const circumference = 2 * Math.PI * radius;
-  const numRemoved = Number(removed) || 0;
-  const numTarget = Math.max(0.1, Number(target) || 1);
+function UfProgressRingSVG({ removed = 1.60, target = 2.40, remaining = 0.80, rate = 500 }) {
+  const numRemoved = Number(removed) || 1.60;
+  const numTarget = Math.max(0.1, Number(target) || 2.40);
   const ratio = Math.max(0, Math.min(1, numRemoved / numTarget));
-  const offset = circumference - ratio * circumference;
+  const arcLength = Math.PI * 45;
+  const strokeDashoffset = arcLength - ratio * arcLength;
 
   return (
-    <div className="during-svg-ring-container">
-      <div className="during-svg-ring-wrap">
-        <svg width="120" height="120" viewBox="0 0 120 120">
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
-            fill="none"
-            stroke="#dbeafe"
-            strokeWidth={strokeWidth}
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r={radius}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ position: 'relative', width: '130px', height: '70px', marginBottom: '8px' }}>
+        <svg width="130" height="70" viewBox="0 0 130 70">
+          <path d="M 15 65 A 45 45 0 0 1 115 65" fill="none" stroke="#e0f2fe" strokeWidth="12" strokeLinecap="round" />
+          <path
+            d="M 15 65 A 45 45 0 0 1 115 65"
             fill="none"
             stroke="#0284c7"
-            strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
+            strokeWidth="12"
             strokeLinecap="round"
-            transform="rotate(-90 60 60)"
-            style={{ transition: 'stroke-dashoffset 0.5s ease-in-out' }}
+            strokeDasharray={arcLength}
+            strokeDashoffset={strokeDashoffset}
           />
         </svg>
-        <div className="during-svg-ring-content">
-          <strong style={{ color: '#0284c7' }}>{numRemoved.toFixed(2)} L</strong>
-          <span>Removed</span>
+        <div style={{ position: 'absolute', bottom: '0', left: 0, right: 0, textAlign: 'center' }}>
+          <strong style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', display: 'block', lineHeight: 1 }}>{numRemoved.toFixed(2)} L</strong>
+          <span style={{ fontSize: '10px', color: '#64748b' }}>Removed</span>
         </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', width: '100%', borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginBottom: '6px' }}>
+        <div style={{ textAlign: 'center' }}>
+          <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>Target UF</span>
+          <strong style={{ fontSize: '13px', color: '#0f172a' }}>{numTarget.toFixed(2)} L</strong>
+        </div>
+        <div style={{ textAlign: 'center', borderLeft: '1px solid #f1f5f9' }}>
+          <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>Remaining UF</span>
+          <strong style={{ fontSize: '13px', color: '#0f172a' }}>{(Number(remaining) || 0.80).toFixed(2)} L</strong>
+        </div>
+      </div>
+
+      <div style={{ fontSize: '11px', color: '#64748b', textAlign: 'center' }}>
+        UF Rate: <strong style={{ color: '#0f172a' }}>{rate} mL/hr</strong>
       </div>
     </div>
   );
 }
 
-function BloodFlowGaugeSVG({ bfr = 300, prescribedBfr = 300 }) {
-  const currentBfr = Math.max(0, Math.min(600, Number(bfr) || 0));
-  const prescribed = Math.max(0, Math.min(600, Number(prescribedBfr) || 300));
-  const angle = (currentBfr / 600) * 180 - 180;
-  const rad = (angle * Math.PI) / 180;
-  const needleX = 80 + 55 * Math.cos(rad);
-  const needleY = 80 + 55 * Math.sin(rad);
+function DialysisMachineIllustrationSVG() {
+  return (
+    <div style={{ width: '74px', height: '106px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <img
+        src={dialysisMachineImg}
+        alt="Fresenius Dialysis Machine"
+        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+        onError={(e) => {
+          e.target.style.display = 'none';
+        }}
+      />
+    </div>
+  );
+}
 
-  const prescribedAngle = (prescribed / 600) * 180 - 180;
-  const prescribedRad = (prescribedAngle * Math.PI) / 180;
-  const tickX1 = 80 + 44 * Math.cos(prescribedRad);
-  const tickY1 = 80 + 44 * Math.sin(prescribedRad);
-  const tickX2 = 80 + 64 * Math.cos(prescribedRad);
-  const tickY2 = 80 + 64 * Math.sin(prescribedRad);
+function BloodFlowGaugeSVG({ bfr, prescribedBfr }) {
+  const hasBfr = bfr !== undefined && bfr !== null && bfr !== '—' && !isNaN(Number(bfr));
+  const currentBfr = hasBfr ? Math.max(0, Math.min(600, Number(bfr))) : 0;
+  const percent = hasBfr ? (currentBfr / 600) * 100 : 0;
+  const bfrDisplay = hasBfr ? currentBfr : '—';
+  const prescribedDisplay = prescribedBfr !== undefined && prescribedBfr !== null && prescribedBfr !== '—' ? (String(prescribedBfr).includes('mL') ? prescribedBfr : `${prescribedBfr} mL/min`) : '—';
 
   return (
-    <div className="during-gauge-wrap">
-      <svg width="160" height="95" viewBox="0 0 160 95">
-        <path
-          d="M 20 80 A 60 60 0 0 1 140 80"
-          fill="none"
-          stroke="#e2e8f0"
-          strokeWidth="12"
-          strokeLinecap="round"
-        />
-        <path
-          d="M 20 80 A 60 60 0 0 1 140 80"
-          fill="none"
-          stroke="#2563eb"
-          strokeWidth="12"
-          strokeLinecap="round"
-          strokeDasharray="188.5"
-          strokeDashoffset={188.5 - (currentBfr / 600) * 188.5}
-        />
-        <line
-          x1={tickX1}
-          y1={tickY1}
-          x2={tickX2}
-          y2={tickY2}
-          stroke="#dc2626"
-          strokeWidth="3"
-        />
-        <circle cx="80" cy="80" r="6" fill="#1e293b" />
-        <line
-          x1="80"
-          y1="80"
-          x2={needleX}
-          y2={needleY}
-          stroke="#1e293b"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-      </svg>
-      <div className="during-gauge-value-callout">
-        <strong>{currentBfr}</strong>
-        <span>mL/min</span>
+    <div className="during-blood-flow-gauge-wrap">
+      <div className="during-blood-flow-callout">
+        <WaterDropOutlinedIcon sx={{ color: '#dc2626', fontSize: 32 }} />
+        <div>
+          <strong>{bfrDisplay}</strong>
+          {hasBfr && <span> mL/min</span>}
+        </div>
       </div>
-      <div className="during-gauge-prescribed">
-        Prescribed: {prescribed} mL/min
+
+      <div className="during-blood-flow-bar-container">
+        <div className="during-blood-flow-bar-track">
+          <div className="during-blood-flow-pin" style={{ left: `${percent}%` }} />
+        </div>
+        <div className="during-blood-flow-ticks">
+          <span>0</span>
+          <span>150</span>
+          <span>300</span>
+          <span>450</span>
+          <span>600</span>
+        </div>
+      </div>
+
+      <div style={{ marginTop: '12px' }}>
+        <span className="during-status-pill alert" style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '3px 10px', fontSize: '11px', fontWeight: 600 }}>
+          Prescribed: {prescribedDisplay}
+        </span>
       </div>
     </div>
   );
@@ -394,57 +424,97 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
   }, [fetchDashboard]);
 
   const latest = readings[readings.length - 1] || {};
-  const startedAtDate = session?.started_at ? new Date(session.started_at) : new Date();
-  const elapsedMinutes = Math.max(0, Math.round((Date.now() - startedAtDate.getTime()) / 60000));
-  const totalMinutes = Number(session?.prescribed_duration_minutes || 240);
-  const calcPercent = Math.min(100, Math.round((elapsedMinutes / totalMinutes) * 100));
+  const startedAtDate = session?.started_at ? new Date(session.started_at) : (session?.created_at ? new Date(session.created_at) : null);
+  const elapsedMinutes = startedAtDate ? Math.max(0, Math.round((Date.now() - startedAtDate.getTime()) / 60000)) : 0;
+  const totalMinutes = Number(session?.prescribed_duration_minutes || session?.duration_minutes || 240);
+  const calcPercent = totalMinutes > 0 ? Math.min(100, Math.round((elapsedMinutes / totalMinutes) * 100)) : 0;
 
   const formatHoursMins = (mins) => {
+    if (mins === null || mins === undefined || isNaN(mins)) return '—';
     const h = Math.floor(mins / 60);
     const m = mins % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   };
 
   const progressData = dashboardData?.progress || {};
-  const ufData = dashboardData?.uf || {};
+  const ufData = dashboardData?.uf || progressData?.uf || {};
   const machineStatus = dashboardData?.machine_status || {};
+  const machineLatest = dashboardData?.machine_latest || dashboardData?.latest_machine_params || {};
   const latestVitals = dashboardData?.latest_vitals || {};
-  const latestMachineParams = dashboardData?.latest_machine_params || {};
-  const activeAlerts = dashboardData?.active_alerts || dashboardData?.unresolved?.alarms || [];
+  const latestMachineParams = dashboardData?.latest_machine_params || dashboardData?.machine_latest || {};
   const deferredConsent = dashboardData?.deferred_consent || false;
 
-  const percent = progressData.percent ?? calcPercent;
-  const elapsedTimeStr = progressData.elapsed_formatted || formatHoursMins(progressData.elapsed ?? elapsedMinutes);
-  const remainingTimeStr = progressData.remaining_formatted || formatHoursMins(progressData.remaining ?? Math.max(0, totalMinutes - elapsedMinutes));
-  const totalTimeStr = progressData.total_formatted || formatHoursMins(progressData.total ?? totalMinutes);
-  const startedAtStr = progressData.started_at ? new Date(progressData.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : startedAtDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const expectedEndStr = progressData.expected_end ? new Date(progressData.expected_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date(startedAtDate.getTime() + totalMinutes * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const rawElapsed = progressData.elapsed;
+  const parsedElapsedMins = typeof rawElapsed === 'number'
+    ? (rawElapsed < 10 ? Math.round(rawElapsed * 60) : Math.round(rawElapsed))
+    : elapsedMinutes;
+  const totalMins = Number(progressData.total || totalMinutes);
+  const remainingMins = Number(progressData.remaining ?? Math.max(0, totalMins - parsedElapsedMins));
+  const percent = progressData.percent ?? (totalMins > 0 ? Math.min(100, Math.round((parsedElapsedMins / totalMins) * 100)) : calcPercent);
 
-  const ufRemoved = Number(ufData.removed ?? latest.uf_removed ?? 0.0);
-  const ufTarget = Number(ufData.target ?? session?.target_uf ?? 2.4);
+  const elapsedTimeStr = progressData.elapsed_formatted || (startedAtDate ? formatHoursMins(parsedElapsedMins) : '—');
+  const remainingTimeStr = progressData.remaining_formatted || (startedAtDate ? formatHoursMins(remainingMins) : '—');
+  const totalTimeStr = progressData.total_formatted || (totalMins ? formatHoursMins(totalMins) : '—');
+  const startedAtStr = progressData.started_at ? new Date(progressData.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (startedAtDate ? startedAtDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—');
+  const expectedEndStr = progressData.expected_end ? new Date(progressData.expected_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (startedAtDate ? new Date(startedAtDate.getTime() + totalMins * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—');
+
+  const ufRemoved = Number(ufData.removed ?? machineLatest.uf_removed ?? latest.uf_removed ?? session?.uf_removed ?? 0.0);
+  const rawTarget = ufData.target ?? session?.target_uf ?? session?.uf_target ?? 0.0;
+  const ufTarget = Number(rawTarget) > 50 ? Number(rawTarget) / 1000 : Number(rawTarget);
   const ufRemaining = Number(ufData.remaining ?? Math.max(0, ufTarget - ufRemoved));
-  const ufRate = ufData.rate ?? latest.uf_rate ?? 500;
+  const ufRate = ufData.rate ?? machineLatest.ufr ?? latest.uf_rate ?? session?.uf_rate ?? '—';
 
-  const bfr = machineStatus.bfr ?? latest.bfr ?? 300;
-  const dfr = machineStatus.dfr ?? latest.dfr ?? 500;
-  const prescribedBfr = machineStatus.prescribed_bfr ?? 300;
-  const machineModel = machineStatus.model || session?.machine_model || 'Fresenius 4008S';
-  const dialyzer = machineStatus.dialyzer || session?.dialyzer || 'F6HPS';
-  const isRunning = machineStatus.running !== false;
-  const alarmSummary = machineStatus.alarms || (activeAlerts.length > 0 ? `${activeAlerts.length} Active Alarms` : 'No Active Alarms');
+  const bfr = machineLatest.bfr ?? machineStatus.bfr ?? latest.bfr ?? session?.bfr ?? '—';
+  const dfr = machineLatest.dfr ?? machineStatus.dfr ?? latest.dfr ?? session?.dfr ?? '—';
+  const prescribedBfr = machineStatus.prescribed_bfr ?? session?.prescribed_bfr ?? session?.prescribedBFR ?? '—';
+  const machineModel = machineStatus.model || session?.machine_model || session?.machine || '—';
+  const dialyzer = machineStatus.dialyzer || session?.dialyzer || '—';
+  const isRunning = (dashboardData?.state === 'STARTED' || machineStatus.running !== false) && !!sessionId;
 
-  const bpVal = latestVitals.systolic_bp ? `${latestVitals.systolic_bp}/${latestVitals.diastolic_bp}` : (latest.systolic_bp || latest.bp_systolic) ? `${latest.systolic_bp || latest.bp_systolic}/${latest.diastolic_bp || latest.bp_diastolic}` : '—';
-  const pulseVal = latestVitals.pulse ?? latest.pulse ?? '—';
-  const respVal = latestVitals.resp_rate ?? latest.respiration ?? latest.resp_rate ?? '—';
-  const tempVal = latestVitals.temp ?? latest.temperature ?? '—';
-  const spo2Val = latestVitals.spo2 ?? latest.spo2 ?? '—';
-  const painVal = latestVitals.pain_score ?? latest.pain_score ?? '—';
+  const vitalsSys = latestVitals.systolic_bp ?? latest.systolic_bp ?? latest.bp_systolic;
+  const vitalsDia = latestVitals.diastolic_bp ?? latest.diastolic_bp ?? latest.bp_diastolic;
+  const bpVal = vitalsSys && vitalsDia ? `${vitalsSys} / ${vitalsDia} mmHg` : '—';
+  const pulseVal = (latestVitals.pulse ?? latest.pulse) ? `${latestVitals.pulse ?? latest.pulse} bpm` : '—';
+  const respVal = (latestVitals.resp_rate ?? latest.respiration ?? latest.resp_rate) ? `${latestVitals.resp_rate ?? latest.respiration ?? latest.resp_rate} /min` : '—';
+  const tempVal = (latestVitals.temp ?? latest.temperature) ? `${latestVitals.temp ?? latest.temperature} °C` : '—';
+  const spo2Val = (latestVitals.spo2 ?? latest.spo2) ? `${latestVitals.spo2 ?? latest.spo2} %` : '—';
+  const rawPain = latestVitals.pain_score ?? latest.pain_score;
+  const painVal = rawPain !== undefined && rawPain !== null ? `${rawPain} (${Number(rawPain) === 0 ? 'No Pain' : 'Mild'})` : '—';
 
-  const apVal = latestMachineParams.ap ?? '—';
-  const vpVal = latestMachineParams.vp ?? '—';
-  const tmpVal = latestMachineParams.tmp ?? '—';
-  const condVal = latestMachineParams.conductivity ?? '—';
-  const dialTempVal = latestMachineParams.dialysate_temp ?? '—';
+  const vitalsTimestamp = latestVitals.recorded_at
+    ? new Date(latestVitals.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : (latest.observation_time || latest.recorded_at)
+    ? new Date(latest.observation_time || latest.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : '—';
+
+  const apRaw = machineLatest.arterial_pressure ?? machineLatest.ap ?? latestMachineParams.ap ?? session?.ap;
+  const apVal = apRaw !== undefined && apRaw !== null && apRaw !== '—' ? `${apRaw} mmHg` : '—';
+
+  const vpRaw = machineLatest.venous_pressure ?? machineLatest.vp ?? latestMachineParams.vp ?? session?.vp;
+  const vpVal = vpRaw !== undefined && vpRaw !== null && vpRaw !== '—' ? `${vpRaw} mmHg` : '—';
+
+  const tmpRaw = machineLatest.tmp ?? latestMachineParams.tmp ?? session?.tmp;
+  const tmpVal = tmpRaw !== undefined && tmpRaw !== null && tmpRaw !== '—' ? `${tmpRaw} mmHg` : '—';
+
+  const condRaw = machineLatest.conductivity ?? latestMachineParams.conductivity ?? session?.conductivity;
+  const condVal = condRaw !== undefined && condRaw !== null && condRaw !== '—' ? `${condRaw} mS/cm` : '—';
+
+  const dialTempRaw = machineLatest.dialysate_temp ?? latestMachineParams.dialysate_temp ?? session?.dialysate_temp;
+  const dialTempVal = dialTempRaw !== undefined && dialTempRaw !== null && dialTempRaw !== '—' ? `${dialTempRaw} °C` : '—';
+
+  const rawAlerts = dashboardData?.active_alerts || dashboardData?.unresolved?.alarms || [];
+  const flagAlerts = (machineLatest.flags_json || []).map((flag, idx) => ({
+    id: flag.id || `flag-${flag.field}-${idx}`,
+    title: `${(flag.field || 'Parameter').toUpperCase()} Critical Alert`,
+    description: `Parameter ${flag.field ? flag.field.toUpperCase() : ''} is ${flag.severity || 'out of safe range'}: ${flag.value}`,
+    severity: flag.severity || 'critical',
+    created_at: machineLatest.reading_time || machineLatest.recorded_at
+  }));
+  const activeAlerts = [...rawAlerts, ...flagAlerts];
+
+  const machineParamsTimestamp = (machineLatest.reading_time || machineLatest.recorded_at || latestMachineParams.recorded_at)
+    ? new Date(machineLatest.reading_time || machineLatest.recorded_at || latestMachineParams.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : '—';
 
   return (
     <>
@@ -458,70 +528,89 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
       <div className="during-dashboard-row">
         {/* Card 1: Treatment Progress */}
         <Card title="Treatment Progress">
-          <TreatmentProgressRingSVG percent={percent} />
-          <div className="during-grid">
-            <Metric label="Elapsed" value={elapsedTimeStr} />
-            <Metric label="Remaining" value={remainingTimeStr} />
-            <Metric label="Prescribed" value={totalTimeStr} />
-          </div>
-          <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
-            <span>Started: <strong>{startedAtStr}</strong></span>
-            <span>Expected End: <strong>{expectedEndStr}</strong></span>
+          <TreatmentProgressRingSVG percent={percent} elapsedTime={elapsedTimeStr} remainingTime={remainingTimeStr} totalTime={totalTimeStr} />
+          <div className="during-progress-footer-strip">
+            <span>Started At: <strong style={{ color: '#0f172a' }}>{startedAtStr}</strong></span>
+            <span>Expected End: <strong style={{ color: '#0f172a' }}>{expectedEndStr}</strong></span>
           </div>
         </Card>
 
         {/* Card 2: UF Progress */}
-        <Card title="UF Progress">
-          <UfProgressRingSVG removed={ufRemoved} target={ufTarget} />
-          <div className="during-grid">
-            <Metric label="Target UF" value={`${ufTarget.toFixed(2)} L`} />
-            <Metric label="Remaining" value={`${ufRemaining.toFixed(2)} L`} />
-            <Metric label="UF Rate" value={`${ufRate} mL/hr`} />
-          </div>
+        <Card title="Ultrafiltration (UF) Progress">
+          <UfProgressRingSVG removed={ufRemoved} target={ufTarget} remaining={ufRemaining} rate={ufRate} />
         </Card>
 
         {/* Card 3: Machine Status */}
         <Card title="Machine Status">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <span className={`during-status ${isRunning ? 'success' : 'warning'}`}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <span className="during-status-pill alert" style={{ background: isRunning ? '#dcfce7' : '#fef3c7', color: isRunning ? '#15803d' : '#b45309', border: '1px solid', borderColor: isRunning ? '#bbf7d0' : '#fde68a', padding: '2px 8px' }}>
               ● {isRunning ? 'Running' : 'Stopped'}
             </span>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>{machineModel}</span>
+            <span style={{ fontSize: '10px', color: '#64748b' }}>{machineModel}</span>
           </div>
-          <div className="during-grid" style={{ marginBottom: '12px' }}>
-            <Metric label="Dialyzer" value={dialyzer} />
-            <Metric label="BFR / DFR" value={`${bfr} / ${dfr}`} hint="mL/min" />
+
+          <div className="during-machine-status-body">
+            <DialysisMachineIllustrationSVG />
+            <div className="during-machine-details-list">
+              <div className="during-machine-detail-row">
+                <small>Machine</small>
+                <strong>{machineModel}</strong>
+              </div>
+              <div className="during-machine-detail-row">
+                <small>Dialyzer</small>
+                <strong>{dialyzer}</strong>
+              </div>
+              <div className="during-machine-detail-row">
+                <small>Blood Flow Rate (BFR)</small>
+                <strong>{bfr !== '—' ? `${bfr} mL/min` : '—'}</strong>
+              </div>
+              <div className="during-machine-detail-row">
+                <small>Dialysate Flow Rate (DFR)</small>
+                <strong>{dfr !== '—' ? `${dfr} mL/min` : '—'}</strong>
+              </div>
+            </div>
           </div>
-          <div className="during-empty">
-            {alarmSummary}
+
+          <div className="during-machine-alert-strip">
+            <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} />
+            <div>
+              <div style={{ fontWeight: 700 }}>{activeAlerts.length > 0 ? `${activeAlerts.length} Active Alarms` : 'No Active Alarms'}</div>
+              <div style={{ fontSize: '10px', color: '#166534' }}>{activeAlerts.length > 0 ? 'Review active alarm details in Alarm Management.' : 'All parameters are within safe limits.'}</div>
+            </div>
           </div>
         </Card>
 
-        {/* Card 4: Active Alerts (Right Column) */}
+        {/* Card 4: Active Alerts */}
         <Card title="Active Alerts">
-          <div className="during-active-alerts-header">
-            <span className="during-active-alerts-badge">{activeAlerts.length} Active</span>
-            <LibraryButton variant="outline" size="sm" onClick={() => go('P3-07')}>
-              Manage
-            </LibraryButton>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', marginTop: '-24px' }}>
+            <span style={{ color: activeAlerts.length > 0 ? '#dc2626' : '#64748b', fontWeight: 700, fontSize: '13px' }}>Active Alerts ({activeAlerts.length})</span>
+            <button type="button" className="during-card-action-link" onClick={() => go('P3-07')}>View All</button>
           </div>
+
           {activeAlerts.length === 0 ? (
-            <div className="during-empty">
-              No active alarms. All parameters within safe limits.
+            <div className="during-empty" style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '12px' }}>
+              No active alerts. All parameters are within safe limits.
             </div>
           ) : (
-            <div>
-              {activeAlerts.slice(0, 3).map((alert, idx) => {
+            <div className="during-active-alerts-container">
+              {activeAlerts.map((alert, idx) => {
                 const severity = (alert.severity || alert.level || 'medium').toLowerCase();
+                const alertTime = alert.created_at || alert.time ? new Date(alert.created_at || alert.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
                 return (
-                  <div key={alert.id || idx} className={`during-alert-item ${severity}`}>
-                    <div>
-                      <div className="during-alert-item-title">{alert.title || alert.name || alert.alarm_type}</div>
-                      <div className="during-alert-item-time">{alert.time || alert.created_at || '10:12 AM'}</div>
+                  <div key={alert.id || idx} className="during-active-alert-row">
+                    <div className="during-active-alert-left">
+                      <WarningAmberOutlinedIcon sx={{ color: severity === 'high' || severity === 'critical' ? '#dc2626' : '#d97706', fontSize: 18 }} />
+                      <div>
+                        <div className="during-active-alert-title">{alert.title || alert.alarm_type || alert.name || 'Alert'}</div>
+                        <div className="during-active-alert-desc">{alert.description || alert.message || alert.details || 'Parameter out of range.'}</div>
+                      </div>
                     </div>
-                    <span className={`during-severity-badge ${severity}`}>
-                      {alert.severity || 'Medium'}
-                    </span>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>{alertTime}</span>
+                      <span className="during-status-pill alert" style={{ background: severity === 'high' || severity === 'critical' ? '#fce7f3' : '#fef9c3', color: severity === 'high' || severity === 'critical' ? '#be185d' : '#a16207', border: '1px solid', borderColor: severity === 'high' || severity === 'critical' ? '#fbcfe8' : '#fef08a', padding: '1px 6px', fontSize: '10px' }}>
+                        {alert.severity || 'Medium'}
+                      </span>
+                    </div>
                   </div>
                 );
               })}
@@ -534,83 +623,212 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
       <div className="during-dashboard-row">
         {/* Card 1: Latest Vitals */}
         <Card title="Latest Vitals">
-          <div className="during-card-header" style={{ marginTop: '-24px' }}>
-            <span />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', marginTop: '-24px' }}>
+            <span style={{ fontSize: '11px', color: '#64748b' }}>{vitalsTimestamp}</span>
+          </div>
+
+          <div style={{ marginTop: '-4px' }}>
+            <div className="during-vitals-list-item">
+              <div className="during-vitals-list-left">
+                <FavoriteBorderOutlinedIcon fontSize="small" sx={{ color: '#2563eb', fontSize: 16 }} />
+                <span>BP</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{bpVal}</strong>
+                {bpVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+              </div>
+            </div>
+
+            <div className="during-vitals-list-item">
+              <div className="during-vitals-list-left">
+                <MonitorHeartOutlinedIcon fontSize="small" sx={{ color: '#2563eb', fontSize: 16 }} />
+                <span>Pulse</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{pulseVal}</strong>
+                {pulseVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+              </div>
+            </div>
+
+            <div className="during-vitals-list-item">
+              <div className="during-vitals-list-left">
+                <AirOutlinedIcon fontSize="small" sx={{ color: '#2563eb', fontSize: 16 }} />
+                <span>Resp. Rate</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{respVal}</strong>
+                {respVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+              </div>
+            </div>
+
+            <div className="during-vitals-list-item">
+              <div className="during-vitals-list-left">
+                <DeviceThermostatOutlinedIcon fontSize="small" sx={{ color: '#2563eb', fontSize: 16 }} />
+                <span>Temp.</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{tempVal}</strong>
+                {tempVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+              </div>
+            </div>
+
+            <div className="during-vitals-list-item">
+              <div className="during-vitals-list-left">
+                <WaterDropOutlinedIcon fontSize="small" sx={{ color: '#2563eb', fontSize: 16 }} />
+                <span>SpO₂</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{spo2Val}</strong>
+                {spo2Val !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+              </div>
+            </div>
+
+            <div className="during-vitals-list-item">
+              <div className="during-vitals-list-left">
+                <SentimentNeutralOutlinedIcon fontSize="small" sx={{ color: '#2563eb', fontSize: 16 }} />
+                <span>Pain Score</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{painVal}</strong>
+                {painVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '10px' }}>
             <button type="button" className="during-card-action-link" onClick={() => go('P3-02')}>
               View All Vitals →
             </button>
-          </div>
-          <div className="during-grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-            <Metric label="BP (mmHg)" value={<>{bpVal} <TrendBadge trend="stable" /></>} />
-            <Metric label="Pulse (bpm)" value={<>{pulseVal} <TrendBadge trend="up" /></>} />
-            <Metric label="Respiration" value={<>{respVal} <TrendBadge trend="stable" /></>} />
-            <Metric label="Temp (°C)" value={<>{tempVal} <TrendBadge trend="stable" /></>} />
-            <Metric label="SpO₂ (%)" value={<>{spo2Val} <TrendBadge trend="up" /></>} />
-            <Metric label="Pain Score" value={<>{painVal} <TrendBadge trend="stable" /></>} />
           </div>
         </Card>
 
         {/* Card 2: Key Machine Parameters */}
         <Card title="Key Machine Parameters">
-          <div className="during-card-header" style={{ marginTop: '-24px' }}>
-            <span />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', marginTop: '-24px' }}>
+            <span style={{ fontSize: '11px', color: '#64748b' }}>{machineParamsTimestamp}</span>
+          </div>
+
+          <div style={{ marginTop: '-4px' }}>
+            <div className="during-vitals-list-item">
+              <span style={{ color: '#475569' }}>Arterial Pressure</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{apVal}</strong>
+                {apVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+              </div>
+            </div>
+
+            <div className="during-vitals-list-item">
+              <span style={{ color: '#475569' }}>Venous Pressure</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{vpVal}</strong>
+                {vpVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+              </div>
+            </div>
+
+            <div className="during-vitals-list-item">
+              <span style={{ color: '#475569' }}>Transmembrane Pressure (TMP)</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{tmpVal}</strong>
+                {tmpVal !== '—' && <span style={{ color: '#d97706', fontWeight: 800 }}>↗</span>}
+              </div>
+            </div>
+
+            <div className="during-vitals-list-item">
+              <span style={{ color: '#475569' }}>Dialysate Conductivity</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{condVal}</strong>
+                {condVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+              </div>
+            </div>
+
+            <div className="during-vitals-list-item">
+              <span style={{ color: '#475569' }}>Dialysate Temperature</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong>{dialTempVal}</strong>
+                {dialTempVal !== '—' && <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 14 }} />}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '10px' }}>
             <button type="button" className="during-card-action-link" onClick={() => go('P3-03')}>
               View All Parameters →
             </button>
-          </div>
-          <div className="during-grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-            <Metric label="Arterial Press (AP)" value={<>{apVal} <TrendBadge trend="stable" /></>} hint="mmHg" />
-            <Metric label="Venous Press (VP)" value={<>{vpVal} <TrendBadge trend="stable" /></>} hint="mmHg" />
-            <Metric label="TMP" value={<>{tmpVal} <TrendBadge trend="stable" /></>} hint="mmHg" />
-            <Metric label="Conductivity" value={<>{condVal} <TrendBadge trend="stable" /></>} hint="mS/cm" />
-            <Metric label="Dialysate Temp" value={<>{dialTempVal} <TrendBadge trend="stable" /></>} hint="°C" />
           </div>
         </Card>
 
         {/* Card 3: Blood Flow Gauge */}
         <Card title="Blood Flow">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', marginTop: '-24px' }}>
+            <span style={{ fontSize: '11px', color: '#64748b' }}>{vitalsTimestamp !== '—' ? vitalsTimestamp : machineParamsTimestamp}</span>
+          </div>
           <BloodFlowGaugeSVG bfr={bfr} prescribedBfr={prescribedBfr} />
         </Card>
 
-        {/* Card 4: Quick Actions Panel (Right-Hand Side) */}
+        {/* Card 4: Quick Actions Panel */}
         <Card title="Quick Actions">
-          <div className="during-quick-actions-grid">
-            <button type="button" className="during-quick-action-tile" onClick={() => go('P3-02')}>
-              <div className="during-quick-action-icon">
-                <MonitorHeartOutlinedIcon fontSize="small" />
+          <div style={{ marginTop: '-6px' }}>
+            <button type="button" className="during-quick-action-full-tile" onClick={() => go('P3-02')}>
+              <div className="during-quick-action-full-tile-left">
+                <FavoriteBorderOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" />
+                <div className="during-quick-action-full-tile-info">
+                  <strong>Add Vitals</strong>
+                  <small>Record patient vitals</small>
+                </div>
               </div>
-              <span>Add Vitals</span>
+              <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
             </button>
-            <button type="button" className="during-quick-action-tile" onClick={() => go('P3-04')}>
-              <div className="during-quick-action-icon">
-                <HealingOutlinedIcon fontSize="small" />
+
+            <button type="button" className="during-quick-action-full-tile" onClick={() => go('P3-04')}>
+              <div className="during-quick-action-full-tile-left">
+                <PersonOutlineIcon sx={{ color: '#2563eb' }} fontSize="small" />
+                <div className="during-quick-action-full-tile-info">
+                  <strong>Add Symptoms</strong>
+                  <small>Record patient symptoms</small>
+                </div>
               </div>
-              <span>Add Symptoms</span>
+              <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
             </button>
-            <button type="button" className="during-quick-action-tile" onClick={() => go('P3-07')}>
-              <div className="during-quick-action-icon">
-                <WarningAmberOutlinedIcon fontSize="small" />
+
+            <button type="button" className="during-quick-action-full-tile" onClick={() => go('P3-07')}>
+              <div className="during-quick-action-full-tile-left">
+                <NotificationsNoneOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" />
+                <div className="during-quick-action-full-tile-info">
+                  <strong>Alarm Management</strong>
+                  <small>View and manage alarms</small>
+                </div>
               </div>
-              <span>Alarm Management</span>
+              <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
             </button>
-            <button type="button" className="during-quick-action-tile" onClick={() => go('P3-06')}>
-              <div className="during-quick-action-icon">
-                <VaccinesOutlinedIcon fontSize="small" />
+
+            <button type="button" className="during-quick-action-full-tile" onClick={() => go('P3-06')}>
+              <div className="during-quick-action-full-tile-left">
+                <VaccinesOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" />
+                <div className="during-quick-action-full-tile-info">
+                  <strong>Medication Administration</strong>
+                  <small>Record medication given</small>
+                </div>
               </div>
-              <span>Medication Administration</span>
+              <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
             </button>
-            <button type="button" className="during-quick-action-tile" onClick={() => go('P3-08')}>
-              <div className="during-quick-action-icon">
-                <ChecklistOutlinedIcon fontSize="small" />
+
+            <button type="button" className="during-quick-action-full-tile" onClick={() => go('P3-08')}>
+              <div className="during-quick-action-full-tile-left">
+                <ChecklistOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" />
+                <div className="during-quick-action-full-tile-info">
+                  <strong>Treatment Progress</strong>
+                  <small>Detailed progress view</small>
+                </div>
               </div>
-              <span>Treatment Progress</span>
+              <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
             </button>
           </div>
         </Card>
       </div>
 
-      <div className="during-guidance">
-        Keep monitoring patient closely. Review alerts and take appropriate actions as needed.
+      <div className="during-guidance" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', padding: '10px 16px', borderRadius: '10px', fontSize: '12px' }}>
+        <InfoOutlinedIcon fontSize="small" sx={{ color: '#2563eb' }} />
+        <span>Keep monitoring patient closely. Review alerts and take appropriate actions as needed.</span>
       </div>
     </>
   );
@@ -812,6 +1030,13 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
   const executeSave = async () => {
+    const activeSessionId = getValidSessionId(sessionId);
+    if (!activeSessionId) {
+      const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before saving vitals.';
+      setError(alertMsg);
+      alert(alertMsg);
+      return false;
+    }
     if (!form.systolic_bp || !form.diastolic_bp || !form.pulse || !form.temperature || !form.spo2) {
       setError('BP, Pulse, Temperature, and SpO₂ are required fields.');
       return false;
@@ -836,7 +1061,7 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
       recorded_at,
     };
 
-    const result = await createIntradialyticVitals(sessionId, payload);
+    const result = await createIntradialyticVitals(activeSessionId, payload);
     setSaving(false);
     if (!result.success) {
       const errMsg = responseData(result)?.message || result?.error || result?.message || 'Failed to save vitals entry.';
@@ -862,16 +1087,36 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
     if (ok) go('P3-03');
   };
 
+  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+  const [fetchedVitals, setFetchedVitals] = useState([]);
+  const [overdueSlots, setOverdueSlots] = useState([]);
+
+  useEffect(() => {
+    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
+    getIntradialyticVitals(activeSessionId, '2h').then((res) => {
+      if (res?.success) {
+        const d = responseData(res);
+        const items = Array.isArray(d) ? d : d.items || d.vitals || [];
+        setFetchedVitals(items);
+      }
+    });
+    const techId = getTechnicianId();
+    if (techId) {
+      getOverdueVitals(techId).then((res) => {
+        if (res?.success) {
+          const d = responseData(res);
+          const slots = Array.isArray(d) ? d : d.items || d.slots || [];
+          setOverdueSlots(slots);
+        }
+      });
+    }
+  }, [activeSessionId]);
+
   const historyRows = useMemo(() => {
-    if (readings && readings.length > 0) return readings.slice(-5).reverse();
-    return [
-      { observation_time: '10:00 AM', bp_systolic: 122, bp_diastolic: 78, pulse: 78, resp_rate: 18, temperature: 36.6, spo2: 98, pain_score: 0, consciousness: 'Alert', recorded_by: 'Rahul Singh' },
-      { observation_time: '09:30 AM', bp_systolic: 126, bp_diastolic: 78, pulse: 79, resp_rate: 18, temperature: 36.5, spo2: 98, pain_score: 0, consciousness: 'Alert', recorded_by: 'Rahul Singh' },
-      { observation_time: '09:00 AM', bp_systolic: 118, bp_diastolic: 74, pulse: 76, resp_rate: 18, temperature: 36.6, spo2: 98, pain_score: 1, consciousness: 'Alert', recorded_by: 'Rahul Singh' },
-      { observation_time: '08:30 AM', bp_systolic: 120, bp_diastolic: 76, pulse: 80, resp_rate: 18, temperature: 36.5, spo2: 97, pain_score: 1, consciousness: 'Alert', recorded_by: 'Rahul Singh' },
-      { observation_time: '08:00 AM', bp_systolic: 124, bp_diastolic: 80, pulse: 82, resp_rate: 18, temperature: 36.5, spo2: 97, pain_score: 1, consciousness: 'Alert', recorded_by: 'Rahul Singh' },
-    ];
-  }, [readings]);
+    const list = (readings && readings.length > 0) ? readings : fetchedVitals;
+    if (list && list.length > 0) return list.slice(-5).reverse();
+    return [];
+  }, [readings, fetchedVitals]);
 
   return (
     <>
@@ -1402,6 +1647,13 @@ function SymptomForm({ sessionId, go }) {
   const updateField = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
   const executeSaveSymptom = async () => {
+    const activeSessionId = getValidSessionId(sessionId);
+    if (!activeSessionId) {
+      const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before recording symptoms.';
+      setError(alertMsg);
+      alert(alertMsg);
+      return false;
+    }
     if (!form.symptom) {
       setError('Please select a symptom or complication.');
       return false;
@@ -1421,8 +1673,10 @@ function SymptomForm({ sessionId, go }) {
     const recorded_by = getTechnicianId() || 'Rahul Singh';
 
     const payload = {
-      event_time: form.event_time,
+      symptom: form.symptom,
       symptom_type: form.symptom,
+      symptom_name: form.symptom,
+      event_time: form.event_time,
       severity: form.severity,
       status: form.status,
       details: form.details,
@@ -1479,24 +1733,10 @@ function SymptomForm({ sessionId, go }) {
     fetchSymptoms();
   };
 
-  const activeSymptomItem = symptomsList.find((s) => (s.status || 'Ongoing').toLowerCase() === 'ongoing') || {
-    id: 'symp-101',
-    symptom_type: 'Hypotension (Low BP)',
-    severity: 'Moderate',
-    event_time: '10:00 AM',
-    bp: '88/54 mmHg',
-    intervention: 'UF Paused, 100 mL NS given',
-    status: 'Ongoing',
-  };
+  const activeSymptomItem = symptomsList.find((s) => (s.status || 'Ongoing').toLowerCase() === 'ongoing') || null;
 
   const historyItems = useMemo(() => {
-    const defaultHistory = [
-      { id: 'symp-01', symptom_type: 'Muscle Cramps', time: '09:20 AM', status: 'Resolved', intervention: 'Saline 100 mL given', severity: 'Mild' },
-      { id: 'symp-02', symptom_type: 'Nausea / Vomiting', time: '08:45 AM', status: 'Resolved', intervention: 'Ondansetron 4 mg IV', severity: 'Moderate' },
-      { id: 'symp-03', symptom_type: 'Hypotension (Low BP)', time: '08:10 AM', status: 'Resolved', intervention: 'UF Paused, NS 200 mL', severity: 'Severe' },
-      { id: 'symp-04', symptom_type: 'Headache', time: '07:50 AM', status: 'Resolved', intervention: 'Paracetamol 500 mg', severity: 'Mild' },
-    ];
-    if (!symptomsList || symptomsList.length === 0) return defaultHistory;
+    if (!symptomsList || symptomsList.length === 0) return [];
     return symptomsList.slice(-4).reverse().map((s, idx) => ({
       id: s.id || `symp-${idx}`,
       symptom_type: s.symptom_type || s.symptom || 'Symptom',
@@ -1665,7 +1905,7 @@ function SymptomForm({ sessionId, go }) {
         {/* Right Column: Active Symptoms + Symptom History + Clinical Guidance */}
         <div style={{ minWidth: 0 }}>
           {/* Card 1: Active Symptoms */}
-          <Card title={<span style={{ color: '#dc2626' }}>Active Symptoms (1)</span>}>
+          <Card title={<span style={{ color: activeSymptomItem ? '#dc2626' : '#64748b' }}>Active Symptoms ({activeSymptomItem ? 1 : 0})</span>}>
             <div className="during-card-header" style={{ marginTop: '-24px' }}>
               <span />
               <button type="button" className="during-card-action-link">
@@ -1714,26 +1954,32 @@ function SymptomForm({ sessionId, go }) {
               </Select>
             </div>
 
-            <div className="during-symptom-history-list">
-              {historyItems.map((item, idx) => (
-                <div key={item.id || idx} className="during-symptom-history-item">
-                  <div className="during-symptom-history-header">
-                    <div className="during-symptom-history-title">
-                      <span>{item.symptom_type}</span>
+            {historyItems.length === 0 ? (
+              <div className="during-empty" style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '12px' }}>
+                No symptoms recorded for this session.
+              </div>
+            ) : (
+              <div className="during-symptom-history-list">
+                {historyItems.map((item, idx) => (
+                  <div key={item.id || idx} className="during-symptom-history-item">
+                    <div className="during-symptom-history-header">
+                      <div className="during-symptom-history-title">
+                        <span>{item.symptom_type}</span>
+                      </div>
+                      <span className={`during-severity-badge ${(item.severity || 'mild').toLowerCase()}`}>
+                        {item.severity}
+                      </span>
                     </div>
-                    <span className={`during-severity-badge ${(item.severity || 'mild').toLowerCase()}`}>
-                      {item.severity}
-                    </span>
+                    <div style={{ color: '#64748b', fontSize: '10px' }}>
+                      {item.time} | <strong>{item.status}</strong>
+                    </div>
+                    <div style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>
+                      {item.intervention}
+                    </div>
                   </div>
-                  <div style={{ color: '#64748b', fontSize: '10px' }}>
-                    {item.time} | <strong>{item.status}</strong>
-                  </div>
-                  <div style={{ color: '#475569', fontSize: '11px', marginTop: '2px' }}>
-                    {item.intervention}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <div style={{ textAlign: 'center', marginTop: '12px' }}>
               <button type="button" className="during-card-action-link">
@@ -1815,15 +2061,32 @@ function AccessHealthGaugeSVG({ score = 95 }) {
 
 function VascularAccessMonitoringView({ sessionId, go }) {
   const [accessType, setAccessType] = useState('AV Fistula (AVF)');
-  const [assessmentTime, setAssessmentTime] = useState('26 May 2025, 10:20 AM');
+  const [assessmentTime, setAssessmentTime] = useState(nowTime());
   const [overallStatus, setOverallStatus] = useState('Good / Functional');
   const [intervention, setIntervention] = useState('');
   const [additionalNotes, setAdditionalNotes] = useState('');
-  const [nextDue, setNextDue] = useState('11:00 AM (In 1 hour)');
+  const [nextDue, setNextDue] = useState('Next Hour (Every 1 hour)');
   const [notify, setNotify] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+
+  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+
+  useEffect(() => {
+    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
+    getVascularAccessMonitoring(activeSessionId).then((res) => {
+      if (res?.success) {
+        const d = responseData(res);
+        const data = Array.isArray(d) ? d[d.length - 1] : d;
+        if (data) {
+          if (data.access_type) setAccessType(data.access_type);
+          if (data.overall_status) setOverallStatus(data.overall_status);
+          if (data.recorded_at) setAssessmentTime(new Date(data.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        }
+      }
+    });
+  }, [activeSessionId]);
 
   const [assessmentItems, setAssessmentItems] = useState({
     needle_security: { finding: 'Secure', comment: '' },
@@ -1864,6 +2127,13 @@ function VascularAccessMonitoringView({ sessionId, go }) {
   };
 
   const executeSave = async () => {
+    const activeSessionId = getValidSessionId(sessionId);
+    if (!activeSessionId) {
+      const alertMsg = 'No active dialysis session found. Please start a session from Patient Profile before saving access assessment.';
+      setError(alertMsg);
+      alert(alertMsg);
+      return false;
+    }
     setSaving(true);
     setError('');
 
@@ -1883,7 +2153,6 @@ function VascularAccessMonitoringView({ sessionId, go }) {
       recorded_at,
     };
 
-    const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
     const res = await createVascularAccessMonitoring(activeSessionId, payload);
     setSaving(false);
 
@@ -2234,26 +2503,29 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
     notes: '',
   });
 
-  const [preVitals, setPreVitals] = useState({ sbp: '118', dbp: '76', pulse: '78', spo2: '98' });
+  const [preVitals, setPreVitals] = useState({ sbp: '—', dbp: '—', pulse: '—', spo2: '—' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [dueMeds, setDueMeds] = useState([]);
   const [allergies, setAllergies] = useState([]);
-  const [history, setHistory] = useState([
-    { id: 1, time: '09:05 AM', medication: 'Heparin (Loading Dose)', dose: '1,000 Units', route: 'IV', indication: 'Anticoagulation', by: 'Rahul Singh', status: 'Administered', notes: 'No adverse reaction' },
-    { id: 2, time: '09:45 AM', medication: 'Iron Sucrose', dose: '100 mg', route: 'IV', indication: 'Iron Deficiency', by: 'Rahul Singh', status: 'Administered', notes: 'Tolerated well' },
-    { id: 3, time: '—', medication: 'Epoetin Alfa', dose: '4,000 Units', route: 'IV', indication: 'Anemia (CKD)', by: '—', status: 'Pending', notes: 'Due at 11:30 AM' },
-  ]);
+  const [history, setHistory] = useState([]);
 
   const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
 
   useEffect(() => {
-    if (!activeSessionId || activeSessionId === 'preview') return;
+    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
     getDueMedications(activeSessionId).then((res) => {
       if (res?.success) {
         const d = responseData(res);
         setDueMeds(Array.isArray(d) ? d : d.items || d.medications || []);
+      }
+    });
+    getMedications(activeSessionId).then((res) => {
+      if (res?.success) {
+        const d = responseData(res);
+        const items = Array.isArray(d) ? d : d.items || d.medications || [];
+        setHistory(items);
       }
     });
     if (patientId) {
@@ -2264,11 +2536,18 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
         }
       });
     }
-  }, [sessionId, patientId]);
+  }, [activeSessionId, patientId]);
 
   const update = (key) => (e) => setForm((v) => ({ ...v, [key]: e.target.value }));
 
   const executeSave = async () => {
+    const activeSessionId = getValidSessionId(sessionId);
+    if (!activeSessionId) {
+      const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before recording medication administration.';
+      setError(alertMsg);
+      alert(alertMsg);
+      return false;
+    }
     if (!form.medication || !form.dose || !form.route) {
       setError('Medication, dose, and route are required.');
       return false;
@@ -2466,23 +2745,31 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {history.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.time}</td>
-                      <td><strong>{row.medication}</strong></td>
-                      <td>{row.dose}</td>
-                      <td>{row.route}</td>
-                      <td>{row.indication}</td>
-                      <td>{row.by}</td>
-                      <td>
-                        <span className={`during-status-pill ${row.status === 'Administered' ? 'alert' : ''}`} style={row.status === 'Pending' ? { background: '#fffbeb', color: '#b45309', border: '1px solid #fef3c7' } : {}}>
-                          {row.status}
-                        </span>
+                  {history.length === 0 ? (
+                    <tr>
+                      <td colSpan="9" style={{ textAlign: 'center', color: '#64748b', padding: '16px', fontSize: '12px' }}>
+                        No medication administrations recorded yet for this session.
                       </td>
-                      <td>{row.notes}</td>
-                      <td><EditOutlinedIcon sx={{ fontSize: 16, color: '#64748b', cursor: 'pointer' }} /></td>
                     </tr>
-                  ))}
+                  ) : (
+                    history.map((row, idx) => (
+                      <tr key={row.id || idx}>
+                        <td>{row.time || row.administered_at || '—'}</td>
+                        <td><strong>{row.medication || row.medication_name || '—'}</strong></td>
+                        <td>{row.dose ? `${row.dose} ${row.unit || ''}` : '—'}</td>
+                        <td>{row.route || '—'}</td>
+                        <td>{row.indication || '—'}</td>
+                        <td>{row.by || row.administered_by || '—'}</td>
+                        <td>
+                          <span className="during-status-pill alert">
+                            {row.status || 'Administered'}
+                          </span>
+                        </td>
+                        <td>{row.notes || row.additional_notes || '—'}</td>
+                        <td><EditOutlinedIcon sx={{ fontSize: 16, color: '#64748b', cursor: 'pointer' }} /></td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -2638,18 +2925,32 @@ function AlarmManagementView({ sessionId, go }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [history, setHistory] = useState([]);
 
-  const [history, setHistory] = useState([
-    { id: 1, time: '10:32 AM', type: 'High Venous Pressure', severity: 'High', parameter: 'Venous Pressure (VP)', duration: '02:15 min', action: 'Reduced BFR, Flushed Line', status: 'Resolved', by: 'Rahul Singh' },
-    { id: 2, time: '09:48 AM', type: 'Low Arterial Pressure', severity: 'Moderate', parameter: 'Arterial Pressure (AP)', duration: '01:40 min', action: 'Adjusted Needle Position', status: 'Resolved', by: 'Rahul Singh' },
-    { id: 3, time: '09:15 AM', type: 'Air in Blood Line', severity: 'High', parameter: 'Air Detector', duration: '00:45 min', action: 'Cleared Air, Restarted Pump', status: 'Resolved', by: 'Rahul Singh' },
-    { id: 4, time: '08:22 AM', type: 'Conductivity High', severity: 'Low', parameter: 'Conductivity', duration: '00:30 min', action: 'Checked Dialysate Concentrate', status: 'Resolved', by: 'Rahul Singh' },
-  ]);
+  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+
+  useEffect(() => {
+    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
+    getAlarms(activeSessionId).then((res) => {
+      if (res?.success) {
+        const d = responseData(res);
+        const items = Array.isArray(d) ? d : d.items || d.alarms || [];
+        setHistory(items);
+      }
+    });
+  }, [activeSessionId]);
 
   const update = (key) => (e) => setForm((v) => ({ ...v, [key]: e.target.value }));
 
   const executeSave = async () => {
-    if (!form.alarm_type || !form.action_taken || !form.resolved_by) {
+    const activeSessionId = getValidSessionId(sessionId);
+    if (!activeSessionId) {
+      const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before saving alarm records.';
+      setError(alertMsg);
+      alert(alertMsg);
+      return false;
+    }
+    if (!form.alarm_type || !form.severity || !form.action_taken || !form.resolved_by) {
       setError('Alarm type, action taken, and resolved by are required.');
       return false;
     }
@@ -2661,7 +2962,6 @@ function AlarmManagementView({ sessionId, go }) {
       recorded_at: new Date().toISOString(),
     };
 
-    const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
     const res = await createAlarm(activeSessionId, payload);
     setSaving(false);
 
@@ -2859,23 +3159,31 @@ function AlarmManagementView({ sessionId, go }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {history.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.time}</td>
-                      <td><strong>{row.type}</strong></td>
-                      <td>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: row.severity === 'High' ? '#dc2626' : row.severity === 'Moderate' ? '#d97706' : '#2563eb' }}>
-                          ● {row.severity}
-                        </span>
+                  {history.length === 0 ? (
+                    <tr>
+                      <td colSpan="9" style={{ textAlign: 'center', color: '#64748b', padding: '16px', fontSize: '12px' }}>
+                        No alarms recorded for this session.
                       </td>
-                      <td>{row.parameter}</td>
-                      <td>{row.duration}</td>
-                      <td>{row.action}</td>
-                      <td><span className="during-status-pill alert">{row.status}</span></td>
-                      <td>{row.by}</td>
-                      <td><VisibilityOutlinedIcon sx={{ fontSize: 16, color: '#64748b', cursor: 'pointer' }} /></td>
                     </tr>
-                  ))}
+                  ) : (
+                    history.map((row, idx) => (
+                      <tr key={row.id || idx}>
+                        <td>{row.time || row.alarm_time || '—'}</td>
+                        <td><strong>{row.type || row.alarm_type || '—'}</strong></td>
+                        <td>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: (row.severity || '').toLowerCase() === 'high' ? '#dc2626' : (row.severity || '').toLowerCase() === 'moderate' ? '#d97706' : '#2563eb' }}>
+                            ● {row.severity || 'Medium'}
+                          </span>
+                        </td>
+                        <td>{row.parameter || row.related_parameter || '—'}</td>
+                        <td>{row.duration || '—'}</td>
+                        <td>{row.action || row.action_taken || '—'}</td>
+                        <td><span className="during-status-pill alert">{row.status || row.resolution_status || 'Resolved'}</span></td>
+                        <td>{row.by || row.resolved_by || '—'}</td>
+                        <td><VisibilityOutlinedIcon sx={{ fontSize: 16, color: '#64748b', cursor: 'pointer' }} /></td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -3006,23 +3314,44 @@ function TreatmentProgressView({ sessionId, go }) {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
 
-  const [parameters] = useState([
-    { name: 'Blood Flow Rate (BFR)', val: '300 mL/min', target: '300 - 350 mL/min', status: 'On Target' },
-    { name: 'Dialysate Flow Rate (DFR)', val: '500 mL/min', target: '500 mL/min', status: 'On Target' },
-    { name: 'UF Rate', val: '620 mL/hr', target: '500 - 800 mL/hr', status: 'On Target' },
-    { name: 'TMP', val: '68 mmHg', target: '< 120 mmHg', status: 'On Target' },
-    { name: 'Venous Pressure (VP)', val: '160 mmHg', target: '< 250 mmHg', status: 'On Target' },
-    { name: 'Arterial Pressure (AP)', val: '-180 mmHg', target: '-50 to -250 mmHg', status: 'On Target' },
-    { name: 'Dialysate Conductivity', val: '13.8 mS/cm', target: '13.6 - 14.2 mS/cm', status: 'On Target' },
-  ]);
+  const [progress, setProgress] = useState(null);
+  const [events, setEvents] = useState([]);
 
-  const [events, setEvents] = useState([
-    { id: 1, time: '09:15 AM', title: 'UF goal adjusted', details: 'Adjusted UF goal from 2.5 L to 2.5 L', by: 'Rahul Singh' },
-    { id: 2, time: '08:40 AM', title: 'Patient repositioned', details: 'Due to back discomfort', by: 'Rahul Singh' },
-    { id: 3, time: '08:10 AM', title: 'UF rate reduced', details: 'Reduced UF rate from 700 to 600 mL/hr', by: 'Rahul Singh' },
-  ]);
+  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+
+  useEffect(() => {
+    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
+    getDuringDialysisProgress(activeSessionId).then((res) => {
+      if (res?.success) {
+        const d = responseData(res);
+        setProgress(d);
+        const evts = d?.events || d?.items || d?.logs || [];
+        setEvents(evts);
+      }
+    });
+  }, [activeSessionId]);
+
+  const parameters = useMemo(() => {
+    if (!progress) return [];
+    return [
+      { name: 'Blood Flow Rate (BFR)', val: progress.bfr ? `${progress.bfr} mL/min` : '—', target: '300 - 350 mL/min', status: 'On Target' },
+      { name: 'Dialysate Flow Rate (DFR)', val: progress.dfr ? `${progress.dfr} mL/min` : '—', target: '500 mL/min', status: 'On Target' },
+      { name: 'UF Rate', val: progress.uf_rate ? `${progress.uf_rate} mL/hr` : '—', target: '500 - 800 mL/hr', status: 'On Target' },
+      { name: 'TMP', val: progress.tmp ? `${progress.tmp} mmHg` : '—', target: '< 120 mmHg', status: 'On Target' },
+      { name: 'Venous Pressure (VP)', val: progress.vp ? `${progress.vp} mmHg` : '—', target: '< 250 mmHg', status: 'On Target' },
+      { name: 'Arterial Pressure (AP)', val: progress.ap ? `${progress.ap} mmHg` : '—', target: '-50 to -250 mmHg', status: 'On Target' },
+      { name: 'Dialysate Conductivity', val: progress.conductivity ? `${progress.conductivity} mS/cm` : '—', target: '13.6 - 14.2 mS/cm', status: 'On Target' },
+    ];
+  }, [progress]);
 
   const executeSave = async () => {
+    const activeSessionId = getValidSessionId(sessionId);
+    if (!activeSessionId) {
+      const alertMsg = 'No active dialysis session found. Please start a session from Patient Profile before saving treatment progress.';
+      setError(alertMsg);
+      alert(alertMsg);
+      return false;
+    }
     setSaving(true);
     setError('');
 
@@ -3033,7 +3362,6 @@ function TreatmentProgressView({ sessionId, go }) {
       recorded_at: new Date().toISOString(),
     };
 
-    const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
     const res = await createTreatmentEvent(activeSessionId, payload);
     setSaving(false);
 
@@ -3225,35 +3553,50 @@ function IncidentReportingView({ sessionId, go }) {
     incident_type: 'Hypotension',
     category: 'Clinical',
     severity: 'Moderate',
-    description: 'Patient developed hypotension (BP dropped to 82/48 mmHg) with dizziness and nausea.',
-    cause: 'UF rate too high',
-    observed_time: '10:30 AM',
-    intervention: 'UF rate reduced',
-    intervention_details: 'UF rate reduced from 800 to 500 mL/hr. NS 100 mL bolus given.',
+    description: '',
+    cause: '',
+    observed_time: nowTime(),
+    intervention: '',
+    intervention_details: '',
     outcome: 'Stabilized',
     escalated_to: 'Nurse In-charge',
-    escalation_time: '10:38 AM',
+    escalation_time: '',
     further_action: 'No',
-    followup: 'Yes',
+    followup: 'No',
     resolved_by: 'Rahul Singh (Technician)',
-    resolution_time: '10:55 AM',
-    comments: 'BP stabilized to 110/64 mmHg. Patient comfortable and resting.',
-    notify: true,
+    resolution_time: '',
+    comments: '',
+    notify: false,
   });
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [incidents, setIncidents] = useState([]);
 
-  const [incidents, setIncidents] = useState([
-    { id: 1, time: '10:35 AM', type: 'Hypotension', status: 'Resolved at 10:55 AM', severity: 'Moderate' },
-    { id: 2, time: '09:15 AM', type: 'Air in Blood Line', status: 'Resolved at 09:25 AM', severity: 'Low' },
-    { id: 3, time: '08:20 AM', type: 'Machine Alarm', status: 'Resolved at 08:28 AM', severity: 'Low' },
-  ]);
+  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+
+  useEffect(() => {
+    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
+    getIncidents(activeSessionId).then((res) => {
+      if (res?.success) {
+        const d = responseData(res);
+        const items = Array.isArray(d) ? d : d.items || d.incidents || [];
+        setIncidents(items);
+      }
+    });
+  }, [activeSessionId]);
 
   const update = (key) => (e) => setForm((v) => ({ ...v, [key]: e.target.value }));
 
   const executeSave = async () => {
+    const activeSessionId = getValidSessionId(sessionId);
+    if (!activeSessionId) {
+      const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before submitting incident report.';
+      setError(alertMsg);
+      alert(alertMsg);
+      return false;
+    }
     if (!form.incident_type || !form.description || !form.intervention) {
       setError('Incident type, description, and intervention are required.');
       return false;
@@ -3266,7 +3609,6 @@ function IncidentReportingView({ sessionId, go }) {
       recorded_at: new Date().toISOString(),
     };
 
-    const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
     const res = await createIncident(activeSessionId, payload);
     setSaving(false);
 
@@ -3454,19 +3796,19 @@ function IncidentReportingView({ sessionId, go }) {
             <div className="during-alarm-overview-grid">
               <div className="during-alarm-stat-tile" style={{ background: '#fef2f2', borderColor: '#fecaca' }}>
                 <WarningAmberOutlinedIcon sx={{ color: '#dc2626' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>2</strong><span style={{ fontSize: '10px', color: '#64748b' }}>This Session</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{incidents.length}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>This Session</span></div>
               </div>
               <div className="during-alarm-stat-tile" style={{ background: '#fffbeb', borderColor: '#fef3c7' }}>
                 <AccessTimeOutlinedIcon sx={{ color: '#d97706' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>1</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Open</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{incidents.filter(i => !(i.status || '').toLowerCase().includes('resolve')).length}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Open</span></div>
               </div>
               <div className="during-alarm-stat-tile" style={{ background: '#f0fdf4', borderColor: '#dcfce7' }}>
                 <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>1</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Resolved</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{incidents.filter(i => (i.status || '').toLowerCase().includes('resolve')).length}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Resolved</span></div>
               </div>
               <div className="during-alarm-stat-tile" style={{ background: '#eff6ff', borderColor: '#dbeafe' }}>
                 <TrendingUpOutlinedIcon sx={{ color: '#2563eb' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>0</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Escalated</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{incidents.filter(i => (i.status || '').toLowerCase().includes('escalat')).length}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Escalated</span></div>
               </div>
             </div>
           </Card>
@@ -3476,22 +3818,25 @@ function IncidentReportingView({ sessionId, go }) {
               <span />
               <button type="button" className="during-card-action-link">View All</button>
             </div>
-            <div className="during-med-reminders-list">
-              {incidents.map((inc) => (
-                <div key={inc.id} className="during-med-reminder-item">
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '12px' }}>{inc.time} — {inc.type}</div>
-                    <div style={{ fontSize: '10px', color: '#64748b' }}>{inc.status}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="during-status-pill alert" style={{ background: inc.severity === 'Moderate' ? '#fffbeb' : '#f0fdf4', color: inc.severity === 'Moderate' ? '#b45309' : '#15803d' }}>
-                      {inc.severity}
+            {incidents.length === 0 ? (
+              <div className="during-empty" style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '12px' }}>
+                No incidents reported for this session.
+              </div>
+            ) : (
+              <div className="during-med-reminders-list">
+                {incidents.map((inc, idx) => (
+                  <div key={inc.id || idx} className="during-med-reminder-item">
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '12px' }}>{inc.type || inc.incident_type || 'Incident'}</div>
+                      <div style={{ fontSize: '10px', color: '#64748b' }}>{inc.time || (inc.recorded_at ? new Date(inc.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—')} • {inc.status || 'Draft'}</div>
+                    </div>
+                    <span className="during-status-pill alert" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                      {inc.severity || 'Moderate'}
                     </span>
-                    <ChevronRightOutlinedIcon sx={{ color: '#94a3b8', fontSize: 16 }} />
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
 
           <div className="during-safety-guidance-card">
@@ -3542,13 +3887,25 @@ function IncidentReportingView({ sessionId, go }) {
 function TreatmentCompletionView({ sessionId, go, onCompleted, patient }) {
   const navigate = useNavigate();
   const [disposition, setDisposition] = useState('Discharged');
-  const [dischargeTime, setDischargeTime] = useState('11:25 AM');
+  const [dischargeTime, setDischargeTime] = useState(nowTime());
   const [dischargedBy, setDischargedBy] = useState('Rahul Singh (Technician)');
   const [comments, setComments] = useState('Patient stable. No complaints.');
-  const [sessionDate, setSessionDate] = useState('26 May 2025');
+  const [sessionDate, setSessionDate] = useState(new Date().toLocaleDateString());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [dashboardData, setDashboardData] = useState(null);
+
+  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+
+  useEffect(() => {
+    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
+    getDuringDialysisDashboard(activeSessionId).then((res) => {
+      if (res?.success) {
+        setDashboardData(responseData(res));
+      }
+    });
+  }, [activeSessionId]);
 
   const checklistItems = [
     'Blood returned to patient',
@@ -3560,15 +3917,40 @@ function TreatmentCompletionView({ sessionId, go, onCompleted, patient }) {
     'Machine & station sanitized',
   ];
 
+  const ufData = dashboardData?.uf || {};
+  const machineStatus = dashboardData?.machine_status || {};
+  const machineLatest = dashboardData?.machine_latest || {};
+  const progressData = dashboardData?.progress || {};
+
+  const ufRemoved = ufData.removed !== undefined && ufData.removed !== null ? `${Number(ufData.removed).toFixed(2)} L` : '—';
+  const ufTarget = ufData.target ? `${(Number(ufData.target) > 50 ? Number(ufData.target) / 1000 : Number(ufData.target)).toFixed(2)} L` : '—';
+  const rawBloodProcessed = machineLatest.blood_volume_processed || machineStatus.blood_processed || progressData.blood_processed || progressData.blood_volume;
+  const bloodProcessed = rawBloodProcessed !== undefined && rawBloodProcessed !== null && rawBloodProcessed !== '' ? `${rawBloodProcessed} L` : '—';
+
+  const rawKtV = progressData.kt_v || dashboardData?.kt_v;
+  const ktVVal = typeof rawKtV === 'object' && rawKtV !== null
+    ? (rawKtV.display || (rawKtV.value !== null && rawKtV.value !== undefined ? String(rawKtV.value) : 'Not available'))
+    : (rawKtV !== undefined && rawKtV !== null ? String(rawKtV) : 'Not available');
+
+  const rawBfr = machineLatest.bfr || machineStatus.bfr;
+  const avgBfr = rawBfr ? `${rawBfr} mL/min` : '—';
+
   const outcomes = [
-    { label: 'UF Achieved', value: '1.65 L', sub: '66% of target', color: '#8b5cf6', icon: WaterDropOutlinedIcon },
-    { label: 'Blood Processed', value: '58.2 L', sub: 'Adequate', color: '#dc2626', icon: WaterDropOutlinedIcon },
-    { label: 'Kt/V (Estimated)', value: '1.32', sub: 'Adequate', color: '#2563eb', icon: MonitorHeartOutlinedIcon },
-    { label: 'Avg Blood Flow (BFR)', value: '285 mL/min', sub: 'Within range', color: '#d97706', icon: AirOutlinedIcon },
+    { label: 'UF Achieved', value: ufRemoved, sub: ufTarget !== '—' ? `Target: ${ufTarget}` : 'Target: —', color: '#8b5cf6', icon: WaterDropOutlinedIcon },
+    { label: 'Blood Processed', value: bloodProcessed, sub: 'Adequate', color: '#dc2626', icon: WaterDropOutlinedIcon },
+    { label: 'Kt/V (Estimated)', value: ktVVal, sub: 'Read-only', color: '#2563eb', icon: MonitorHeartOutlinedIcon },
+    { label: 'Avg Blood Flow (BFR)', value: avgBfr, sub: 'Within range', color: '#d97706', icon: AirOutlinedIcon },
     { label: 'Treatment Efficiency', value: 'Good', sub: 'No issues', color: '#0d9488', icon: CheckCircleOutlinedIcon },
   ];
 
   const handleCompleteSession = async () => {
+    const activeSessionId = getValidSessionId(sessionId);
+    if (!activeSessionId) {
+      const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before completing treatment.';
+      setError(alertMsg);
+      alert(alertMsg);
+      return;
+    }
     setSaving(true);
     setError('');
 
@@ -3581,7 +3963,6 @@ function TreatmentCompletionView({ sessionId, go, onCompleted, patient }) {
       recorded_at: new Date().toISOString(),
     };
 
-    const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
     const res = await endDuringDialysisTreatment(activeSessionId, payload);
     setSaving(false);
 
@@ -3911,9 +4292,14 @@ function DuringDialysisPage({ embedded = false, sessionId: embeddedSessionId, pa
   const querySessionId = (() => { try { const sp = new URLSearchParams(location.search); return sp.get('sessionId') || sp.get('session_id') || sp.get('sessionID') || ''; } catch { return ''; } })();
   // persisted id: sessionStorage is per-tab (fresh), localStorage is cross-tab fallback for hard reload / stage-bar nav
   const persistedSessionId = (() => { try { return sessionStorage.getItem('lastDialysisSessionId') || localStorage.getItem('lastDialysisSessionId') || ''; } catch { return ''; } })();
+  const pid = String(patientId || patientData?.id || location.state?.patient?.id || location.state?.patientId || localStorage.getItem('lastDialysisPatientId') || '').trim();
   const rawSessionId = embeddedSessionId || resolvedRouteSessionId || location.state?.sessionId || location.state?.session_id || location.state?.sessionID || querySessionId || persistedSessionId || '';
-  const sessionId = String(rawSessionId || '').trim();
-  const isDemo = sessionId === 'demo';
+  let cleanSessionId = String(rawSessionId || '').trim();
+  if (cleanSessionId && pid && (cleanSessionId === pid || cleanSessionId === `P${pid}` || cleanSessionId.toLowerCase() === pid.toLowerCase())) {
+    cleanSessionId = '';
+  }
+  const sessionId = cleanSessionId;
+  const isDemo = sessionId === 'demo' || sessionId === 'preview';
   const hasSession = !!sessionId && !isDemo;
   const missingSession = !hasSession && !embedded;
   // persist for refresh / back navigation — only when we have a real session
@@ -3997,11 +4383,26 @@ function DuringDialysisPage({ embedded = false, sessionId: embeddedSessionId, pa
     {missingBanner}
     <header className="during-page-header">
       <div>
-        <h1>During Dailysis</h1>
+        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>P3-01 – Treatment Dashboard</h1>
+        <p className="during-muted" style={{ margin: '2px 0 0', fontSize: '12px' }}>Real-time overview of patient status and treatment progress.</p>
       </div>
-      <div className="during-page-header-actions">
-        <span className="during-session-state">{hasSession ? `Session ${sessionId} active` : 'No session — preview'}</span>
-        <LibraryButton variant="danger" size="sm" onClick={() => go('P3-10')}>End Treatment</LibraryButton>
+      <div className="during-page-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <Select size="sm" style={{ width: '130px', background: '#f8fafc' }} defaultValue="Main Center">
+          <option value="Main Center">📍 Main Center</option>
+        </Select>
+        <div style={{ position: 'relative', cursor: 'pointer', padding: '6px' }}>
+          <NotificationsNoneOutlinedIcon sx={{ color: '#475569', fontSize: 22 }} />
+          <span style={{ position: 'absolute', top: 2, right: 2, background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, borderRadius: '50%', width: '15px', height: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>5</span>
+        </div>
+        <div className="during-session-time-card">
+          <AccessTimeOutlinedIcon sx={{ color: '#2563eb', fontSize: 20 }} />
+          <div>
+            <span style={{ fontSize: '9px', color: '#64748b', display: 'block', lineHeight: 1 }}>Session Time</span>
+            <strong style={{ fontSize: '14px', color: '#0f172a', lineHeight: 1.2 }}>01:32</strong>
+            <span style={{ fontSize: '9px', color: '#64748b', display: 'block', lineHeight: 1 }}>Elapsed</span>
+          </div>
+        </div>
+        <LibraryButton variant="outline" size="sm" onClick={() => go('P3-10')} style={{ color: '#2563eb', borderColor: '#cbd5e1', fontWeight: 600 }}>End Treatment</LibraryButton>
       </div>
     </header>
     <nav className="during-stepper" aria-label="Session Monitoring screens">

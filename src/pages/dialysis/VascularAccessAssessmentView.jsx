@@ -145,7 +145,7 @@ const VascularAccessAssessmentView = ({ patientId, sessionId, onBack, onNext, on
     try {
       const fromProp = sessionId;
       if (fromProp) return fromProp;
-      const fromState = location.state?.sessionId || location.state?.session_id;
+      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
       if (fromState) return fromState;
       const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
       if (persisted) return persisted;
@@ -174,7 +174,7 @@ const VascularAccessAssessmentView = ({ patientId, sessionId, onBack, onNext, on
           setLoadError(res?.message || 'Unable to load patient details.');
           return;
         }
-        const data = res.data?.data || res.data || {};
+        const data = res.data?.patient || res.data?.data?.patient || res.data?.data || res.data || {};
         const derivedAccessType = resolveAccessType(data);
         const source = getAssessmentSource(data);
         setPatientData(data);

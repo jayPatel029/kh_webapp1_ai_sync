@@ -138,10 +138,20 @@ export async function getBedAssignmentsByDateRange(payload, config = {}) {
  */
 export async function getPatientDetails(patientId, config = {}) {
   try {
-    const response = await axiosInstance.get(`${server_url}/patient/getPatient/${patientId}`, config);
+    const response = await axiosInstance.get(`${server_url}/dt/patients/${patientId}`, config);
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
+    try {
+      const response2 = await axiosInstance.get(`${server_url}/dt/patient/${patientId}`, config);
+      return { success: true, data: response2.data };
+    } catch (_) {
+      try {
+        const response3 = await axiosInstance.get(`${server_url}/patient/getPatient/${patientId}`, config);
+        return { success: true, data: response3.data };
+      } catch (err3) {
+        return { success: false, data: err3.response?.data || err3.message };
+      }
+    }
   }
 }
 

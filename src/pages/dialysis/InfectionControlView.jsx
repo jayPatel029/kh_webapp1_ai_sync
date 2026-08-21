@@ -71,7 +71,7 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
     try {
       const fromProp = sessionIdProp;
       if (fromProp) return fromProp;
-      const fromState = location.state?.sessionId || location.state?.session_id;
+      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
       if (fromState) return fromState;
       const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
       if (persisted) return persisted;
@@ -82,7 +82,7 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
   useEffect(() => {
     if (!patientId) return;
     let mounted = true;
-    getPatientDetails(patientId).then((res) => { if (mounted && res?.success) setPatientData(res.data?.data || res.data); }).catch(()=>{});
+    getPatientDetails(patientId).then((res) => { if (mounted && res?.success) setPatientData(res.data?.patient || res.data?.data?.patient || res.data?.data || res.data); }).catch(()=>{});
     return () => { mounted = false; };
   }, [patientId]);
 
@@ -223,81 +223,102 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
             <div style={{ gridColumn: isMobile ? 'span 1' : 'span 8', display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
               {/* Access & Context Card */}
-              <Card variant="outline" size="md" className="overflow-hidden">
-                <CardHeader className="px-5 pt-5 pb-4 bg-[#f8fafc] border-b border-[#f1f5f9]">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-white border border-[#e2e8f0] flex items-center justify-center text-[#2563eb] shadow-sm">
-                      <ShieldOutlinedIcon style={{ fontSize: 16 }} />
+              <Card variant="outline" size="md" className="overflow-hidden shadow-sm">
+                <CardHeader className="px-5 pt-4 pb-3 bg-gradient-to-r from-slate-50 to-white border-b border-[#f1f5f9]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-[#2563eb] shadow-sm">
+                        <ShieldOutlinedIcon style={{ fontSize: 18 }} />
+                      </div>
+                      <div>
+                        <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] leading-none !text-[14px]">Session Access & Protocol Context</Text>
+                        <Text as="p" size="xs" className="text-[#64748b] mt-1 font-medium !text-[11px]">Select access route to auto-configure required infection protocols</Text>
+                      </div>
                     </div>
-                    <div>
-                      <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] leading-none !text-[13px]">Session access & check</Text>
-                      <Text as="p" size="xs" className="text-[#64748b] mt-1 font-medium !text-[11px]">Select AVF or CVC — CVC adds scrub-the-hub</Text>
-                    </div>
+                    <Badge variant="subtle" colorScheme={compliancePct === 100 ? "success" : "warning"} size="md" isPill className="font-bold">
+                      {compliancePct}% Protocol Compliance
+                    </Badge>
                   </div>
                 </CardHeader>
                 <CardBody className="p-5">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <FormControl>
-                      <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Access type <span className="text-red-500">*</span></FormLabel>
-                      <Select size="sm" value={accessType} onChange={(e) => setAccessType(e.target.value)}>
-                        <option value="AVF">AVF</option>
-                        <option value="CVC">CVC</option>
+                      <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Vascular Access Type <span className="text-red-500">*</span></FormLabel>
+                      <Select size="sm" value={accessType} onChange={(e) => setAccessType(e.target.value)} className="font-medium">
+                        <option value="AVF">AVF (Arteriovenous Fistula)</option>
+                        <option value="CVC">CVC (Central Venous Catheter)</option>
                       </Select>
-                      <Text as="span" size="xs" className="text-[#64748b] mt-1 !text-[11px]">{accessType === 'CVC' ? 'Central venous catheter — scrub required' : 'Arteriovenous fistula'}</Text>
+                      <Text as="span" size="xs" className="text-[#64748b] mt-1 !text-[11px] block">{accessType === 'CVC' ? 'Central venous catheter — Scrub-the-hub required' : 'Arteriovenous fistula'}</Text>
                     </FormControl>
                     {accessType === 'CVC' ? (
                       <FormControl>
-                        <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Scrub-the-hub <span className="text-red-500">*</span></FormLabel>
-                        <Select size="sm" value={scrubHub} onChange={(e) => setScrubHub(e.target.value)}>
-                          <option value="yes">Yes</option>
-                          <option value="no">No</option>
+                        <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Scrub-the-Hub Protocol <span className="text-red-500">*</span></FormLabel>
+                        <Select size="sm" value={scrubHub} onChange={(e) => setScrubHub(e.target.value)} className="font-semibold text-blue-700 bg-blue-50/50 border-blue-200">
+                          <option value="yes">✓ Performed (Yes)</option>
+                          <option value="no">✗ Not Performed (No)</option>
                         </Select>
+                        <Text as="span" size="xs" className="text-blue-600 mt-1 !text-[11px] block font-medium">Scrub hub prior to connection</Text>
                       </FormControl>
                     ) : (
                       <FormControl>
-                        <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Scrub-the-hub</FormLabel>
-                        <div className="h-8 flex items-center px-3 rounded-[var(--radius-md)] border border-[#e2e8f0] bg-[#f8fafc] text-sm text-[#475569]">Not applicable — AVF</div>
+                        <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Scrub-the-Hub Protocol</FormLabel>
+                        <div className="h-9 flex items-center px-3 rounded-md border border-slate-200 bg-slate-50 text-xs text-slate-500 font-medium">
+                          Not Applicable (AVF Route)
+                        </div>
                       </FormControl>
                     )}
                     <div>
-                      <Text as="div" size="xs" weight="semibold" className="tracking-wide uppercase text-[#64748b] !text-[11px] mb-1.5">Compliance</Text>
-                      <div className="h-8 flex items-center justify-center rounded-md border border-[#bbf7d0] bg-[#dcfce7] px-3 font-bold text-sm text-[#166534]">{compliancePct}%</div>
+                      <Text as="div" size="xs" weight="semibold" className="tracking-wide uppercase text-[#64748b] !text-[11px] mb-1.5">Overall Compliance Status</Text>
+                      <div className="h-9 flex items-center justify-between px-3 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-800 font-bold text-xs">
+                        <span>{compliancePct === 100 ? 'Fully Compliant' : `${compliancePct}% Compliant`}</span>
+                        <CheckCircleIcon style={{ fontSize: 16 }} className="text-emerald-600" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mt-4 pt-3 border-t border-slate-100">
+                    <div className="flex justify-between items-center text-xs mb-1.5 font-medium text-slate-600">
+                      <span>Checklist Completion</span>
+                      <span className="font-bold text-slate-800">{compliancePct}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${compliancePct === 100 ? 'bg-emerald-500' : compliancePct >= 80 ? 'bg-blue-500' : 'bg-amber-500'}`}
+                        style={{ width: `${compliancePct}%` }}
+                      />
                     </div>
                   </div>
                 </CardBody>
               </Card>
 
               {/* Infection Control Checklist Card — editable */}
-              <Card variant="outline" size="md" className="overflow-hidden">
-                <CardHeader className="px-5 pt-5 pb-4 bg-[#f8fafc] border-b border-[#f1f5f9]">
-                  <div className="flex items-start justify-between gap-3">
+              <Card variant="outline" size="md" className="overflow-hidden shadow-sm">
+                <CardHeader className="px-5 pt-4 pb-3 bg-gradient-to-r from-slate-50 to-white border-b border-[#f1f5f9]">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-white border border-[#e2e8f0] flex items-center justify-center text-[#2563eb] shadow-sm">
-                        <ShieldOutlinedIcon style={{ fontSize: 16 }} />
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm">
+                        <CleanHandsOutlinedIcon style={{ fontSize: 18 }} />
                       </div>
                       <div>
-                        <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] leading-none !text-[13px]">Infection Control Checklist</Text>
-                        <Text as="p" size="xs" className="text-[#64748b] mt-1 font-medium !text-[11px]">Edit each item and submit — critical items must be compliant on final</Text>
+                        <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] leading-none !text-[14px]">Infection Control Checklist</Text>
+                        <Text as="p" size="xs" className="text-[#64748b] mt-1 font-medium !text-[11px]">Verify each safety item — critical items must be compliant before proceeding</Text>
                       </div>
                     </div>
                     {criticalInvalid.length === 0 ? (
-                      <Badge variant="subtle" colorScheme="success" size="sm" isPill className="shrink-0 bg-white border border-[#bbf7d0]"><CheckCircleIcon style={{ fontSize: 12 }} className="mr-1" /> Ready</Badge>
+                      <Badge variant="subtle" colorScheme="success" size="md" isPill className="shrink-0 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3">
+                        <CheckCircleIcon style={{ fontSize: 13 }} className="mr-1.5 text-emerald-600" /> Ready to Submit
+                      </Badge>
                     ) : (
-                      <Badge variant="subtle" colorScheme="danger" size="sm" isPill className="shrink-0"><WarningAmberOutlinedIcon style={{ fontSize: 12 }} className="mr-1" /> {criticalInvalid.length} required</Badge>
+                      <Badge variant="subtle" colorScheme="danger" size="md" isPill className="shrink-0 bg-red-50 border border-red-200 text-red-700 px-3">
+                        <WarningAmberOutlinedIcon style={{ fontSize: 13 }} className="mr-1.5 text-red-600" /> {criticalInvalid.length} Required
+                      </Badge>
                     )}
                   </div>
                 </CardHeader>
 
-                <CardBody className="p-0">
-                  {/* Table header */}
-                  <div className="hidden sm:flex border-b border-[#e2e8f0] px-5 py-2.5 text-[#64748b] font-semibold text-[11px] uppercase tracking-wider">
-                    <div className="w-[42%]">Item</div>
-                    <div className="w-[28%]">Input</div>
-                    <div className="w-[18%]">Status</div>
-                    <div className="w-[12%] text-right">Hint</div>
-                  </div>
-
-                  <div className="divide-y divide-[#f1f5f9]">
+                <CardBody className="p-4 bg-slate-50/50">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                     {CHECKLIST_META.map((meta) => {
                       const Icon = meta.icon;
                       const value = items[meta.key];
@@ -305,47 +326,122 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
                       const isBoolOk = value === true;
                       const isBoolFail = value === false;
                       return (
-                        <div key={meta.key} className="px-5 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0">
-                          <div className="sm:w-[42%] flex items-center gap-3 min-w-0">
-                            <div className={`w-7 h-7 rounded-md border flex items-center justify-center shrink-0 ${isNA ? 'bg-[#f1f5f9] border-[#e2e8f0] text-[#64748b]' : 'bg-[#eff6ff] border-[#dbeafe] text-[#2563eb]'}`}>
-                              <Icon style={{ fontSize: 14 }} />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <Text as="div" size="sm" weight="semibold" className="text-[#0f172a] leading-none !text-[13px] truncate">{meta.label}</Text>
-                                {meta.critical && <span className="text-[10px] font-bold text-red-600 border border-red-200 bg-red-50 rounded px-1">CRITICAL</span>}
+                        <div 
+                          key={meta.key} 
+                          className={`bg-white rounded-xl border p-4 flex flex-col justify-between transition-all duration-200 hover:shadow-md ${
+                            isNA 
+                              ? 'border-slate-200' 
+                              : isBoolOk 
+                              ? 'border-emerald-200 bg-gradient-to-b from-white to-emerald-50/20' 
+                              : 'border-red-200 bg-gradient-to-b from-white to-red-50/20'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${
+                                  isNA ? 'bg-slate-100 border-slate-200 text-slate-400' : isBoolOk ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-red-50 border-red-200 text-red-600'
+                                }`}>
+                                  <Icon style={{ fontSize: 18 }} />
+                                </div>
+                                <div className="min-w-0">
+                                  <Text as="div" size="sm" weight="bold" className="text-[#0f172a] leading-tight !text-[13px]">
+                                    {meta.label}
+                                  </Text>
+                                  <Text as="div" size="xs" className="text-[#64748b] mt-0.5 !text-[11px] leading-tight line-clamp-1">
+                                    {meta.helper}
+                                  </Text>
+                                </div>
                               </div>
-                              <Text as="div" size="xs" className="text-[#64748b] mt-1 !text-[11px] truncate">{meta.helper}</Text>
+                              {meta.critical && (
+                                <span className="inline-flex items-center text-[9px] font-extrabold text-red-700 border border-red-300 bg-red-50 rounded-full px-2 py-0.5 uppercase tracking-wider shrink-0">
+                                  CRITICAL
+                                </span>
+                              )}
                             </div>
                           </div>
 
-                          <div className="sm:w-[28%] flex items-center">
-                            {meta.type === 'bool' ? (
-                              <div className="flex items-center gap-2">
-                                <Switch size="sm" colorScheme="success" isChecked={!!value} onChange={handleSwitchChange(meta.key)} aria-label={meta.label} />
-                                <Text as="span" size="xs" weight="semibold" className={`${isBoolOk ? 'text-[#166534]' : 'text-[#64748b]'} !text-[12px]`}>{isBoolOk ? 'Compliant' : 'Not compliant'}</Text>
-                              </div>
-                            ) : (
-                              <Select size="sm" value={String(isNA ? 'not_applicable' : value)} onChange={(e) => handleItemChange(meta.key, e.target.value)} className="min-w-[150px] max-w-[170px]">
-                                <option value="true">Compliant</option>
-                                <option value="false">Not compliant</option>
-                                <option value="not_applicable">Not applicable</option>
-                              </Select>
-                            )}
-                          </div>
+                          <div className="pt-3 mt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              {meta.type === 'bool' ? (
+                                <div className="inline-flex p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/80 text-[11px] font-semibold">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleItemChange(meta.key, true)}
+                                    className={`px-2.5 py-1 rounded-md transition-all ${
+                                      value === true
+                                        ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                                    }`}
+                                  >
+                                    ✓ Compliant
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleItemChange(meta.key, false)}
+                                    className={`px-2.5 py-1 rounded-md transition-all ${
+                                      value === false
+                                        ? 'bg-red-600 text-white shadow-sm font-bold'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                                    }`}
+                                  >
+                                    ✗ Non-Compliant
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="inline-flex p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/80 text-[11px] font-semibold">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleItemChange(meta.key, true)}
+                                    className={`px-2.5 py-1 rounded-md transition-all ${
+                                      value === true
+                                        ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                                    }`}
+                                  >
+                                    ✓ Compliant
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleItemChange(meta.key, false)}
+                                    className={`px-2.5 py-1 rounded-md transition-all ${
+                                      value === false
+                                        ? 'bg-red-600 text-white shadow-sm font-bold'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                                    }`}
+                                  >
+                                    ✗ Non-Compliant
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleItemChange(meta.key, 'not_applicable')}
+                                    className={`px-2.5 py-1 rounded-md transition-all ${
+                                      isNA
+                                        ? 'bg-slate-700 text-white shadow-sm font-bold'
+                                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200/60'
+                                    }`}
+                                  >
+                                    ⊝ N/A
+                                  </button>
+                                </div>
+                              )}
+                            </div>
 
-                          <div className="sm:w-[18%] flex items-center">
-                            {isNA ? (
-                              <Badge variant="subtle" colorScheme="gray" size="sm" isPill className="font-semibold"><RemoveCircleOutlineIcon style={{ fontSize: 12 }} className="mr-1" /> N/A</Badge>
-                            ) : isBoolOk ? (
-                              <Badge variant="subtle" colorScheme="success" size="sm" isPill className="font-bold"><CheckCircleIcon style={{ fontSize: 12 }} className="mr-1" /> OK</Badge>
-                            ) : (
-                              <Badge variant="subtle" colorScheme="danger" size="sm" isPill className="font-bold"><WarningAmberOutlinedIcon style={{ fontSize: 12 }} className="mr-1" /> Action</Badge>
-                            )}
-                          </div>
-
-                          <div className="sm:w-[12%] sm:text-right">
-                            <Text as="span" size="xs" className="text-[#94a3b8] !text-[11px]">{isNA ? '—' : meta.type === 'bool' ? (isBoolOk ? '—' : 'Fix before final') : '—'}</Text>
+                            <div className="shrink-0">
+                              {isNA ? (
+                                <Badge variant="subtle" colorScheme="gray" size="sm" isPill className="font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                  <RemoveCircleOutlineIcon style={{ fontSize: 12 }} className="mr-1" /> N/A
+                                </Badge>
+                              ) : isBoolOk ? (
+                                <Badge variant="subtle" colorScheme="success" size="sm" isPill className="font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <CheckCircleIcon style={{ fontSize: 12 }} className="mr-1 text-emerald-600" /> Compliant
+                                </Badge>
+                              ) : (
+                                <Badge variant="subtle" colorScheme="danger" size="sm" isPill className="font-bold bg-red-50 text-red-700 border border-red-200">
+                                  <WarningAmberOutlinedIcon style={{ fontSize: 12 }} className="mr-1 text-red-600" /> Action
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -354,9 +450,12 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
                 </CardBody>
 
                 {criticalInvalid.length > 0 && (
-                  <div className="mx-5 mb-4 mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5">
-                    <Text as="div" size="xs" weight="bold" className="text-amber-900 !text-[12px]">Critical on final: hand_hygiene, aseptic_technique, sharps_handling (+ scrub-the-hub for CVC)</Text>
-                    <ul className="mt-1 list-disc pl-4 text-[11px] text-amber-800">
+                  <div className="mx-5 my-4 rounded-xl border border-red-200 bg-red-50/80 p-4">
+                    <div className="flex items-center gap-2 text-red-900 font-bold text-xs mb-1">
+                      <WarningAmberOutlinedIcon style={{ fontSize: 16 }} className="text-red-600" />
+                      Required Items Non-Compliant
+                    </div>
+                    <ul className="list-disc pl-5 text-[11px] text-red-800 space-y-0.5">
                       {criticalInvalid.map((msg) => <li key={msg}>{msg}</li>)}
                     </ul>
                   </div>
@@ -365,52 +464,56 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
 
               {/* Bottom Split (Notes & Action Required) — uniform cards */}
               <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                <Card variant="outline" size="md" className="overflow-hidden flex flex-col">
-                  <CardHeader className="px-5 pt-5 pb-3 bg-[#f8fafc] border-b border-[#f1f5f9]">
-                    <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] leading-none !text-[13px]">Additional notes</Text>
-                    <Text as="p" size="xs" className="text-[#64748b] mt-1 !text-[11px]">Observations or action taken — sent as <code>notes</code></Text>
+                <Card variant="outline" size="md" className="overflow-hidden flex flex-col shadow-sm">
+                  <CardHeader className="px-5 pt-4 pb-3 bg-gradient-to-r from-slate-50 to-white border-b border-[#f1f5f9]">
+                    <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] leading-none !text-[13px]">Additional Notes & Observations</Text>
+                    <Text as="p" size="xs" className="text-[#64748b] mt-1 !text-[11px]">Record additional clinical notes for this session</Text>
                   </CardHeader>
                   <CardBody className="p-5 flex-1 flex flex-col gap-3">
                     <FormControl>
-                      <Textarea size="sm" resize="none" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} placeholder="Additional observations…" className="min-h-[84px] !text-[13px]" />
+                      <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Observations</FormLabel>
+                      <Textarea size="sm" resize="none" value={additionalNotes} onChange={(e) => setAdditionalNotes(e.target.value)} placeholder="Additional observations…" className="min-h-[80px] !text-[13px]" />
                       <div className="text-right text-[11px] font-medium text-[#94a3b8] mt-1">{additionalNotes.length} / 500</div>
                     </FormControl>
                     <FormControl>
-                      <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Session notes (notes)</FormLabel>
-                      <Textarea size="sm" resize="none" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Enter notes for this submission…" className="min-h-[72px] !text-[13px]" maxLength={500} />
+                      <FormLabel className="!text-[11px] font-semibold tracking-wide uppercase text-[#64748b] !mb-1.5">Session Notes</FormLabel>
+                      <Textarea size="sm" resize="none" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Enter session notes for submission…" className="min-h-[70px] !text-[13px]" maxLength={500} />
                       <div className="flex justify-between mt-1">
-                        <Text as="span" size="xs" className="text-[#94a3b8] !text-[11px]">Maps to <code>notes</code> in API</Text>
+                        <Text as="span" size="xs" className="text-[#94a3b8] !text-[11px]">Included in submission API</Text>
                         <Text as="span" size="xs" className="text-[#94a3b8] !text-[11px]">{notes.length} / 500</Text>
                       </div>
                     </FormControl>
                   </CardBody>
                 </Card>
 
-                <Card variant="outline" size="md" className="overflow-hidden">
-                  <CardHeader className="px-5 pt-5 pb-3 bg-[#f8fafc] border-b border-[#f1f5f9]">
-                    <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] leading-none !text-[13px]">Action required</Text>
-                    <Text as="p" size="xs" className="text-[#64748b] mt-1 !text-[11px]">Based on checklist status</Text>
+                <Card variant="outline" size="md" className="overflow-hidden shadow-sm">
+                  <CardHeader className="px-5 pt-4 pb-3 bg-gradient-to-r from-slate-50 to-white border-b border-[#f1f5f9]">
+                    <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] leading-none !text-[13px]">Action Status & Requirements</Text>
+                    <Text as="p" size="xs" className="text-[#64748b] mt-1 !text-[11px]">System validation check</Text>
                   </CardHeader>
                   <CardBody className="p-5">
                     {criticalInvalid.length === 0 ? (
-                      <div className="p-4 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg flex items-center gap-3">
-                        <CheckCircleIcon style={{ color: '#16a34a' }} />
+                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3">
+                        <CheckCircleIcon style={{ color: '#16a34a', fontSize: 24 }} />
                         <div>
-                          <Text as="div" size="sm" weight="bold" className="text-[#166534] !text-[13px]">No action required.</Text>
-                          <Text as="div" size="xs" className="text-[#15803d] !text-[11px]">All critical items compliant — ready for final submit.</Text>
+                          <Text as="div" size="sm" weight="bold" className="text-emerald-900 !text-[13px]">All Clear — Ready for Submission</Text>
+                          <Text as="div" size="xs" className="text-emerald-700 !text-[11px] mt-0.5">All critical infection control standards met. Click Save & Continue to proceed.</Text>
                         </div>
                       </div>
                     ) : (
-                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3">
-                        <WarningAmberOutlinedIcon style={{ color: '#d97706', marginTop: 2 }} />
+                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex gap-3">
+                        <WarningAmberOutlinedIcon style={{ color: '#d97706', fontSize: 24, marginTop: 2 }} />
                         <div>
-                          <Text as="div" size="sm" weight="bold" className="text-amber-900 !text-[13px]">Action required before final.</Text>
-                          <Text as="div" size="xs" className="text-amber-800 !text-[11px] mt-1">Fix critical items above. Final will be rejected if hand_hygiene / aseptic_technique / sharps_handling (or scrub for CVC) are not compliant.</Text>
+                          <Text as="div" size="sm" weight="bold" className="text-amber-900 !text-[13px]">Action Required Prior to Finalizing</Text>
+                          <Text as="div" size="xs" className="text-amber-800 !text-[11px] mt-0.5">Ensure all critical items (Hand Hygiene, Aseptic Technique, Sharps Handling, and CVC Scrub-the-hub) are marked as compliant.</Text>
                         </div>
                       </div>
                     )}
                     {submitError && (
-                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">{submitError}</div>
+                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-medium text-red-800 flex items-center gap-2">
+                        <WarningAmberOutlinedIcon style={{ fontSize: 16 }} className="text-red-600 shrink-0" />
+                        <span>{submitError}</span>
+                      </div>
                     )}
                   </CardBody>
                 </Card>
@@ -420,41 +523,41 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
 
             {/* Right 4/12 Sidebar */}
             <div style={{ gridColumn: isMobile ? 'span 1' : 'span 4', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* Payload preview (dev helper, uniform card) */}
-              <Card variant="outline" size="md" className="overflow-hidden hidden lg:block">
-                <CardHeader className="px-5 pt-5 pb-3 bg-[#f8fafc] border-b border-[#f1f5f9]">
-                  <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] !text-[13px]">Payload preview</Text>
-                  <Text as="p" size="xs" className="text-[#64748b] !text-[11px] mt-1">POST /api/dt/sessions/:id/infection-control</Text>
-                </CardHeader>
-                <CardBody className="p-0">
-                  <pre className="text-[11px] leading-4 p-4 bg-[#0f172a] text-[#e2e8f0] overflow-auto max-h-[280px]">{JSON.stringify(buildPayload(), null, 2)}</pre>
-                </CardBody>
-              </Card>
 
-              <Card variant="outline" size="md" className="overflow-hidden" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+              <Card variant="outline" size="md" className="overflow-hidden shadow-sm" style={{ background: criticalInvalid.length ? '#fffbe6' : '#f0fdf4', borderColor: criticalInvalid.length ? '#ffe58f' : '#bbf7d0' }}>
                 <CardBody className="p-5">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircleIcon style={{ color: '#16a34a' }} />
-                    <Text as="h3" size="sm" weight="bold" className="text-[#166534] !text-[13px]">Infection Control Alerts</Text>
+                    {criticalInvalid.length ? (
+                      <WarningAmberOutlinedIcon style={{ color: '#d97706' }} />
+                    ) : (
+                      <CheckCircleIcon style={{ color: '#16a34a' }} />
+                    )}
+                    <Text as="h3" size="sm" weight="bold" className={criticalInvalid.length ? "text-amber-900 !text-[13px]" : "text-emerald-900 !text-[13px]"}>
+                      Infection Control Alert Status
+                    </Text>
                   </div>
-                  <Text as="span" size="sm" weight="semibold" className="text-[#15803d] !text-[12px]">{criticalInvalid.length ? `${criticalInvalid.length} critical issue(s) to fix` : 'No infection control alerts.'}</Text>
+                  <Text as="span" size="sm" weight="semibold" className={criticalInvalid.length ? "text-amber-800 !text-[12px]" : "text-emerald-700 !text-[12px]"}>
+                    {criticalInvalid.length ? `${criticalInvalid.length} critical requirement(s) pending` : 'No active infection control alerts.'}
+                  </Text>
                 </CardBody>
               </Card>
 
-              <Card variant="outline" size="md" className="overflow-hidden">
-                <CardHeader className="px-5 pt-5 pb-3">
-                  <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] !text-[13px]">Reference</Text>
+              <Card variant="outline" size="md" className="overflow-hidden shadow-sm">
+                <CardHeader className="px-5 pt-4 pb-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                  <Text as="h3" size="sm" weight="bold" className="text-[#0f172a] !text-[13px]">Infection Prevention Summary</Text>
                 </CardHeader>
-                <CardBody className="p-5 pt-0 flex flex-col gap-2.5">
+                <CardBody className="p-5 flex flex-col gap-3">
                   {[
-                    ['Hand Hygiene', items.hand_hygiene ? '100%' : '0%'],
-                    ['PPE Compliance', items.ppe ? '100%' : '0%'],
-                    ['Machine Disinfection', items.dialysis_machine_disinfected ? 'Compliant' : 'Pending'],
-                    ['Scrub Hub (CVC)', accessType === 'CVC' ? (scrubHub === 'yes' ? 'Yes' : 'No') : 'N/A'],
+                    ['Hand Hygiene Protocol', items.hand_hygiene ? '✓ Compliant' : '✗ Pending'],
+                    ['PPE Compliance', items.ppe ? '✓ Compliant' : '✗ Pending'],
+                    ['Aseptic Technique', items.aseptic_technique ? '✓ Compliant' : '✗ Pending'],
+                    ['Sharps Handling', items.sharps_handling ? '✓ Compliant' : '✗ Pending'],
+                    ['Dialysis Machine Surface', items.dialysis_machine_disinfected ? '✓ Disinfected' : 'Pending'],
+                    ['Scrub-the-Hub (CVC)', accessType === 'CVC' ? (scrubHub === 'yes' ? '✓ Performed' : '✗ Required') : 'N/A (AVF)'],
                   ].map(([k, v]) => (
-                    <div key={k} className="flex justify-between items-center text-sm">
-                      <Text as="span" size="xs" className="text-[#64748b] !text-[12px]">{k}</Text>
-                      <Text as="span" size="xs" weight="semibold" className="text-[#0f172a] !text-[12px]">{v}</Text>
+                    <div key={k} className="flex justify-between items-center text-xs py-1 border-b border-slate-50 last:border-0">
+                      <Text as="span" size="xs" className="text-slate-600 !text-[12px] font-medium">{k}</Text>
+                      <Text as="span" size="xs" weight="semibold" className={v.startsWith('✓') ? "text-emerald-700 !text-[12px] font-bold" : v.startsWith('✗') ? "text-red-600 !text-[12px] font-bold" : "text-slate-500 !text-[12px]"}>{v}</Text>
                     </div>
                   ))}
                 </CardBody>

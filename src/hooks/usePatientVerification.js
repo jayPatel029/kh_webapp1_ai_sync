@@ -173,26 +173,10 @@ export default function usePatientVerification(patientId) {
       let patientData = null;
 
       if (patientRes?.success) {
-        patientData = patientRes.data?.data || patientRes.data || null;
+        const raw = patientRes.data;
+        patientData = raw?.patient || raw?.data?.patient || raw?.data || raw || {};
       } else {
-        patientData = {
-          id: patientId,
-          patient_code: '',
-          name: '',
-          dob: '',
-          gender: '',
-          number: '',
-          dry_weight: '',
-          blood_group: '',
-          last_dialysis_date: '',
-          vascular_access: '',
-          shift_time: '',
-          bed_number: '',
-          machine_number: '',
-          primary_doctor_name: '',
-          hiv_status: '',
-          hepatitis_status: '',
-        };
+        patientData = { id: patientId };
       }
 
       setPatientRaw(patientData);
@@ -228,22 +212,26 @@ export default function usePatientVerification(patientId) {
   // Derived patient details for banner & identity card
   const patientDetails = useMemo(() => {
     if (!patientRaw) return null;
-    const patientCode = patientRaw.patient_code || patientRaw.patientCode || `P${String(patientRaw.id).padStart(5, '0')}`;
-    const dobFormatted = formatDate(patientRaw.dob || '1966-08-15');
+    const p = patientRaw.patient || patientRaw;
+    const patientCode = p.patient_code || p.patientCode || (p.id ? `P${String(p.id).padStart(5, '0')}` : '—');
+    const dobFormatted = p.dob ? formatDate(p.dob) : '—';
+    const rawGender = p.gender || p.sex;
+    const gender = rawGender === 'F' ? 'Female' : rawGender === 'M' ? 'Male' : (rawGender || '—');
+    const age = p.age ? String(p.age) : (p.dob ? calculateAge(p.dob) : '—');
 
     return {
-      id: patientRaw.id,
+      id: p.id,
       patientCode,
-      name: patientRaw.name || 'Ramesh Kumar',
+      name: p.name || p.patient_name || (p.id ? `Patient #${p.id}` : '—'),
       dobFormatted,
-      age: calculateAge(patientRaw.dob) || '58',
-      gender: patientRaw.gender || 'Male',
-      phone: patientRaw.number || patientRaw.phone || '+91 98765 43210',
-      bloodGroup: patientRaw.blood_group || 'O+',
-      dryWeight: patientRaw.dry_weight || '68.5',
-      schedule: '12 Jan 2023 (2y 4m)',
-      shift: patientRaw.shift_time || 'Morning (07:00 AM)',
-      bedMachine: `${patientRaw.bed_number || 'B-02'} / ${patientRaw.machine_number || 'HD-01'}`,
+      age,
+      gender,
+      phone: p.phone_no || p.number || p.phone || p.phone_number || p.mobile_no || '—',
+      bloodGroup: p.blood_group || p.bloodGroup || '—',
+      dryWeight: p.dry_weight || p.dryWeight || '—',
+      schedule: p.last_dialysis_date ? formatDate(p.last_dialysis_date) : '—',
+      shift: p.shift_time || '—',
+      bedMachine: `${p.bed_number || '—'} / ${p.machine_number || '—'}`,
     };
   }, [patientRaw]);
 

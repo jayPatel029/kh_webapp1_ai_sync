@@ -174,20 +174,10 @@ export default function usePatientAssessment(patientId) {
       let patientData = null;
 
       if (patientRes?.success) {
-        patientData = patientRes.data?.data || patientRes.data || null;
+        const raw = patientRes.data;
+        patientData = raw?.patient || raw?.data?.patient || raw?.data || raw || {};
       } else {
-        patientData = {
-          id: patientId,
-          patient_code: `P${String(patientId).padStart(5, '0')}`,
-          name: 'Ramesh Kumar',
-          dob: '1967-04-20',
-          gender: 'Male',
-          blood_group: 'O+',
-          last_dialysis_date: '2023-01-12',
-          shift_time: 'Morning (07:00 AM)',
-          bed_number: 'B-02',
-          machine_number: 'HD-01',
-        };
+        patientData = { id: patientId };
       }
 
       setPatientRaw(patientData);

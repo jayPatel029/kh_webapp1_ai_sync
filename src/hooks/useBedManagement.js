@@ -160,10 +160,24 @@ export default function useBedManagement(initialClinicId = null) {
           appointment_id: Number(appointmentId) || null,
           assignment_notes: assignmentNotes,
         });
-        if (true) {
-        // if (result.success) {
+        if (result.success) {
+          const sessionData = result.data?.data || result.data || {};
+          const dialysisSessionId = sessionData?.dialysis_session_id || sessionData?.session_id || sessionData?.dialysisSessionId || sessionData?.sessionId || result.data?.dialysis_session_id || result.data?.session_id;
+          if (dialysisSessionId) {
+            try {
+              localStorage.setItem('lastDialysisSessionId', String(dialysisSessionId));
+              sessionStorage.setItem('lastDialysisSessionId', String(dialysisSessionId));
+            } catch (_) {}
+          }
           await fetchAllBeds();
-          return { success: true, data: result.data };
+          return {
+            success: true,
+            data: {
+              ...result.data,
+              dialysis_session_id: dialysisSessionId || result.data?.dialysis_session_id,
+              session_id: dialysisSessionId || result.data?.session_id,
+            },
+          };
         } else {
           throw new Error(result.data?.message || 'Failed to assign patient');
         }

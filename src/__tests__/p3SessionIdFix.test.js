@@ -52,3 +52,32 @@ describe('P3 sessionId resolution (bugfix)', () => {
     expect(resolveSessionId({ routeSessionId: '', paramScreenId: 'P3-01', state: {}, search: '', localStorageValue: '', sessionStorageValue: '' })).toBe('');
   });
 });
+
+function getValidSessionId(sessionId, currentPatientId) {
+  const activeSessionId = String(sessionId || '').trim();
+  const pid = String(currentPatientId || '').trim();
+  if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') {
+    return null;
+  }
+  if (pid && (activeSessionId === pid || activeSessionId === `P${pid}` || activeSessionId.toLowerCase() === pid.toLowerCase())) {
+    return null;
+  }
+  return activeSessionId;
+}
+
+describe('getValidSessionId patientId rejection', () => {
+  it('rejects sessionId when equal to patientId', () => {
+    expect(getValidSessionId('P10023', 'P10023')).toBeNull();
+    expect(getValidSessionId('23', '23')).toBeNull();
+  });
+
+  it('accepts real sessionId distinct from patientId', () => {
+    expect(getValidSessionId('sess-999', 'P10023')).toBe('sess-999');
+    expect(getValidSessionId('123', 'P10023')).toBe('123');
+  });
+
+  it('rejects preview or demo as sessionId', () => {
+    expect(getValidSessionId('preview', 'P10023')).toBeNull();
+    expect(getValidSessionId('demo', 'P10023')).toBeNull();
+  });
+});

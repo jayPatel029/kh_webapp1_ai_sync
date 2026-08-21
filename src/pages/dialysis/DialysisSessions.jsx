@@ -223,19 +223,24 @@ const DialysisSessions = () => {
   // Conditional Step Routing (P2-02 to P2-06) — AFTER all hooks to adhere to rules-of-hooks
   // ---------------------------------------------------------------------------
 
+  const stateSessionId = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
+  const persistedSessionId = (() => { try { return localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || ''; } catch { return ''; } })();
+  const activeSessionId = stateSessionId || persistedSessionId || '';
+
   // If Patient Assessment (P2-06) step requested
   if (selectedPatientId && isAssessmentStep) {
     return (
       <PatientAssessmentView
         patientId={selectedPatientId}
+        sessionId={activeSessionId}
         onBack={() =>
           navigate(ROUTES.DIALYSIS_SESSIONS, {
-            state: { patientId: selectedPatientId, step: 'P2-05' },
+            state: { patientId: selectedPatientId, step: 'P2-05', sessionId: activeSessionId, session_id: activeSessionId, dialysis_session_id: activeSessionId },
           })
         }
         onNext={() =>
           navigate(ROUTES.DIALYSIS_SESSIONS, {
-            state: { patientId: selectedPatientId, step: 'P2-07' },
+            state: { patientId: selectedPatientId, step: 'P2-07', sessionId: activeSessionId, session_id: activeSessionId, dialysis_session_id: activeSessionId },
           })
         }
       />
@@ -247,14 +252,15 @@ const DialysisSessions = () => {
     return (
       <VitalsMeasurementsView
         patientId={selectedPatientId}
+        sessionId={activeSessionId}
         onBack={() =>
           navigate(ROUTES.DIALYSIS_SESSIONS, {
-            state: { patientId: selectedPatientId, step: 'P2-04' },
+            state: { patientId: selectedPatientId, step: 'P2-04', sessionId: activeSessionId, session_id: activeSessionId, dialysis_session_id: activeSessionId },
           })
         }
         onNext={() =>
           navigate(ROUTES.DIALYSIS_SESSIONS, {
-            state: { patientId: selectedPatientId, step: 'P2-06' },
+            state: { patientId: selectedPatientId, step: 'P2-06', sessionId: activeSessionId, session_id: activeSessionId, dialysis_session_id: activeSessionId },
           })
         }
       />
@@ -266,14 +272,15 @@ const DialysisSessions = () => {
     return (
       <PatientVerificationView
         patientId={selectedPatientId}
+        sessionId={activeSessionId}
         onBack={() =>
           navigate(ROUTES.DIALYSIS_SESSIONS, {
-            state: { patientId: selectedPatientId, view: 'dashboard', step: 'P2-03' },
+            state: { patientId: selectedPatientId, view: 'dashboard', step: 'P2-03', sessionId: activeSessionId, session_id: activeSessionId, dialysis_session_id: activeSessionId },
           })
         }
         onNext={() =>
           navigate(ROUTES.DIALYSIS_SESSIONS, {
-            state: { patientId: selectedPatientId, step: 'P2-05' },
+            state: { patientId: selectedPatientId, step: 'P2-05', sessionId: activeSessionId, session_id: activeSessionId, dialysis_session_id: activeSessionId },
           })
         }
       />
@@ -285,6 +292,7 @@ const DialysisSessions = () => {
     return (
       <PreDialysisDashboardView
         patientId={selectedPatientId}
+        sessionId={activeSessionId}
         onBack={() =>
           navigate(ROUTES.DIALYSIS_SESSIONS, {
             state: { patientId: selectedPatientId },
@@ -292,7 +300,7 @@ const DialysisSessions = () => {
         }
         onNavigateStep={(stepCode) =>
           navigate(ROUTES.DIALYSIS_SESSIONS, {
-            state: { patientId: selectedPatientId, step: stepCode },
+            state: { patientId: selectedPatientId, step: stepCode, sessionId: activeSessionId, session_id: activeSessionId, dialysis_session_id: activeSessionId },
           })
         }
       />
@@ -306,11 +314,12 @@ const DialysisSessions = () => {
         patientId={selectedPatientId}
         appointment={location.state?.appointment}
         onBackToQueue={() => navigate(ROUTES.DIALYSIS_SESSIONS, { replace: true })}
-        onProceedToPreDialysis={() =>
+        onProceedToPreDialysis={(newSessionId) => {
+          const sessId = newSessionId || activeSessionId;
           navigate(ROUTES.DIALYSIS_SESSIONS, {
-            state: { patientId: selectedPatientId, view: 'dashboard', step: 'P2-03' },
-          })
-        }
+            state: { patientId: selectedPatientId, view: 'dashboard', step: 'P2-03', sessionId: sessId, session_id: sessId, dialysis_session_id: sessId },
+          });
+        }}
       />
     );
   }

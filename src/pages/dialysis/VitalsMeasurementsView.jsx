@@ -83,19 +83,20 @@ const BADGE_STYLE = (severity = VITAL_SEVERITY.NORMAL) => {
 // VitalsMeasurementsView Component
 // ---------------------------------------------------------------------------
 
-const VitalsMeasurementsView = ({ patientId, onBack, onNext, onNavigateStep }) => {
+const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const effectiveSessionId = useMemo(() => {
+    if (propSessionId) return propSessionId;
     try {
-      const fromState = location.state?.sessionId || location.state?.session_id;
+      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
       if (fromState) return fromState;
       const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
       if (persisted) return persisted;
     } catch {}
     return patientId || 1;
-  }, [location.state, patientId]);
+  }, [propSessionId, location.state, patientId]);
 
   const {
     patientRaw,

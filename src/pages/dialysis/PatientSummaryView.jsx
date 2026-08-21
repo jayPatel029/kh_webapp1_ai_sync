@@ -182,14 +182,23 @@ const PatientSummaryView = ({ patientId, appointment, onBackToQueue, onProceedTo
 
   const handleProceedToPreDialysis = async () => {
     if (hasActivePrescription) {
+      let createdSessionId = null;
       try {
-        await proceedPatientToPredialysis(patientId);
+        const res = await proceedPatientToPredialysis(patientId);
+        const dataObj = res?.data?.data || res?.data || res || {};
+        createdSessionId = dataObj?.dialysis_session_id || dataObj?.session_id || dataObj?.dialysisSessionId || dataObj?.sessionId || res?.dialysis_session_id || res?.session_id;
       } catch (_) {}
+      if (createdSessionId) {
+        try {
+          localStorage.setItem('lastDialysisSessionId', String(createdSessionId));
+          sessionStorage.setItem('lastDialysisSessionId', String(createdSessionId));
+        } catch (_) {}
+      }
       if (onProceedToPreDialysis) {
-        onProceedToPreDialysis();
+        onProceedToPreDialysis(createdSessionId);
       } else {
         navigate(ROUTES.DIALYSIS_PATIENTS, {
-          state: { patientId, view: 'dashboard', step: 'P2-03', patient: patientBanner?.raw },
+          state: { patientId, view: 'dashboard', step: 'P2-03', patient: patientBanner?.raw, sessionId: createdSessionId, session_id: createdSessionId, dialysis_session_id: createdSessionId },
         });
       }
     }

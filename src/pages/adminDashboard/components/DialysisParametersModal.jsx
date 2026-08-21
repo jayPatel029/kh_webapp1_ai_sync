@@ -675,7 +675,7 @@ const navigate = useNavigate();
       hasSetAilmentRef.current = false; // reset guard when patient changes
       fetchPatientData();
       fetchInventoryData();
-      setSessionId(initialData?.session_id || null);
+      setSessionId(initialData?.session_id || initialData?.dialysis_session_id || patient?.dialysis_session_id || patient?.session_id || patient?.sessionId || localStorage.getItem('lastDialysisSessionId') || null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, patient?.patient_id, isDemoMode, demoData, demoAutoOpenFirstParameter]);

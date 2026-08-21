@@ -178,7 +178,7 @@ describe('P2-03 Pre-Dialysis Dashboard Unit Logic & Rules (Node environment)', (
 
       expect(info.patientCode).toBe('P10023');
       expect(info.name).toBe('Ramesh Kumar');
-      expect(info.dryWeight).toBe('68.5');
+      expect(info.dryWeight).toBe('68.5 kg');
       expect(info.bloodGroup).toBe('O+');
       expect(info.vascularAccess).toBe('AV Fistula (Left)');
       expect(info.assignment.bedMachine).toBe('B-02 / HD-01');

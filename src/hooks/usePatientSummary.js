@@ -117,23 +117,28 @@ export const deriveAlertSeverity = (alertText) => {
 /**
  * Normalize raw patient data into the P2-02 summary shape.
  */
-export function normalizePatientBanner(patient) {
+export function normalizePatientBanner(patientInput) {
+  if (!patientInput) return null;
+  const patient = patientInput.patient || patientInput.data?.patient || patientInput.data || patientInput;
   const dob = patient.dob || patient.date_of_birth || patient.birth_date || null;
   const rawAilments = patient.ailments || patient.patient_ailments || patient.aliments || patient.medical_history || '';
   const ailment = Array.isArray(rawAilments) ? rawAilments.join(', ') : String(rawAilments || '—');
 
+  const rawGender = patient.gender || patient.patient_gender || patient.sex;
+  const gender = rawGender === 'F' ? 'Female' : rawGender === 'M' ? 'Male' : (rawGender || '—');
+
   return {
     id: patient.id,
-    patientCode: patient.patient_code || patient.patientCode || `P${String(patient.id || '').padStart(5, '0')}`,
-    name: patient.name || patient.patient_name || `Patient #${patient.id}`,
-    age: patient.age || patient.patient_age || calculateAge(dob),
-    gender: patient.gender || patient.patient_gender || patient.sex || '—',
-    phone: patient.number || patient.phone_number || patient.phone || patient.mobile_no || patient.phone_no || '—',
-    diagnosis: patient.primary_diagnosis || patient.diagnosis || ailment || 'CKD - Stage 5D',
+    patientCode: patient.patient_code || patient.patientCode || (patient.id ? `P${String(patient.id || '').padStart(5, '0')}` : '—'),
+    name: patient.name || patient.patient_name || (patient.id ? `Patient #${patient.id}` : '—'),
+    age: patient.age || patient.patient_age || (dob ? calculateAge(dob) : '—'),
+    gender,
+    phone: patient.phone_no || patient.number || patient.phone_number || patient.phone || patient.mobile_no || '—',
+    diagnosis: patient.primary_diagnosis || patient.diagnosis || (ailment !== '—' ? ailment : '—'),
     dialysisType: patient.dialysis_type || patient.treatment_type || 'Hemodialysis',
     vascularAccess: patient.vascular_access || patient.access_type || '—',
     nephrologist: patient.primary_doctor_name || patient.doctor_name || patient.nephrologist_name || '—',
-    schedule: patient.schedule || patient.dialysis_schedule || patient.frequency || 'Mon, Wed, Fri',
+    schedule: patient.schedule || patient.dialysis_schedule || patient.frequency || '—',
     firstDialysisDate: patient.first_dialysis_date || patient.first_session_date || patient.created_at || null,
     firstDialysisDuration: calcDialysisDuration(patient.first_dialysis_date || patient.first_session_date || patient.created_at),
     raw: patient,
@@ -294,7 +299,7 @@ export default function usePatientSummary(patientId) {
         return;
       }
 
-      const patient = patientResult.data?.data || patientResult.data || {};
+      const patient = patientResult.data?.patient || patientResult.data?.data?.patient || patientResult.data?.data || patientResult.data || {};
 
       setPatientBanner(normalizePatientBanner(patient));
       setVitals(normalizeVitals(patient));

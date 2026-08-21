@@ -4,27 +4,27 @@ import { getPatientById } from '../ApiCalls/patientAPis';
 import { calculateAge, formatDate, calcDialysisDuration } from '../hooks/usePatientSummary';
 
 const DEFAULT_PROFILE = {
-  id: 1,
-  name: 'Ramesh Kumar',
+  id: '',
+  name: '—',
   status: 'Active',
-  patientCode: 'P10023',
-  age: '58',
-  gender: 'Male',
-  phone: '+91 98765 43210',
-  dryWeight: '68.5 kg',
-  bloodGroup: 'O+',
-  lastDialysis: '12 Jan 2023 (2y 4m)',
-  lastDialysisDate: '12 Jan 2023',
-  lastDialysisElapsed: '2y 4m',
-  vascularAccess: 'AV Fistula (Left)',
-  nextScheduleDate: 'Today, 26 May 2025',
-  nextScheduleTime: '07:00 AM - Shift 1',
-  nephrologist: 'Dr. Neha Mehta',
+  patientCode: '—',
+  age: '—',
+  gender: '—',
+  phone: '—',
+  dryWeight: '—',
+  bloodGroup: '—',
+  lastDialysis: '—',
+  lastDialysisDate: '—',
+  lastDialysisElapsed: '',
+  vascularAccess: '—',
+  nextScheduleDate: '—',
+  nextScheduleTime: '—',
+  nephrologist: '—',
   dialysisType: 'Hemodialysis',
   assignment: {
-    shift: 'Morning (07:00 AM)',
-    bedMachine: 'B-02 / HD-01',
-    technician: 'Rahul Singh',
+    shift: '—',
+    bedMachine: '— / —',
+    technician: '—',
   },
 };
 
@@ -40,7 +40,11 @@ const readFirst = (source, keys) => {
 };
 
 export const normalizePreDialysisProfileData = (patientInput = {}) => {
-  const patient = typeof patientInput === 'object' && patientInput !== null ? patientInput : {};
+  const pObj = (patientInput && typeof patientInput === 'object')
+    ? (patientInput.patient || patientInput.data?.patient || patientInput.data || patientInput)
+    : {};
+  const patient = { ...pObj, ...(typeof patientInput === 'object' ? patientInput : {}) };
+
   const rawId = typeof patientInput === 'number' || typeof patientInput === 'string'
     ? patientInput
     : (patient.id || patient.patient_id || patient.patientId || null);
@@ -51,7 +55,7 @@ export const normalizePreDialysisProfileData = (patientInput = {}) => {
       const numericId = String(rawId).replace(/\D/g, '');
       patientCode = numericId ? `P${numericId.padStart(5, '0')}` : `P${rawId}`;
     } else {
-      patientCode = DEFAULT_PROFILE.patientCode;
+      patientCode = '—';
     }
   }
 
@@ -60,11 +64,11 @@ export const normalizePreDialysisProfileData = (patientInput = {}) => {
     if (rawId != null && rawId !== '') {
       name = `Patient #${rawId}`;
     } else {
-      name = DEFAULT_PROFILE.name;
+      name = '—';
     }
   }
 
-  const status = readFirst(patient, ['statusBadge', 'status', 'patient_status', 'condition']) || DEFAULT_PROFILE.status;
+  const status = readFirst(patient, ['statusBadge', 'status', 'patient_status', 'condition']) || 'Active';
 
   let age = readFirst(patient, ['age']);
   if (!age || age === '—') {
@@ -77,22 +81,24 @@ export const normalizePreDialysisProfileData = (patientInput = {}) => {
     }
   }
   if (!age || age === '—') {
-    age = DEFAULT_PROFILE.age;
+    age = '—';
   }
 
-  const gender = readFirst(patient, ['gender', 'sex', 'patient_gender']) || DEFAULT_PROFILE.gender;
-  const phone = readFirst(patient, ['phone', 'number', 'phone_number', 'mobile_no', 'phone_no', 'contact_number', 'mobile']) || DEFAULT_PROFILE.phone;
+  let rawGender = readFirst(patient, ['gender', 'sex', 'patient_gender']);
+  let gender = rawGender === 'F' ? 'Female' : rawGender === 'M' ? 'Male' : (rawGender || '—');
+
+  const phone = readFirst(patient, ['phone', 'number', 'phone_number', 'mobile_no', 'phone_no', 'contact_number', 'mobile']) || '—';
 
   const dryWeightRaw = readFirst(patient, ['dryWeight', 'dry_weight', 'target_weight', 'weight_dry', 'dryweight', 'weight_target']);
   const dryWeight = dryWeightRaw
     ? (String(dryWeightRaw).includes('kg') ? String(dryWeightRaw) : `${dryWeightRaw} kg`)
-    : DEFAULT_PROFILE.dryWeight;
+    : '—';
 
-  const bloodGroup = readFirst(patient, ['bloodGroup', 'blood_group', 'blood_type', 'bloodType']) || DEFAULT_PROFILE.bloodGroup;
+  const bloodGroup = readFirst(patient, ['bloodGroup', 'blood_group', 'blood_type', 'bloodType']) || '—';
 
   let lastDialysisRaw = readFirst(patient, ['lastDialysis', 'last_dialysis', 'lastDialysisDate', 'last_dialysis_date', 'first_dialysis_date', 'schedule']);
-  let lastDialysisDate = DEFAULT_PROFILE.lastDialysisDate;
-  let lastDialysisElapsed = DEFAULT_PROFILE.lastDialysisElapsed;
+  let lastDialysisDate = '—';
+  let lastDialysisElapsed = '';
 
   if (lastDialysisRaw) {
     if (String(lastDialysisRaw).includes('(')) {
@@ -113,45 +119,45 @@ export const normalizePreDialysisProfileData = (patientInput = {}) => {
         const computed = calcDialysisDuration(lastDialysisRaw);
         if (computed) {
           lastDialysisElapsed = computed.replace(/^\(|\)$/g, '');
-        } else {
-          lastDialysisElapsed = DEFAULT_PROFILE.lastDialysisElapsed;
         }
       }
     }
   }
-  const lastDialysis = `${lastDialysisDate} (${lastDialysisElapsed})`;
+  const lastDialysis = lastDialysisDate !== '—'
+    ? (lastDialysisElapsed ? `${lastDialysisDate} (${lastDialysisElapsed})` : lastDialysisDate)
+    : '—';
 
   const nextScheduleRaw = readFirst(patient, ['nextSchedule', 'next_schedule', 'nextScheduleDate', 'next_schedule_date', 'schedule']);
-  const nextScheduleDate = nextScheduleRaw || DEFAULT_PROFILE.nextScheduleDate;
-  const nextScheduleTime = readFirst(patient, ['nextScheduleTime', 'shift_time', 'shift', 'nextScheduleShift', 'shift_name']) || DEFAULT_PROFILE.nextScheduleTime;
+  const nextScheduleDate = nextScheduleRaw || '—';
+  const nextScheduleTime = readFirst(patient, ['nextScheduleTime', 'shift_time', 'shift', 'nextScheduleShift', 'shift_name']) || '—';
 
-  const nephrologist = readFirst(patient, ['nephrologist', 'primary_doctor_name', 'doctor_name', 'nephrologist_name', 'doctor', 'physician']) || DEFAULT_PROFILE.nephrologist;
+  const nephrologist = readFirst(patient, ['nephrologist', 'primary_doctor_name', 'doctor_name', 'nephrologist_name', 'doctor', 'physician']) || '—';
 
-  const dialysisType = readFirst(patient, ['dialysisType', 'dialysis_type']) || DEFAULT_PROFILE.dialysisType;
+  const dialysisType = readFirst(patient, ['dialysisType', 'dialysis_type']) || 'Hemodialysis';
 
-  const vascularAccess = readFirst(patient, ['vascularAccess', 'vascular_access', 'access_type', 'accessType']) || DEFAULT_PROFILE.vascularAccess;
+  const vascularAccess = readFirst(patient, ['vascularAccess', 'vascular_access', 'access_type', 'accessType']) || '—';
 
   const bedNo = readFirst(patient, ['bed_number', 'bedNo', 'bed']);
   const machineNo = readFirst(patient, ['machine_number', 'machineNo', 'machine']);
   const bedMachine =
     readFirst(patient?.assignment, ['bedMachine']) ||
     readFirst(patient, ['bedMachine']) ||
-    ([bedNo, machineNo].filter(Boolean).join(' / ') || DEFAULT_PROFILE.assignment.bedMachine);
+    ([bedNo, machineNo].filter(Boolean).join(' / ') || '— / —');
 
   const shift =
     readFirst(patient?.assignment, ['shift']) ||
     readFirst(patient, ['shift', 'shift_time', 'shift_name']) ||
-    DEFAULT_PROFILE.assignment.shift;
+    '—';
 
   const technician =
     readFirst(patient?.assignment, ['technician']) ||
     readFirst(patient, ['attending_technician', 'technician_name', 'technician']) ||
-    DEFAULT_PROFILE.assignment.technician;
+    '—';
 
   const photo = readFirst(patient, ['photo', 'avatar', 'profile_photo', 'profilePhoto', 'image']);
 
   return {
-    id: rawId || DEFAULT_PROFILE.id,
+    id: rawId || '',
     photo,
     name,
     status,
@@ -301,10 +307,11 @@ const PreDialysisPatientProfileCard = ({ patient, patientId: propPatientId, isMo
     const fetchDetails = async () => {
       try {
         const res = await getPatientDetails(rawPatientId);
-        let data = res?.success ? (res.data?.data || res.data) : null;
+        const extractP = (r) => (r?.success ? (r.data?.patient || r.data?.data?.patient || r.data?.data || r.data) : null);
+        let data = extractP(res);
         if (!data) {
           const res2 = await getPatientById(rawPatientId);
-          data = res2?.success ? (res2.data?.data || res2.data) : null;
+          data = extractP(res2);
         }
         if (isMounted && data) {
           setFetchedPatient(data);

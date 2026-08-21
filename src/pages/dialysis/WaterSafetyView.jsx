@@ -75,24 +75,25 @@ const WATER_QUALITY_CHECKLIST = [
   { id: 'turbidity', label: 'Turbidity', icon: DeviceThermostatIcon, result: '0.10', unit: 'NTU', range: '≤ 1.0 NTU', method: 'Turbidity Meter', status: 'OK', action: '—' },
 ];
 
-const WaterSafetyView = ({ patientId, onBack, onNext, onNavigateStep }) => {
+const WaterSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const effectiveSessionId = useMemo(() => {
+    if (propSessionId) return propSessionId;
     try {
-      const fromState = location.state?.sessionId || location.state?.session_id;
+      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
       if (fromState) return fromState;
       const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
       if (persisted) return persisted;
     } catch {}
     return patientId || 1;
-  }, [location.state, patientId]);
+  }, [propSessionId, location.state, patientId]);
   const [patientData, setPatientData] = useState(null);
   useEffect(() => {
     if (!patientId) return;
     let mounted = true;
-    getPatientDetails(patientId).then((res) => { if (mounted && res?.success) setPatientData(res.data?.data || res.data); }).catch(()=>{});
+    getPatientDetails(patientId).then((res) => { if (mounted && res?.success) setPatientData(res.data?.patient || res.data?.data?.patient || res.data?.data || res.data); }).catch(()=>{});
     return () => { mounted = false; };
   }, [patientId]);
   const [notes, setNotes] = useState('');

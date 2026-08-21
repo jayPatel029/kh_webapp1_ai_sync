@@ -194,8 +194,14 @@ export const getPatientAllergies = (patientId, config) =>
   p3Request('get', p3Path(`/patients/${patientId}/allergies`), undefined, config);
 export const createAlarm = (sessionId, payload, config) =>
   p3Request('post', p3Path(`/sessions/${sessionId}/alarms`), payload, config);
+export const getAlarms = (sessionId, config) =>
+  p3Request('get', p3Path(`/sessions/${sessionId}/alarms`), undefined, config);
 export const updateDuringDialysisAlarm = (sessionId, alarmId, payload, config) =>
   p3Request('patch', p3Path(`/sessions/${sessionId}/alarms/${alarmId}`), payload, config);
+export const getVascularAccessMonitoring = (sessionId, config) =>
+  p3Request('get', p3Path(`/sessions/${sessionId}/vascular-access-monitoring`), undefined, config);
+export const getMedications = (sessionId, config) =>
+  p3Request('get', p3Path(`/sessions/${sessionId}/medications`), undefined, config);
 export const getDuringDialysisProgress = (sessionId, config) =>
   p3Request('get', p3Path(`/sessions/${sessionId}/progress`), undefined, config);
 export const createTreatmentEvent = (sessionId, payload, config) =>
@@ -227,10 +233,13 @@ export default {
   createSymptom,
   updateSymptom,
   createVascularAccessMonitoring,
+  getVascularAccessMonitoring,
   createMedicationAdministration,
+  getMedications,
   getDueMedications,
   getPatientAllergies,
   createAlarm,
+  getAlarms,
   updateDuringDialysisAlarm,
   getDuringDialysisProgress,
   createTreatmentEvent,

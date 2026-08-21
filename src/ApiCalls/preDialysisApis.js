@@ -73,7 +73,12 @@ export async function getPatientDetails(patientId, config = {}) {
     const response = await axiosInstance.get(`${server_url}/dt/patients/${patientId}`, config);
     return handleResponse(response);
   } catch (err) {
-    return handleError(err);
+    try {
+      const response2 = await axiosInstance.get(`${server_url}/dt/patient/${patientId}`, config);
+      return handleResponse(response2);
+    } catch (_) {
+      return handleError(err);
+    }
   }
 }
 

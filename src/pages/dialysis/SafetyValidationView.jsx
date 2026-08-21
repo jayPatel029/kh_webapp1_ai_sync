@@ -39,25 +39,26 @@ const VALIDATION_STEPS = [
   { id: 7, name: 'Infection Control', status: 'Completed', completedBy: 'Rahul Singh', time: '07:05 AM' },
 ];
 
-const SafetyValidationView = ({ patientId, onBack, onNext, onNavigateStep }) => {
+const SafetyValidationView = ({ patientId, sessionId: propSessionId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const effectiveSessionId = useMemo(() => {
+    if (propSessionId) return propSessionId;
     try {
-      const fromState = location.state?.sessionId || location.state?.session_id;
+      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
       if (fromState) return fromState;
       const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
       if (persisted) return persisted;
     } catch {}
     return patientId || 1;
-  }, [location.state, patientId]);
+  }, [propSessionId, location.state, patientId]);
   const [notes, setNotes] = useState('');
   const [patientData, setPatientData] = useState(null);
   useEffect(() => {
     if (!patientId) return;
     let mounted = true;
-    getPatientDetails(patientId).then((res) => { if (mounted && res?.success) setPatientData(res.data?.data || res.data); }).catch(()=>{});
+    getPatientDetails(patientId).then((res) => { if (mounted && res?.success) setPatientData(res.data?.patient || res.data?.data?.patient || res.data?.data || res.data); }).catch(()=>{});
     return () => { mounted = false; };
   }, [patientId]);
 

@@ -195,21 +195,10 @@ export default function useVitalsMeasurements(patientId) {
       let patientData = null;
 
       if (patientRes?.success) {
-        patientData = patientRes.data?.data || patientRes.data || null;
+        const raw = patientRes.data;
+        patientData = raw?.patient || raw?.data?.patient || raw?.data || raw || {};
       } else {
-        patientData = {
-          id: patientId,
-          patient_code: `P${String(patientId).padStart(5, '0')}`,
-          name: 'Ramesh Kumar',
-          dob: '1967-04-20',
-          gender: 'Male',
-          blood_group: 'O+',
-          dry_weight: '67.0',
-          last_post_weight: '67.0',
-          shift_time: 'Morning (07:00 AM)',
-          bed_number: 'B-02',
-          machine_number: 'HD-01',
-        };
+        patientData = { id: patientId };
       }
 
       setPatientRaw(patientData);

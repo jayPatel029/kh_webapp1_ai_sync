@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button, Card, CardBody, Checkbox, Input, Select, Textarea } from '../../component-library';
+import { createMachineParameters, getMachineParameters } from '../../ApiCalls/dialysisSessionApis';
 
 // Material UI Icons
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -20,27 +21,19 @@ import CompressOutlinedIcon from '@mui/icons-material/CompressOutlined';
 import GrainOutlinedIcon from '@mui/icons-material/GrainOutlined';
 
 const INITIAL_PARAMETERS = {
-  bfr: '300',
-  dfr: '500',
-  ap: '-120',
-  vp: '150',
-  tmp: '380',
-  ufr: '500',
-  uf_removed: '1.60',
-  blood_volume_processed: '32.5',
-  conductivity: '14.0',
-  dialysate_temperature: '36.5',
-  heparin_rate: '1.0',
+  bfr: '',
+  dfr: '',
+  ap: '',
+  vp: '',
+  tmp: '',
+  ufr: '',
+  uf_removed: '',
+  blood_volume_processed: '',
+  conductivity: '',
+  dialysate_temperature: '',
+  heparin_rate: '',
   blood_leak: 'No Leak Detected',
 };
-
-const INITIAL_TRENDS = [
-  { time: '08:15 AM', bfr: 300, ap: -120, vp: 140, tmp: 280 },
-  { time: '08:45 AM', bfr: 300, ap: -125, vp: 145, tmp: 310 },
-  { time: '09:15 AM', bfr: 300, ap: -120, vp: 148, tmp: 340 },
-  { time: '09:45 AM', bfr: 300, ap: -118, vp: 150, tmp: 365 },
-  { time: '10:15 AM', bfr: 300, ap: -120, vp: 150, tmp: 380 },
-];
 
 export default function P303MachineParameters({
   sessionId = 'demo',
@@ -64,13 +57,85 @@ export default function P303MachineParameters({
     airDetector: true,
     bloodLeakDetector: true,
   });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  const activeSessionId = useMemo(() => {
+    const s = String(sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '').trim();
+    if (!s || s === 'preview' || s === 'demo') return null;
+    return s;
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!activeSessionId) return;
+    let mounted = true;
+    getMachineParameters(activeSessionId, '2h').then((res) => {
+      if (!mounted || !res?.success) return;
+      const data = res.data?.data || res.data;
+      if (data && (Array.isArray(data) ? data.length > 0 : data.bfr || data.tmp)) {
+        const latest = Array.isArray(data) ? data[data.length - 1] : data;
+        setParams((prev) => ({
+          ...prev,
+          bfr: String(latest.bfr ?? prev.bfr),
+          dfr: String(latest.dfr ?? prev.dfr),
+          ap: String(latest.ap ?? prev.ap),
+          vp: String(latest.vp ?? prev.vp),
+          tmp: String(latest.tmp ?? prev.tmp),
+          ufr: String(latest.ufr ?? prev.ufr),
+          uf_removed: String(latest.uf_removed ?? prev.uf_removed),
+          blood_volume_processed: String(latest.blood_volume_processed ?? prev.blood_volume_processed),
+          conductivity: String(latest.conductivity ?? prev.conductivity),
+          dialysate_temperature: String(latest.dialysate_temperature ?? prev.dialysate_temperature),
+          heparin_rate: String(latest.heparin_rate ?? prev.heparin_rate),
+          blood_leak: String(latest.blood_leak ?? prev.blood_leak),
+        }));
+      }
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, [activeSessionId]);
+
+  const handleSaveParameters = async () => {
+    setSaveError('');
+    if (!activeSessionId) {
+      if (onSave) onSave();
+      return;
+    }
+    setSaving(true);
+    const payload = {
+      bfr: Number(params.bfr) || 300,
+      dfr: Number(params.dfr) || 500,
+      ap: Number(params.ap) || -120,
+      vp: Number(params.vp) || 150,
+      tmp: Number(params.tmp) || 380,
+      ufr: Number(params.ufr) || 500,
+      uf_removed: Number(params.uf_removed) || 1.60,
+      blood_volume_processed: Number(params.blood_volume_processed) || 32.5,
+      conductivity: Number(params.conductivity) || 14.0,
+      dialysate_temperature: Number(params.dialysate_temperature) || 36.5,
+      heparin_rate: Number(params.heparin_rate) || 1.0,
+      blood_leak: params.blood_leak || 'No Leak Detected',
+      notes: notes || '',
+      recorded_at: new Date().toISOString(),
+    };
+    const res = await createMachineParameters(activeSessionId, payload);
+    setSaving(false);
+    if (!res.success) {
+      setSaveError(res.data?.message || res.message || 'Failed to save machine parameters.');
+      return;
+    }
+    if (onSave) onSave();
+  };
 
   // Dynamic Patient Banner Details
-  const patientName = patient.name || patient.patient_name || 'Ramesh Kumar';
-  const pid = patient.pid || patient.patient_id || 'P10023';
-  const ageGender = patient.age && patient.gender ? `${patient.age} Years, ${patient.gender}` : '58 Years, Male';
-  const bloodGroup = patient.bloodGroup || patient.blood_group || 'O+';
-  const dateStr = session.date || '26 May 2025 (Mon)';
+  const p = patient.patient || patient;
+  const patientName = p.name || p.patient_name || (p.id ? `Patient #${p.id}` : '—');
+  const pid = p.patient_code || p.patientCode || p.pid || p.patient_id || (p.id ? `P${p.id}` : '—');
+  const rawGender = p.gender || p.sex;
+  const gender = rawGender === 'F' ? 'Female' : rawGender === 'M' ? 'Male' : (rawGender || '—');
+  const ageVal = p.age ? String(p.age) : '—';
+  const ageGender = ageVal !== '—' && gender !== '—' ? `${ageVal} Years, ${gender}` : (ageVal !== '—' ? `${ageVal} Years` : gender);
+  const bloodGroup = p.bloodGroup || p.blood_group || '—';
+  const dateStr = session.date || (session.created_at ? new Date(session.created_at).toLocaleDateString() : '—');
   const shiftStr = session.shift || 'Morning (07:00 AM)';
   const bedStr = session.bed || patient.bed || 'B-02';
   const machineModel = session.machine || patient.machine || 'Fresenius 4008S';
@@ -806,6 +871,22 @@ export default function P303MachineParameters({
               </a>
             </CardBody>
           </Card>
+        </div>
+      </div>
+
+      {/* Bottom Actions Bar */}
+      <div className="during-form-actions" style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Button variant="secondary" onClick={onBack}>
+          ← Back
+        </Button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {saveError && <span style={{ color: '#ef4444', fontSize: '12px' }}>{saveError}</span>}
+          <Button variant="secondary" onClick={onSaveDraft}>
+            Save Draft
+          </Button>
+          <Button variant="primary" isLoading={saving} onClick={handleSaveParameters}>
+            {saving ? 'Saving…' : 'Save & Continue →'}
+          </Button>
         </div>
       </div>
     </div>

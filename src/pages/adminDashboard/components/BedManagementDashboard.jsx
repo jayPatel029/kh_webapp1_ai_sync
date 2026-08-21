@@ -1033,11 +1033,22 @@ export default function BedManagementDashboard(props) {
         );
 
         if (result.success) {
+          const sessionData = result.data?.data || result.data || {};
+          const assignedSessionId = sessionData?.dialysis_session_id || sessionData?.session_id || sessionData?.dialysisSessionId || sessionData?.sessionId || result.data?.dialysis_session_id || result.data?.session_id;
+          if (assignedSessionId) {
+            try {
+              localStorage.setItem('lastDialysisSessionId', String(assignedSessionId));
+              sessionStorage.setItem('lastDialysisSessionId', String(assignedSessionId));
+            } catch (_) {}
+          }
           setIsAssignmentModalOpen(false);
           setDialysisPatientData({
             patient_id: patientData.patient_id,
             patient_name: patientData.patient_name,
             appointment_id: patientData.appointment_id,
+            dialysis_session_id: assignedSessionId,
+            session_id: assignedSessionId,
+            sessionId: assignedSessionId,
           });
           setDialysisBedData(targetBed);
           setIsDialysisModalOpen(true);
@@ -1092,11 +1103,22 @@ export default function BedManagementDashboard(props) {
           assignmentData.notes
         );
         if (result?.success) {
+          const sessionData = result.data?.data || result.data || {};
+          const assignedSessionId = sessionData?.dialysis_session_id || sessionData?.session_id || sessionData?.dialysisSessionId || sessionData?.sessionId || result.data?.dialysis_session_id || result.data?.session_id;
+          if (assignedSessionId) {
+            try {
+              localStorage.setItem('lastDialysisSessionId', String(assignedSessionId));
+              sessionStorage.setItem('lastDialysisSessionId', String(assignedSessionId));
+            } catch (_) {}
+          }
           setIsAssignmentModalOpen(false);
           setDialysisPatientData({
             patient_id: assignmentData.patient_id,
             patient_name: assignmentData.patient_name,
             appointment_id: assignmentData.appointment_id,
+            dialysis_session_id: assignedSessionId,
+            session_id: assignedSessionId,
+            sessionId: assignedSessionId,
           });
           const bedForModal = selectedBed || { id: assignmentData.bed_id, bed_number: selectedBed?.bed_number || `Bed ${assignmentData.bed_id}` };
           setDialysisBedData(bedForModal);

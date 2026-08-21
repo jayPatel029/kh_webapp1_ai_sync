@@ -50,16 +50,31 @@ export async function getPatientByIdad(patientId) {
   }
 }
 
-export async function getPatientById(patientId) {
+export async function getPatientById(patientId, config = {}) {
   try {
-    // Use the full patient endpoint to fetch complete patient data (name + details)
     const response = await axiosInstance.get(
-      server_url + "/patient" + "/getPatient/" + patientId,
-      { requestDelayMs: 50 }
+      `${server_url}/dt/patients/${patientId}`,
+      { requestDelayMs: 50, ...config }
     );
     return { success: true, data: response.data };
   } catch (error) {
-    return { success: false, error: error?.response?.data?.error || error.message };
+    try {
+      const response2 = await axiosInstance.get(
+        `${server_url}/dt/patient/${patientId}`,
+        { requestDelayMs: 50, ...config }
+      );
+      return { success: true, data: response2.data };
+    } catch (_) {
+      try {
+        const response3 = await axiosInstance.get(
+          `${server_url}/patient/getPatient/${patientId}`,
+          { requestDelayMs: 50, ...config }
+        );
+        return { success: true, data: response3.data };
+      } catch (err3) {
+        return { success: false, error: err3?.response?.data?.error || err3.message };
+      }
+    }
   }
 }
 

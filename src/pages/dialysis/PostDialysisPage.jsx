@@ -26,6 +26,15 @@ import {
   getIntradialyticVitals,
 } from '../../ApiCalls/dialysisSessionApis';
 import P401BloodReturnTermination from './P401BloodReturnTermination';
+import P402VascularAccessHemostasis from './P402VascularAccessHemostasis';
+import P403PostDialysisVitals from './P403PostDialysisVitals';
+import P404TreatmentOutcomeSummary from './P404TreatmentOutcomeSummary';
+import P405MedicationFollowUp from './P405MedicationFollowUp';
+import P406MachineDisinfectionTurnover from './P406MachineDisinfectionTurnover';
+import P407InfectionControlWaste from './P407InfectionControlWaste';
+import P408PatientDischarge from './P408PatientDischarge';
+import P409DocumentationSignOff from './P409DocumentationSignOff';
+import P410SessionComplete from './P410SessionComplete';
 import './postDialysis.css';
 import './duringDialysis.css';
 import './postDialysisOverrides.css';
@@ -112,28 +121,326 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
       getIntradialyticVitals(sessionId)
     ]).then(([sRes, dRes, vRes]) => {
       if (!mounted) return;
+      let fetchedSession = {};
       if (sRes?.success) {
         const sData = sRes.data?.data || sRes.data || {};
         const dData = dRes?.data?.data || dRes?.data || {};
-        setSession({ ...sData, dashboard: dData });
+        fetchedSession = { ...sData, dashboard: dData };
+        setSession(fetchedSession);
       }
       if (vRes?.success) {
         const vData = vRes.data?.data || vRes.data || [];
-        setReadings(Array.isArray(vData) ? vData : vData.readings || []);
+        const readingsArr = Array.isArray(vData) ? vData : vData.readings || [];
+        setReadings(readingsArr);
+        if (readingsArr.length > 0) {
+          const lastV = readingsArr[readingsArr.length - 1];
+          setData((prev) => ({
+            ...prev,
+            systolic: prev.systolic || lastV.systolic || lastV.bp_sys || '',
+            diastolic: prev.diastolic || lastV.diastolic || lastV.bp_dia || '',
+            pulse: prev.pulse || lastV.pulse || lastV.heart_rate || '',
+            spo2: prev.spo2 || lastV.spo2 || '',
+            rr: prev.rr || lastV.rr || lastV.respiratory_rate || '',
+          }));
+        }
+      }
+      if (fetchedSession && Object.keys(fetchedSession).length > 0) {
+        setData((prev) => ({
+          ...prev,
+          access: prev.access || fetchedSession.access_type || fetchedSession.access || '',
+          preWeight: prev.preWeight || fetchedSession.pre_weight || fetchedSession.preWeight || '',
+          postWeight: prev.postWeight || fetchedSession.post_weight || fetchedSession.postWeight || '',
+          totalUfRemoved: prev.totalUfRemoved || fetchedSession.uf_removed || fetchedSession.totalUfRemoved || '',
+          treatmentDuration: prev.treatmentDuration || fetchedSession.duration || fetchedSession.treatmentDuration || '',
+          started_at: prev.started_at || fetchedSession.started_at || fetchedSession.start_time || '',
+          endTime: prev.endTime || fetchedSession.ended_at || fetchedSession.end_time || '',
+          status: prev.status || fetchedSession.status || 'Completed',
+          rinseBackVolume: prev.rinseBackVolume || fetchedSession.rinse_back_volume || '200',
+          bloodVolumeProcessed: prev.bloodVolumeProcessed || fetchedSession.blood_volume_processed || '72',
+          heparinUsed: prev.heparinUsed || fetchedSession.heparin_used || '4000',
+        }));
       }
     }).catch(() => {});
 
-    const read = active === 'P4-04' ? getTreatmentOutcome(sessionId) : active === 'P4-05' ? getSessionMedications(sessionId) : active === 'P4-06' && patient?.machine_id ? getMachineReadinessSummary(patient.machine_id) : active === 'P4-08' ? getDischargeReadiness(sessionId) : active === 'P4-10' ? getCompleteSummary(sessionId) : null;
+    const read = active === 'P4-04' ? getTreatmentOutcome(sessionId) : active === 'P4-05' ? getSessionMedications(sessionId) : active === 'P4-06' && (patient?.machine_id || session?.machine_id) ? getMachineReadinessSummary(patient?.machine_id || session?.machine_id || 'machine-01') : active === 'P4-08' ? getDischargeReadiness(sessionId) : active === 'P4-10' ? getCompleteSummary(sessionId) : null;
     if (!read) return () => { mounted = false; };
-    read.then((result) => { if (mounted && !result.success) setApiError(result.data?.message || 'Unable to load this Post-Session record.'); });
+    read.then((result) => {
+      if (mounted) {
+        if (!result.success) {
+          setApiError(result.data?.message || 'Unable to load this Post-Session record.');
+        } else if (result.data) {
+          const apiData = result.data.data || result.data;
+          if (apiData && typeof apiData === 'object') {
+            setData((prev) => ({ ...prev, ...apiData }));
+          }
+        }
+      }
+    });
     return () => { mounted = false; };
-  }, [active, patient?.machine_id, sessionId]);
+  }, [active, patient?.machine_id, session?.machine_id, sessionId]);
 
-  const persistCurrent = async () => { const payload = { ...data, session_id: sessionId }; if (active === 'P4-01') return terminateSession(sessionId, payload); if (active === 'P4-02') return saveHemostasis(sessionId, payload); if (active === 'P4-03') return savePostDialysisVitals(sessionId, payload); if (active === 'P4-04') return saveTreatmentOutcome(sessionId, payload); if (active === 'P4-05') return saveFollowUp(sessionId, payload); if (active === 'P4-06') return saveMachineCleaning(patient?.machine_id, { ...payload, session_id: sessionId }); if (active === 'P4-07') return saveInfectionControlPost(sessionId, payload); if (active === 'P4-08') return saveDischarge(sessionId, payload); if (active === 'P4-09') return saveSessionDocumentation(sessionId, payload); return { success: true };
+  const persistCurrent = async () => {
+    const payload = { ...data, session_id: sessionId };
+    if (active === 'P4-01') return terminateSession(sessionId, payload);
+    if (active === 'P4-02') return saveHemostasis(sessionId, payload);
+    if (active === 'P4-03') return savePostDialysisVitals(sessionId, payload);
+    if (active === 'P4-04') return saveTreatmentOutcome(sessionId, payload);
+    if (active === 'P4-05') return saveFollowUp(sessionId, payload);
+    if (active === 'P4-06') return saveMachineCleaning(patient?.machine_id || session?.machine_id || 'machine-01', { ...payload, session_id: sessionId });
+    if (active === 'P4-07') return saveInfectionControlPost(sessionId, payload);
+    if (active === 'P4-08') return saveDischarge(sessionId, payload);
+    if (active === 'P4-09') return saveSessionDocumentation(sessionId, payload);
+    if (active === 'P4-10') return closeSession(sessionId, payload);
+    return { success: true };
   };
-  const onCompleted = async () => { if (sessionId === 'demo') { onCompletedProp?.(); return; } const feedback = await savePatientFeedback(sessionId, data); if (!feedback.success) { setApiError(feedback.data?.message || 'Unable to save patient feedback.'); return; } const result = await closeSession(sessionId); if (!result.success) { setApiError(result.data?.message || 'Unable to close the session.'); return; } onCompletedProp ? onCompletedProp(result.data) : navigate('/dialysis/sessions'); };
-  const go = (id) => { try { localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data)); } catch (_) { /* offline storage is optional */ } const next = SCREENS[Math.min(9, SCREENS.findIndex(([screen]) => screen === active) + 1)]?.[0]; if (sessionId !== 'demo' && id === next) { persistCurrent().then((result) => { if (!result.success) { setApiError(result.data?.message || 'Unable to save this Post-Session record.'); return; } setActive(id); if (!embedded) navigate(`/dialysis/post/${sessionId}/${id}`, { replace: true, state: { sessionId, patient } }); }); return; } setActive(id); if (!embedded) navigate(`/dialysis/post/${sessionId}/${id}`, { replace: true, state: { sessionId, patient } }); };
-  const index = SCREENS.findIndex(([id]) => id === active); const enhancedData = { ...data, _update: (p) => setData((c) => ({ ...c, ...p })), _updateFeedback: (p) => setData((c) => ({ ...c, ...p })), _calc: () => {} }; const content = active === 'P4-01' ? <P401BloodReturnTermination data={data} setData={setData} session={session} readings={readings} patient={patient} onSave={() => persistCurrent()} onSaveDraft={() => { try { localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data)); } catch (_) {} }} onBack={() => navigate(`/dialysis/during/${sessionId}/P3-10`)} /> : active === 'P4-02' ? <Hemostasis data={data} setData={setData} /> : active === 'P4-03' ? <Vitals data={data} setData={setData} /> : active === 'P4-04' ? <Outcome data={enhancedData} sessionId={sessionId} /> : active === 'P4-10' ? <Complete data={enhancedData} /> : <Generic screenId={active} data={data} setData={setData} />;
+  const onCompleted = async () => {
+    if (sessionId === 'demo') { onCompletedProp?.(); return; }
+    const feedback = await savePatientFeedback(sessionId, data);
+    if (!feedback.success) { setApiError(feedback.data?.message || 'Unable to save patient feedback.'); return; }
+    const result = await closeSession(sessionId);
+    if (!result.success) { setApiError(result.data?.message || 'Unable to close the session.'); return; }
+    onCompletedProp ? onCompletedProp(result.data) : navigate('/dialysis/sessions');
+  };
+  const go = (id) => {
+    try { localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data)); } catch (_) { /* offline storage is optional */ }
+    const next = SCREENS[Math.min(9, SCREENS.findIndex(([screen]) => screen === active) + 1)]?.[0];
+    if (sessionId !== 'demo' && id === next) {
+      persistCurrent().then((result) => {
+        if (!result.success) { setApiError(result.data?.message || 'Unable to save this Post-Session record.'); return; }
+        setActive(id);
+        if (!embedded) navigate(`/dialysis/post/${sessionId}/${id}`, { replace: true, state: { sessionId, patient } });
+      });
+      return;
+    }
+    setActive(id);
+    if (!embedded) navigate(`/dialysis/post/${sessionId}/${id}`, { replace: true, state: { sessionId, patient } });
+  };
+  const index = SCREENS.findIndex(([id]) => id === active);
   const hasBpSummary = data.systolic !== '' && data.diastolic !== '';
-  return <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}><header className="post-header"><div><span className="post-kicker">Post-Session</span><h1>{active} — {SCREENS[index][1]}</h1><p>Complete the post-treatment workflow safely and close the session.</p></div><div className="post-header-actions"><span>Session active</span><Button size="sm" variant="outline" onClick={() => go(active)}>Save draft</Button></div></header><nav className="during-stepper" aria-label="Post-Session screens">{SCREENS.map(([id, label], step) => <React.Fragment key={id}><button type="button" className={active === id ? 'active' : ''} onClick={() => go(id)} aria-current={active === id ? 'step' : undefined}><span className="during-step-number">{step + 1}</span><span>{label}</span></button>{step < SCREENS.length - 1 && <span className="during-step-line" aria-hidden="true" />}</React.Fragment>)}</nav><PatientBanner patient={patient} /><div className="post-layout"><main className="post-content">{content}<div className="post-footer"><Button type="button" variant="outline" onClick={() => go(SCREENS[Math.max(0, index - 1)][0])}>← Back</Button><Button type="button" variant="outline" onClick={() => go(active)}>Save as draft</Button>{active === 'P4-10' ? <Button type="button" onClick={() => onCompleted ? onCompleted() : navigate('/dialysis/sessions')}>Complete & close session</Button> : <Button type="button" onClick={() => go(SCREENS[Math.min(9, index + 1)][0])}>Save & continue →</Button>}</div></main><aside className="post-rail"><Panel title="Session summary"><div className="post-metric-grid"><Metric label="Post-dialysis BP" value={hasBpSummary ? `${data.systolic}/${data.diastolic}` : '—'} /><Metric label="Post weight" value={data.postWeight ? `${data.postWeight} kg` : '—'} /><Metric label="Readiness" value={data.condition === 'Stable' ? 'Ready' : data.condition ? 'Review' : '—'} /></div></Panel><Panel title="Key reminders"><ul className="post-reminders"><li>Complete every critical safety step.</li><li>Escalate critical findings immediately.</li><li>Save a draft before leaving.</li></ul></Panel></aside></div></div>;
+  if (active === 'P4-01') {
+    return (
+      <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        <P401BloodReturnTermination
+          data={data}
+          setData={setData}
+          session={session}
+          readings={readings}
+          patient={patient}
+          onSave={() => go('P4-02')}
+          onSaveDraft={() => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+            } catch (_) {}
+          }}
+          onBack={() => navigate(`/dialysis/during/${sessionId}/P3-10`)}
+        />
+      </div>
+    );
+  }
+
+  if (active === 'P4-02') {
+    return (
+      <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        <P402VascularAccessHemostasis
+          data={data}
+          setData={setData}
+          session={session}
+          patient={patient}
+          onSave={() => go('P4-03')}
+          onSaveDraft={() => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+            } catch (_) {}
+          }}
+          onBack={() => go('P4-01')}
+        />
+      </div>
+    );
+  }
+
+  if (active === 'P4-03') {
+    return (
+      <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        <P403PostDialysisVitals
+          data={data}
+          setData={setData}
+          session={session}
+          readings={readings}
+          patient={patient}
+          onSave={() => go('P4-04')}
+          onSaveDraft={() => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+            } catch (_) {}
+          }}
+          onBack={() => go('P4-02')}
+        />
+      </div>
+    );
+  }
+
+  if (active === 'P4-04') {
+    return (
+      <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        <P404TreatmentOutcomeSummary
+          data={data}
+          setData={setData}
+          session={session}
+          patient={patient}
+          onSave={() => go('P4-05')}
+          onSaveDraft={() => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+            } catch (_) {}
+          }}
+          onBack={() => go('P4-03')}
+        />
+      </div>
+    );
+  }
+
+  if (active === 'P4-05') {
+    return (
+      <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        <P405MedicationFollowUp
+          data={data}
+          setData={setData}
+          session={session}
+          patient={patient}
+          onSave={() => go('P4-06')}
+          onSaveDraft={() => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+            } catch (_) {}
+          }}
+          onBack={() => go('P4-04')}
+        />
+      </div>
+    );
+  }
+
+  if (active === 'P4-06') {
+    return (
+      <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        <P406MachineDisinfectionTurnover
+          data={data}
+          setData={setData}
+          session={session}
+          patient={patient}
+          onSave={() => go('P4-07')}
+          onSaveDraft={() => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+            } catch (_) {}
+          }}
+          onBack={() => go('P4-05')}
+        />
+      </div>
+    );
+  }
+
+  if (active === 'P4-07') {
+    return (
+      <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        <P407InfectionControlWaste
+          data={data}
+          setData={setData}
+          session={session}
+          patient={patient}
+          onSave={() => go('P4-08')}
+          onSaveDraft={() => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+            } catch (_) {}
+          }}
+          onBack={() => go('P4-06')}
+        />
+      </div>
+    );
+  }
+
+  if (active === 'P4-08') {
+    return (
+      <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        <P408PatientDischarge
+          data={data}
+          setData={setData}
+          session={session}
+          patient={patient}
+          onSave={() => go('P4-09')}
+          onSaveDraft={() => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+            } catch (_) {}
+          }}
+          onBack={() => go('P4-07')}
+        />
+      </div>
+    );
+  }
+
+  if (active === 'P4-09') {
+    return (
+      <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        <P409DocumentationSignOff
+          data={data}
+          setData={setData}
+          session={session}
+          patient={patient}
+          onSave={() => go('P4-10')}
+          onSaveDraft={() => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+            } catch (_) {}
+          }}
+          onBack={() => go('P4-08')}
+        />
+      </div>
+    );
+  }
+
+  if (active === 'P4-10') {
+    return (
+      <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        <P410SessionComplete
+          data={data}
+          setData={setData}
+          session={session}
+          patient={patient}
+          onSave={() => {
+            if (onCompleted) {
+              onCompleted();
+            } else {
+              navigate('/dialysis/sessions');
+            }
+          }}
+          onSaveDraft={() => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+            } catch (_) {}
+          }}
+          onBack={() => go('P4-09')}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+      <P401BloodReturnTermination
+        data={data}
+        setData={setData}
+        session={session}
+        readings={readings}
+        patient={patient}
+        onSave={() => go('P4-02')}
+        onSaveDraft={() => {
+          try {
+            localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+          } catch (_) {}
+        }}
+        onBack={() => navigate(`/dialysis/during/${sessionId}/P3-10`)}
+      />
+    </div>
+  );
 }
