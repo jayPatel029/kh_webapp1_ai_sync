@@ -7,7 +7,7 @@ const AddPatientFormTestPage = () => {
   const demoInitialData = useMemo(
     () => ({
       name: "Demo Patient",
-      aliments: "CKD, Diabetes",
+      aliments: [],
       number: "9876543210",
       dob: "1988-04-12",
       registered_date: "2026-06-21",

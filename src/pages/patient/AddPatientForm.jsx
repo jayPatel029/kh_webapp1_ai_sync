@@ -6,12 +6,15 @@
  * @file src/pages/patient/AddPatientForm.jsx
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes/routeConstants";
 import { AddPatient } from "../../ApiCalls/patientAPis";
+import { getAilments } from "../../ApiCalls/ailmentApis";
+import { getDoctors } from "../../ApiCalls/doctorApis";
 import ThemeProvider from "../../components/ThemeProvider";
 import { Select } from "../../component-library/primitives/Select";
+import { MultiSelect } from "../../component-library/primitives/MultiSelect";
 import { calculateAge } from "../../helpers/utils";
 
 // Component Library
@@ -22,7 +25,6 @@ import {
   FormControl,
   FormLabel,
   Input,
-  Textarea,
   Button,
   Heading,
   Checkbox
@@ -34,12 +36,41 @@ import "../../design-system/styles/index.css";
 import FileUploadWithCamera from "../../components/FileUploadWithCamera";
 import { ABDMStepper } from "../../components/ABDMStepper";
 
+const normalizeInitialAliments = (value) => {
+  if (Array.isArray(value)) return value.map(String);
+  return [];
+};
+
+const isExclusiveDialysisAilment = (name = "") =>
+  /hemo\s*dialysis|peritoneal\s*dialysis/i.test(String(name));
+
+/** Keep at most one of Hemo Dialysis / Peritoneal Dialysis in the selection. */
+const enforceExclusiveDialysisSelection = (selectedIds, previousIds, ailmentOptions) => {
+  const dialysisIds = new Set(
+    ailmentOptions
+      .filter((a) => isExclusiveDialysisAilment(a.name))
+      .map((a) => String(a.id))
+  );
+  if (dialysisIds.size < 2) return selectedIds.map(String);
+
+  const next = selectedIds.map(String);
+  const selectedDialysis = next.filter((id) => dialysisIds.has(id));
+  if (selectedDialysis.length <= 1) return next;
+
+  const prev = (previousIds || []).map(String);
+  const newlyAdded = selectedDialysis.find((id) => !prev.includes(id));
+  const keep = newlyAdded || selectedDialysis[selectedDialysis.length - 1];
+  return next.filter((id) => !dialysisIds.has(id) || id === String(keep));
+};
+
 const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, initialData = {} }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
   const [isAbdmStepperOpen, setIsAbdmStepperOpen] = useState(false);
+  const [ailmentOptions, setAilmentOptions] = useState([]);
+  const [doctorOptions, setDoctorOptions] = useState([]);
   const bloodGroupOptions = [
     { value: "A+", label: "A+" },
     { value: "A-", label: "A-" },
@@ -63,14 +94,14 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
   ];
   const defaultFormData = {
     name: "",
-    aliments: "",
+    aliments: [],
     number: "",
     dob: "",
     profile_photo: null,
     registered_date: new Date().toISOString().split('T')[0],
     program_assigned_to: "",
     medical_team: "",
-    program: "",
+    program: "Basic",
     pushNotificationId: "",
     address: "",
     pincode: "",
@@ -87,7 +118,40 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
   const [formData, setFormData] = useState({
     ...defaultFormData,
     ...initialData,
+    aliments: normalizeInitialAliments(initialData.aliments ?? defaultFormData.aliments),
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [ailmentResult, doctorResult] = await Promise.all([
+        getAilments(),
+        getDoctors(),
+      ]);
+      if (cancelled) return;
+
+      if (ailmentResult.success && Array.isArray(ailmentResult.data?.listOfAilments)) {
+        setAilmentOptions(ailmentResult.data.listOfAilments);
+      } else {
+        console.error("Failed to fetch ailments:", ailmentResult);
+        setAilmentOptions([]);
+      }
+
+      if (doctorResult.success) {
+        const list = doctorResult.data?.data || doctorResult.data || [];
+        const doctorsOnly = (Array.isArray(list) ? list : []).filter(
+          (d) => !d.role || String(d.role).toLowerCase() === "doctor"
+        );
+        setDoctorOptions(doctorsOnly);
+      } else {
+        console.error("Failed to fetch doctors:", doctorResult);
+        setDoctorOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, files, checked } = e.target;
@@ -130,7 +194,17 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
     if (!formData.dob) nextFieldErrors.dob = true;
     if (!formData.number || formData.number.trim() === "") nextFieldErrors.number = true;
     if (!formData.age) nextFieldErrors.age = true;
-    if (!formData.aliments || formData.aliments.trim() === "") nextFieldErrors.aliments = true;
+    if (!Array.isArray(formData.aliments) || formData.aliments.length === 0) nextFieldErrors.aliments = true;
+    if (!formData.medical_team) nextFieldErrors.medical_team = true;
+    const selectedDialysis = ailmentOptions.filter(
+      (a) =>
+        isExclusiveDialysisAilment(a.name) &&
+        formData.aliments.map(String).includes(String(a.id))
+    );
+    if (selectedDialysis.length > 1) {
+      nextFieldErrors.aliments = true;
+      setErrorMsg("Select only one of Hemo Dialysis or Peritoneal Dialysis.");
+    }
     if (!formData.registered_date) nextFieldErrors.registered_date = true;
     if (!formData.blood_group || formData.blood_group.trim() === "") nextFieldErrors.blood_group = true;
     if (!formData.payment_type || formData.payment_type.trim() === "") nextFieldErrors.payment_type = true;
@@ -151,6 +225,20 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
     try {
       const formDataToSend = new FormData();
       for (const key in formData) {
+        if (key === "aliments") {
+          // Backend expects an array of ailment IDs
+          formDataToSend.append(
+            "aliments",
+            JSON.stringify(formData.aliments.map((id) => Number(id)))
+          );
+          continue;
+        }
+        if (key === "program") {
+          const raw = formData.program == null ? "" : String(formData.program).trim();
+          const programValue = !raw || raw.toLowerCase() === "basic" ? "Basic" : raw;
+          formDataToSend.append("program", programValue);
+          continue;
+        }
         if (formData[key] !== null && formData[key] !== "") {
           formDataToSend.append(key, formData[key]);
         }
@@ -321,17 +409,34 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
           <Grid templateColumns="repeat(2, 1fr)" gap={8}>
             <GridItem>
               <FormControl isRequired isInvalid={Boolean(fieldErrors.aliments)}>
-                <FormLabel>Aliments</FormLabel>
-                <Textarea
-                  name="aliments"
+                <FormLabel>Ailments</FormLabel>
+                <MultiSelect
+                  placeholder="Select ailments"
                   value={formData.aliments}
-                  onChange={handleChange}
-                  placeholder="List aliments and conditions"
-                  rows={3}
-                  variant="outline"
                   isInvalid={Boolean(fieldErrors.aliments)}
-                  className="!min-h-[40px] h-[40px]"
-                />
+                  isRequired
+                  onChange={(selectedIds) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      aliments: enforceExclusiveDialysisSelection(
+                        selectedIds,
+                        prev.aliments,
+                        ailmentOptions
+                      ),
+                    }));
+                    setFieldErrors((prev) => ({ ...prev, aliments: false }));
+                    setErrorMsg("");
+                  }}
+                >
+                  {ailmentOptions.map((ailment) => (
+                    <option key={ailment.id} value={String(ailment.id)}>
+                      {ailment.name}
+                    </option>
+                  ))}
+                </MultiSelect>
+                <p style={{ marginTop: "6px", fontSize: "12px", color: "#6b7280" }}>
+                  Hemo Dialysis and Peritoneal Dialysis cannot be selected together.
+                </p>
               </FormControl>
             </GridItem>
             <GridItem >
@@ -349,6 +454,27 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
 
             </GridItem>
 
+            <GridItem>
+              <FormControl isRequired style={{ flex: 1 }} isInvalid={Boolean(fieldErrors.medical_team)}>
+                <FormLabel>Doctor</FormLabel>
+                <Select
+                  name="medical_team"
+                  value={formData.medical_team}
+                  onChange={handleChange}
+                  placeholder="Select doctor"
+                  isInvalid={Boolean(fieldErrors.medical_team)}
+                  isRequired
+                >
+                  {doctorOptions.map((doctor) => (
+                    <option key={doctor.id} value={String(doctor.id)}>
+                      {doctor.name}
+                      {doctor.email ? ` (${doctor.email})` : ""}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </GridItem>
+
             {/* <GridItem>
 
               <FormControl style={{ flex: 1 }}>
@@ -364,21 +490,7 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
 
             </GridItem> */}
 
-            {/* 
-            <GridItem>
-
-              <FormControl style={{ flex: 1 }}>
-                <FormLabel>Medical Team</FormLabel>
-                <Input
-                  name="medical_team"
-                  value={formData.medical_team}
-                  onChange={handleChange}
-                  placeholder="Assigned medical team ID"
-                  variant="outline"
-                />
-              </FormControl>
-
-            </GridItem> */}
+            {/* Medical team text input replaced by Doctor Select above */}
 
             {/* <GridItem>
 
