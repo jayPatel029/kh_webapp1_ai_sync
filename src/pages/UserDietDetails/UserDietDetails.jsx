@@ -139,6 +139,8 @@ const UserDietDetails = () => {
     return <PageSkeleton variant="table" rows={5} />;
   }
 
+  const isDoctor = isRole(role, 'Doctor');
+
   // Prepare columns for UnifiedListTable
   const dietColumns = [
     { key: "date", label: "Date", type: "date", width: "150px" },
@@ -166,7 +168,7 @@ const UserDietDetails = () => {
         )}
       </div>
     ) },
-    { key: "actions", label: "Actions", type: "actions", width: "100px" },
+    ...(!isDoctor ? [{ key: "actions", label: "Actions", type: "actions", width: "100px" }] : []),
   ];
 
   // Transform diet data for table
@@ -192,7 +194,7 @@ const UserDietDetails = () => {
       {/* Upload Section */}
       <Flex justify="between" className={isMobile ? 'mb-3 flex-col gap-3' : 'mb-6'}>
         <RefreshButton pageName={PAGE_CACHE.USER_DIET.name} />
-        {!isRole(role, 'Doctor') && (
+        {!isDoctor && (
           <ButtonPrimitive
             variant="solid"
             onClick={openModal}
@@ -213,7 +215,7 @@ const UserDietDetails = () => {
         cardSubtitleKey="date"
         cardFieldKeys={["desc"]}
         emptyMessage="No diet details found"
-        actionButtons={true}
+        actionButtons={!isDoctor}
       />
 
       {/* Modals */}

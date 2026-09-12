@@ -9,11 +9,12 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { getUserByEmail } from "../../ApiCalls/authapis";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { useDispatch } from "react-redux";
-import { setPermissions } from "../../redux/permissionSlice";
+import { setPermissions, clearPermissions } from "../../redux/permissionSlice";
 import { clearAllCaches } from "../../cache";
 import { server_url } from "../../constants/constants";
 import { parseJwt } from "../../helpers/utils";
 import { notifySuccess, notifyInfo, notifyError } from "../../helpers/notify";
+import { resetLocalSession } from "../../helpers/authSession";
 import SendIcon from "@mui/icons-material/Send";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import logo from "../../assets/kifayti_logo.png";
@@ -100,6 +101,9 @@ function DoctorLogin() {
       if (res.status === "true") {
         setErrMsg("");
         clearAllCaches();
+        resetLocalSession();
+        dispatch(clearPermissions());
+
         const decoded = parseJwt(res.token);
         const loginEmail = decoded?.email || email;
 

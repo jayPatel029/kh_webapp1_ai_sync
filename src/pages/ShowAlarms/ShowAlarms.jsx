@@ -29,7 +29,7 @@ import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
 import { deleteAlarm, getAlarmByPatientId } from "../../ApiCalls/alarmsApis";
 import { approveOrDisapprovePrescription } from "../../ApiCalls/alertsApis";
 import { getPatientGetPatientByid } from "../../ApiCalls/remainingApis";
-import { isDoctorRole } from "../../ApiCalls/authapis";
+import { isRole } from "../../helpers/roleUtils";
 
 // Icons
 import { BsTrash, BsPencilSquare } from "react-icons/bs";
@@ -53,7 +53,6 @@ const ShowAlarms = () => {
   const [openAlarmId, setOpenAlarmId] = useState(null);
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [dosesData, setDosesData] = useState(null);
-  const [isDoctor, setIsDoctor] = useState(false);
   const [userData, setUserData] = useState({});
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
@@ -62,6 +61,8 @@ const ShowAlarms = () => {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
+  // Sync from Redux — avoids Add Alarm flashing then vanishing while /roles/isDoctor loads
+  const isDoctor = isRole(role, "Doctor");
   const { isMobile } = useIsMobile();
   const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.SHOW_ALARMS);
 
@@ -156,16 +157,8 @@ const ShowAlarms = () => {
   };
 
   useEffect(() => {
-    const isDoctorfunc = async () => {
-      const response = await isDoctorRole();
-      if (response.success) {
-        setIsDoctor(response.data.data);
-      }
-    };
-
     fetchData();
     fetchPatientData();
-    isDoctorfunc();
   }, [refreshKey]);
 
   useEffect(() => {
@@ -270,7 +263,11 @@ const ShowAlarms = () => {
         data={transformedAlarmData}
         onEdit={(row) => {
           const originalAlarm = userAlarmData.find((a) => a.id === row.id);
-          openEditModal(originalAlarm);
+          if (isDoctor) {
+            openDoctorModal(originalAlarm);
+          } else {
+            openEditModal(originalAlarm);
+          }
         }}
         onDelete={(row) => handleDeleteAlarm(row.id)}
         displayMode="auto"

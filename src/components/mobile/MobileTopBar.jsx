@@ -7,22 +7,31 @@
  */
 
 import React from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Box } from '../../component-library/layout/Layout';
 import { IconButton } from '../../component-library/primitives/Button';
 import Account from '../../assets/Account.svg';
 import { PowerSettingsNew } from '@mui/icons-material';
 import kifayti_logo from '../../assets/kifayti_logo.png';
+import { clearAllCaches } from '../../cache';
+import { clearAuthSession } from '../../helpers/authSession';
+import { clearPermissions } from '../../redux/permissionSlice';
+import { isRole } from '../../helpers/roleUtils';
+import { ROUTES } from '../../routes/routeConstants';
 
 const MobileTopBar = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const roleName = useSelector((state) => state.permission?.role_name);
   const user = useSelector((state) => state.auth?.user);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("firstname");
-    navigate("/doctorLogin");
+    const goDoctorLogin = isRole(roleName, 'Doctor');
+    clearAllCaches();
+    clearAuthSession();
+    dispatch(clearPermissions());
+    navigate(goDoctorLogin ? ROUTES.DOCTOR_LOGIN : ROUTES.LOGIN);
   };
 
   return (

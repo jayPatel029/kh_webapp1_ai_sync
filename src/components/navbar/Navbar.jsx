@@ -7,6 +7,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import dummyadmin from "../../assets/dummyadmin.png";
 import kifayti_logo from "../../assets/kifayti_logo.png";
 import { Flex, Button, IconButton, Box, Card,  Text } from "../../component-library";
@@ -14,10 +15,17 @@ import '../../design-system/styles/index.css';
 import { ArrowBack } from "@mui/icons-material";
 import { useIsMobile } from "../mobile/useIsMobile";
 import MobileTopBar from "../mobile/MobileTopBar";
+import { clearAllCaches } from "../../cache";
+import { clearAuthSession, getHomePathForRole } from "../../helpers/authSession";
+import { clearPermissions } from "../../redux/permissionSlice";
+import { isRole } from "../../helpers/roleUtils";
+import { ROUTES } from "../../routes/routeConstants";
 
 const Navbar = () => {
-    const role = localStorage.getItem("role");
-    const isDoctor = localStorage.getItem("isDoctor");
+    const dispatch = useDispatch();
+    const roleName = useSelector((state) => state.permission?.role_name);
+    const role = roleName || localStorage.getItem("role");
+    const isDoctor = isRole(role, "Doctor");
     const [uname, setUname] = useState("");
     const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
     const [dropdownVisible, setDDVisible] = useState(false);
@@ -38,9 +46,10 @@ const Navbar = () => {
     }, [localStorage.getItem('sidebarCollapsed')]);
 
     const logout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("firstname");
-        navigate("/doctorLogin");
+        clearAllCaches();
+        clearAuthSession();
+        dispatch(clearPermissions());
+        navigate(isDoctor ? ROUTES.DOCTOR_LOGIN : ROUTES.LOGIN);
     };
 
     useEffect(() => {
@@ -81,10 +90,10 @@ const Navbar = () => {
         <>
             <Box className="sticky top-0 left-0 right-0  pr-8 pt-4  z-[50]">
                 <Flex align="center" justify="between" className="bg-white h-14 navbar-container pl-4 ">
-                    <Flex align="center" className={isDoctor && role != "Admin" ? "pl-6" : "pl-2"} gap={4}>
+                    <Flex align="center" className={isDoctor ? "pl-6" : "pl-2"} gap={4}>
                         {/* Left: logo + app name (full left) */}
-                        <Link to={isDoctor && role != "Admin" ? "/dashboard/doctor" : "/dashboard"} className="flex items-center gap-3">
-                            {isDoctor && role != "Admin" ? <img src={kifayti_logo} alt="Kifayti logo" style={{ width: 36, height: 36, objectFit: 'contain' }} /> : null}
+                        <Link to={getHomePathForRole(role)} className="flex items-center gap-3">
+                            {isDoctor ? <img src={kifayti_logo} alt="Kifayti logo" style={{ width: 36, height: 36, objectFit: 'contain' }} /> : null}
                             {/* <img src={kifayti_logo} alt="Kifayti logo" style={{ width: 36, height: 36, objectFit: 'contain' }} /> */}
                             <span className="text-lg font-semibold text-[#004c6d]">Welcome to Kifayti Health</span>
                         </Link>

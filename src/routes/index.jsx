@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from "react";
 import { Navigate, useParams, useRoutes } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import MainLayout from "../layouts/MainLayout";
 import ProtectedRoute from "../helpers/ProtectedRoute";
 import { ROUTES, ROUTE_NAMES } from "./routeConstants";
@@ -11,6 +11,9 @@ import { getSettingsRoutes } from "./settingsRoutes";
 import { getReadingRoutes } from "./readingRoutes";
 import { getDialysisRoutes } from "./dialysisRoutes";
 import { isRole } from "../helpers/roleUtils";
+import { clearAuthSession, getHomePathForRole } from "../helpers/authSession";
+import { clearAllCaches } from "../cache";
+import { clearPermissions } from "../redux/permissionSlice";
 
 const Login = lazy(() => import("../pages/login/Login"));
 const DoctorLogin = lazy(() => import("../pages/doctorLogin/DoctorLogin"));
@@ -37,41 +40,46 @@ const RouteFallback = () => <div className="p-6">Loading...</div>;
 
 const withSuspense = (node) => <Suspense fallback={<RouteFallback />}>{node}</Suspense>;
 
+/**
+ * Role checks must use Redux role_name only.
+ * Never trust localStorage.isDoctor / role — those survive incomplete logouts and
+ * cause admin sessions to be sent to /dashboard/doctor (blank RoleGuard loop).
+ */
 const RoleGuard = ({ children, allowedRoles }) => {
   const roleName = useSelector((state) => state.permission?.role_name);
-  const storedRole = typeof window !== "undefined" ? localStorage.getItem("role") : "";
-  const storedIsDoctor =
-    typeof window !== "undefined" && localStorage.getItem("isDoctor") === "true";
 
   if (!allowedRoles?.length) {
     return children;
   }
 
-  // Case-insensitive match — exact includes("Doctor") fails when role_name is "doctor"
-  if (isRole(roleName, allowedRoles) || isRole(storedRole, allowedRoles)) {
+  if (isRole(roleName, allowedRoles)) {
     return children;
   }
 
-  // Avoid Navigate-to-self blank screen when already on /dashboard
-  if (isRole(roleName, "Doctor") || isRole(storedRole, "Doctor") || storedIsDoctor) {
-    return <Navigate to={ROUTES.DOCTOR_DASHBOARD} replace />;
-  }
-
-  return <Navigate to={ROUTES.DASHBOARD} replace />;
+  return <Navigate to={getHomePathForRole(roleName)} replace />;
 };
 
 /** Send doctors to the doctor dashboard; everyone else to AdminDashboard. */
 const DashboardEntry = () => {
   const roleName = useSelector((state) => state.permission?.role_name);
-  const storedRole = typeof window !== "undefined" ? localStorage.getItem("role") : "";
-  const storedIsDoctor =
-    typeof window !== "undefined" && localStorage.getItem("isDoctor") === "true";
 
-  if (isRole(roleName, "Doctor") || isRole(storedRole, "Doctor") || storedIsDoctor) {
+  if (isRole(roleName, "Doctor")) {
     return <Navigate to={ROUTES.DOCTOR_DASHBOARD} replace />;
   }
 
   return <AdminDashboard />;
+};
+
+const LogoutRedirect = () => {
+  const dispatch = useDispatch();
+
+  React.useEffect(() => {
+    clearAllCaches();
+    clearAuthSession();
+    dispatch(clearPermissions());
+  }, [dispatch]);
+
+  return <Navigate to={ROUTES.LOGIN} replace />;
 };
 
 const ProtectedElement = ({ children, routeName, allowedRoles }) => {
@@ -220,7 +228,7 @@ const getLegacyRedirectRoutes = () => [
   { path: "doctorDashboard", element: <Navigate to={ROUTES.DOCTOR_DASHBOARD} replace /> },
   { path: "labReports", element: <Navigate to={ROUTES.READINGS_DAILY} replace /> },
   // { path: "logout", element: <Navigate to={ROUTES.DOCTOR_LOGIN} replace /> },
-  { path: "logout", element: <Navigate to={ROUTES.DASHBOARD} replace /> },
+  { path: "logout", element: <LogoutRedirect /> },
 ];
 
 function AppRoutes() {

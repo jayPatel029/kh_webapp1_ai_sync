@@ -8,13 +8,14 @@ export const permissionSlice = createSlice({
     setPermissions: (state, action) => {
       Object.assign(state, buildPermissionState(action.payload));
     },
+    clearPermissions: () => getInitialPermissionState(),
     setIndividualPermission: (state, action) => {
       state[action.role] += action.payload;
     },
   },
 });
 
-export const { setPermissions, setIndividualPermission } =
+export const { setPermissions, clearPermissions, setIndividualPermission } =
   permissionSlice.actions;
 
 export default permissionSlice.reducer;

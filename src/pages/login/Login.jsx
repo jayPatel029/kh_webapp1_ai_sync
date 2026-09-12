@@ -4,9 +4,11 @@ import { BsFillUnlockFill } from "react-icons/bs";
 import { loginUser, getUserByEmail, identifyRole } from "../../ApiCalls/authapis";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { setPermissions } from "../../redux/permissionSlice";
+import { setPermissions, clearPermissions } from "../../redux/permissionSlice";
 import { clearAllCaches } from "../../cache";
 import { parseJwt } from "../../helpers/utils";
+import { resetLocalSession, getHomePathForRole } from "../../helpers/authSession";
+import { isRole } from "../../helpers/roleUtils";
 
 // Design primitives
 import { Button } from "../../component-library/primitives/Button";
@@ -52,19 +54,23 @@ function Login() {
       if (response.success) {
         setErrMsg([]);
         clearAllCaches();
+        resetLocalSession();
+        dispatch(clearPermissions());
 
         const decoded = parseJwt(response?.data?.token);
+        const roleName = response?.data?.user?.role || decoded?.role || "";
         if (process.env.NODE_ENV !== "production") {
           console.debug("[auth] login token issued", {
             email: decoded?.email || email,
-            role: decoded?.role || null,
+            role: roleName || null,
             exp: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null,
           });
         }
         localStorage.setItem("firstname", decoded?.firstname || response?.data?.user?.firstname || "");
         localStorage.setItem("email", decoded?.email || email);
         localStorage.setItem("token", response?.data?.token);
-        localStorage.setItem("role", response?.data?.user?.role || decoded?.role || "");
+        localStorage.setItem("role", roleName);
+        localStorage.setItem("isDoctor", isRole(roleName, "Doctor") ? "true" : "false");
         const u = response?.data?.user || {};
         if (u.organization_id != null) localStorage.setItem("organization_id", String(u.organization_id));
         if (u.clinic_id != null) localStorage.setItem("clinic_id", String(u.clinic_id));
@@ -73,11 +79,16 @@ function Login() {
           const role = await identifyRole();
           if (role.success) {
             dispatch(setPermissions(role.data.data));
+            const resolvedRole = role.data?.data?.role_name || roleName;
+            localStorage.setItem("role", resolvedRole);
+            localStorage.setItem("isDoctor", isRole(resolvedRole, "Doctor") ? "true" : "false");
+            theNavigate(getHomePathForRole(resolvedRole));
+            return;
           }
         } catch (error) {
           console.error(error.message);
         }
-        theNavigate("/");
+        theNavigate(getHomePathForRole(roleName));
       } else {
         setErrMsg(["Login Error: " + response.data.message]);
       }
