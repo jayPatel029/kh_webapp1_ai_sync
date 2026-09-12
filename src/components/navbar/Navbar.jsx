@@ -83,7 +83,7 @@ const Navbar = () => {
                 <Flex align="center" justify="between" className="bg-white h-14 navbar-container pl-4 ">
                     <Flex align="center" className={isDoctor && role != "Admin" ? "pl-6" : "pl-2"} gap={4}>
                         {/* Left: logo + app name (full left) */}
-                        <Link to="/dashboard" className="flex items-center gap-3">
+                        <Link to={isDoctor && role != "Admin" ? "/dashboard/doctor" : "/dashboard"} className="flex items-center gap-3">
                             {isDoctor && role != "Admin" ? <img src={kifayti_logo} alt="Kifayti logo" style={{ width: 36, height: 36, objectFit: 'contain' }} /> : null}
                             {/* <img src={kifayti_logo} alt="Kifayti logo" style={{ width: 36, height: 36, objectFit: 'contain' }} /> */}
                             <span className="text-lg font-semibold text-[#004c6d]">Welcome to Kifayti Health</span>

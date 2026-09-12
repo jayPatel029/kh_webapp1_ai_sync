@@ -10,6 +10,7 @@ import { getMedicalRoutes } from "./medicalRoutes";
 import { getSettingsRoutes } from "./settingsRoutes";
 import { getReadingRoutes } from "./readingRoutes";
 import { getDialysisRoutes } from "./dialysisRoutes";
+import { isRole } from "../helpers/roleUtils";
 
 const Login = lazy(() => import("../pages/login/Login"));
 const DoctorLogin = lazy(() => import("../pages/doctorLogin/DoctorLogin"));
@@ -38,16 +39,39 @@ const withSuspense = (node) => <Suspense fallback={<RouteFallback />}>{node}</Su
 
 const RoleGuard = ({ children, allowedRoles }) => {
   const roleName = useSelector((state) => state.permission?.role_name);
+  const storedRole = typeof window !== "undefined" ? localStorage.getItem("role") : "";
+  const storedIsDoctor =
+    typeof window !== "undefined" && localStorage.getItem("isDoctor") === "true";
 
   if (!allowedRoles?.length) {
     return children;
   }
 
-  if (allowedRoles.includes(roleName)) {
+  // Case-insensitive match — exact includes("Doctor") fails when role_name is "doctor"
+  if (isRole(roleName, allowedRoles) || isRole(storedRole, allowedRoles)) {
     return children;
   }
 
+  // Avoid Navigate-to-self blank screen when already on /dashboard
+  if (isRole(roleName, "Doctor") || isRole(storedRole, "Doctor") || storedIsDoctor) {
+    return <Navigate to={ROUTES.DOCTOR_DASHBOARD} replace />;
+  }
+
   return <Navigate to={ROUTES.DASHBOARD} replace />;
+};
+
+/** Send doctors to the doctor dashboard; everyone else to AdminDashboard. */
+const DashboardEntry = () => {
+  const roleName = useSelector((state) => state.permission?.role_name);
+  const storedRole = typeof window !== "undefined" ? localStorage.getItem("role") : "";
+  const storedIsDoctor =
+    typeof window !== "undefined" && localStorage.getItem("isDoctor") === "true";
+
+  if (isRole(roleName, "Doctor") || isRole(storedRole, "Doctor") || storedIsDoctor) {
+    return <Navigate to={ROUTES.DOCTOR_DASHBOARD} replace />;
+  }
+
+  return <AdminDashboard />;
 };
 
 const ProtectedElement = ({ children, routeName, allowedRoles }) => {
@@ -236,7 +260,7 @@ function AppRoutes() {
             {
               index: true,
               element: guard(
-                <AdminDashboard />,
+                <DashboardEntry />,
                 ROUTE_NAMES.DASHBOARD,
                 ["Admin", "PSadmin", "Doctor", "Dialysis Technician", "Medical Staff"]
               ),

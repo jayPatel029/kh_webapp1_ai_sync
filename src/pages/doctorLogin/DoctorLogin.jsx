@@ -101,16 +101,39 @@ function DoctorLogin() {
         setErrMsg("");
         clearAllCaches();
         const decoded = parseJwt(res.token);
+        const loginEmail = decoded?.email || email;
+
+        // OTP JWT is email-only — load profile for name/role (same as main branch)
+        let firstname = decoded?.firstname || "";
+        let roleName = "Doctor";
+        try {
+          const userResponse = await getUserByEmail(loginEmail);
+          const profile = userResponse?.success
+            ? (userResponse.data?.data?.[0] || userResponse.data?.[0] || userResponse.data?.data || null)
+            : null;
+          if (profile) {
+            firstname = profile.firstname || profile.name || firstname;
+            roleName = profile.role || profile.role_name || roleName;
+          }
+        } catch (profileErr) {
+          console.warn("[auth] could not load doctor profile after OTP", profileErr);
+        }
+
         if (process.env.NODE_ENV !== "production") {
           console.debug("[auth] OTP login token issued", {
-            email: decoded?.email || email,
-            firstname: decoded?.firstname || null,
+            email: loginEmail,
+            firstname: firstname || null,
+            role: roleName,
             exp: decoded?.exp ? new Date(decoded.exp * 1000).toISOString() : null,
           });
         }
-        localStorage.setItem("firstname", decoded?.firstname || "");
-        localStorage.setItem("email", decoded?.email || email);
+
+        localStorage.setItem("firstname", firstname);
+        localStorage.setItem("name", firstname);
+        localStorage.setItem("email", loginEmail);
         localStorage.setItem("token", res.token);
+        localStorage.setItem("role", roleName);
+        localStorage.setItem("isDoctor", "true");
 
         const roleResult = await identifyRole();
         if (roleResult.success) {
@@ -119,8 +142,8 @@ function DoctorLogin() {
           console.error(roleResult.error);
         }
 
-        notifySuccess(`Welcome back, ${decoded?.firstname || "User"}!`);
-        theNavigate("/");
+        notifySuccess(`Welcome back, ${firstname || "Doctor"}!`);
+        theNavigate("/dashboard/doctor");
       } else {
         setErrMsg("Invalid OTP. Please try again.");
       }
@@ -166,7 +189,7 @@ function DoctorLogin() {
   return (
     <>
       {localStorage.getItem("token") ? (
-        <Navigate to="/" replace />
+        <Navigate to="/dashboard/doctor" replace />
       ) : (
         <div className="min-h-screen flex items-center justify-center bg-info px-6 py-12">
 

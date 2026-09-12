@@ -36,9 +36,15 @@ function UniqueUserProgramSelection() {
     const getProgramChangeAlert = async () => {
       try {
         const response = await getAlertByCategory();
-        setRequest(response);
+        const alerts = Array.isArray(response)
+          ? response
+          : Array.isArray(response?.data)
+            ? response.data
+            : [];
+        setRequest(alerts);
       } catch (error) {
         console.log(error);
+        setRequest([]);
       }
     };
     getProgramChangeAlert();
@@ -60,10 +66,11 @@ function UniqueUserProgramSelection() {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return "";
+    if (!dateString) return "-";
     const dateObject = new Date(dateString);
+    if (Number.isNaN(dateObject.getTime())) return "-";
     const day = String(dateObject.getDate()).padStart(2, "0");
-    const month = String(dateObject.getMonth() + 1).padStart(2, "0"); // Months are zero-based
+    const month = String(dateObject.getMonth() + 1).padStart(2, "0");
     const year = dateObject.getFullYear();
     return `${day}-${month}-${year}`;
   };
@@ -119,10 +126,10 @@ function UniqueUserProgramSelection() {
                     <td className="py-2 px-4">{patient.number}</td>
                     <td className="py-2 px-8">{formatDate(patient.registered_date)}</td>
                     <td className="py-2 px-4">
-                      {request?.filter(alert => alert.patientId === patient.id).map(alert => (
+                      {request?.filter(alert => String(alert.patientId) === String(patient.id)).map(alert => (
                         <div key={alert.id}>
                           <p className="font-bold">{alert.programName}</p>
-                          <p>Date: {new Date(alert.date).toLocaleDateString()}</p>
+                          <p>Date: {formatDate(alert.date)}</p>
                           <button
                             className="bg-green-800 p-2 rounded-sm text-white"
                             onClick={() => handleSubmit(alert.programName, patient.id)}>

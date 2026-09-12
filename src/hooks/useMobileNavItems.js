@@ -27,11 +27,12 @@ export const useMobileNavItems = () => {
 
         // Dashboard
         if (hasDashboardAccess) {
+            const isDoctor = isRole(role, 'Doctor');
             items.push({
-                id: 'admin-dashboard',
-                label: 'Admin Dashboard',
+                id: isDoctor ? 'doctor-dashboard' : 'admin-dashboard',
+                label: isDoctor ? 'Doctor Dashboard' : 'Admin Dashboard',
                 mobileLabel: 'Dashboard',
-                href: ROUTES.DASHBOARD,
+                href: isDoctor ? ROUTES.DOCTOR_DASHBOARD : ROUTES.DASHBOARD,
                 icon: HomeIcon,
                 activeicon: HomeIconActive,
                 showInMobileBar: true,

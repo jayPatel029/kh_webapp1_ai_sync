@@ -287,7 +287,10 @@ export function useDoctorDashboardData() {
       setLoading(true);
       setError(null);
       const email = localStorage.getItem('email');
-      const name = localStorage.getItem('name') || 'Doctor';
+      const name =
+        localStorage.getItem('firstname') ||
+        localStorage.getItem('name') ||
+        'Doctor';
 
       // Get doctor ID
       const idRes = await getDoctorIdByEmail({ email });

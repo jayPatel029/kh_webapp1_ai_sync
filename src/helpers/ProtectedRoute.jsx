@@ -58,7 +58,7 @@ const ProtectedRoute = ({ routeName, children }) => {
   }
 
   if (isRoleLoading && !role?.isLoaded) {
-    return null;
+    return <div className="p-6 text-gray-500">Loading...</div>;
   }
 
   if (!canAccessRoute(role, routeName)) {
