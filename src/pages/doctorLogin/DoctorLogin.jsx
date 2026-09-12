@@ -103,6 +103,10 @@ function DoctorLogin() {
         const decoded = parseJwt(res.token);
         const loginEmail = decoded?.email || email;
 
+        // Token first so subsequent API calls (profile / identifyRole) authenticate
+        localStorage.setItem("token", res.token);
+        localStorage.setItem("email", loginEmail);
+
         // OTP JWT is email-only — load profile for name/role (same as main branch)
         let firstname = decoded?.firstname || "";
         let roleName = "Doctor";
@@ -130,8 +134,6 @@ function DoctorLogin() {
 
         localStorage.setItem("firstname", firstname);
         localStorage.setItem("name", firstname);
-        localStorage.setItem("email", loginEmail);
-        localStorage.setItem("token", res.token);
         localStorage.setItem("role", roleName);
         localStorage.setItem("isDoctor", "true");
 
