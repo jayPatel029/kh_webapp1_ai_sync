@@ -26,6 +26,7 @@ const AlarmModal = ({ closeModal, pid, patient, mutate, onSuccess }) => {
       closeModal={closeModal}
       isEdit={false}
       pid={pid}
+      patient={patient}
       mutate={mutate}
       onSuccess={onSuccess}
       title="Add Alarm"

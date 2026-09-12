@@ -9,7 +9,7 @@ import React from "react";
 import BaseAlarmModal from "./BaseAlarmModal";
 import { updateAlarm } from "../../ApiCalls/alarmsApis";
 
-const EditAlarmModal = ({ closeModal, alarmData, pid, dosesData, mutate, onSuccess }) => {
+const EditAlarmModal = ({ closeModal, alarmData, pid, patient, dosesData, mutate, onSuccess }) => {
   const handleSubmit = async (payload) => {
     const updateRunner = () => updateAlarm(alarmData.id, payload);
     const res = mutate
@@ -27,6 +27,7 @@ const EditAlarmModal = ({ closeModal, alarmData, pid, dosesData, mutate, onSucce
       isEdit={true}
       alarmData={alarmData}
       pid={pid}
+      patient={patient}
       dosesData={dosesData}
       mutate={mutate}
       onSuccess={onSuccess}

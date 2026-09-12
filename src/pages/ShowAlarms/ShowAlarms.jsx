@@ -296,6 +296,7 @@ const ShowAlarms = () => {
           closeModal={closeEditModal}
           alarmData={editData}
           pid={patientId}
+          patient={userData}
           dosesData={dosesData}
           mutate={mutate}
           onSuccess={() => fetchData(true)}

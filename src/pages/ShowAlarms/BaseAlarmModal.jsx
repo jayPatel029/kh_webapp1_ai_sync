@@ -26,6 +26,8 @@ import MyPDFViewer from "../../components/pdf/MyPDFViewer";
 // APIs
 import { getPatientMedicalTeam } from "../../ApiCalls/patientAPis";
 import { getPrescriptionByPatient } from "../../ApiCalls/prescriptionApis";
+import { getDoctorsByPatientId } from "../../ApiCalls/authapis";
+import { getDoctors } from "../../ApiCalls/doctorApis";
 import { alarmTypeOptions, timing, dosesOptions } from "./consts";
 import {
   getDailyReadings,
@@ -107,6 +109,7 @@ const BaseAlarmModal = ({
   isEdit = false,
   alarmData = null,
   pid,
+  patient = null,
   dosesData = [],
   mutate,
   onSuccess,
@@ -119,6 +122,7 @@ const BaseAlarmModal = ({
     if (!res) return [];
     if (Array.isArray(res)) return res;
     if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.data?.data)) return res.data.data;
     if (Array.isArray(res.result)) return res.result;
     if (Array.isArray(res.items)) return res.items;
 
@@ -126,11 +130,81 @@ const BaseAlarmModal = ({
     const nestedArray = Object.values(res).find(Array.isArray);
     return Array.isArray(nestedArray) ? nestedArray : [];
   };
+
+  const normalizeDoctorOptions = (list = []) => {
+    const seen = new Set();
+    return list
+      .map((doc) => {
+        const rawId =
+          doc?.doctor_id ?? doc?.id ?? doc?._id ?? doc?.user_id ?? "";
+        const id = rawId === null || rawId === undefined ? "" : String(rawId);
+        const name =
+          doc?.name ||
+          doc?.fullName ||
+          doc?.fullname ||
+          doc?.doctorName ||
+          doc?.doctor_name ||
+          doc?.email ||
+          (id ? `Doctor ${id}` : "");
+        return { id, name };
+      })
+      .filter((doc) => {
+        if (!doc.id || seen.has(doc.id)) return false;
+        seen.add(doc.id);
+        return true;
+      });
+  };
+
+  const loadDoctorOptions = async (patientId) => {
+    // 1) Assigned medical team (doctor_patients)
+    const medicalTeam = await makeDedupedRequest(`medical-team-${patientId}`, () =>
+      getPatientMedicalTeam(patientId)
+    );
+    let team = medicalTeam?.success
+      ? normalizeDoctorOptions(extractArrayFromResponse(medicalTeam.data))
+      : [];
+
+    // 2) Alternate assigned-doctor endpoint
+    if (!team.length) {
+      const assigned = await makeDedupedRequest(
+        `assigned-doctors-${patientId}`,
+        () => getDoctorsByPatientId(patientId)
+      );
+      if (assigned?.success) {
+        team = normalizeDoctorOptions(extractArrayFromResponse(assigned.data));
+      }
+    }
+
+    // 3) Resolve IDs from patients.medical_team against full doctor list
+    if (!team.length) {
+      const medicalTeamIds = String(
+        patient?.medical_team || patient?.medicalTeam || ""
+      )
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+
+      const allDoctorsRes = await makeDedupedRequest("all-doctors", getDoctors);
+      const allDoctors = allDoctorsRes?.success
+        ? normalizeDoctorOptions(extractArrayFromResponse(allDoctorsRes.data))
+        : [];
+
+      if (medicalTeamIds.length && allDoctors.length) {
+        const idSet = new Set(medicalTeamIds.map(String));
+        team = allDoctors.filter((doc) => idSet.has(doc.id));
+      }
+
+      // 4) Last resort: full doctor list so the form stays usable
+      if (!team.length && allDoctors.length) {
+        team = allDoctors;
+      }
+    }
+
+    return team;
+  };
+
   // Request tracking refs to prevent duplicate requests
-  const hasInitialized = useRef(false);
-  const lastFetchTimeRef = useRef(0);
   const fetchTimeoutRef = useRef(null);
-  const FETCH_THROTTLE_MS = 1000; // Wait at least 1 second between fetches
   // Form state
   const [selectedAlarmType, setSelectedAlarmType] = useState(
     alarmData?.type || null
@@ -323,30 +397,21 @@ const BaseAlarmModal = ({
     }
   };
 
-  // Fetch data when pid changes (or on initial mount) with throttling
+  // Fetch data when pid changes (or on initial mount)
+  // Note: do NOT throttle here — React Strict Mode remounts within <1s and would
+  // skip the second fetch while discarding the first (isMounted=false), leaving doctors empty.
   useEffect(() => {
     if (!pid) return;
 
-    const abortController = new AbortController();
     let isMounted = true;
 
     const fetchData = async () => {
-      // Prevent rapid successive fetches
-      const now = Date.now();
-      if (now - lastFetchTimeRef.current < FETCH_THROTTLE_MS) {
-        return;
-      }
-      lastFetchTimeRef.current = now;
-
       try {
-        // Use deduped requests to prevent multiple identical API calls
-        const [drResult, dirResult, medicalTeam, prescriptionData] =
+        const [drResult, dirResult, doctorOptions, prescriptionData] =
           await Promise.all([
             makeDedupedRequest("daily-readings", getDailyReadings),
             makeDedupedRequest("dialysis-readings", getDialysisReadings),
-            makeDedupedRequest(`medical-team-${pid}`, () =>
-              getPatientMedicalTeam(pid)
-            ),
+            loadDoctorOptions(pid),
             makeDedupedRequest(`prescriptions-${pid}`, () =>
               getPrescriptionByPatient(pid)
             ),
@@ -374,23 +439,14 @@ const BaseAlarmModal = ({
           );
         }
 
-        if (medicalTeam?.success) {
-          const team = extractArrayFromResponse(medicalTeam.data);
-          if (team.length > 0) {
-            setConsultDoctor(team);
-            if (!doctorid) {
-              const firstMember = team[0];
-              setDoctorid(
-                firstMember?.id
-                  ? String(firstMember.id)
-                  : firstMember?._id
-                  ? String(firstMember._id)
-                  : firstMember?.doctor_id
-                  ? String(firstMember.doctor_id)
-                  : ""
-              );
-            }
-          }
+        if (doctorOptions.length > 0) {
+          setConsultDoctor(doctorOptions);
+          setDoctorid((prev) => {
+            if (prev) return prev;
+            return doctorOptions[0]?.id || "";
+          });
+        } else {
+          setConsultDoctor([]);
         }
 
         if (prescriptionData?.success) {
@@ -418,7 +474,6 @@ const BaseAlarmModal = ({
           }
         }
       } catch (error) {
-        // Only handle non-abort errors
         if (error.name !== "AbortError" && isMounted) {
           console.error("Error fetching data:", error);
           setErrorMessage("Error loading form data");
@@ -428,15 +483,14 @@ const BaseAlarmModal = ({
 
     fetchData();
 
-    // Cleanup function
     return () => {
       isMounted = false;
-      abortController.abort();
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
       }
     };
-  }, [pid, alarmData?.id, alarmData?.type]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: reload when patient/alarm identity changes
+  }, [pid, alarmData?.id, alarmData?.type, patient?.medical_team]);
   // When Prescription type is selected, ensure prescriptions are loaded and a selection is made
   useEffect(() => {
     if (selectedAlarmType !== "Prescription" || !pid) return;
@@ -883,30 +937,25 @@ const BaseAlarmModal = ({
                   setFieldErrors((prev) => ({ ...prev, doctor: false }));
                 }}
               >
-                <option value="">Select Doctor</option>
+                <option value="">
+                  {consultDoctor.length ? "Select Doctor" : "No doctors available"}
+                </option>
                 {consultDoctor.map((doc) => {
-                  const rawValue =
-                    doc?.id ||
-                    doc?._id ||
-                    doc?.doctor_id ||
-                    doc?.user_id ||
-                    "";
-                  const value = rawValue ? String(rawValue) : "";
-                  const label =
-                    doc?.name ||
-                    doc?.fullName ||
-                    doc?.fullname ||
-                    doc?.doctorName ||
-                    doc?.doctor_name ||
-                    doc?.email ||
-                    value;
+                  const value = doc?.id ? String(doc.id) : "";
+                  const label = doc?.name || value;
+                  if (!value) return null;
                   return (
-                    <option key={value || label} value={value}>
+                    <option key={value} value={value}>
                       {label}
                     </option>
                   );
                 })}
               </Select>
+              {!consultDoctor.length && (
+                <Text size="xs" color="muted" className="mt-1">
+                  No doctors loaded for this patient. Assign a doctor on the patient profile, then reopen this form.
+                </Text>
+              )}
             </FormControl>
           </GridItem>
 
