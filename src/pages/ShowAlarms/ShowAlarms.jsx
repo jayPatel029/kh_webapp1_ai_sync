@@ -61,8 +61,10 @@ const ShowAlarms = () => {
   const { id: patientId } = useParams();
   const navigate = useNavigate();
   const role = useSelector((state) => state.permission);
-  // Sync from Redux — avoids Add Alarm flashing then vanishing while /roles/isDoctor loads
+  // Wait until permissions are loaded so Add Alarm doesn't flash then vanish for doctors
+  const roleReady = Boolean(role?.isLoaded);
   const isDoctor = isRole(role, "Doctor");
+  const canManageAlarms = roleReady && !isDoctor;
   const { isMobile } = useIsMobile();
   const { fetchWithCache, mutate, refreshKey } = usePageCache(PAGE_CACHE.SHOW_ALARMS);
 
@@ -183,7 +185,7 @@ const ShowAlarms = () => {
     { key: "duration", label: "Duration", type: "text", width: "150px" },
     { key: "monthly", label: "Monthly", type: "text", width: "100px" },
     { key: "status", label: "Status", type: "text", width: "100px" },
-    ...(isDoctor ? [] : [{ key: "actions", label: "Actions", type: "actions", width: "100px" }]),
+    ...(canManageAlarms ? [{ key: "actions", label: "Actions", type: "actions", width: "100px" }] : []),
   ];
 
   // Transform alarm data for table
@@ -211,7 +213,7 @@ const ShowAlarms = () => {
       onBackClick={() => navigate(ROUTES.PATIENTS)}
       rightAction={<RefreshButton pageName={PAGE_CACHE.SHOW_ALARMS.name} />}
     >
-      {/* Add Alarm Button - Only visible for non-doctors */}
+      {/* Add Alarm — admin/staff only; hidden until role is known (no flash for doctors) */}
       <Flex justify="between" align="center" className={isMobile ? "mb-3" : "mb-6"}>
         <SortDropdown
           options={[
@@ -244,7 +246,7 @@ const ShowAlarms = () => {
         />
 
         <Flex align="center" gap={2}>
-          {!isDoctor && (
+          {canManageAlarms && (
             <ButtonPrimitive
               variant="solid"
               rightIcon={<div className="text-md">+</div>}
@@ -275,11 +277,11 @@ const ShowAlarms = () => {
         cardSubtitleKey="date"
         cardFieldKeys={["duration", "monthly", "status"]}
         emptyMessage="No Alarms found"
-        actionButtons={!isDoctor}
+        actionButtons={canManageAlarms}
       />
 
       {/* Modals */}
-      {showModal && (
+      {showModal && canManageAlarms && (
         <AlarmModal
           closeModal={closeModal}
           pid={patientId}
@@ -289,7 +291,7 @@ const ShowAlarms = () => {
         />
       )}
 
-      {showEditModal && !isDoctor && (
+      {showEditModal && canManageAlarms && (
         <EditAlarmModal
           closeModal={closeEditModal}
           alarmData={editData}
