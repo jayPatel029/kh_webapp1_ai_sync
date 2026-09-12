@@ -24,7 +24,6 @@ import {
   getUsersThisWeek,
   getUsersThisWeekSub,
   getAlerts,
-  getSuperAdminAlerts,
   sendAlertEmails,
 } from '../ApiCalls/adminDashApis';
 
@@ -106,14 +105,9 @@ export function useAdminDashboardData() {
           alertsRaw = stripChatAlerts(res.success ? safeArray(res.data) : []);
         }
       } else if (String(adminId) === '1') {
-        // Super admin
-        try {
-          const superRes = await getSuperAdminAlerts(adminId);
-          alertsRaw = stripChatAlerts(safeArray(superRes?.data ?? superRes));
-        } catch {
-          const res = await getAlerts();
-          alertsRaw = stripChatAlerts(safeArray(res?.data ?? res).reverse());
-        }
+        // Superadmin: full sorted alerts + escalations via /sortAlerts/1
+        const res = await getAlerts();
+        alertsRaw = stripChatAlerts(safeArray(res?.data ?? res).reverse());
       } else {
         // Regular admin
         const res = await getAlerts();
@@ -203,13 +197,9 @@ export function useAdminDashboardData() {
             alerts = stripChatAlerts(res.success ? safeArray(res.data) : []);
           }
         } else if (String(adminId) === '1') {
-          try {
-            const superRes = await getSuperAdminAlerts(adminId);
-            alerts = stripChatAlerts(safeArray(superRes?.data ?? superRes));
-          } catch {
-            const res = await getAlerts();
-            alerts = stripChatAlerts(safeArray(res?.data ?? res).reverse());
-          }
+          // Superadmin: full sorted alerts + escalations via /sortAlerts/1
+          const res = await getAlerts();
+          alerts = stripChatAlerts(safeArray(res?.data ?? res).reverse());
         } else {
           const res = await getAlerts();
           alerts = stripChatAlerts(safeArray(res?.data ?? res).reverse());

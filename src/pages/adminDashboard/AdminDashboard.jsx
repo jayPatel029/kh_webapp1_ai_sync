@@ -21,7 +21,6 @@ import {
   getTotalUsers,
   getUsersThisWeek,
   getUsersThisWeekSub,
-  getSuperAdminAlerts,
 } from "../../ApiCalls/adminDashApis";
 import { getDoctorComments } from "../../ApiCalls/GetComments";
 import { getPatients } from "../../ApiCalls/patientAPis";
@@ -229,9 +228,7 @@ const AdminDashboard = () => {
         return;
       }
 
-      const alertsRes = String(adminId) === "1"
-        ? await getSuperAdminAlerts(adminId)
-        : await getAlerts();
+      const alertsRes = await getAlerts();
 
       const rawAlerts = extractAlerts(alertsRes);
       const nonChatAlerts = rawAlerts.filter((alert) => !isChatAlert(alert));

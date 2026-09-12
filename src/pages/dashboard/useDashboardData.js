@@ -18,7 +18,6 @@ import {
   getUsersThisWeek,
   getUsersThisWeekSub,
   getAlerts,
-  getSuperAdminAlerts,
 } from '../../ApiCalls/adminDashApis';
 
 // Doctor APIs
@@ -136,13 +135,9 @@ export function useAdminDashboardData() {
             }
             return [];
           } else if (String(adminId) === '1') {
-            try {
-              const superRes = await getSuperAdminAlerts(adminId);
-              return superRes?.data || [];
-            } catch {
-              const res = await getAlerts();
-              return (res?.data || []).reverse();
-            }
+            // Superadmin: full sorted alerts (enrollment/lab/etc) + escalations from /sortAlerts/1
+            const res = await getAlerts();
+            return (res?.data || []).reverse();
           } else {
             const res = await getAlerts();
             return (res?.data || []).reverse();
