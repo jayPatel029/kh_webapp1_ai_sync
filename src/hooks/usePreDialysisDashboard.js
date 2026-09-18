@@ -13,7 +13,6 @@ import {
   getPatientLatestPrescription,
   getPatientLatestVitals,
   getPatientLatestLabs,
-  getPatientAlerts,
   getPatientNotes,
   getPredialysisStatus,
   printSessionSummary,
@@ -232,17 +231,9 @@ export const normalizeAlertsList = (patient) => {
     alerts.push({
       id: 'high-k',
       title: 'High Potassium',
-      date: formatDate(patient.labs_date || '2025-05-22'),
+      date: formatDate(patient.labs_date || new Date().toISOString()),
       severity: ALERT_SEVERITY.CRITICAL,
       message: `Potassium level ${patient.potassium} mEq/L exceeds 5.0 mEq/L`,
-    });
-  } else {
-    alerts.push({
-      id: 'high-k-default',
-      title: 'High Potassium',
-      date: '22 May 2025',
-      severity: ALERT_SEVERITY.CRITICAL,
-      message: 'Potassium level 5.2 mEq/L exceeds 5.0 mEq/L',
     });
   }
 
@@ -250,27 +241,25 @@ export const normalizeAlertsList = (patient) => {
     alerts.push({
       id: 'low-hb',
       title: 'Low Hemoglobin',
-      date: formatDate(patient.labs_date || '2025-05-22'),
+      date: formatDate(patient.labs_date || new Date().toISOString()),
       severity: ALERT_SEVERITY.WARNING,
       message: `Hemoglobin ${patient.hemoglobin} g/dL below 10.0 g/dL`,
     });
-  } else {
-    alerts.push({
-      id: 'low-hb-default',
-      title: 'Low Hemoglobin',
-      date: '22 May 2025',
-      severity: ALERT_SEVERITY.WARNING,
-      message: 'Hemoglobin 9.6 g/dL below 10.0 g/dL',
-    });
   }
 
-  alerts.push({
-    id: 'fluid-overload',
-    title: 'Fluid Overload Risk',
-    date: '20 May 2025',
-    severity: ALERT_SEVERITY.CRITICAL,
-    message: 'Interdialytic weight gain exceeds target threshold',
-  });
+  const weightGain = parseFloat(patient?.interdialytic_weight_gain || patient?.idwg);
+  if (!Number.isNaN(weightGain) && weightGain > 0 && patient?.target_uf) {
+    const targetUf = parseFloat(patient.target_uf);
+    if (!Number.isNaN(targetUf) && weightGain > targetUf) {
+      alerts.push({
+        id: 'fluid-overload',
+        title: 'Fluid Overload Risk',
+        date: formatDate(patient.labs_date || new Date().toISOString()),
+        severity: ALERT_SEVERITY.CRITICAL,
+        message: 'Interdialytic weight gain exceeds target threshold',
+      });
+    }
+  }
 
   return alerts;
 };

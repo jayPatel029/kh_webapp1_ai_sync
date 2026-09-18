@@ -248,11 +248,15 @@ describe('P2-03 Pre-Dialysis Dashboard Unit Logic & Rules (Node environment)', (
   });
 
   describe('normalizeAlertsList & normalizeNotesList', () => {
-    it('returns structured alerts list', () => {
+    it('returns structured alerts list only when thresholds are exceeded', () => {
       const alerts = normalizeAlertsList({ potassium: '5.2', hemoglobin: '9.6' });
-      expect(alerts).toHaveLength(3);
-      expect(alerts.find((a) => a.title === 'High Potassium').severity).toBe(STEP_STATUS.COMPLETE ? 'Critical' : 'Critical');
+      expect(alerts).toHaveLength(2);
+      expect(alerts.find((a) => a.title === 'High Potassium').severity).toBe('Critical');
       expect(alerts.find((a) => a.title === 'Low Hemoglobin').severity).toBe('Warning');
+    });
+
+    it('returns no demo alerts when lab values are within range', () => {
+      expect(normalizeAlertsList({ potassium: '4.2', hemoglobin: '11.0' })).toEqual([]);
     });
 
     it('returns empty notes array when no notes exist', () => {

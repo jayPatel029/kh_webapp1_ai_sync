@@ -22,7 +22,6 @@ import {
   getPatientLatestPrescription,
   getPatientLatestVitals,
   getPatientLatestLabs,
-  getPatientAlerts,
   getPatientNotes,
   proceedPatientToPredialysis,
 } from '../ApiCalls/preDialysisApis';

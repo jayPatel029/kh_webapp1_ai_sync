@@ -16,8 +16,9 @@ import { Spinner } from '../../component-library/feedback/Spinner';
 import { Skeleton } from '../../component-library/feedback/Skeleton';
 
 import AlertItem from './AlertItem';
-// import PatientAlertsModal from './PatientAlertsModal';
-import { sendAlertEmails } from '../../hooks/useDashboardData';import ApprovePrescriptionModal from '../modals/ApprovePrescriptionModal';
+import { sendAlertEmails } from '../../hooks/useDashboardData';
+import ApprovePrescriptionModal from '../modals/ApprovePrescriptionModal';
+
 // ─── Icons ──────────────────────────────────────────────────
 
 const MailIcon = () => (
@@ -52,8 +53,6 @@ const AlertsPanel = ({
   const [dateFilter, setDateFilter] = useState('');
   // Send emails loading state
   const [sending, setSending] = useState(false);
-  // Modal state for alerts overlay
-  const [selectedModalPatient, setSelectedModalPatient] = useState(null);
   // Prescription modal state
   const [prescriptionModal, setPrescriptionModal] = useState({ isOpen: false, patient: null });
 
@@ -366,27 +365,6 @@ const AlertsPanel = ({
           )
         )}
       </CardBody>
-
-      {/* Patient Alerts Modal */}
-      {/* {selectedModalPatient && (
-        <PatientAlertsModal
-          patient={selectedModalPatient}
-          alerts={filteredAlerts.filter(a => (a.patientId ?? a.pid ?? a?.patient?.id ?? 'unknown') === selectedModalPatient.patientId)}
-          onClose={() => setSelectedModalPatient(null)}
-          onViewProfile={() => {
-            console.log('View profile for', selectedModalPatient.patientId);
-            setSelectedModalPatient(null);
-          }}
-          onConsultDoctor={() => {
-            console.log('Consult doctor for', selectedModalPatient.patientId);
-            setSelectedModalPatient(null);
-          }}
-          onMessage={() => {
-            console.log('Message', selectedModalPatient.patientId);
-            setSelectedModalPatient(null);
-          }}
-        />
-      )} */}
     </Card>
 
     <ApprovePrescriptionModal 

@@ -6,6 +6,7 @@ import { Spinner } from '../../component-library/feedback/Spinner';
 import { toast } from 'sonner';
 import { getPrescriptionByPatient, deletePrescriptionByRoute } from '../../ApiCalls/prescriptionApis';
 import { getAlarmByPatientId } from '../../ApiCalls/alarmsApis';
+import { approveOrDisapprovePrescription } from '../../ApiCalls/alertsApis';
 import ReasonOfDisapprovalModal from './ReasonOfDisapprovalModal';
 
 const ApprovePrescriptionModal = ({ isOpen, onClose, patientName, patientId }) => {
@@ -78,12 +79,35 @@ const ApprovePrescriptionModal = ({ isOpen, onClose, patientName, patientId }) =
   const handleApprovePrescription = async (prescriptionId) => {
     try {
       setApproving(prescriptionId);
-      // TODO: Implement approve prescription API call
-      toast.success('Prescription approved successfully');
+      const relatedAlarm =
+        alarms.find(
+          (a) =>
+            String(a.prescriptionId || a.presId || a.prescription_id || "") ===
+              String(prescriptionId) ||
+            String(a.id) === String(prescriptionId)
+        ) || alarms.find((a) => String(a.type || "").toLowerCase().includes("prescription") && String(a.status || "").toLowerCase() === "pending");
+
+      if (!relatedAlarm?.id) {
+        toast.error("No pending prescription alarm found to approve");
+        return;
+      }
+
+      const result = await approveOrDisapprovePrescription({
+        alarmId: relatedAlarm.id,
+        status: "Approved",
+        patientId,
+      });
+
+      if (result?.success === false) {
+        toast.error("Failed to approve prescription");
+        return;
+      }
+
+      toast.success("Prescription approved successfully");
       fetchPrescriptions();
     } catch (error) {
-      console.error('Error approving prescription:', error);
-      toast.error('Failed to approve prescription');
+      console.error("Error approving prescription:", error);
+      toast.error("Failed to approve prescription");
     } finally {
       setApproving(null);
     }
