@@ -1,15 +1,13 @@
 /**
  * Doctor Dashboard
- * Patient-first alert view for doctors.
- * - Shows only patient alerts (no chat alerts)
- * - Groups alerts by patient
- * - Renders a single doctor category: Alerts
- * - Opens AlertModal using selected patient alerts
+ * Patient-first alert view for doctors with category actions
+ * (prescription / comments / alerts / dialysis), matching admin hybrid UX.
  *
  * @file src/pages/doctorDashboard/DoctorDashboard.jsx
  */
 
 import React, { useCallback, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { useDoctorDashboardData } from "../../hooks/useDashboardData";
 import {
@@ -17,18 +15,32 @@ import {
   groupAlertsByPatient,
   isChatAlert,
 } from "../../helpers/alertGrouping";
+import {
+  isNavigableSystemAlert,
+  openAlertDestination,
+} from "../../helpers/alertNavigation";
+import { ROUTES } from "../../routes/routeConstants";
 
 import StatCard from "../../components/dashboard/StatCard";
 import PageHeader from "../../components/PageHeader";
 
 import PatientAlertCard from "../adminDashboard/components/PatientAlertCard";
 import AlertModal from "../adminDashboard/components/AlertModal";
+import PrescriptionModal from "../adminDashboard/components/ApprovePrescriptionModal";
+import CommentContainer from "../adminDashboard/components/CommentContainer";
+import PatientDialysisAlertModal from "../adminDashboard/components/PatientDialysisAlertModal";
 
 import { Heading, Text } from "../../component-library/primitives/Typography";
 
 import "../dashboard/dashboard.css";
 
-const CATEGORY_TABS = [{ key: "alert", label: "Alerts" }];
+const CATEGORY_TABS = [
+  { key: "all", label: "All" },
+  { key: "prescription", label: "Approve Prescription" },
+  { key: "comment", label: "Comments" },
+  { key: "alert", label: "Alerts" },
+  { key: "dialysis", label: "Dialysis" },
+];
 
 const iconStyle = { color: "#32617d" };
 
@@ -86,10 +98,16 @@ const DashboardError = ({ message, onRetry }) => (
 );
 
 const DoctorDashboard = () => {
+  const navigate = useNavigate();
   const { loading, error, data, refetch } = useDoctorDashboardData();
-  const [activeCategory, setActiveCategory] = useState("alert");
+  const [activeCategory, setActiveCategory] = useState("all");
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [modals, setModals] = useState({
+    prescription: false,
+    comment: false,
+    alert: false,
+    dialysis: false,
+  });
 
   const patientLookup = useMemo(() => {
     const map = new Map();
@@ -99,7 +117,10 @@ const DoctorDashboard = () => {
       const id = String(patient?.id || patient?.patient_id || patient?.patientid || "");
       if (!id) return;
 
-      const name = `${patient?.firstname || ""} ${patient?.lastname || ""}`.trim() || patient?.name || null;
+      const name =
+        `${patient?.firstname || ""} ${patient?.lastname || ""}`.trim() ||
+        patient?.name ||
+        null;
       map.set(id, {
         name,
         avatar: patient?.photo || patient?.profile_photo || patient?.avatar || "",
@@ -122,50 +143,78 @@ const DoctorDashboard = () => {
     return grouped.patients.map((patient) => {
       const mappedPatient = patientLookup.get(String(patient.id));
 
-      const allAlerts = [
-        ...(patient.prescriptionAlerts || []),
-        ...(patient.commentAlerts || []),
-        ...(patient.alertAlerts || []),
-        ...(patient.dialysisAlerts || []),
-      ];
-
-      const unreadCount =
-        (patient.prescriptionCount || 0) +
-        (patient.commentCount || 0) +
-        (patient.alertCount || 0) +
-        (patient.dialysisCount || 0);
-
       return {
         ...patient,
         name: mappedPatient?.name || patient.name,
         avatar: patient.avatar || mappedPatient?.avatar || "",
-        alertAlerts: allAlerts,
-        alertCount: unreadCount || allAlerts.length,
-        prescriptionCount: 0,
-        commentCount: 0,
-        dialysisCount: 0,
       };
     });
   }, [data?.alerts, patientLookup]);
 
   const visiblePatients = useMemo(() => {
-    if (activeCategory !== "alert") return groupedDoctorPatients;
-    return groupedDoctorPatients.filter((patient) => (patient.alertCount || 0) > 0);
+    return groupedDoctorPatients.filter((patient) => {
+      if (activeCategory === "all") return true;
+      if (activeCategory === "prescription") return (patient.prescriptionCount || 0) > 0;
+      if (activeCategory === "comment") return (patient.commentCount || 0) > 0;
+      if (activeCategory === "alert") return (patient.alertCount || 0) > 0;
+      if (activeCategory === "dialysis") return (patient.dialysisCount || 0) > 0;
+      return true;
+    });
   }, [activeCategory, groupedDoctorPatients]);
 
-  const handlePatientAction = useCallback((patient, action) => {
-    if (action !== "view" && action !== "alert") return;
+  const closeModal = useCallback(
+    (type) => {
+      setModals((prev) => ({ ...prev, [type]: false }));
+      setSelectedPatient(null);
+      refetch();
+    },
+    [refetch]
+  );
 
-    localStorage.setItem("alertAlerts", JSON.stringify(patient?.alertAlerts || []));
-    setSelectedPatient(patient);
-    setIsAlertModalOpen(true);
-  }, []);
+  const handlePatientAction = useCallback(
+    async (patient, type) => {
+      if (type === "view") {
+        if (patient?.id) navigate(ROUTES.userProfile(patient.id));
+        return;
+      }
 
-  const closeAlertModal = useCallback(() => {
-    setIsAlertModalOpen(false);
-    setSelectedPatient(null);
-    refetch();
-  }, [refetch]);
+      setSelectedPatient(patient);
+
+      if (type === "prescription") {
+        localStorage.setItem(
+          "prescriptionAlerts",
+          JSON.stringify(patient.prescriptionAlerts || [])
+        );
+        setModals((prev) => ({ ...prev, prescription: true }));
+        return;
+      }
+
+      if (type === "comment") {
+        setModals((prev) => ({ ...prev, comment: true }));
+        return;
+      }
+
+      if (type === "dialysis") {
+        setModals((prev) => ({ ...prev, dialysis: true }));
+        return;
+      }
+
+      if (type === "alert") {
+        const alerts = patient.alertAlerts || [];
+        const navigable = alerts.filter(isNavigableSystemAlert);
+        const modalOnly = alerts.filter((a) => !isNavigableSystemAlert(a));
+
+        if (navigable.length === 1 && modalOnly.length === 0) {
+          await openAlertDestination(navigable[0], navigate);
+          return;
+        }
+
+        localStorage.setItem("alertAlerts", JSON.stringify(alerts));
+        setModals((prev) => ({ ...prev, alert: true }));
+      }
+    },
+    [navigate]
+  );
 
   if (loading) {
     return (
@@ -221,7 +270,15 @@ const DoctorDashboard = () => {
         </section>
 
         <section className="dashboard__section">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 12,
+            }}
+          >
             <Heading as="h2" className="dashboard__section-title" style={{ margin: 0 }}>
               Important Alerts
             </Heading>
@@ -230,7 +287,7 @@ const DoctorDashboard = () => {
             </Text>
           </div>
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
             {CATEGORY_TABS.map((tab) => {
               const isActive = activeCategory === tab.key;
               return (
@@ -252,7 +309,9 @@ const DoctorDashboard = () => {
 
           {visiblePatients.length === 0 ? (
             <div style={{ textAlign: "center", padding: "2rem 0", color: "#6B7280" }}>
-              <Text size="md" color="muted">No alerts</Text>
+              <Text size="md" color="muted">
+                No alerts in this category
+              </Text>
             </div>
           ) : (
             <div className="flex flex-col gap-0">
@@ -267,10 +326,30 @@ const DoctorDashboard = () => {
         </section>
       </div>
 
-      {isAlertModalOpen && (
+      {modals.prescription && (
+        <PrescriptionModal closeModal={() => closeModal("prescription")} />
+      )}
+
+      {modals.comment && (
+        <CommentContainer
+          comments={selectedPatient?.commentAlerts || []}
+          closeModal={() => closeModal("comment")}
+        />
+      )}
+
+      {modals.alert && (
         <AlertModal
           key={selectedPatient?.id || "doctor-alert-modal"}
-          closeModal={closeAlertModal}
+          closeModal={() => closeModal("alert")}
+        />
+      )}
+
+      {modals.dialysis && (
+        <PatientDialysisAlertModal
+          alerts={selectedPatient?.dialysisAlerts || []}
+          patientName={selectedPatient?.name}
+          patientId={selectedPatient?.id}
+          onClose={() => closeModal("dialysis")}
         />
       )}
     </div>

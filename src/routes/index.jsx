@@ -275,7 +275,7 @@ function AppRoutes() {
             },
             {
               path: "doctor",
-              element: guard(<DoctorDashboard />, "DoctorDashboard", ["Doctor", "Dialysis Technician"]),
+              element: guard(<DoctorDashboard />, "DoctorDashboard", ["Doctor"]),
             },
           ],
         },
