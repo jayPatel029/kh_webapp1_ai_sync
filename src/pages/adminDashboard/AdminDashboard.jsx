@@ -31,6 +31,11 @@ import {
   isChatAlert,
   partitionDashboardAlerts,
 } from "../../helpers/alertGrouping";
+import {
+  isNavigableSystemAlert,
+  openAlertDestination,
+} from "../../helpers/alertNavigation";
+import { ROUTES } from "../../routes/routeConstants";
 
 import "./adminDashboard.css";
 
@@ -245,20 +250,47 @@ const AdminDashboard = () => {
     }
   }, [enrichPatientComments]);
 
-  const handleAction = (patient, type) => {
-    if (type === "view") return;
+  const handleAction = async (patient, type) => {
+    if (type === "view") {
+      if (patient?.id) navigate(ROUTES.userProfile(patient.id));
+      return;
+    }
 
     setSelectedPatient(patient);
 
     if (type === "prescription") {
-      localStorage.setItem("prescriptionAlerts", JSON.stringify(patient.prescriptionAlerts || []));
+      localStorage.setItem(
+        "prescriptionAlerts",
+        JSON.stringify(patient.prescriptionAlerts || [])
+      );
+      setModals((prev) => ({ ...prev, prescription: true }));
+      return;
+    }
+
+    if (type === "comment") {
+      setModals((prev) => ({ ...prev, comment: true }));
+      return;
+    }
+
+    if (type === "dialysis") {
+      setModals((prev) => ({ ...prev, dialysis: true }));
+      return;
     }
 
     if (type === "alert") {
-      localStorage.setItem("alertAlerts", JSON.stringify(patient.alertAlerts || []));
-    }
+      const alerts = patient.alertAlerts || [];
+      const navigable = alerts.filter(isNavigableSystemAlert);
+      const modalOnly = alerts.filter((a) => !isNavigableSystemAlert(a));
 
-    setModals((prev) => ({ ...prev, [type]: true }));
+      // Single navigable system alert → go straight there (main-like)
+      if (navigable.length === 1 && modalOnly.length === 0) {
+        await openAlertDestination(navigable[0], navigate);
+        return;
+      }
+
+      localStorage.setItem("alertAlerts", JSON.stringify(alerts));
+      setModals((prev) => ({ ...prev, alert: true }));
+    }
   };
 
   const closeModal = (type) => {
