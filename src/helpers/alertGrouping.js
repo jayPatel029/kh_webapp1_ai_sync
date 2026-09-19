@@ -27,6 +27,23 @@ const getPatientId = (alert) => (
   null
 );
 
+/** True when an alert has enough fields to show in the flat inbox. */
+const isDisplayableInboxAlert = (alert) => {
+  if (!alert || typeof alert !== "object") return false;
+
+  const patientId = getPatientId(alert);
+  const name = alert?.name || alert?.patientName || alert?.firstname;
+  const label = String(
+    alert?.category || alert?.type || alert?.type0 || alert?.message || alert?.redirect || ""
+  ).trim();
+
+  // Skip empty / placeholder payload objects (show up as "Alert" + "Unknown Patient")
+  if (!patientId && !name && !label) return false;
+  if (!patientId && !name) return false;
+
+  return true;
+};
+
 const getPatientName = (alert) => {
   if (alert?.name) return alert.name;
 
@@ -515,6 +532,7 @@ export {
   groupChatAlertsByStaff,
   groupDoctorAlertsByPatient,
   isChatAlert,
+  isDisplayableInboxAlert,
   isUnreadAlert,
   partitionDashboardAlerts,
   toArray,

@@ -24,7 +24,9 @@ import { getPatients } from "../../ApiCalls/patientAPis";
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 import {
   isChatAlert,
+  isDisplayableInboxAlert,
   partitionDashboardAlerts,
+  toArray,
 } from "../../helpers/alertGrouping";
 import { openAlertDestination } from "../../helpers/alertNavigation";
 import FlatAlertsInbox from "../../components/dashboard/FlatAlertsInbox";
@@ -50,12 +52,13 @@ const AdminDashboard = () => {
   const [nameLookup, setNameLookup] = useState({});
 
   const extractAlerts = (response) => {
+    // getAlerts returns an axios response; prefer body shapes used by sortAlerts
     if (Array.isArray(response)) return response;
-    if (Array.isArray(response?.data)) return response.data;
     if (Array.isArray(response?.data?.data)) return response.data.data;
     if (Array.isArray(response?.data?.alerts)) return response.data.alerts;
+    if (Array.isArray(response?.data)) return response.data;
     if (Array.isArray(response?.alerts)) return response.alerts;
-    return [];
+    return toArray(response?.data ?? response);
   };
 
   const fetchDashboardData = useCallback(async () => {
@@ -107,10 +110,18 @@ const AdminDashboard = () => {
       const nonChatAlerts = rawAlerts.filter((alert) => !isChatAlert(alert));
       const partitions = partitionDashboardAlerts(nonChatAlerts);
 
-      const doctorList = [...(partitions.doctor || [])];
-      const patientList = [...(partitions.patient || []), ...(partitions.other || [])].filter(
-        (alert) => !shouldExcludeFromPatientColumn(alert)
-      );
+      const doctorList = [...(partitions.doctor || [])].filter(isDisplayableInboxAlert);
+      const patientList = [...(partitions.patient || []), ...(partitions.other || [])]
+        .filter((alert) => !shouldExcludeFromPatientColumn(alert))
+        .filter(isDisplayableInboxAlert);
+
+      const skipped =
+        nonChatAlerts.length - doctorList.length - patientList.length;
+      if (skipped > 0) {
+        console.warn(
+          `[AdminDashboard] Skipped ${skipped} incomplete alert row(s) (missing patient/name).`
+        );
+      }
 
       setDoctorAlerts(doctorList);
       setPatientAlerts(patientList);

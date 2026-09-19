@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { useDoctorDashboardData } from "../../hooks/useDashboardData";
 import {
   isChatAlert,
+  isDisplayableInboxAlert,
   partitionDashboardAlerts,
 } from "../../helpers/alertGrouping";
 import { openAlertDestination } from "../../helpers/alertNavigation";
@@ -114,10 +115,10 @@ const DoctorDashboard = () => {
     const partitions = partitionDashboardAlerts(nonChat);
 
     return {
-      doctorAlerts: [...(partitions.doctor || [])],
-      patientAlerts: [...(partitions.patient || []), ...(partitions.other || [])].filter(
-        (alert) => !shouldExcludeFromPatientColumn(alert)
-      ),
+      doctorAlerts: [...(partitions.doctor || [])].filter(isDisplayableInboxAlert),
+      patientAlerts: [...(partitions.patient || []), ...(partitions.other || [])]
+        .filter((alert) => !shouldExcludeFromPatientColumn(alert))
+        .filter(isDisplayableInboxAlert),
     };
   }, [data?.alerts]);
 

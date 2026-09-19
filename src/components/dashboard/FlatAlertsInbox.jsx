@@ -10,6 +10,7 @@ import PropTypes from "prop-types";
 import { Box, Flex, Heading, Text } from "../../component-library";
 import AlertRow from "./AlertRow";
 import { useIsMobile } from "../mobile/useIsMobile";
+import { getPatientId } from "../../helpers/alertGrouping";
 
 const AlertColumn = ({ title, alerts, loading, onAlertClick, nameLookup }) => (
   <Box className="flex-1 min-w-0">
@@ -32,10 +33,10 @@ const AlertColumn = ({ title, alerts, loading, onAlertClick, nameLookup }) => (
     ) : (
       <Flex direction="column" gap={3}>
         {alerts.map((alert, index) => {
-          const patientId = String(
-            alert?.patientId || alert?.patient_id || alert?.pid || ""
-          );
-          const override = patientId ? nameLookup?.[patientId] : undefined;
+          const patientId = getPatientId(alert);
+          const override = patientId
+            ? nameLookup?.[String(patientId)]
+            : undefined;
           return (
             <AlertRow
               key={alert?.id ?? `${title}-${index}`}

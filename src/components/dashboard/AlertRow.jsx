@@ -42,7 +42,8 @@ const initialsFromName = (name) => {
 
 const AlertRow = ({ alert, onClick, patientNameOverride }) => {
   const name = patientNameOverride || getPatientName(alert);
-  const category = getAlertCategory(alert) || "Alert";
+  const rawCategory = getAlertCategory(alert);
+  const category = rawCategory || "—";
   const unread = isUnreadAlert(alert);
   const avatar = alert?.patientProfilePhoto || alert?.profile_photo || alert?.avatar || "";
 
