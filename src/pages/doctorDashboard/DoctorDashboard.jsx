@@ -1,46 +1,36 @@
 /**
  * Doctor Dashboard
- * Patient-first alert view for doctors with category actions
- * (prescription / comments / alerts / dialysis), matching admin hybrid UX.
+ * Flat two-column alerts inbox (Doctor | Patient) — same presentation as admin,
+ * current new-layout theme.
  *
  * @file src/pages/doctorDashboard/DoctorDashboard.jsx
  */
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useDoctorDashboardData } from "../../hooks/useDashboardData";
 import {
-  getDashboardAlertSide,
-  groupAlertsByPatient,
   isChatAlert,
+  partitionDashboardAlerts,
 } from "../../helpers/alertGrouping";
-import {
-  isNavigableSystemAlert,
-  openAlertDestination,
-} from "../../helpers/alertNavigation";
-import { ROUTES } from "../../routes/routeConstants";
+import { openAlertDestination } from "../../helpers/alertNavigation";
 
 import StatCard from "../../components/dashboard/StatCard";
+import FlatAlertsInbox from "../../components/dashboard/FlatAlertsInbox";
 import PageHeader from "../../components/PageHeader";
-
-import PatientAlertCard from "../adminDashboard/components/PatientAlertCard";
-import AlertModal from "../adminDashboard/components/AlertModal";
-import PrescriptionModal from "../adminDashboard/components/ApprovePrescriptionModal";
-import CommentContainer from "../adminDashboard/components/CommentContainer";
-import PatientDialysisAlertModal from "../adminDashboard/components/PatientDialysisAlertModal";
 
 import { Heading, Text } from "../../component-library/primitives/Typography";
 
 import "../dashboard/dashboard.css";
 
-const CATEGORY_TABS = [
-  { key: "all", label: "All" },
-  { key: "prescription", label: "Approve Prescription" },
-  { key: "comment", label: "Comments" },
-  { key: "alert", label: "Alerts" },
-  { key: "dialysis", label: "Dialysis" },
-];
+const shouldExcludeFromPatientColumn = (alert) => {
+  const category = String(alert?.category || "").trim();
+  return (
+    category === "Prescription Approved" ||
+    category === "New Prescription Alarm"
+  );
+};
 
 const iconStyle = { color: "#32617d" };
 
@@ -100,120 +90,43 @@ const DashboardError = ({ message, onRetry }) => (
 const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { loading, error, data, refetch } = useDoctorDashboardData();
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const [modals, setModals] = useState({
-    prescription: false,
-    comment: false,
-    alert: false,
-    dialysis: false,
-  });
 
-  const patientLookup = useMemo(() => {
-    const map = new Map();
+  const nameLookup = useMemo(() => {
+    const map = {};
     const rows = Array.isArray(data?.patients) ? data.patients : [];
 
     rows.forEach((patient) => {
       const id = String(patient?.id || patient?.patient_id || patient?.patientid || "");
       if (!id) return;
-
       const name =
         `${patient?.firstname || ""} ${patient?.lastname || ""}`.trim() ||
         patient?.name ||
         null;
-      map.set(id, {
-        name,
-        avatar: patient?.photo || patient?.profile_photo || patient?.avatar || "",
-      });
+      if (name) map[id] = name;
     });
 
     return map;
   }, [data?.patients]);
 
-  const groupedDoctorPatients = useMemo(() => {
+  const { doctorAlerts, patientAlerts } = useMemo(() => {
     const sourceAlerts = Array.isArray(data?.alerts) ? data.alerts : [];
+    const nonChat = sourceAlerts.filter((alert) => !isChatAlert(alert));
+    const partitions = partitionDashboardAlerts(nonChat);
 
-    const patientAlerts = sourceAlerts.filter((alert) => {
-      if (isChatAlert(alert)) return false;
-      return getDashboardAlertSide(alert) !== "doctor";
-    });
+    return {
+      doctorAlerts: [...(partitions.doctor || [])],
+      patientAlerts: [...(partitions.patient || []), ...(partitions.other || [])].filter(
+        (alert) => !shouldExcludeFromPatientColumn(alert)
+      ),
+    };
+  }, [data?.alerts]);
 
-    const grouped = groupAlertsByPatient(patientAlerts, { includeChats: false });
-
-    return grouped.patients.map((patient) => {
-      const mappedPatient = patientLookup.get(String(patient.id));
-
-      return {
-        ...patient,
-        name: mappedPatient?.name || patient.name,
-        avatar: patient.avatar || mappedPatient?.avatar || "",
-      };
-    });
-  }, [data?.alerts, patientLookup]);
-
-  const visiblePatients = useMemo(() => {
-    return groupedDoctorPatients.filter((patient) => {
-      if (activeCategory === "all") return true;
-      if (activeCategory === "prescription") return (patient.prescriptionCount || 0) > 0;
-      if (activeCategory === "comment") return (patient.commentCount || 0) > 0;
-      if (activeCategory === "alert") return (patient.alertCount || 0) > 0;
-      if (activeCategory === "dialysis") return (patient.dialysisCount || 0) > 0;
-      return true;
-    });
-  }, [activeCategory, groupedDoctorPatients]);
-
-  const closeModal = useCallback(
-    (type) => {
-      setModals((prev) => ({ ...prev, [type]: false }));
-      setSelectedPatient(null);
+  const handleAlertClick = useCallback(
+    async (alert) => {
+      await openAlertDestination(alert, navigate);
       refetch();
     },
-    [refetch]
-  );
-
-  const handlePatientAction = useCallback(
-    async (patient, type) => {
-      if (type === "view") {
-        if (patient?.id) navigate(ROUTES.userProfile(patient.id));
-        return;
-      }
-
-      setSelectedPatient(patient);
-
-      if (type === "prescription") {
-        localStorage.setItem(
-          "prescriptionAlerts",
-          JSON.stringify(patient.prescriptionAlerts || [])
-        );
-        setModals((prev) => ({ ...prev, prescription: true }));
-        return;
-      }
-
-      if (type === "comment") {
-        setModals((prev) => ({ ...prev, comment: true }));
-        return;
-      }
-
-      if (type === "dialysis") {
-        setModals((prev) => ({ ...prev, dialysis: true }));
-        return;
-      }
-
-      if (type === "alert") {
-        const alerts = patient.alertAlerts || [];
-        const navigable = alerts.filter(isNavigableSystemAlert);
-        const modalOnly = alerts.filter((a) => !isNavigableSystemAlert(a));
-
-        if (navigable.length === 1 && modalOnly.length === 0) {
-          await openAlertDestination(navigable[0], navigate);
-          return;
-        }
-
-        localStorage.setItem("alertAlerts", JSON.stringify(alerts));
-        setModals((prev) => ({ ...prev, alert: true }));
-      }
-    },
-    [navigate]
+    [navigate, refetch]
   );
 
   if (loading) {
@@ -270,88 +183,15 @@ const DoctorDashboard = () => {
         </section>
 
         <section className="dashboard__section">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              marginBottom: 12,
-            }}
-          >
-            <Heading as="h2" className="dashboard__section-title" style={{ margin: 0 }}>
-              Important Alerts
-            </Heading>
-            <Text size="sm" color="muted">
-              {visiblePatients.length} patient{visiblePatients.length === 1 ? "" : "s"}
-            </Text>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-            {CATEGORY_TABS.map((tab) => {
-              const isActive = activeCategory === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveCategory(tab.key)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                    isActive
-                      ? "bg-[#3F6B85] text-white border-[#3F6B85]"
-                      : "bg-white text-[#3F6B85] border-[#cfe4ee] hover:border-[#3F6B85]"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {visiblePatients.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "2rem 0", color: "#6B7280" }}>
-              <Text size="md" color="muted">
-                No alerts in this category
-              </Text>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-0">
-              {visiblePatients.map((patient) => (
-                <React.Fragment key={patient.id}>
-                  <PatientAlertCard patient={patient} onAction={handlePatientAction} />
-                  <div className="h-[2px] bg-gray-200 my-4" />
-                </React.Fragment>
-              ))}
-            </div>
-          )}
+          <FlatAlertsInbox
+            doctorAlerts={doctorAlerts}
+            patientAlerts={patientAlerts}
+            loading={false}
+            onAlertClick={handleAlertClick}
+            nameLookup={nameLookup}
+          />
         </section>
       </div>
-
-      {modals.prescription && (
-        <PrescriptionModal closeModal={() => closeModal("prescription")} />
-      )}
-
-      {modals.comment && (
-        <CommentContainer
-          comments={selectedPatient?.commentAlerts || []}
-          closeModal={() => closeModal("comment")}
-        />
-      )}
-
-      {modals.alert && (
-        <AlertModal
-          key={selectedPatient?.id || "doctor-alert-modal"}
-          closeModal={() => closeModal("alert")}
-        />
-      )}
-
-      {modals.dialysis && (
-        <PatientDialysisAlertModal
-          alerts={selectedPatient?.dialysisAlerts || []}
-          patientName={selectedPatient?.name}
-          patientId={selectedPatient?.id}
-          onClose={() => closeModal("dialysis")}
-        />
-      )}
     </div>
   );
 };
