@@ -27,11 +27,12 @@ import { IconButton } from "../../component-library";
 import { hasAnyPermission, hasDashboardAccess } from "../../helpers/permissions";
 import { isRole } from '../../helpers/roleUtils';
 
-const Sidebar = ({ mobile = false }) => {
+const Sidebar = ({ mobile = false, forceExpanded = false }) => {
   const [dropdown, setDropdown] = useState(false);
   const [chatDropdown, setChatDropdown] = useState(false);
   const [dialysisDropdown, setDialysisDropdown] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (forceExpanded) return false;
     try {
       return localStorage.getItem('sidebarCollapsed') === 'true';
     } catch (e) {
@@ -39,8 +40,16 @@ const Sidebar = ({ mobile = false }) => {
     }
   });
 
+  // Keep drawer sidebar expanded even if desktop collapse state changes
+  useEffect(() => {
+    if (forceExpanded) {
+      setIsCollapsed(false);
+    }
+  }, [forceExpanded]);
+
   // toggle sidebar collapsed state and notify other components
   const toggleCollapse = () => {
+    if (forceExpanded) return;
     const next = !isCollapsed;
     setIsCollapsed(next);
     try {
@@ -50,18 +59,20 @@ const Sidebar = ({ mobile = false }) => {
     window.dispatchEvent(new CustomEvent('sidebar:toggle', { detail: { isCollapsed: next } }));
   };
 
-  const isIconOnly = isCollapsed && !mobile;
+  const isIconOnly = isCollapsed && !mobile && !forceExpanded;
 
   const role = useSelector((state) => state.permission);
   const user = useSelector((state) => state.auth?.user);
 
   useEffect(() => {
     const handler = (e) => {
+      if (forceExpanded) return;
       if (e?.detail?.isCollapsed !== undefined) {
         setIsCollapsed(!!e.detail.isCollapsed);
       }
     };
     const storageHandler = (ev) => {
+      if (forceExpanded) return;
       if (ev.key === 'sidebarCollapsed') {
         setIsCollapsed(ev.newValue === 'true');
       }
@@ -72,7 +83,7 @@ const Sidebar = ({ mobile = false }) => {
       window.removeEventListener('sidebar:toggle', handler);
       window.removeEventListener('storage', storageHandler);
     };
-  }, []);
+  }, [forceExpanded]);
 
   useEffect(() => {
     if (isCollapsed) {

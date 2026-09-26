@@ -3,7 +3,8 @@
  * Centralized layout wrapper for all protected routes
  * Handles Sidebar and Navbar rendering based on route and user role
  * Responsive: hides desktop sidebar on mobile (<768px), shows mobile bottom nav
- * 
+ * Mobile menu drawer restores access to sidebar destinations (User Management, etc.)
+ *
  * @file src/layouts/MainLayout.jsx
  */
 
@@ -20,96 +21,144 @@ import { useSelector } from 'react-redux';
 import { isRole } from '../helpers/roleUtils';
 
 const MainLayout = () => {
-    
-    const location = useLocation();
-    const { isMobile } = useIsMobile();
-    const mobileNavItems = useMobileNavItems();
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-        try {
-            return localStorage.getItem('sidebarCollapsed') === 'true';
-        } catch (e) {
-            return false;
-        }
-    });
+  const location = useLocation();
+  const { isMobile } = useIsMobile();
+  const mobileNavItems = useMobileNavItems();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('sidebarCollapsed') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
 
-    // Sync collapsed state across tabs/windows
-    useEffect(() => {
-        const storageHandler = (ev) => {
-            if (ev.key === 'sidebarCollapsed') {
-                setIsSidebarCollapsed(ev.newValue === 'true');
-            }
-        };
-        window.addEventListener('storage', storageHandler);
-        return () => window.removeEventListener('storage', storageHandler);
-    }, []);
+  // Close mobile drawer on navigation
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
-    // Listen to sidebar toggle events
-    useEffect(() => {
-        const handler = (e) => {
-            if (e?.detail?.isCollapsed !== undefined) {
-                setIsSidebarCollapsed(!!e.detail.isCollapsed);
-            }
-        };
-        window.addEventListener('sidebar:toggle', handler);
-        return () => window.removeEventListener('sidebar:toggle', handler);
-    }, []);
+  // Sync collapsed state across tabs/windows
+  useEffect(() => {
+    const storageHandler = (ev) => {
+      if (ev.key === 'sidebarCollapsed') {
+        setIsSidebarCollapsed(ev.newValue === 'true');
+      }
+    };
+    window.addEventListener('storage', storageHandler);
+    return () => window.removeEventListener('storage', storageHandler);
+  }, []);
 
-    // Determine if current route should show sidebar
-    // Routes without sidebar: login pages, public pages
-    const noSidebarRoutes = ['/login', '/doctorLogin', '/forgotpassword'];
-    const showSidebar = !noSidebarRoutes.includes(location.pathname);
-    const isDuringDialysisRoute = location.pathname.startsWith('/dialysis/during/');
+  // Listen to sidebar toggle events
+  useEffect(() => {
+    const handler = (e) => {
+      if (e?.detail?.isCollapsed !== undefined) {
+        setIsSidebarCollapsed(!!e.detail.isCollapsed);
+      }
+    };
+    window.addEventListener('sidebar:toggle', handler);
+    return () => window.removeEventListener('sidebar:toggle', handler);
+  }, []);
 
-    const role = useSelector((state) => state.permission);
-    const isDoctor = isRole(role, 'Doctor');
-    const isDialysisMember = isRole(role, 'Dialysis Technician');
-    const isCompactRole = isDoctor || isDialysisMember;
+  // Lock body scroll while mobile drawer is open
+  useEffect(() => {
+    if (!isMobile || !mobileMenuOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isMobile, mobileMenuOpen]);
 
-    // On mobile, always hide desktop sidebar; calculate offset only for desktop
-    // For Doctor role we render a compact left area inside PageHeader instead of the fixed Sidebar
-    const showDesktopSidebar = showSidebar && !isMobile && !isCompactRole;
+  // Determine if current route should show sidebar
+  // Routes without sidebar: login pages, public pages
+  const noSidebarRoutes = ['/login', '/doctorLogin', '/forgotpassword'];
+  const showSidebar = !noSidebarRoutes.includes(location.pathname);
+  const isDuringDialysisRoute = location.pathname.startsWith('/dialysis/during/');
 
-    // Calculate sidebar width for layout offset
-    const SIDEBAR_WIDTH = 250;
-    const COLLAPSED_WIDTH = 96; // 24 * 4 (w-24 in tailwind)
-    const sidebarOffset = showDesktopSidebar
-        ? (isSidebarCollapsed ? COLLAPSED_WIDTH : SIDEBAR_WIDTH)
-        : (isCompactRole ? COLLAPSED_WIDTH : 0);
+  const role = useSelector((state) => state.permission);
+  const isDoctor = isRole(role, 'Doctor');
+  const isDialysisMember = isRole(role, 'Dialysis Technician');
+  const isCompactRole = isDoctor || isDialysisMember;
 
-    return (
-        <Box className="flex min-h-screen w-full">
-            {/* Desktop Sidebar — hidden on mobile */}
-            {showDesktopSidebar && (
-                <Box className="fixed top-0 left-0 h-screen z-[--z-banner] hidden md:block">
-                    <Sidebar />
-                </Box>
-            )}
+  // On mobile, always hide desktop sidebar; calculate offset only for desktop
+  // For Doctor role we render a compact left area inside PageHeader instead of the fixed Sidebar
+  const showDesktopSidebar = showSidebar && !isMobile && !isCompactRole;
 
-            {/* Main content area */}
-            <Box
-                className="flex-1 min-h-screen transition-all duration-300"
-                style={{
-                    marginLeft: showDesktopSidebar ? `${sidebarOffset}px` : '0px',
-                }}
-            >
-                {/* Navbar — show on desktop; on mobile show compact version */}
-                {showSidebar && !isMobile && !isDuringDialysisRoute && <Navbar />}
+  // Calculate sidebar width for layout offset
+  const SIDEBAR_WIDTH = 250;
+  const COLLAPSED_WIDTH = 96; // 24 * 4 (w-24 in tailwind)
+  const sidebarOffset = showDesktopSidebar
+    ? isSidebarCollapsed
+      ? COLLAPSED_WIDTH
+      : SIDEBAR_WIDTH
+    : isCompactRole
+      ? COLLAPSED_WIDTH
+      : 0;
 
-                {/* Mobile top bar - show on mobile */}
-                {showSidebar && isMobile && !isDuringDialysisRoute && <MobileTopBar />}
-
-                {/* Page content - rendered by nested routes */}
-                <Box className={showSidebar ? (isMobile ? "p-0 pt-0 pb-20" : isDuringDialysisRoute ? "p-0" : `md:p-6 ${isCompactRole ? 'md:pr-4' : 'md:pr-8'}`) : "p-0"}>
-                    <Outlet />
-                </Box>
-            </Box>
-
-            {/* Mobile bottom navigation bar */}
-            {showSidebar && isMobile && (
-                <MobileBottomNav items={mobileNavItems} />
-            )}
+  return (
+    <Box className="flex min-h-screen w-full">
+      {/* Desktop Sidebar — hidden on mobile */}
+      {showDesktopSidebar && (
+        <Box className="fixed top-0 left-0 h-screen z-[--z-banner] hidden md:block">
+          <Sidebar />
         </Box>
-    );
+      )}
+
+      {/* Mobile sidebar drawer — full nav including User Management */}
+      {showSidebar && isMobile && mobileMenuOpen && (
+        <>
+          <Box
+            className="fixed inset-0 z-[60] bg-black/40"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <Box
+            className="fixed inset-y-0 left-0 z-[70] w-[250px] max-w-[85vw] overflow-y-auto shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+          >
+            <Sidebar forceExpanded />
+          </Box>
+        </>
+      )}
+
+      {/* Main content area */}
+      <Box
+        className="flex-1 min-h-screen transition-all duration-300"
+        style={{
+          marginLeft: showDesktopSidebar ? `${sidebarOffset}px` : '0px',
+        }}
+      >
+        {/* Navbar — show on desktop; on mobile show compact version */}
+        {showSidebar && !isMobile && !isDuringDialysisRoute && <Navbar />}
+
+        {/* Mobile top bar - show on mobile */}
+        {showSidebar && isMobile && !isDuringDialysisRoute && (
+          <MobileTopBar onMenuClick={() => setMobileMenuOpen(true)} />
+        )}
+
+        {/* Page content - rendered by nested routes */}
+        <Box
+          className={
+            showSidebar
+              ? isMobile
+                ? 'p-0 pt-0 pb-20'
+                : isDuringDialysisRoute
+                  ? 'p-0'
+                  : `md:p-6 ${isCompactRole ? 'md:pr-4' : 'md:pr-8'}`
+              : 'p-0'
+          }
+        >
+          <Outlet />
+        </Box>
+      </Box>
+
+      {/* Mobile bottom navigation bar */}
+      {showSidebar && isMobile && <MobileBottomNav items={mobileNavItems} />}
+    </Box>
+  );
 };
 
 export default MainLayout;
