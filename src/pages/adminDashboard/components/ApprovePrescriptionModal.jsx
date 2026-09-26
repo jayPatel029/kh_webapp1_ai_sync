@@ -206,10 +206,10 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
           <Grid
             gap={6}
             className="!min-w-full"
-            templateColumns={hasPreview ? "1fr 2fr" : "1fr"}
+            templateColumns={hasPreview ? "minmax(0, 1fr) minmax(0, 1.25fr)" : "1fr"}
           >
-            <GridItem colSpan={1} className="min-w-0">
-              <Flex direction="column" gap={5}>
+            <GridItem colSpan={1} className="min-w-0 max-w-full">
+              <Flex direction="column" gap={4} className="w-full">
                 {groupKeys.map((presId) => {
                   const items = groupedData[presId];
                   const first = items[0] || {};
@@ -220,26 +220,23 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                   return (
                     <Box
                       key={presId}
-                      className="border border-accent rounded-md overflow-hidden"
+                      className="border border-accent rounded-md overflow-hidden w-full"
                     >
-                      <Flex
-                        justify="between"
-                        align="center"
-                        wrap="wrap"
-                        gap={3}
-                        className="bg-gray-50 border-b border-accent px-4 py-3"
-                      >
-                        <Box className="min-w-0 text-left">
-                          <Text weight="semibold" size="sm">
-                            Prescription on {formatDate(first.date)}
+                      <Box className="bg-gray-50 border-b border-accent px-4 py-3 text-left">
+                        <Text weight="semibold" size="sm">
+                          Prescription on {formatDate(first.date)}
+                        </Text>
+                        {first.name ? (
+                          <Text size="xs" color="muted" className="mt-0.5">
+                            {first.name}
                           </Text>
-                          {first.name ? (
-                            <Text size="xs" color="muted" className="mt-0.5">
-                              {first.name}
-                            </Text>
-                          ) : null}
-                        </Box>
-                        <Flex gap={2} wrap="wrap" align="center">
+                        ) : null}
+                        <Flex
+                          gap={2}
+                          wrap="wrap"
+                          align="center"
+                          className="mt-3 w-full"
+                        >
                           <Button
                             type="button"
                             variant="outline"
@@ -271,94 +268,70 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                             Disapprove All
                           </Button>
                         </Flex>
-                      </Flex>
+                      </Box>
 
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-gray-50 border-b border-accent">
-                            <tr>
-                              <th className="px-4 py-3 text-left hidden lg:table-cell">
-                                Alarm Description
-                              </th>
-                              <th className="px-4 py-3 text-left hidden lg:table-cell">
+                      <Flex direction="column" className="w-full divide-y divide-gray-100">
+                        {items.map((item, index) => (
+                          <Box
+                            key={item.id ?? `${presId}-${index}`}
+                            className="px-4 py-3 w-full text-left hover:bg-gray-50"
+                          >
+                            <Text weight="semibold" size="sm" className="break-words">
+                              {item.desc || "Alarm"}
+                            </Text>
+
+                            <Box className="mt-2 space-y-1">
+                              <Text size="xs" color="muted">
                                 Frequency
-                              </th>
-                              <th className="px-4 py-3 text-left hidden lg:table-cell">
-                                Days/Month
-                              </th>
-                              <th className="px-4 py-3 text-left hidden lg:table-cell">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {items.map((item, index) => (
-                              <tr
-                                key={item.id ?? `${presId}-${index}`}
-                                className="border-b hover:bg-gray-50 flex flex-col lg:table-row"
-                              >
-                                <td className="px-4 py-3 text-left align-top">
-                                  <span className="lg:hidden block text-xs font-semibold text-gray-500 mb-1">
-                                    Alarm Description
-                                  </span>
-                                  {item.desc || "—"}
-                                </td>
-                                <td className="px-4 py-3 text-left align-top">
-                                  <span className="lg:hidden block text-xs font-semibold text-gray-500 mb-1">
-                                    Frequency
-                                  </span>
-                                  <div className="font-semibold">
-                                    {item.timesaday}{" "}
-                                    {item.timesaday > 1 ? "times" : "time"}{" "}
-                                    {item.isWeek ? "a day" : "a month"}
-                                  </div>
+                              </Text>
+                              <Text size="sm">
+                                {item.timesaday}{" "}
+                                {item.timesaday > 1 ? "times" : "time"}{" "}
+                                {item.isWeek ? "a day" : "a month"}
+                              </Text>
+                              {(item.doses || []).length > 0 ? (
+                                <Box className="text-sm text-gray-600">
                                   {(item.doses || []).map((dose, i) => (
-                                    <div
-                                      key={`${item.id}-dose-${i}`}
-                                      className="text-gray-600"
-                                    >
-                                      {dose}
-                                    </div>
+                                    <div key={`${item.id}-dose-${i}`}>{dose}</div>
                                   ))}
-                                </td>
-                                <td className="px-4 py-3 text-left align-top">
-                                  <span className="lg:hidden block text-xs font-semibold text-gray-500 mb-1">
-                                    Days/Month
-                                  </span>
-                                  {item.weekdays || "—"}
-                                </td>
-                                <td className="px-4 py-3 align-top">
-                                  <span className="lg:hidden block text-xs font-semibold text-gray-500 mb-1">
-                                    Actions
-                                  </span>
-                                  <Flex gap={2} wrap="wrap">
-                                    <Button
-                                      type="button"
-                                      variant="secondary"
-                                      size="sm"
-                                      isDisabled={busy}
-                                      onClick={() => handleApprove(item)}
-                                    >
-                                      Approve
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="danger"
-                                      size="sm"
-                                      isDisabled={busy}
-                                      onClick={() =>
-                                        openDisapproveOne(item, presId)
-                                      }
-                                    >
-                                      Disapprove
-                                    </Button>
-                                  </Flex>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                                </Box>
+                              ) : null}
+                            </Box>
+
+                            {item.weekdays ? (
+                              <Box className="mt-2">
+                                <Text size="xs" color="muted">
+                                  Days / month
+                                </Text>
+                                <Text size="sm" className="break-words">
+                                  {item.weekdays}
+                                </Text>
+                              </Box>
+                            ) : null}
+
+                            <Flex gap={2} wrap="wrap" className="mt-3">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                isDisabled={busy}
+                                onClick={() => handleApprove(item)}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="danger"
+                                size="sm"
+                                isDisabled={busy}
+                                onClick={() => openDisapproveOne(item, presId)}
+                              >
+                                Disapprove
+                              </Button>
+                            </Flex>
+                          </Box>
+                        ))}
+                      </Flex>
                     </Box>
                   );
                 })}
@@ -366,8 +339,8 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
             </GridItem>
 
             {hasPreview ? (
-              <GridItem colSpan={1}>
-                <Box className="p-2 max-h-[70vh] overflow-auto">
+              <GridItem colSpan={1} className="min-w-0">
+                <Box className="p-2 max-h-[70vh] overflow-auto sticky top-0">
                   {previewIsPdf ? (
                     <div className="h-full min-h-[320px]">
                       <MyPDFViewer
