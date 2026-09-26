@@ -16,9 +16,7 @@ import {
   ModalFooter,
   ModalCloseButton,
 } from '../primitives/Modal';
-import { Button } from '../primitives/Button';
 import { Heading } from '../primitives/Typography';
-import { Flex } from '../layout/Layout';
 
 /**
  * BaseModal Component
@@ -69,12 +67,12 @@ export const BaseModal = ({
         }}
         className={contentClassName}
       >
+        {showCloseButton && <ModalCloseButton />}
         {title && (
           <ModalHeader flexShrink={0}>
-            <Flex justify="between" align="center">
-              <Heading as="h3" size="lg">{title}</Heading>
-              {showCloseButton && <ModalCloseButton />}
-            </Flex>
+            <Heading as="h3" size="lg" className="pr-10">
+              {title}
+            </Heading>
           </ModalHeader>
         )}
         <ModalBody 
