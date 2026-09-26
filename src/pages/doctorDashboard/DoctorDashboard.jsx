@@ -1,7 +1,7 @@
 /**
  * Doctor Dashboard
- * Global category tabs (Prescription / Dialysis / Alert / Comments) →
- * flat alert rows → existing modals/workflows. New-layout theme.
+ * Global category tabs (Prescription / Dialysis / Alert / Comments).
+ * Red Alerts render inline (AlertListPanel); other categories use modals.
  *
  * @file src/pages/doctorDashboard/DoctorDashboard.jsx
  */
@@ -20,8 +20,8 @@ import { getDoctorComments } from "../../ApiCalls/GetComments";
 
 import StatCard from "../../components/dashboard/StatCard";
 import AlertRow from "../../components/dashboard/AlertRow";
+import AlertListPanel from "../../components/dashboard/AlertListPanel";
 import PageHeader from "../../components/PageHeader";
-import AlertModal from "../adminDashboard/components/AlertModal";
 import PrescriptionModal from "../adminDashboard/components/ApprovePrescriptionModal";
 import CommentContainer from "../adminDashboard/components/CommentContainer";
 import PatientDialysisAlertModal from "../adminDashboard/components/PatientDialysisAlertModal";
@@ -159,7 +159,6 @@ const DoctorDashboard = () => {
   const [modals, setModals] = useState({
     prescription: false,
     comment: false,
-    alert: false,
     dialysis: false,
     dialysisTech: false,
   });
@@ -389,10 +388,7 @@ const DoctorDashboard = () => {
   const closeModal = useCallback(
     async (type) => {
       // Comments: mark-read happens per opened item in CommentContainer — not on dismiss.
-      if (type === "alert") {
-        markRowsReadLocally("alert", selectedPatientId);
-      }
-
+      // Red Alerts: mark-read happens per action in AlertListPanel — not on dismiss.
       if (type === "dialysis" || type === "dialysisTech") {
         markRowsReadLocally("dialysis", selectedPatientId);
       }
@@ -403,6 +399,24 @@ const DoctorDashboard = () => {
     },
     [selectedPatientId, markRowsReadLocally]
   );
+
+  const markAlertReadById = useCallback((alert) => {
+    if (alert?.id == null) return;
+    setBuckets((prev) => ({
+      ...prev,
+      alert: (prev.alert || []).map((item) =>
+        item.id === alert.id ? { ...item, isRead: 1 } : item
+      ),
+    }));
+  }, []);
+
+  const removeAlertById = useCallback((alert) => {
+    if (alert?.id == null) return;
+    setBuckets((prev) => ({
+      ...prev,
+      alert: (prev.alert || []).filter((item) => item.id !== alert.id),
+    }));
+  }, []);
 
   const markCommentReadById = useCallback((commentId) => {
     if (commentId == null) return;
@@ -448,13 +462,8 @@ const DoctorDashboard = () => {
 
       if (activeCategory === "comments") {
         setModals((prev) => ({ ...prev, comment: true }));
-        return;
       }
-
-      // alert
-      const list = patientId ? alertsForPatient(patientId, "alert") : [row];
-      localStorage.setItem("alertAlerts", JSON.stringify(list));
-      setModals((prev) => ({ ...prev, alert: true }));
+      // Red Alerts: shown inline in the section — no modal.
     },
     [activeCategory, alertsForPatient]
   );
@@ -603,7 +612,13 @@ const DoctorDashboard = () => {
               isMobile ? "p-3" : "p-4"
             }`}
           >
-            {activeRows.length === 0 ? (
+            {activeCategory === "alert" ? (
+              <AlertListPanel
+                alerts={buckets.alert}
+                onMarkRead={markAlertReadById}
+                onDelete={removeAlertById}
+              />
+            ) : activeRows.length === 0 ? (
               <Flex justify="center" align="center" className="py-12 text-gray-500">
                 <Text size="md" color="muted">
                   No {activeMeta.label.toLowerCase()} alerts
@@ -647,13 +662,6 @@ const DoctorDashboard = () => {
           comments={[...selectedComments]}
           closeModal={() => closeModal("comment")}
           onCommentRead={markCommentReadById}
-        />
-      )}
-
-      {modals.alert && (
-        <AlertModal
-          key={selectedPatientId || "doctor-alert-modal"}
-          closeModal={() => closeModal("alert")}
         />
       )}
 
