@@ -7,22 +7,17 @@
 
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
-import { useNavigate } from "react-router-dom";
 import {
   approveAlert,
   approveAllAlerts,
   updateIsReadAlert,
 } from "../../../ApiCalls/alertsApis";
-import { ROUTES } from "../../../routes/routeConstants";
 import { getPatientId } from "../../../helpers/alertGrouping";
 import ThemedModalShell, {
   THEMED_MODAL,
 } from "../../../components/modals/ThemedModalShell";
 import SimpleModal from "./SimpleModal";
 import DisapproveReasonModal from "./Modal";
-
-const toolbarBtn =
-  "inline-flex items-center justify-center rounded-lg border px-3 py-2 text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap";
 
 const actionBtn =
   "inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap";
@@ -59,7 +54,6 @@ const groupByPresId = (list) => {
 };
 
 const PrescriptionModal = ({ closeModal, onResolved }) => {
-  const navigate = useNavigate();
   const [alerts, setAlerts] = useState([]);
   const [busy, setBusy] = useState(false);
   const [viewerUrl, setViewerUrl] = useState("");
@@ -190,10 +184,6 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
     setShowViewer(true);
   };
 
-  const viewProfile = () => {
-    if (patientId) navigate(ROUTES.userProfile(patientId));
-  };
-
   const groupKeys = Object.keys(groupedData);
 
   return (
@@ -204,22 +194,6 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
         onClose={closeModal}
         width="min(1100px, 96vw)"
         maxHeight="90vh"
-        toolbar={
-          patientId ? (
-            <button
-              type="button"
-              onClick={viewProfile}
-              className={toolbarBtn}
-              style={{
-                borderColor: THEMED_MODAL.slate,
-                color: THEMED_MODAL.slate,
-                background: "#fff",
-              }}
-            >
-              View Profile
-            </button>
-          ) : null
-        }
         bodyClassName="px-4 sm:px-5 py-4"
       >
         {groupKeys.length === 0 ? (
