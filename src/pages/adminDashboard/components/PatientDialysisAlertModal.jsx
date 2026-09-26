@@ -12,6 +12,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../../helpers/axios/axiosInstance";
 import { server_url } from "../../../constants/constants";
+import ThemedModalShell, {
+  THEMED_MODAL,
+} from "../../../components/modals/ThemedModalShell";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -218,101 +221,78 @@ const PatientDialysisAlertModal = ({ alerts = [], patientName, patientId, onClos
   const totalUnread = unreadAlerts.length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div
-        className="relative bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-        style={{ width: "min(680px, 96vw)", maxHeight: "88vh" }}
-      >
-        {/* ── Header ── */}
-        <div
-          className="px-6 py-4 flex-shrink-0"
-          style={{
-            background: "linear-gradient(135deg, #1e3a5f 0%, #3F6B85 60%, #00cccc 100%)",
-          }}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-2xl">🔔</span>
-                <h2 className="text-white text-lg font-bold leading-tight">
-                  Dialysis Alerts
-                </h2>
-              </div>
-              {patientName && (
-                <p className="text-cyan-200 text-sm font-medium">
-                  Patient: <span className="text-white font-bold">{patientName}</span>
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              {totalUnread > 0 && (
-                <span className="text-[11px] font-bold bg-red-500 text-white px-2.5 py-1 rounded-full shadow">
-                  {totalUnread} unread
-                </span>
-              )}
-              <span className="text-[11px] font-semibold bg-white/20 text-white px-2.5 py-1 rounded-full">
-                {alerts.length} total
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Toolbar ── */}
-        <div className="px-6 py-2.5 flex items-center gap-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
-          {patientId && (
+    <ThemedModalShell
+      title="Dialysis Alerts"
+      subtitle={
+        patientName ? (
+          <>
+            Patient:{" "}
+            <span className="font-bold" style={{ color: THEMED_MODAL.ink }}>
+              {patientName}
+            </span>
+          </>
+        ) : null
+      }
+      onClose={onClose}
+      width="min(680px, 96vw)"
+      maxHeight="88vh"
+      toolbar={
+        <>
+          {patientId ? (
             <button
+              type="button"
               onClick={handleViewProfile}
-              className="text-xs font-semibold text-[#3F6B85] border border-[#3F6B85] px-3 py-1.5 rounded-lg hover:bg-[#3F6B85] hover:text-white transition-colors"
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors"
+              style={{
+                color: THEMED_MODAL.slate,
+                borderColor: THEMED_MODAL.slate,
+              }}
             >
-              👤 View Profile
+              View Profile
             </button>
-          )}
+          ) : null}
           {totalUnread > 0 && (
             <button
+              type="button"
               onClick={handleMarkAllRead}
               disabled={marking}
               className="text-xs font-semibold text-green-700 border border-green-500 px-3 py-1.5 rounded-lg hover:bg-green-600 hover:text-white transition-colors disabled:opacity-50"
             >
-              {marking ? "Marking…" : "✓ Mark all read"}
+              {marking ? "Marking…" : "Mark all read"}
             </button>
           )}
-          <button
-            onClick={onClose}
-            className="ml-auto text-xs font-semibold text-red-600 border border-red-300 px-3 py-1.5 rounded-lg hover:bg-red-600 hover:text-white transition-colors"
-          >
-            ✕ Close
-          </button>
+        </>
+      }
+      footer={
+        <span className="text-xs text-gray-400">
+          <span className="font-semibold text-gray-600">{alerts.length}</span>{" "}
+          alerts ·{" "}
+          <span className="font-semibold text-red-500">{totalUnread}</span> unread
+          ·{" "}
+          <span className="font-semibold text-green-600">
+            {alerts.length - totalUnread}
+          </span>{" "}
+          seen
+        </span>
+      }
+      bodyClassName="px-4 py-4"
+    >
+      {alerts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
+          <p className="text-sm font-medium">
+            No dialysis alerts for this patient
+          </p>
         </div>
-
-        {/* ── Alert list ── */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {alerts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
-              <span className="text-4xl opacity-30">🔔</span>
-              <p className="text-sm font-medium">No dialysis alerts for this patient</p>
-            </div>
-          ) : (
-            grouped.map(([category, catAlerts]) => (
-              <CategorySection
-                key={category}
-                category={category}
-                alerts={catAlerts}
-              />
-            ))
-          )}
-        </div>
-
-        {/* ── Footer summary ── */}
-        <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 flex-shrink-0 flex items-center gap-4">
-          <span className="text-xs text-gray-400">
-            <span className="font-semibold text-gray-600">{alerts.length}</span> alerts ·{" "}
-            <span className="font-semibold text-red-500">{totalUnread}</span> unread ·{" "}
-            <span className="font-semibold text-green-600">{alerts.length - totalUnread}</span> seen
-          </span>
-        </div>
-      </div>
-    </div>
+      ) : (
+        grouped.map(([category, catAlerts]) => (
+          <CategorySection
+            key={category}
+            category={category}
+            alerts={catAlerts}
+          />
+        ))
+      )}
+    </ThemedModalShell>
   );
 };
 

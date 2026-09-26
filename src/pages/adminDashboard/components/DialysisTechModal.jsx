@@ -13,6 +13,9 @@ import WarningIcon from "@mui/icons-material/Warning";
 import SendMessage from "./SendMessage";
 import { FaFilePdf } from "react-icons/fa6";
 import ThumbnailModal from "./ThumbnailModal";
+import ThemedModalShell, {
+  THEMED_MODAL,
+} from "../../../components/modals/ThemedModalShell";
 
 const DiaAlertModal = ({ closeModal }) => {
   const [alerts, setAlerts] = useState([]);
@@ -172,129 +175,114 @@ const DiaAlertModal = ({ closeModal }) => {
 
   return (
     <>
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-10 bg-black/10 overflow-y-auto">
-        <div className="p-7 ml-4 mr-4 mt-4 bg-white shadow-md border-t-4 border-primary rounded z-50 w-max lg:w-[80%] h-[100vh] overflow-y-auto ">
-          <div className="header flex justify-between border-b pb-2 mb-4 flex-col lg:flex-row">
-            <h2 className="text-2xl font-bold text-center ">Important Alerts</h2>
-            <div className="flex flex-col lg:flex-row gap-2">
-              
-
-              <div className="flex lg:flex-row gap-2">
-               
-                <div
-                  className="rounded-lg text-red-900 border-2 border-red-900 w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-red-200 hover:text-red-900 transition duration-300 ease-in-out transform hover:scale-105"
-                  onClick={onClose}
-                  style={{
-                    cursor: "pointer",
-                  }}
-                >
-                  Close
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {openSimpleModal && (
-            <SimpleModal closeModal={closeModalSimple} image={imgUrl} />
-          )}
-          {smessage && (
+      <ThemedModalShell
+        title="Important Alerts"
+        onClose={onClose}
+        width="min(1100px, 96vw)"
+        maxHeight="90vh"
+        bodyClassName="px-4 py-3"
+      >
+        {openSimpleModal && (
+          <SimpleModal closeModal={closeModalSimple} image={imgUrl} />
+        )}
+        {smessage && (
           <SendMessage
             closeModal={closeSendMessage}
-            patientid={alerts[0].patientId}
+            patientid={alerts[0]?.patientId}
           />
         )}
 
-          <div className="overflow-y-auto">
-            {Array.isArray(alerts) ? (
-              alerts.map((alert, index) => (
-                <div
-                  key={index}
-                  className="p-4 shadow-md hover:shadow-lg border rounded-lg border-gray-200 transition duration-300 ease-in-out m-1"
-                >
-                  <div className="flex justify-between items-center flex-col lg:flex-row">
-                    <div className="flex items-center">
-                      <div className="mb-4">
-                        <label
-                          className="block text-sm font-semibold mb-2"
-                          style={{ color: alert?.color || "red" }}
-                        >
-                          {alert.type?.split("https:")[0]}
-                        </label>
-                      </div>
-                    </div>
+        {Array.isArray(alerts) && alerts.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {alerts.map((alert, index) => (
+              <div
+                key={index}
+                className="p-4 shadow-sm border rounded-xl"
+                style={{ borderColor: THEMED_MODAL.border }}
+              >
+                <div className="flex justify-between items-start gap-3 flex-col lg:flex-row">
+                  <div className="min-w-0 flex-1 text-left">
+                    <label
+                      className="block text-sm font-semibold mb-2"
+                      style={{ color: alert?.color || "red" }}
+                    >
+                      {alert.type?.split("https:")[0]}
+                    </label>
+                  </div>
 
-                    <div className="flex items-center justify-between space-x-3">
-                      {alert.questionType == "Upload" &&
-                        (alert?.image?.endsWith(".pdf") ? (
-                          <FaFilePdf
-                            className="w-10 h-10 lg:ml-[500px] shadow-md cursor-pointer text-red-500"
-                            onClick={() => openModalSimple(alert.image)}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {alert.questionType == "Upload" &&
+                      (alert?.image?.endsWith(".pdf") ? (
+                        <FaFilePdf
+                          className="w-10 h-10 shadow-md cursor-pointer text-red-500"
+                          onClick={() => openModalSimple(alert.image)}
+                        />
+                      ) : (
+                        <img
+                          src={alert.image}
+                          alt="alert"
+                          className="w-10 h-10 shadow-md cursor-pointer"
+                          onClick={() => openModalSimple(alert.image)}
+                        />
+                      ))}
+                    <p className="text-gray-700 text-sm font-bold">
+                      {alert.date
+                        ?.slice(0, 10)
+                        .split("-")
+                        .reverse()
+                        .join("-")}
+                    </p>
+                    {alert.questionId && (
+                      <div>
+                        {alert.isGraph === 1 && (
+                          <InsertChartIcon
+                            className="text-primary cursor-pointer transition duration-300 ease-in-out hover:text-blue-500 transform hover:scale-110"
+                            style={{ fontSize: "2rem" }}
+                            onClick={() => openModalGraph(alert)}
                           />
-                        ) : (
-                          <img
-                            src={alert.image}
-                            alt="alert"
-                            className="w-10 h-10 lg:ml-[500px] shadow-md cursor-pointer"
-                            onClick={() => openModalSimple(alert.image)}
+                        )}
+                        {alert.isGraph === 0 && (
+                          <DatasetLinkedIcon
+                            className="text-primary cursor-pointer transition duration-300 ease-in-out hover:text-blue-500 transform hover:scale-110"
+                            style={{ fontSize: "2rem" }}
+                            onClick={() => openModalTable(alert)}
                           />
-                        ))}
-                      <p className="text-gray-700 text-sm font-bold mr-2">
-                        {alert.date
-                          ?.slice(0, 10)
-                          .split("-")
-                          .reverse()
-                          .join("-")}
-                      </p>
-                      {alert.questionId && (
-                        <div>
-                          {alert.isGraph === 1 && (
-                            <InsertChartIcon
-                              className="text-primary cursor-pointer transition duration-300 ease-in-out hover:text-blue-500 transform hover:scale-110"
-                              style={{ fontSize: "2rem" }}
-                              onClick={() => openModalGraph(alert)}
-                            />
-                          )}
-                          {alert.isGraph === 0 && (
-                            <DatasetLinkedIcon
-                              className="text-primary cursor-pointer transition duration-300 ease-in-out hover:text-blue-500 transform hover:scale-110"
-                              style={{ fontSize: "2rem" }}
-                              onClick={() => openModalTable(alert)}
-                            />
-                          )}
-                          {openGraphModal && (
-                            <GraphModal
-                              closeModal={closeModalGraph}
-                              patientId={patientId}
-                              questionId={questionId}
-                              dailyordia={dailyordia}
-                              isGraph={isGraphVar}
-                              questionTitle={questionTitle}
-                              questionUnit={questionUnit}
-                            />
-                          )}
-                          {openTableModal && (
-                            <TableModal
-                              closeModal={closeModalTable}
-                              patientId={patientId}
-                              questionId={questionId}
-                              dailyordia={dailyordia}
-                              isGraph={isGraphVar}
-                              questionTitle={questionTitle}
-                              questionUnit={questionUnit}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
+                        )}
+                        {openGraphModal && (
+                          <GraphModal
+                            closeModal={closeModalGraph}
+                            patientId={patientId}
+                            questionId={questionId}
+                            dailyordia={dailyordia}
+                            isGraph={isGraphVar}
+                            questionTitle={questionTitle}
+                            questionUnit={questionUnit}
+                          />
+                        )}
+                        {openTableModal && (
+                          <TableModal
+                            closeModal={closeModalTable}
+                            patientId={patientId}
+                            questionId={questionId}
+                            dailyordia={dailyordia}
+                            isGraph={isGraphVar}
+                            questionTitle={questionTitle}
+                            questionUnit={questionUnit}
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center">No Alerts</div>
-            )}
+              </div>
+            ))}
           </div>
-        </div>
-      </div>
+        ) : (
+          <div className="text-center py-10" style={{ color: THEMED_MODAL.slate }}>
+            No Alerts
+          </div>
+        )}
+      </ThemedModalShell>
     </>
   );
 };

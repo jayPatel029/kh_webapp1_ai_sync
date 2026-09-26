@@ -17,6 +17,9 @@ import {
   openAlertDestination,
 } from "../../../helpers/alertNavigation";
 import { ROUTES } from "../../../routes/routeConstants";
+import ThemedModalShell, {
+  THEMED_MODAL,
+} from "../../../components/modals/ThemedModalShell";
 
 const AlertModal = ({ closeModal }) => {
   const [alerts, setAlerts] = useState([]);
@@ -156,177 +159,194 @@ const AlertModal = ({ closeModal }) => {
     }
   };
 
+  const toolbarBtn =
+    "inline-flex items-center justify-center rounded-lg border px-3 py-2 text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap";
+
   return (
     <>
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-10 bg-black/10 overflow-y-auto">
-        <div className="p-7 ml-4 mr-4 mt-4 bg-white shadow-md border-t-4 border-primary rounded z-50 w-max lg:w-[80%] h-[100vh] overflow-y-auto ">
-          <div className="header flex justify-between border-b pb-2 mb-4 flex-col lg:flex-row">
-            <h2 className="text-2xl font-bold text-center ">Important Alerts</h2>
-            <div className="flex flex-col lg:flex-row gap-2">
-              <div className="flex lg:flex-row gap-2">
-                <div
-                  className="rounded-lg text-primary border-2 border-primary w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-gray-300 hover:text-gray-900 transition duration-300 ease-in-out transform hover:scale-105"
-                  onClick={viewProfile}
-                >
-                  View Profile
-                </div>
-                <div
-                  className="rounded-lg text-white bg-red-600 border-red-900 w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-red-600 hover:text-white transition duration-300 ease-in-out transform hover:scale-105"
-                  onClick={consultDoctor}
-                >
-                  Consult Doctor
-                </div>
-              </div>
+      <ThemedModalShell
+        title="Important Alerts"
+        onClose={onClose}
+        width="min(1100px, 96vw)"
+        maxHeight="90vh"
+        toolbar={
+          <>
+            <button
+              type="button"
+              onClick={viewProfile}
+              className={toolbarBtn}
+              style={{
+                borderColor: THEMED_MODAL.slate,
+                color: THEMED_MODAL.slate,
+                background: "#fff",
+              }}
+            >
+              View Profile
+            </button>
+            <button
+              type="button"
+              onClick={consultDoctor}
+              className={toolbarBtn}
+              style={{
+                borderColor: THEMED_MODAL.danger,
+                background: THEMED_MODAL.danger,
+                color: "#fff",
+              }}
+            >
+              Consult Doctor
+            </button>
+            <button
+              type="button"
+              onClick={openSendMessage}
+              className={toolbarBtn}
+              style={{
+                borderColor: THEMED_MODAL.blue,
+                background: THEMED_MODAL.blue,
+                color: "#fff",
+              }}
+            >
+              Send Message
+            </button>
+          </>
+        }
+        bodyClassName="px-4 py-3"
+      >
+        {openSimpleModal && (
+          <SimpleModal closeModal={closeModalSimple} image={imgUrl} />
+        )}
+        {smessage && (
+          <SendMessage
+            closeModal={closeSendMessage}
+            patientid={alerts[0]?.patientId}
+          />
+        )}
 
-              <div className="flex lg:flex-row gap-2">
-                <div
-                  className="rounded-lg text-white border-2 bg-primary border-primary w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-primary-dark hover:text-white transition duration-300 ease-in-out transform hover:scale-105"
-                  onClick={openSendMessage}
-                >
-                  Send Message
-                </div>
-                <div
-                  className="rounded-lg text-red-900 border-2 border-red-900 w-40 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-red-200 hover:text-red-900 transition duration-300 ease-in-out transform hover:scale-105"
-                  onClick={onClose}
-                >
-                  Close
-                </div>
-              </div>
-            </div>
-          </div>
+        {Array.isArray(alerts) && alerts.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {alerts.map((alert, index) => (
+              <div
+                key={alert.id ?? index}
+                className="p-4 shadow-sm border rounded-xl transition-colors"
+                style={{ borderColor: THEMED_MODAL.border }}
+              >
+                <div className="flex justify-between items-start gap-3 flex-col lg:flex-row">
+                  <div className="min-w-0 flex-1 text-left">
+                    <label
+                      className="block text-sm font-semibold mb-1"
+                      style={{ color: alert?.color || "red" }}
+                    >
+                      {alert.type?.split("https:")[0]?.toUpperCase() || "ALERT"}
+                    </label>
+                    {alert.category && (
+                      <span className="text-gray-800 text-sm font-medium">
+                        {alert.category}
+                      </span>
+                    )}
+                  </div>
 
-          {openSimpleModal && (
-            <SimpleModal closeModal={closeModalSimple} image={imgUrl} />
-          )}
-          {smessage && (
-            <SendMessage
-              closeModal={closeSendMessage}
-              patientid={alerts[0].patientId}
-            />
-          )}
-
-          <div className="overflow-y-auto">
-            {Array.isArray(alerts) ? (
-              alerts.map((alert, index) => (
-                <div
-                  key={alert.id ?? index}
-                  className="p-4 shadow-md hover:shadow-lg border rounded-lg border-gray-200 transition duration-300 ease-in-out m-1"
-                >
-                  <div className="flex justify-between items-center flex-col lg:flex-row">
-                    <div className="flex items-center">
-                      <div className="mb-4 flex flex-col">
-                        <label
-                          className="block text-sm font-semibold mb-1"
-                          style={{ color: alert?.color || "red" }}
-                        >
-                          {alert.type?.split("https:")[0]?.toUpperCase() || "ALERT"}
-                        </label>
-                        {alert.category && (
-                          <span className="text-gray-800 text-sm font-medium">
-                            {alert.category}
-                          </span>
+                  <div className="flex items-center justify-end gap-2 flex-wrap">
+                    {isNavigableSystemAlert(alert) && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDestination(alert)}
+                        className="text-xs font-semibold text-white px-3 py-1.5 rounded-md"
+                        style={{ background: THEMED_MODAL.cyan }}
+                        title="Open related page"
+                      >
+                        Open
+                      </button>
+                    )}
+                    {getAlertMediaUrl(alert) && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-700 shadow-sm transition hover:bg-blue-100"
+                        onClick={() =>
+                          openModalSimple(getAlertMediaUrl(alert))
+                        }
+                        title={
+                          getAlertMediaUrl(alert).endsWith(".pdf")
+                            ? "Open attached document"
+                            : "Open attached image"
+                        }
+                      >
+                        {getAlertMediaUrl(alert).endsWith(".pdf") ? (
+                          <FaFilePdf className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <ImageOutlinedIcon style={{ fontSize: 18 }} />
+                        )}
+                        <span className="text-xs font-semibold whitespace-nowrap">
+                          {getAlertMediaUrl(alert).endsWith(".pdf")
+                            ? "View file"
+                            : "View image"}
+                        </span>
+                      </button>
+                    )}
+                    <p className="text-gray-700 text-sm font-bold">
+                      {alert.date
+                        ?.slice(0, 10)
+                        .split("-")
+                        .reverse()
+                        .join("-")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteAlert(alert.id, index)}
+                      className="text-xs text-red-400 hover:text-red-600 px-2 py-1 transition-colors"
+                      title="Delete alert"
+                    >
+                      ✕
+                    </button>
+                    {alert.questionId && (
+                      <div>
+                        {alert.isGraph === 1 && (
+                          <InsertChartIcon
+                            className="text-primary cursor-pointer transition duration-300 ease-in-out hover:text-blue-500 transform hover:scale-110"
+                            style={{ fontSize: "2rem" }}
+                            onClick={() => openModalGraph(alert)}
+                          />
+                        )}
+                        {alert.isGraph === 0 && (
+                          <DatasetLinkedIcon
+                            className="text-primary cursor-pointer transition duration-300 ease-in-out hover:text-blue-500 transform hover:scale-110"
+                            style={{ fontSize: "2rem" }}
+                            onClick={() => openModalTable(alert)}
+                          />
+                        )}
+                        {openGraphModal && (
+                          <GraphModal
+                            closeModal={closeModalGraph}
+                            patientId={patientId}
+                            questionId={questionId}
+                            dailyordia={dailyordia}
+                            isGraph={isGraphVar}
+                            questionTitle={questionTitle}
+                            questionUnit={questionUnit}
+                          />
+                        )}
+                        {openTableModal && (
+                          <TableModal
+                            closeModal={closeModalTable}
+                            patientId={patientId}
+                            questionId={questionId}
+                            dailyordia={dailyordia}
+                            isGraph={isGraphVar}
+                            questionTitle={questionTitle}
+                            questionUnit={questionUnit}
+                          />
                         )}
                       </div>
-                    </div>
-
-                    <div className="flex items-center justify-between space-x-3 flex-wrap gap-2">
-                      {isNavigableSystemAlert(alert) && (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDestination(alert)}
-                          className="text-xs font-semibold bg-[#00cccc] text-white px-3 py-1.5 rounded-md hover:bg-[#00b3b3] transition-colors"
-                          title="Open related page"
-                        >
-                          Open
-                        </button>
-                      )}
-                      {getAlertMediaUrl(alert) && (
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-700 shadow-sm transition hover:bg-blue-100"
-                          onClick={() => openModalSimple(getAlertMediaUrl(alert))}
-                          title={
-                            getAlertMediaUrl(alert).endsWith(".pdf")
-                              ? "Open attached document"
-                              : "Open attached image"
-                          }
-                        >
-                          {getAlertMediaUrl(alert).endsWith(".pdf") ? (
-                            <FaFilePdf className="h-4 w-4 text-red-500" />
-                          ) : (
-                            <ImageOutlinedIcon style={{ fontSize: 18 }} />
-                          )}
-                          <span className="text-xs font-semibold whitespace-nowrap">
-                            {getAlertMediaUrl(alert).endsWith(".pdf")
-                              ? "View file"
-                              : "View image"}
-                          </span>
-                        </button>
-                      )}
-                      <p className="text-gray-700 text-sm font-bold mr-2">
-                        {alert.date
-                          ?.slice(0, 10)
-                          .split("-")
-                          .reverse()
-                          .join("-")}
-                      </p>
-                      <button
-                        onClick={() => handleDeleteAlert(alert.id, index)}
-                        className="text-xs text-red-400 hover:text-red-600 px-2 py-1 transition-colors"
-                        title="Delete alert"
-                      >
-                        ✕
-                      </button>
-                      {alert.questionId && (
-                        <div>
-                          {alert.isGraph === 1 && (
-                            <InsertChartIcon
-                              className="text-primary cursor-pointer transition duration-300 ease-in-out hover:text-blue-500 transform hover:scale-110"
-                              style={{ fontSize: "2rem" }}
-                              onClick={() => openModalGraph(alert)}
-                            />
-                          )}
-                          {alert.isGraph === 0 && (
-                            <DatasetLinkedIcon
-                              className="text-primary cursor-pointer transition duration-300 ease-in-out hover:text-blue-500 transform hover:scale-110"
-                              style={{ fontSize: "2rem" }}
-                              onClick={() => openModalTable(alert)}
-                            />
-                          )}
-                          {openGraphModal && (
-                            <GraphModal
-                              closeModal={closeModalGraph}
-                              patientId={patientId}
-                              questionId={questionId}
-                              dailyordia={dailyordia}
-                              isGraph={isGraphVar}
-                              questionTitle={questionTitle}
-                              questionUnit={questionUnit}
-                            />
-                          )}
-                          {openTableModal && (
-                            <TableModal
-                              closeModal={closeModalTable}
-                              patientId={patientId}
-                              questionId={questionId}
-                              dailyordia={dailyordia}
-                              isGraph={isGraphVar}
-                              questionTitle={questionTitle}
-                              questionUnit={questionUnit}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center">No Alerts</div>
-            )}
+              </div>
+            ))}
           </div>
-        </div>
-      </div>
+        ) : (
+          <div className="text-center py-10" style={{ color: THEMED_MODAL.slate }}>
+            No Alerts
+          </div>
+        )}
+      </ThemedModalShell>
     </>
   );
 };

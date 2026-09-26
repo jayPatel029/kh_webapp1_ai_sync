@@ -1,60 +1,59 @@
 import React, { useState, useEffect } from "react";
 import MyPDFViewer from "../../../components/pdf/MyPDFViewer";
+import ThemedModalShell, {
+  THEMED_MODAL,
+} from "../../../components/modals/ThemedModalShell";
 
 const SimpleModal = ({ closeModal, image }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true); // Set loading to true when file changes
-    // Check if file is loaded
+    setLoading(true);
     if (image && image !== "") {
       setLoading(false);
     }
   }, [image]);
 
-  console.log(image);
+  const isPdf = /\.pdf$/i.test(String(image || ""));
 
-  const isPdf = /.*\.pdf$/.test(image);
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50 bg-black">
-      <div className="p-7 ml-4 mr-4 mt-4 bg-white w-3/5 h-4/5 shadow-md border-t-4 border-teal-500 rounded z-50 overflow-y-auto">
-        <div className="header flex justify-between items-center border-b pb-2 mb-4">
-          <h1 className="text-2xl font-bold">Uploaded Image</h1>
-          <button
-            onClick={closeModal}
-            className="border-2 border-teal-500 text-teal-500 py-2 px-4 rounded focus:outline-none focus:shadow-outline ml-2"
-          >
-            Close
-          </button>
-        </div>
-
-        <div className="h-full">
-          {loading ? ( // Show loading indicator if isLoading is true
-            <div className="flex justify-center items-center h-full">
-              <p>Loading...</p>
-            </div>
-          ) : (
-            <div className="overflow-auto h-4/5">
-              {isPdf ? (
-                <div className="h-full">
-                  <MyPDFViewer file={image} />
-                </div>
-              ) : (
-                <img
-                  src={image ? image : ""}
-                  alt="prescription"
-                  className="w-full h-auto object-contain"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                  }}
-                />
-              )}
-            </div>
-          )}
-        </div>
+    <ThemedModalShell
+      title="Uploaded file"
+      onClose={closeModal}
+      width="min(900px, 96vw)"
+      height="min(85vh, 720px)"
+      zIndex={70}
+      fillBody
+      bodyScroll={false}
+      bodyClassName="p-4"
+      bodyStyle={{ background: "#f8fafc" }}
+    >
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+        {loading ? (
+          <div className="h-full min-h-[200px] flex items-center justify-center">
+            <p className="text-sm" style={{ color: THEMED_MODAL.slate }}>
+              Loading…
+            </p>
+          </div>
+        ) : isPdf ? (
+          <div className="w-full h-full min-h-[280px]">
+            <MyPDFViewer file={image} fitWidth />
+          </div>
+        ) : (
+          <img
+            src={image || ""}
+            alt="Uploaded"
+            className="rounded-lg shadow-sm block mx-auto"
+            style={{
+              maxWidth: "100%",
+              width: "100%",
+              height: "auto",
+              objectFit: "contain",
+            }}
+          />
+        )}
       </div>
-    </div>
+    </ThemedModalShell>
   );
 };
 
