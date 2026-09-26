@@ -152,18 +152,22 @@ const CommentContainer = ({ comments, closeModal, onCommentRead }) => {
           textAlign: "left",
         }}
       >
-        {/* Header — new theme gradient */}
+        {/* Header — white + teal separator */}
         <div
-          className="px-5 sm:px-6 py-4 flex-shrink-0 relative"
-          style={{
-            background:
-              "linear-gradient(135deg, #1e3a5f 0%, #3F6B85 55%, #00cccc 100%)",
-          }}
+          className="px-5 sm:px-6 py-4 flex-shrink-0 relative bg-white"
+          style={{ borderBottom: `3px solid ${THEME.cyan}` }}
         >
           <button
             type="button"
             onClick={closeModal}
-            className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition-colors"
+            className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+            style={{ color: THEME.slate }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f1f5f9";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
             aria-label="Close"
             title="Close"
           >
@@ -183,13 +187,21 @@ const CommentContainer = ({ comments, closeModal, onCommentRead }) => {
           </button>
 
           <div className="pr-10 text-left">
-            <h2 className="text-white text-lg sm:text-xl font-bold leading-tight">
+            <h2
+              className="text-lg sm:text-xl font-bold leading-tight"
+              style={{ color: THEME.ink }}
+            >
               Comments
             </h2>
             {patientName ? (
-              <p className="text-cyan-100 text-sm font-medium mt-1">
+              <p
+                className="text-sm font-medium mt-1"
+                style={{ color: THEME.slate }}
+              >
                 Patient:{" "}
-                <span className="text-white font-bold">{patientName}</span>
+                <span className="font-bold" style={{ color: THEME.ink }}>
+                  {patientName}
+                </span>
               </p>
             ) : null}
           </div>

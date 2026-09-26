@@ -116,18 +116,22 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
           textAlign: "left",
         }}
       >
-        {/* Header */}
+        {/* Header — white + teal separator */}
         <div
-          className="px-5 sm:px-6 py-3.5 flex-shrink-0 relative"
-          style={{
-            background:
-              "linear-gradient(135deg, #1e3a5f 0%, #3F6B85 55%, #00cccc 100%)",
-          }}
+          className="px-5 sm:px-6 py-3.5 flex-shrink-0 relative bg-white"
+          style={{ borderBottom: `3px solid ${THEME.cyan}` }}
         >
           <button
             type="button"
             onClick={closeModal}
-            className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition-colors"
+            className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+            style={{ color: THEME.slate }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f1f5f9";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
             aria-label="Close"
             title="Close"
           >
@@ -147,10 +151,16 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
           </button>
 
           <div className="pr-10 text-left">
-            <p className="text-cyan-100 text-[11px] font-semibold uppercase tracking-wide">
+            <p
+              className="text-[11px] font-semibold uppercase tracking-wide"
+              style={{ color: THEME.cyan }}
+            >
               {fileType}
             </p>
-            <h2 className="text-white text-lg font-bold leading-tight mt-0.5">
+            <h2
+              className="text-lg font-bold leading-tight mt-0.5"
+              style={{ color: THEME.ink }}
+            >
               View &amp; Comment
             </h2>
           </div>
