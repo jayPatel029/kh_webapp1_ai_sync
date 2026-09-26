@@ -1,6 +1,7 @@
 /**
  * Shared alert list row — Comments / Dialysis / Important Alerts pattern.
  * Unread: red dot + soft red background. Whole row click opens when actionable.
+ * Trailing icon shows media (image/pdf), graph, or table when applicable.
  *
  * @file src/components/dashboard/AlertListRow.jsx
  */
@@ -8,6 +9,9 @@
 import React from "react";
 import PropTypes from "prop-types";
 import InsertChartIcon from "@mui/icons-material/InsertChart";
+import DatasetLinkedIcon from "@mui/icons-material/DatasetLinked";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import { FaFilePdf } from "react-icons/fa6";
 import { getPatientName } from "../../helpers/alertGrouping";
 import { isNavigableSystemAlert } from "../../helpers/alertNavigation";
 import { THEMED_MODAL } from "../modals/ThemedModalShell";
@@ -66,16 +70,73 @@ export const resolveAlertRowKind = (alert) => {
   return "none";
 };
 
+const iconStyle = {
+  fontSize: 20,
+  color: THEMED_MODAL.slate,
+  marginTop: 1,
+};
+
+const AlertTypeIcon = ({ kind, mediaUrl }) => {
+  if (kind === "media") {
+    if (/\.pdf$/i.test(mediaUrl || "")) {
+      return (
+        <FaFilePdf
+          className="flex-shrink-0 h-4 w-4 mt-0.5 text-red-500"
+          title="PDF available"
+          aria-label="PDF available"
+        />
+      );
+    }
+    return (
+      <ImageOutlinedIcon
+        className="flex-shrink-0"
+        style={iconStyle}
+        titleAccess="Image available"
+        aria-label="Image available"
+      />
+    );
+  }
+
+  if (kind === "graph") {
+    return (
+      <InsertChartIcon
+        className="flex-shrink-0"
+        style={iconStyle}
+        titleAccess="Graph available"
+        aria-label="Graph available"
+      />
+    );
+  }
+
+  if (kind === "table") {
+    return (
+      <DatasetLinkedIcon
+        className="flex-shrink-0"
+        style={iconStyle}
+        titleAccess="Table available"
+        aria-label="Table available"
+      />
+    );
+  }
+
+  return null;
+};
+
+AlertTypeIcon.propTypes = {
+  kind: PropTypes.string.isRequired,
+  mediaUrl: PropTypes.string,
+};
+
 const AlertListRow = ({ alert, patientNameOverride, onRowClick }) => {
   const unread = isAlertRowUnread(alert);
   const kind = resolveAlertRowKind(alert);
+  const mediaUrl = getAlertMediaUrl(alert);
   const actionable = kind !== "none" && typeof onRowClick === "function";
   const title =
     alert?.type?.split("https:")[0]?.trim()?.toUpperCase() || "ALERT";
   const patientName =
     (patientNameOverride && String(patientNameOverride).trim()) ||
     getPatientName(alert);
-  const showGraphIcon = isGraphAlert(alert);
 
   const handleActivate = () => {
     if (!actionable) return;
@@ -136,18 +197,7 @@ const AlertListRow = ({ alert, patientNameOverride, onRowClick }) => {
               style={{ color: alert?.color || THEMED_MODAL.danger }}
             >
               <span className="min-w-0 break-words">{title}</span>
-              {showGraphIcon ? (
-                <InsertChartIcon
-                  className="flex-shrink-0"
-                  style={{
-                    fontSize: 20,
-                    color: THEMED_MODAL.slate,
-                    marginTop: 1,
-                  }}
-                  titleAccess="Graph available"
-                  aria-label="Graph available"
-                />
-              ) : null}
+              <AlertTypeIcon kind={kind} mediaUrl={mediaUrl} />
             </p>
             {alert?.category ? (
               <p
