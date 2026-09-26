@@ -1,33 +1,28 @@
 /**
  * Doctor Dashboard
- * Main DoctorContainer workflow (patient cards + typed action buttons + modals)
- * with the current new-layout theme. Admin dashboard stays on flat inbox.
- *
- * Parity with main:
- * 1) Patient list order = API first-seen order
- * 2) View/close alerts/comments/dialysis → mark read + un-highlight badge (keep card)
- * 3) Remove/rebuild only after Rx approve reload or when API stops returning items
+ * Global category tabs (Prescription / Dialysis / Alert / Comments) →
+ * flat alert rows → existing modals/workflows. New-layout theme.
  *
  * @file src/pages/doctorDashboard/DoctorDashboard.jsx
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 import { useDoctorDashboardData } from "../../hooks/useDashboardData";
 import {
+  classifyAlert,
   getPatientId,
-  groupAlertsByPatient,
+  getPatientName,
   isChatAlert,
   isUnreadAlert,
 } from "../../helpers/alertGrouping";
-import { ROUTES } from "../../routes/routeConstants";
+import { getAlertCategory } from "../../helpers/alertNavigation";
 import { getDoctorComments } from "../../ApiCalls/GetComments";
 import { updateReadTable } from "../../ApiCalls/commentApi";
 
 import StatCard from "../../components/dashboard/StatCard";
+import AlertRow from "../../components/dashboard/AlertRow";
 import PageHeader from "../../components/PageHeader";
-import PatientAlertCard from "../adminDashboard/components/PatientAlertCard";
 import AlertModal from "../adminDashboard/components/AlertModal";
 import PrescriptionModal from "../adminDashboard/components/ApprovePrescriptionModal";
 import CommentContainer from "../adminDashboard/components/CommentContainer";
@@ -39,6 +34,32 @@ import { Box, Flex } from "../../component-library";
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 
 import "../dashboard/dashboard.css";
+
+/** Theme-aligned colors (main: primary / violet / red / yellow). */
+const CATEGORY_META = [
+  {
+    key: "prescription",
+    label: "Prescription",
+    color: "#00cccc",
+  },
+  {
+    key: "dialysis",
+    label: "Dialysis",
+    color: "#6b21a8",
+  },
+  {
+    key: "alert",
+    label: "Alert",
+    color: "#fd0000",
+  },
+  {
+    key: "comments",
+    label: "Comments",
+    color: "#d97706",
+  },
+];
+
+const CATEGORY_ORDER = CATEGORY_META.map((c) => c.key);
 
 const iconStyle = { color: "#32617d" };
 
@@ -95,40 +116,35 @@ const DashboardError = ({ message, onRetry }) => (
   </div>
 );
 
-/** Main: unique names from API array order (first-seen). We key by patientId for stability. */
-const orderPatientsByApiFirstSeen = (alerts, patientsById) => {
-  const seen = new Set();
-  const ordered = [];
-
-  alerts.forEach((alert) => {
-    const id = String(getPatientId(alert) || "");
-    if (!id || seen.has(id)) return;
-    seen.add(id);
-    const patient = patientsById.get(id);
-    if (patient) ordered.push(patient);
-  });
-
-  return ordered;
+/** Map classifyAlert bucket → tab key (comments stay API-sourced). */
+const bucketForSortAlert = (alert) => {
+  const { bucket } = classifyAlert(alert);
+  if (bucket === "prescription") return "prescription";
+  if (bucket === "dialysis") return "dialysis";
+  // Alert leftovers; any comment-shaped sortAlerts items fold into Alert tab
+  // because Comments tab is filled from getDoctorComments (main parity).
+  return "alert";
 };
 
-const withUnreadBadgeCounts = (patient) => ({
-  ...patient,
-  // Badge numbers = unread only (main Alerts button / comments badge)
-  alertCount: (patient.alertAlerts || []).filter(isUnreadAlert).length,
-  dialysisCount: (patient.dialysisAlerts || []).filter(isUnreadAlert).length,
-  prescriptionCount: (patient.prescriptionAlerts || []).length,
-  commentCount: (patient.commentAlerts || []).filter(
-    (c) => c?.isRead === false || c?.isRead === 0 || c?.isRead === "0"
-  ).length,
-});
+const sortNewestFirst = (items) =>
+  [...items].sort(
+    (a, b) =>
+      new Date(b.date || b.created_at || b.sent_at || 0) -
+      new Date(a.date || a.created_at || a.sent_at || 0)
+  );
 
 const DoctorDashboard = () => {
-  const navigate = useNavigate();
   const { isMobile } = useIsMobile();
   const { loading, error, data, refetch } = useDoctorDashboardData();
 
-  const [patients, setPatients] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [buckets, setBuckets] = useState({
+    prescription: [],
+    dialysis: [],
+    alert: [],
+    comments: [],
+  });
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [modals, setModals] = useState({
     prescription: false,
     comment: false,
@@ -137,10 +153,9 @@ const DoctorDashboard = () => {
     dialysisTech: false,
   });
 
-  const patientLookup = useMemo(() => {
-    const map = new Map();
+  const nameLookup = useMemo(() => {
+    const map = {};
     const rows = Array.isArray(data?.patients) ? data.patients : [];
-
     rows.forEach((patient) => {
       const id = String(patient?.id || patient?.patient_id || patient?.patientid || "");
       if (!id) return;
@@ -148,139 +163,143 @@ const DoctorDashboard = () => {
         `${patient?.firstname || ""} ${patient?.lastname || ""}`.trim() ||
         patient?.name ||
         null;
-      map.set(id, {
-        name,
-        avatar: patient?.photo || patient?.profile_photo || patient?.avatar || "",
-      });
+      if (name) map[id] = name;
     });
-
     return map;
   }, [data?.patients]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const buildPatients = async () => {
+    const buildBuckets = async () => {
       const sourceAlerts = Array.isArray(data?.alerts) ? data.alerts : [];
-      const nonChat = sourceAlerts.filter((alert) => !isChatAlert(alert));
-      const grouped = groupAlertsByPatient(nonChat, { includeChats: false });
-      const byId = new Map(
-        grouped.patients.map((p) => [String(p.id), p])
-      );
+      const nonChat = sourceAlerts.filter((a) => !isChatAlert(a));
 
-      // 1) Preserve API first-seen patient order (main Set(names) behavior)
-      const orderedBase = orderPatientsByApiFirstSeen(nonChat, byId);
+      const prescription = [];
+      const dialysis = [];
+      const alert = [];
 
+      nonChat.forEach((item) => {
+        const kind = bucketForSortAlert(item);
+        if (kind === "prescription") prescription.push(item);
+        else if (kind === "dialysis") dialysis.push(item);
+        else alert.push(item);
+      });
+
+      // Comments: getDoctorComments filtered by patient names seen in alerts
       const email = localStorage.getItem("email");
-      const enriched = await Promise.all(
-        orderedBase.map(async (patient) => {
-          const mapped = patientLookup.get(String(patient.id));
-          let next = {
-            ...patient,
-            name: mapped?.name || patient.name,
-            avatar: patient.avatar || mapped?.avatar || "",
-          };
+      const nameToPatientId = new Map();
+      nonChat.forEach((a) => {
+        const name = getPatientName(a);
+        const pid = getPatientId(a);
+        if (name && name !== "Unknown Patient" && !nameToPatientId.has(name)) {
+          nameToPatientId.set(name, pid || null);
+        }
+      });
 
-          // Cap general alerts at 50 newest (main UserCard)
-          if (Array.isArray(next.alertAlerts) && next.alertAlerts.length > 50) {
-            next.alertAlerts = [...next.alertAlerts]
-              .sort(
-                (a, b) =>
-                  new Date(b.date || b.created_at || 0) -
-                  new Date(a.date || a.created_at || 0)
-              )
-              .slice(0, 50);
-          }
-
-          if (email && next.name) {
+      const commentRows = [];
+      if (email && nameToPatientId.size) {
+        await Promise.all(
+          [...nameToPatientId.keys()].map(async (name) => {
             try {
-              const commentRes = await getDoctorComments(email, next.name);
-              const comments = Array.isArray(commentRes?.comments)
-                ? commentRes.comments
-                : [];
-              if (comments.length) {
-                const ordered = [...comments]
-                  .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-                  .slice(0, 50);
-                next = {
-                  ...next,
-                  commentAlerts: ordered,
-                };
-              }
+              const res = await getDoctorComments(email, name);
+              const comments = Array.isArray(res?.comments) ? res.comments : [];
+              sortNewestFirst(comments)
+                .slice(0, 50)
+                .forEach((c) => {
+                  commentRows.push({
+                    ...c,
+                    category: c.fileType || "Comment",
+                    type: c.fileType || "Comment",
+                    name,
+                    patientId: c.userId || nameToPatientId.get(name) || null,
+                    date: c.date,
+                    isRead: c.isRead === true || c.isRead === 1 ? 1 : 0,
+                  });
+                });
             } catch {
-              /* keep alert-derived comments */
+              /* skip */
             }
-          }
+          })
+        );
+      }
 
-          return withUnreadBadgeCounts(next);
-        })
-      );
+      const next = {
+        prescription: sortNewestFirst(prescription).slice(0, 200),
+        dialysis: sortNewestFirst(dialysis).slice(0, 200),
+        alert: sortNewestFirst(alert).slice(0, 200),
+        comments: sortNewestFirst(commentRows),
+      };
 
-      if (!cancelled) setPatients(enriched);
+      if (cancelled) return;
+
+      setBuckets(next);
+
+      setActiveCategory((prev) => {
+        if (prev && (next[prev] || []).length > 0) return prev;
+        const first = CATEGORY_ORDER.find((key) => (next[key] || []).length > 0);
+        return first || "alert";
+      });
     };
 
-    buildPatients();
+    buildBuckets();
     return () => {
       cancelled = true;
     };
-  }, [data?.alerts, patientLookup]);
+  }, [data?.alerts]);
 
-  const clearUnreadBadge = useCallback((patientId, kind) => {
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (String(p.id) !== String(patientId)) return p;
+  const visibleTabs = useMemo(
+    () =>
+      CATEGORY_META.filter((tab) => (buckets[tab.key] || []).length > 0).map(
+        (tab) => ({
+          ...tab,
+          count: (buckets[tab.key] || []).length,
+          unread: (buckets[tab.key] || []).filter((item) =>
+            tab.key === "comments"
+              ? item.isRead === 0 || item.isRead === false || item.isRead === "0"
+              : isUnreadAlert(item)
+          ).length,
+        })
+      ),
+    [buckets]
+  );
 
-        if (kind === "alert") {
-          return {
-            ...p,
-            alertCount: 0,
-            alertAlerts: (p.alertAlerts || []).map((a) => ({
-              ...a,
-              isRead: 1,
-            })),
-          };
-        }
+  const activeRows = buckets[activeCategory] || [];
+  const activeMeta =
+    CATEGORY_META.find((c) => c.key === activeCategory) || CATEGORY_META[2];
 
-        if (kind === "dialysis" || kind === "dialysisTech") {
-          return {
-            ...p,
-            dialysisCount: 0,
-            dialysisAlerts: (p.dialysisAlerts || []).map((a) => ({
-              ...a,
-              isRead: 1,
-            })),
-          };
-        }
+  const alertsForPatient = useCallback(
+    (patientId, categoryKey) => {
+      const pid = String(patientId || "");
+      return (buckets[categoryKey] || []).filter(
+        (a) => String(getPatientId(a) || "") === pid
+      );
+    },
+    [buckets]
+  );
 
-        if (kind === "comment") {
-          return {
-            ...p,
-            commentCount: 0,
-            commentAlerts: (p.commentAlerts || []).map((c) => ({
-              ...c,
-              isRead: true,
-            })),
-          };
-        }
-
-        return p;
-      })
-    );
+  const markRowsReadLocally = useCallback((categoryKey, patientId) => {
+    setBuckets((prev) => {
+      const list = prev[categoryKey] || [];
+      const nextList = list.map((item) => {
+        const samePatient =
+          !patientId ||
+          String(getPatientId(item) || "") === String(patientId);
+        if (!samePatient) return item;
+        return { ...item, isRead: 1 };
+      });
+      return { ...prev, [categoryKey]: nextList };
+    });
   }, []);
 
-  /**
-   * 2) Close → mark read / un-highlight; do NOT refetch (keeps card).
-   * 3) Prescription approve still reloads inside ApprovePrescriptionModal.
-   */
   const closeModal = useCallback(
     async (type) => {
-      const patientId = selectedPatient?.id;
-
-      if (type === "comment" && selectedPatient) {
+      if (type === "comment" && selectedPatientId) {
+        const comments = alertsForPatient(selectedPatientId, "comments");
+        const unread = comments.filter(
+          (c) => c?.isRead === false || c?.isRead === 0 || c?.isRead === "0"
+        );
         try {
-          const unread = (selectedPatient.commentAlerts || []).filter(
-            (c) => c?.isRead === false || c?.isRead === 0 || c?.isRead === "0"
-          );
           if (unread.length) {
             await updateReadTable({
               email: localStorage.getItem("email"),
@@ -290,55 +309,44 @@ const DoctorDashboard = () => {
         } catch (err) {
           console.error("Error updating comment read table:", err);
         }
+        markRowsReadLocally("comments", selectedPatientId);
       }
 
-      // AlertModal / DialysisTechModal already call dailyAlerts/updateIsRead on their Close.
-      if (patientId && (type === "alert" || type === "dialysis" || type === "dialysisTech" || type === "comment")) {
-        clearUnreadBadge(patientId, type);
+      if (type === "alert") {
+        markRowsReadLocally("alert", selectedPatientId);
+      }
+
+      if (type === "dialysis" || type === "dialysisTech") {
+        markRowsReadLocally("dialysis", selectedPatientId);
       }
 
       setModals((prev) => ({ ...prev, [type]: false }));
-      setSelectedPatient(null);
-
-      // Prescription dismiss without approve: no reload (main also only reloads on approve).
-      // Do not refetch here — avoids dropping cards until API/polling omits them.
+      setSelectedPatientId(null);
     },
-    [selectedPatient, clearUnreadBadge]
+    [selectedPatientId, alertsForPatient, markRowsReadLocally]
   );
 
-  const handlePatientAction = useCallback(
-    (patient, type) => {
-      if (type === "view") {
-        if (patient?.id) navigate(ROUTES.userProfile(patient.id));
-        return;
-      }
+  const openWorkflowForRow = useCallback(
+    (row) => {
+      const patientId = getPatientId(row);
+      setSelectedPatientId(patientId);
 
-      setSelectedPatient(patient);
-
-      if (type === "prescription") {
-        localStorage.setItem(
-          "prescriptionAlerts",
-          JSON.stringify(patient.prescriptionAlerts || [])
-        );
+      if (activeCategory === "prescription") {
+        const list = patientId
+          ? alertsForPatient(patientId, "prescription")
+          : [row];
+        localStorage.setItem("prescriptionAlerts", JSON.stringify(list));
         setModals((prev) => ({ ...prev, prescription: true }));
         return;
       }
 
-      if (type === "comment") {
-        setModals((prev) => ({ ...prev, comment: true }));
-        return;
-      }
-
-      if (type === "dialysis") {
-        localStorage.setItem(
-          "Dialysis_updates",
-          JSON.stringify(patient.dialysisAlerts || [])
-        );
-        localStorage.setItem(
-          "alertAlerts",
-          JSON.stringify(patient.dialysisAlerts || [])
-        );
-        const hasReadingShape = (patient.dialysisAlerts || []).some(
+      if (activeCategory === "dialysis") {
+        const list = patientId
+          ? alertsForPatient(patientId, "dialysis")
+          : [row];
+        localStorage.setItem("Dialysis_updates", JSON.stringify(list));
+        localStorage.setItem("alertAlerts", JSON.stringify(list));
+        const hasReadingShape = list.some(
           (a) => a?.dailyordia || a?.questionId
         );
         if (hasReadingShape) {
@@ -349,16 +357,37 @@ const DoctorDashboard = () => {
         return;
       }
 
-      if (type === "alert") {
-        localStorage.setItem(
-          "alertAlerts",
-          JSON.stringify(patient.alertAlerts || [])
-        );
-        setModals((prev) => ({ ...prev, alert: true }));
+      if (activeCategory === "comments") {
+        setModals((prev) => ({ ...prev, comment: true }));
+        return;
       }
+
+      // alert
+      const list = patientId ? alertsForPatient(patientId, "alert") : [row];
+      localStorage.setItem("alertAlerts", JSON.stringify(list));
+      setModals((prev) => ({ ...prev, alert: true }));
     },
-    [navigate]
+    [activeCategory, alertsForPatient]
   );
+
+  const selectedComments = useMemo(() => {
+    if (!selectedPatientId) return [];
+    return alertsForPatient(selectedPatientId, "comments");
+  }, [selectedPatientId, alertsForPatient]);
+
+  const selectedDialysis = useMemo(() => {
+    if (!selectedPatientId) return [];
+    return alertsForPatient(selectedPatientId, "dialysis");
+  }, [selectedPatientId, alertsForPatient]);
+
+  const selectedPatientName = useMemo(() => {
+    if (!selectedPatientId) return "";
+    return (
+      nameLookup[String(selectedPatientId)] ||
+      getPatientName(selectedDialysis[0] || selectedComments[0] || {}) ||
+      ""
+    );
+  }, [selectedPatientId, nameLookup, selectedDialysis, selectedComments]);
 
   if (loading) {
     return (
@@ -414,41 +443,87 @@ const DoctorDashboard = () => {
         </section>
 
         <section className="dashboard__section">
-          <Flex
-            justify="between"
-            align="center"
-            className="mb-4 flex-wrap gap-3"
-          >
+          <Flex justify="between" align="center" className="mb-4 flex-wrap gap-3">
             <Heading as="h2" className="dashboard__section-title" style={{ margin: 0 }}>
               Important Alerts
             </Heading>
             <Text size="sm" color="muted">
-              {patients.length} patient{patients.length === 1 ? "" : "s"}
+              {activeRows.length} item{activeRows.length === 1 ? "" : "s"}
               {data.canReceiveDailyAlerts ? "" : " · reading alerts hidden"}
             </Text>
           </Flex>
 
+          {/* Global category tabs */}
+          <Flex gap={2} wrap="wrap" className="mb-5">
+            {visibleTabs.length === 0 ? (
+              <Text size="sm" color="muted">
+                No alerts
+              </Text>
+            ) : (
+              visibleTabs.map((tab) => {
+                const isActive = activeCategory === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveCategory(tab.key)}
+                    className="px-4 py-2 rounded-full text-xs font-bold border transition-colors"
+                    style={
+                      isActive
+                        ? {
+                            background: tab.color,
+                            borderColor: tab.color,
+                            color: "#fff",
+                          }
+                        : {
+                            background: "#fff",
+                            borderColor: tab.color,
+                            color: tab.color,
+                          }
+                    }
+                  >
+                    {tab.label}
+                    <span className="ml-2 opacity-90">
+                      {tab.unread > 0 ? tab.unread : tab.count}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </Flex>
+
           <Box
             className={`bg-white rounded-xl border border-[#e5eef3] ${
-              isMobile ? "px-3" : "px-2"
+              isMobile ? "p-3" : "p-4"
             }`}
           >
-            {patients.length === 0 ? (
+            {activeRows.length === 0 ? (
               <Flex justify="center" align="center" className="py-12 text-gray-500">
                 <Text size="md" color="muted">
-                  No alerts
+                  No {activeMeta.label.toLowerCase()} alerts
                 </Text>
               </Flex>
             ) : (
-              patients.map((patient) => (
-                <React.Fragment key={patient.id}>
-                  <PatientAlertCard
-                    patient={patient}
-                    onAction={handlePatientAction}
-                    interactionMode="doctor"
-                  />
-                </React.Fragment>
-              ))
+              <Flex direction="column" gap={3}>
+                {activeRows.map((row, index) => {
+                  const pid = getPatientId(row);
+                  const override = pid ? nameLookup[String(pid)] : row.name;
+                  return (
+                    <AlertRow
+                      key={row.id ?? `${activeCategory}-${index}`}
+                      alert={{
+                        ...row,
+                        category:
+                          row.category ||
+                          getAlertCategory(row) ||
+                          activeMeta.label,
+                      }}
+                      patientNameOverride={override}
+                      onClick={() => openWorkflowForRow(row)}
+                    />
+                  );
+                })}
+              </Flex>
             )}
           </Box>
         </section>
@@ -460,23 +535,23 @@ const DoctorDashboard = () => {
 
       {modals.comment && (
         <CommentContainer
-          comments={selectedPatient?.commentAlerts || []}
+          comments={[...selectedComments]}
           closeModal={() => closeModal("comment")}
         />
       )}
 
       {modals.alert && (
         <AlertModal
-          key={selectedPatient?.id || "doctor-alert-modal"}
+          key={selectedPatientId || "doctor-alert-modal"}
           closeModal={() => closeModal("alert")}
         />
       )}
 
       {modals.dialysis && (
         <PatientDialysisAlertModal
-          alerts={selectedPatient?.dialysisAlerts || []}
-          patientName={selectedPatient?.name}
-          patientId={selectedPatient?.id}
+          alerts={selectedDialysis}
+          patientName={selectedPatientName}
+          patientId={selectedPatientId}
           onClose={() => closeModal("dialysis")}
         />
       )}
