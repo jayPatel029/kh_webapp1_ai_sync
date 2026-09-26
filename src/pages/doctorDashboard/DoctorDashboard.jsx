@@ -10,7 +10,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useDoctorDashboardData } from "../../hooks/useDashboardData";
 import {
-  classifyAlert,
   getPatientId,
   getPatientName,
   isChatAlert,
@@ -116,13 +115,25 @@ const DashboardError = ({ message, onRetry }) => (
   </div>
 );
 
-/** Map classifyAlert bucket → tab key (comments stay API-sourced). */
+/**
+ * Main DoctorContainer UserCard filters (exact type match):
+ * - Prescription: type === `New Prescription Alarm for ${name}`
+ * - Dialysis: type includes "Dialysis Tech"
+ * - Alert: everything else for that patient
+ * Comments stay on getDoctorComments (not sortAlerts).
+ */
 const bucketForSortAlert = (alert) => {
-  const { bucket } = classifyAlert(alert);
-  if (bucket === "prescription") return "prescription";
-  if (bucket === "dialysis") return "dialysis";
-  // Alert leftovers; any comment-shaped sortAlerts items fold into Alert tab
-  // because Comments tab is filled from getDoctorComments (main parity).
+  const type = String(alert?.type || "");
+  const name = String(alert?.name || "").trim();
+
+  if (name && type === `New Prescription Alarm for ${name}`) {
+    return "prescription";
+  }
+
+  if (type.includes("Dialysis Tech")) {
+    return "dialysis";
+  }
+
   return "alert";
 };
 
@@ -225,9 +236,9 @@ const DoctorDashboard = () => {
       }
 
       const next = {
-        prescription: sortNewestFirst(prescription).slice(0, 200),
-        dialysis: sortNewestFirst(dialysis).slice(0, 200),
-        alert: sortNewestFirst(alert).slice(0, 200),
+        prescription: sortNewestFirst(prescription),
+        dialysis: sortNewestFirst(dialysis),
+        alert: sortNewestFirst(alert),
         comments: sortNewestFirst(commentRows),
       };
 
