@@ -158,10 +158,6 @@ const CommentContainer = ({ comments, closeModal }) => {
                 <span className="text-white font-bold">{patientName}</span>
               </p>
             ) : null}
-            <p className="text-white/70 text-xs mt-1">
-              {visibleComments.length} attachment
-              {visibleComments.length === 1 ? "" : "s"}
-            </p>
           </div>
         </div>
 
@@ -205,32 +201,61 @@ const CommentContainer = ({ comments, closeModal }) => {
             </p>
           ) : (
             <div className="flex w-full flex-col gap-3 items-stretch">
-              {visibleComments.map((item, index) => (
+              {visibleComments.map((item, index) => {
+                const unread =
+                  item.isRead === 0 ||
+                  item.isRead === false ||
+                  item.isRead === "0";
+                return (
                 <div
                   key={item.id ?? `${item.url}-${index}`}
                   className="w-full rounded-xl px-4 py-3 shadow-sm transition-colors"
                   style={{
-                    border: `1px solid ${THEME.border}`,
-                    background: "#fff",
+                    border: `1px solid ${unread ? "#fecaca" : THEME.border}`,
+                    background: unread ? "#fff8f8" : "#fff",
                     textAlign: "left",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = THEME.cyan;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = THEME.border;
+                    e.currentTarget.style.borderColor = unread
+                      ? "#fecaca"
+                      : THEME.border;
                   }}
                 >
                   <div className="flex w-full flex-row items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1" style={{ textAlign: "left" }}>
-                      <p
-                        className="text-xs font-semibold uppercase tracking-wide mb-1"
-                        style={{ color: THEME.type, textAlign: "left" }}
-                      >
-                        {item.fileType === "Lab"
-                          ? "Lab Report"
-                          : item.fileType || "Comment"}
-                      </p>
+                    <div className="flex min-w-0 flex-1 gap-2" style={{ textAlign: "left" }}>
+                      <span
+                        className="mt-1.5 inline-block w-2 h-2 rounded-full flex-shrink-0"
+                        style={{
+                          background: unread ? "#fd0000" : "#cbd5e1",
+                        }}
+                        title={unread ? "Unread" : "Read"}
+                        aria-label={unread ? "Unread" : "Read"}
+                      />
+                      <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <p
+                          className="text-xs font-semibold uppercase tracking-wide m-0"
+                          style={{ color: THEME.type, textAlign: "left" }}
+                        >
+                          {item.fileType === "Lab"
+                            ? "Lab Report"
+                            : item.fileType || "Comment"}
+                        </p>
+                        {unread ? (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={{
+                              color: "#b91c1c",
+                              background: "#fee2e2",
+                            }}
+                          >
+                            New
+                          </span>
+                        ) : null}
+                      </div>
                       <p
                         className="text-sm font-semibold break-words"
                         style={{ color: THEME.ink, textAlign: "left" }}
@@ -245,6 +270,7 @@ const CommentContainer = ({ comments, closeModal }) => {
                           {formatCommentDate(item.date)}
                         </p>
                       ) : null}
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -255,7 +281,8 @@ const CommentContainer = ({ comments, closeModal }) => {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
