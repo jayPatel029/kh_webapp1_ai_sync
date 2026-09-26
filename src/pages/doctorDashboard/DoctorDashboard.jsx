@@ -262,53 +262,49 @@ const DoctorDashboard = () => {
 
   const visibleTabs = useMemo(
     () =>
-      CATEGORY_META.filter((tab) => (buckets[tab.key] || []).length > 0).map(
-        (tab) => {
-          const items = buckets[tab.key] || [];
-          if (tab.key === "comments") {
-            const byPatient = new Map();
-            items.forEach((c) => {
-              const key = String(getPatientId(c) || c.name || "");
-              if (!key) return;
-              if (!byPatient.has(key)) {
-                byPatient.set(key, { unread: 0 });
-              }
-              const entry = byPatient.get(key);
-              if (
-                c.isRead === 0 ||
-                c.isRead === false ||
-                c.isRead === "0"
-              ) {
-                entry.unread += 1;
-              }
-            });
-            const patients = [...byPatient.values()];
-            return {
-              ...tab,
-              count: patients.length,
-              unread: patients.filter((p) => p.unread > 0).length,
-            };
-          }
+      CATEGORY_META.filter((tab) => {
+        const items = buckets[tab.key] || [];
+        if (tab.key === "comments") {
+          return items.some(
+            (c) =>
+              c.isRead === 0 || c.isRead === false || c.isRead === "0"
+          );
+        }
+        return items.length > 0;
+      }).map((tab) => {
+        const items = buckets[tab.key] || [];
+        if (tab.key === "comments") {
+          const unreadCount = items.filter(
+            (c) =>
+              c.isRead === 0 || c.isRead === false || c.isRead === "0"
+          ).length;
           return {
             ...tab,
-            count: items.length,
-            unread: items.filter(isUnreadAlert).length,
+            count: unreadCount,
+            unread: unreadCount,
           };
         }
-      ),
+        return {
+          ...tab,
+          count: items.length,
+          unread: items.filter(isUnreadAlert).length,
+        };
+      }),
     [buckets]
   );
 
-  /** Comments tab: one summary row per patient (not per comment). */
+  /** Comments tab: one row per patient that has unread comments only. */
   const commentPatientRows = useMemo(() => {
     const map = new Map();
     (buckets.comments || []).forEach((c) => {
+      const unread =
+        c.isRead === 0 || c.isRead === false || c.isRead === "0";
+      if (!unread) return;
+
       const pid = getPatientId(c);
       const key = String(pid || c.name || "");
       if (!key) return;
 
-      const unread =
-        c.isRead === 0 || c.isRead === false || c.isRead === "0";
       const ts = new Date(c.date || 0).getTime();
 
       if (!map.has(key)) {
@@ -319,20 +315,15 @@ const DoctorDashboard = () => {
           category: "Comments",
           type: "Comments",
           date: c.date,
-          isRead: unread ? 0 : 1,
-          _commentTotal: 1,
-          _commentUnread: unread ? 1 : 0,
+          isRead: 0,
+          _commentUnread: 1,
           _latestTs: ts,
         });
         return;
       }
 
       const row = map.get(key);
-      row._commentTotal += 1;
-      if (unread) {
-        row._commentUnread += 1;
-        row.isRead = 0;
-      }
+      row._commentUnread += 1;
       if (ts >= (row._latestTs || 0)) {
         row._latestTs = ts;
         row.date = c.date;
@@ -352,6 +343,16 @@ const DoctorDashboard = () => {
       : buckets[activeCategory] || [];
   const activeMeta =
     CATEGORY_META.find((c) => c.key === activeCategory) || CATEGORY_META[2];
+
+  // If Comments tab empties after mark-read, move to next non-empty category
+  useEffect(() => {
+    if (activeCategory !== "comments") return;
+    if (commentPatientRows.length > 0) return;
+    const first = CATEGORY_ORDER.find(
+      (key) => key !== "comments" && (buckets[key] || []).length > 0
+    );
+    setActiveCategory(first || null);
+  }, [activeCategory, commentPatientRows, buckets]);
 
   const alertsForPatient = useCallback(
     (patientId, categoryKey, patientName) => {
@@ -606,7 +607,11 @@ const DoctorDashboard = () => {
                   >
                     {tab.label}
                     <span className="ml-2 opacity-90">
-                      {tab.unread > 0 ? tab.unread : tab.count}
+                      {tab.key === "comments"
+                        ? tab.unread
+                        : tab.unread > 0
+                          ? tab.unread
+                          : tab.count}
                     </span>
                   </button>
                 );
@@ -632,9 +637,7 @@ const DoctorDashboard = () => {
                   const override = pid ? nameLookup[String(pid)] : row.name;
                   const categoryLabel =
                     activeCategory === "comments"
-                      ? row._commentUnread > 0
-                        ? `Comments · ${row._commentUnread} unread`
-                        : `Comments · ${row._commentTotal || 0}`
+                      ? `Comments · ${row._commentUnread || 0}`
                       : row.category ||
                         getAlertCategory(row) ||
                         activeMeta.label;
