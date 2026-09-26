@@ -222,20 +222,28 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                       key={presId}
                       className="border border-accent rounded-md overflow-hidden w-full"
                     >
-                      <Box className="bg-gray-50 border-b border-accent px-4 py-3 text-left">
-                        <Text weight="semibold" size="sm">
-                          Prescription on {formatDate(first.date)}
-                        </Text>
-                        {first.name ? (
-                          <Text size="xs" color="muted" className="mt-0.5">
-                            {first.name}
+                      <Flex
+                        justify="between"
+                        align="center"
+                        wrap="wrap"
+                        gap={3}
+                        className="bg-gray-50 border-b border-accent px-4 py-3"
+                      >
+                        <Box className="min-w-0 text-left">
+                          <Text weight="semibold" size="sm">
+                            Prescription on {formatDate(first.date)}
                           </Text>
-                        ) : null}
+                          {first.name ? (
+                            <Text size="xs" color="muted" className="mt-0.5">
+                              {first.name}
+                            </Text>
+                          ) : null}
+                        </Box>
                         <Flex
                           gap={2}
                           wrap="wrap"
                           align="center"
-                          className="mt-3 w-full"
+                          className="ml-auto"
                         >
                           <Button
                             type="button"
@@ -269,7 +277,7 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                             Disapprove All
                           </Button>
                         </Flex>
-                      </Box>
+                      </Flex>
 
                       <Flex direction="column" className="w-full divide-y divide-gray-100">
                         {items.map((item, index) => (
