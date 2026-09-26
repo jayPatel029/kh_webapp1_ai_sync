@@ -12,6 +12,8 @@ const THEME = {
   ink: "#32617d",
   slate: "#3F6B85",
   cyan: "#00cccc",
+  blue: "#4164df",
+  blueHover: "#3554c7",
   border: "#e5eef3",
   danger: "#dc2626",
   type: "#d97706",
@@ -92,10 +94,10 @@ const CommentContainer = ({ comments, closeModal }) => {
     textDecoration: "none",
   };
 
-  const solidCyanBtn = {
+  const solidBlueBtn = {
     ...outlineBtn,
-    border: `1px solid ${THEME.cyan}`,
-    background: THEME.cyan,
+    border: `1px solid ${THEME.blue}`,
+    background: THEME.blue,
     color: "#fff",
   };
 
@@ -176,7 +178,7 @@ const CommentContainer = ({ comments, closeModal }) => {
           <button type="button" onClick={consultDoctor} style={solidDangerBtn}>
             Consult Doctor
           </button>
-          <button type="button" onClick={openSendMessage} style={solidCyanBtn}>
+          <button type="button" onClick={openSendMessage} style={solidBlueBtn}>
             Send Message
           </button>
         </div>
@@ -247,7 +249,7 @@ const CommentContainer = ({ comments, closeModal }) => {
                     <button
                       type="button"
                       onClick={() => openThumbnailModal(item.url, item)}
-                      style={{ ...solidCyanBtn, marginLeft: "auto", flexShrink: 0 }}
+                      style={{ ...solidBlueBtn, marginLeft: "auto", flexShrink: 0 }}
                     >
                       View/Comment
                     </button>
