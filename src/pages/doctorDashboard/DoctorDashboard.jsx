@@ -410,6 +410,17 @@ const DoctorDashboard = () => {
     }));
   }, []);
 
+  const markPrescriptionResolvedByIds = useCallback((ids) => {
+    if (!Array.isArray(ids) || ids.length === 0) return;
+    const idSet = new Set(ids.map((id) => String(id)));
+    setBuckets((prev) => ({
+      ...prev,
+      prescription: (prev.prescription || []).filter(
+        (item) => !idSet.has(String(item.id))
+      ),
+    }));
+  }, []);
+
   const markCommentReadById = useCallback((commentId) => {
     if (commentId == null) return;
     setBuckets((prev) => ({
@@ -646,7 +657,10 @@ const DoctorDashboard = () => {
       </div>
 
       {modals.prescription && (
-        <PrescriptionModal closeModal={() => closeModal("prescription")} />
+        <PrescriptionModal
+          closeModal={() => closeModal("prescription")}
+          onResolved={markPrescriptionResolvedByIds}
+        />
       )}
 
       {modals.comment && (
