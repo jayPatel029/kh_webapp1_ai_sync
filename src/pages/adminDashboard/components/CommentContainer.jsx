@@ -71,9 +71,10 @@ const CommentContainer = ({ comments, closeModal }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 overflow-y-auto p-2 sm:p-4">
       <div
-        className={`relative bg-white shadow-md border-t-4 border-primary rounded-xl z-50 overflow-y-auto w-full ${
+        className={`relative bg-white shadow-md border-t-4 border-primary rounded-xl z-50 overflow-y-auto w-full text-left ${
           isMobile ? "max-h-[95vh] p-4" : "max-w-5xl max-h-[92vh] p-6"
         }`}
+        style={{ textAlign: "left" }}
       >
         {/* Close icon — top right */}
         <button
@@ -99,8 +100,11 @@ const CommentContainer = ({ comments, closeModal }) => {
         </button>
 
         {/* Header */}
-        <div className="pr-10 border-b border-[#e5eef3] pb-4 mb-4">
-          <h2 className={`${isMobile ? "text-lg" : "text-2xl"} font-bold text-[#3F6B85] text-left`}>
+        <div className="pr-10 border-b border-[#e5eef3] pb-4 mb-4 text-left">
+          <h2
+            className={`${isMobile ? "text-lg" : "text-2xl"} font-bold text-[#3F6B85]`}
+            style={{ textAlign: "left" }}
+          >
             Comments
           </h2>
           <div className="mt-3 flex flex-wrap items-center justify-start gap-2">
@@ -140,28 +144,43 @@ const CommentContainer = ({ comments, closeModal }) => {
           <SendMessage closeModal={closeSendMessage} patientid={patientId} />
         )}
 
-        {/* Comment rows */}
+        {/* Comment rows — text left, action right */}
         {visibleComments.length === 0 ? (
           <p className="text-sm text-gray-500 text-left py-8">
             No comments with attachments to show.
           </p>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex w-full flex-col gap-3 items-stretch">
             {visibleComments.map((item, index) => (
               <div
                 key={item.id ?? `${item.url}-${index}`}
-                className="border border-[#e5eef3] rounded-xl px-4 py-3 shadow-sm hover:border-[#00cccc]/60 transition-colors"
+                className="w-full border border-[#e5eef3] rounded-xl px-4 py-3 shadow-sm hover:border-[#00cccc]/60 transition-colors"
+                style={{ textAlign: "left" }}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="min-w-0 flex-1 text-left">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">
-                      {item.fileType === "Lab" ? "Lab Report" : item.fileType || "Comment"}
+                <div className="flex w-full flex-row items-start justify-between gap-3">
+                  <div
+                    className="min-w-0 flex-1"
+                    style={{ textAlign: "left" }}
+                  >
+                    <p
+                      className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1"
+                      style={{ textAlign: "left" }}
+                    >
+                      {item.fileType === "Lab"
+                        ? "Lab Report"
+                        : item.fileType || "Comment"}
                     </p>
-                    <p className="text-sm font-semibold text-gray-900 break-words">
+                    <p
+                      className="text-sm font-semibold text-gray-900 break-words"
+                      style={{ textAlign: "left" }}
+                    >
                       PATIENT COMMENT — &quot;{item.content || "—"}&quot;
                     </p>
                     {item.date ? (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p
+                        className="text-xs text-gray-500 mt-1"
+                        style={{ textAlign: "left" }}
+                      >
                         {formatCommentDate(item.date)}
                       </p>
                     ) : null}
@@ -169,7 +188,7 @@ const CommentContainer = ({ comments, closeModal }) => {
                   <button
                     type="button"
                     onClick={() => openThumbnailModal(item.url, item)}
-                    className={`${actionBtn} shrink-0 border-[#00cccc] bg-[#00cccc] text-white hover:bg-[#00b3b3] sm:self-center`}
+                    className={`${actionBtn} shrink-0 ml-auto border-[#00cccc] bg-[#00cccc] text-white hover:bg-[#00b3b3]`}
                   >
                     View/Comment
                   </button>
