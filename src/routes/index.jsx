@@ -26,8 +26,6 @@ const AiChat = lazy(() => import("../pages/AIChat/AiChat"));
 const Kfre = lazy(() => import("../pages/kfre/Kfre"));
 const KfreSingle = lazy(() => import("../pages/kfre/KfreSingle"));
 const DoctorReport = lazy(() => import("../pages/doctorReport/DoctorReport"));
-const UserListManage = lazy(() => import("../components/UserListAdmin/UserListManage"));
-const UserMedicalTeam = lazy(() => import("../components/UserListAdmin/UserMedicalTeam"));
 const PatientAlertsByType = lazy(() => import("../pages/PatientAlertsByType"));
 const CommentsDemoPage = lazy(() => import("../pages/CommentsDemoPage"));
 const AddPatientFormTestPage = lazy(() => import("../pages/patient/AddPatientFormTestPage"));
@@ -111,7 +109,7 @@ const getLegacyRedirectRoutes = () => [
   { path: "add-role", element: <Navigate to={ROUTES.USERS_ROLES} replace /> },
   {
     path: "edit-role/:id",
-    element: <LegacyParamRedirect buildTo={({ id }) => ROUTES.roleDetail(id)} />,
+    element: <Navigate to={ROUTES.USERS_ROLES} replace />,
   },
   { path: "ailments", element: <Navigate to={ROUTES.SETTINGS_AILMENTS} replace /> },
   { path: "userProgramSelection", element: <Navigate to={ROUTES.PROGRAMS} replace /> },
@@ -342,9 +340,6 @@ function AppRoutes() {
             },
           ],
         },
-
-        { path: "patients/:id/medical-team", element: guard(<UserMedicalTeam />, "UserMedicalTeam") },
-        { path: "patients/:id/user-management", element: guard(<UserListManage />, "UserListManage") },
 
         ...getLegacyRedirectRoutes(),
 

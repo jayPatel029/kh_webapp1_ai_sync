@@ -10,6 +10,7 @@ import { BsTrash, BsCloudDownload } from "react-icons/bs";
 import { canExportPatient } from "../../../ApiCalls/patientAPis";
 import getValidImageUrl from "../../../helpers/utils";
 import { SearchBar } from "../../../components";
+import { ROUTES } from "../../../routes/routeConstants";
 export default function DeletedPatientList({ data, patientId }) {
   const recordsPerPage = 10;
   const [filteredData, setFilteredData] = useState(data);
@@ -289,9 +290,8 @@ export default function DeletedPatientList({ data, patientId }) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/userMedicalTeam/${row?.id}`, {
-                            state: row,
-                          });
+                          // Team assignment is handled via PatientList modal; this orphan page has no live route
+                          navigate(ROUTES.PATIENTS);
                         }}
                         className="bg-primary text-white py-1 px-2 rounded focus:outline-none focus:shadow-outline">
                         MANAGE
@@ -312,9 +312,7 @@ export default function DeletedPatientList({ data, patientId }) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/userListManage/${row?.id}`, {
-                            state: row,
-                          });
+                          navigate(ROUTES.PATIENTS);
                         }}
                         className="bg-primary text-white py-1 px-2 rounded focus:outline-none focus:shadow-outline">
                         MANAGE
