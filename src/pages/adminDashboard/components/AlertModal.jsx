@@ -1,7 +1,7 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import { postDailyAlertsUpdateIsRead } from "../../../ApiCalls/remainingApis";
-import { updateIsReadAlert, deleteAlertById } from "../../../ApiCalls/alertsApis";
+import { deleteAlertById } from "../../../ApiCalls/alertsApis";
 import SimpleModal from "./SimpleModal";
 import { insertAlert } from "../../../ApiCalls/appAlerts";
 import { useNavigate } from "react-router-dom";
@@ -127,17 +127,6 @@ const AlertModal = ({ closeModal }) => {
   };
 
   const getAlertMediaUrl = (alert) => alert?.image || alert?.url || alert?.mediaUrl || "";
-
-  const handleMarkRead = async (alertId, index) => {
-    try {
-      await updateIsReadAlert({ id: alertId, isRead: 1 });
-      setAlerts((prev) =>
-        prev.map((a, i) => (i === index ? { ...a, isRead: 1 } : a))
-      );
-    } catch (error) {
-      console.error("Error marking alert as read:", error);
-    }
-  };
 
   const handleDeleteAlert = async (alertId, index) => {
     if (!window.confirm("Delete this alert?")) return;
@@ -281,20 +270,6 @@ const AlertModal = ({ closeModal }) => {
                           .reverse()
                           .join("-")}
                       </p>
-                      {(alert.isRead === 0 ||
-                        alert.isRead === false ||
-                        alert.isRead === "0") && (
-                        <button
-                          onClick={() => handleMarkRead(alert.id, index)}
-                          className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
-                          title="Mark as read"
-                        >
-                          Mark Read
-                        </button>
-                      )}
-                      {alert.isRead === 1 && (
-                        <span className="text-xs text-green-500 px-2 py-1">✓ Read</span>
-                      )}
                       <button
                         onClick={() => handleDeleteAlert(alert.id, index)}
                         className="text-xs text-red-400 hover:text-red-600 px-2 py-1 transition-colors"
