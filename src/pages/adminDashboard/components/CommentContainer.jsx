@@ -113,7 +113,7 @@ const CommentContainer = ({ comments, closeModal }) => {
       <div
         className="relative bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden w-full"
         style={{
-          width: isMobile ? "100%" : "min(720px, 96vw)",
+          width: isMobile ? "100%" : "min(1100px, 96vw)",
           maxHeight: "90vh",
           textAlign: "left",
         }}
