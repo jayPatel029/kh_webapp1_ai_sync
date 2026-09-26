@@ -148,14 +148,8 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
           </button>
 
           <div className="pr-10 text-left pb-3">
-            <p
-              className="text-[11px] font-semibold uppercase tracking-wide"
-              style={{ color: THEME.cyan }}
-            >
-              {fileType}
-            </p>
             <h2
-              className="text-lg font-bold leading-tight mt-0.5"
+              className="text-lg font-bold leading-tight"
               style={{ color: THEME.ink }}
             >
               View &amp; Comment
