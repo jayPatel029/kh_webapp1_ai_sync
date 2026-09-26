@@ -12,7 +12,6 @@ import {
   approveAllAlerts,
   updateIsReadAlert,
 } from "../../../ApiCalls/alertsApis";
-import { getPatientId } from "../../../helpers/alertGrouping";
 import ThemedModalShell, {
   THEMED_MODAL,
 } from "../../../components/modals/ThemedModalShell";
