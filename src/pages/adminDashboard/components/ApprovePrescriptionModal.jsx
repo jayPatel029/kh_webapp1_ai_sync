@@ -190,13 +190,7 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
         onClose={closeModal}
         title="Digitised Prescription Copy"
         size="8xl"
-        footer={
-          <Flex justify="end">
-            <Button variant="danger" onClick={closeModal} isDisabled={busy}>
-              Close
-            </Button>
-          </Flex>
-        }
+        showCloseButton
       >
         {groupKeys.length === 0 ? (
           <Text color="muted" size="sm">
