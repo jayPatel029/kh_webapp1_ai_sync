@@ -169,7 +169,7 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
             }`}
             style={{ borderColor: THEME.border, background: "#f8fafc" }}
           >
-            <div className="flex-1 min-h-0 overflow-auto p-3">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
               {loading ? (
                 <div className="h-full min-h-[200px] flex items-center justify-center">
                   <p className="text-sm" style={{ color: THEME.slate }}>
@@ -178,13 +178,13 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
                 </div>
               ) : isPdf ? (
                 <div
-                  className="w-full h-full"
+                  className="w-full h-full min-h-0"
                   style={{ minHeight: isMobile ? 220 : 360 }}
                 >
-                  <MyPDFViewer file={image} />
+                  <MyPDFViewer file={image} fitWidth />
                 </div>
               ) : (
-                <div className="w-full">
+                <div className="w-full overflow-x-hidden">
                   <img
                     src={image || ""}
                     alt={fileType}
