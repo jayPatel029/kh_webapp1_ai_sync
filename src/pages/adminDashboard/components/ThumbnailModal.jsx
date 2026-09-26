@@ -116,11 +116,8 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
           textAlign: "left",
         }}
       >
-        {/* Header — white + teal separator */}
-        <div
-          className="px-5 sm:px-6 py-3.5 flex-shrink-0 relative bg-white"
-          style={{ borderBottom: `3px solid ${THEME.cyan}` }}
-        >
+        {/* Header — white + inset teal separator */}
+        <div className="px-5 sm:px-6 pt-3.5 pb-0 flex-shrink-0 relative bg-white">
           <button
             type="button"
             onClick={closeModal}
@@ -150,7 +147,7 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
             </svg>
           </button>
 
-          <div className="pr-10 text-left">
+          <div className="pr-10 text-left pb-3">
             <p
               className="text-[11px] font-semibold uppercase tracking-wide"
               style={{ color: THEME.cyan }}
@@ -164,6 +161,16 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
               View &amp; Comment
             </h2>
           </div>
+          <div
+            aria-hidden
+            style={{
+              height: 3,
+              marginLeft: isMobile ? 12 : 20,
+              marginRight: isMobile ? 12 : 20,
+              background: THEME.cyan,
+              borderRadius: 2,
+            }}
+          />
         </div>
 
         {/* Body: split on desktop, stack on mobile */}

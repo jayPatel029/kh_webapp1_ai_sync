@@ -152,11 +152,8 @@ const CommentContainer = ({ comments, closeModal, onCommentRead }) => {
           textAlign: "left",
         }}
       >
-        {/* Header — white + teal separator */}
-        <div
-          className="px-5 sm:px-6 py-4 flex-shrink-0 relative bg-white"
-          style={{ borderBottom: `3px solid ${THEME.cyan}` }}
-        >
+        {/* Header — white + inset teal separator */}
+        <div className="px-5 sm:px-6 pt-4 pb-0 flex-shrink-0 relative bg-white">
           <button
             type="button"
             onClick={closeModal}
@@ -186,7 +183,7 @@ const CommentContainer = ({ comments, closeModal, onCommentRead }) => {
             </svg>
           </button>
 
-          <div className="pr-10 text-left">
+          <div className="pr-10 text-left pb-3">
             <h2
               className="text-lg sm:text-xl font-bold leading-tight"
               style={{ color: THEME.ink }}
@@ -205,6 +202,16 @@ const CommentContainer = ({ comments, closeModal, onCommentRead }) => {
               </p>
             ) : null}
           </div>
+          <div
+            aria-hidden
+            style={{
+              height: 3,
+              marginLeft: isMobile ? 12 : 20,
+              marginRight: isMobile ? 12 : 20,
+              background: THEME.cyan,
+              borderRadius: 2,
+            }}
+          />
         </div>
 
         {/* Actions toolbar — left-aligned */}
