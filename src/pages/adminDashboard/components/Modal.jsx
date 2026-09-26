@@ -1,10 +1,12 @@
 /**
  * Disapprove reason modal — simple required textarea, ThemedModalShell.
+ * Portaled to document.body above BaseModal (--z-modal: 1400).
  *
  * @file src/pages/adminDashboard/components/Modal.jsx
  */
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import PropTypes from "prop-types";
 import {
   dissapproveAlert,
@@ -53,12 +55,12 @@ const Modal = ({
     }
   };
 
-  return (
+  return createPortal(
     <ThemedModalShell
       title="Reason for disapproval"
       onClose={closeModal}
       width="min(520px, 96vw)"
-      zIndex={80}
+      zIndex={1500}
       bodyClassName="px-5 sm:px-6 py-4"
       footer={
         <div className="flex justify-end gap-2 w-full">
@@ -127,7 +129,8 @@ const Modal = ({
           {error}
         </p>
       ) : null}
-    </ThemedModalShell>
+    </ThemedModalShell>,
+    document.body
   );
 };
 
