@@ -1,6 +1,7 @@
 /**
  * Inline Important Alerts list (same rows as AlertModal, no modal shell / toolbar).
- * Mark-read happens only when the user acts on an alert.
+ * Row click opens media / graph / table / route when applicable (main parity).
+ * Mark-read happens only when the user acts on an actionable alert.
  *
  * @file src/components/dashboard/AlertListPanel.jsx
  */
@@ -10,7 +11,6 @@ import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 
 import { postDailyAlertsUpdateIsRead } from "../../ApiCalls/remainingApis";
-import { deleteAlertById } from "../../ApiCalls/alertsApis";
 import {
   isNavigableSystemAlert,
   openAlertDestination,
@@ -19,15 +19,13 @@ import SimpleModal from "../../pages/adminDashboard/components/SimpleModal";
 import GraphModal from "../../pages/adminDashboard/components/graphModal";
 import TableModal from "../../pages/adminDashboard/components/TableModal";
 import { getPatientId } from "../../helpers/alertGrouping";
-import AlertListRow, { isAlertRowUnread } from "./AlertListRow";
+import AlertListRow, {
+  getAlertMediaUrl,
+  isAlertRowUnread,
+} from "./AlertListRow";
 import { THEMED_MODAL } from "../modals/ThemedModalShell";
 
-const AlertListPanel = ({
-  alerts = [],
-  nameLookup = {},
-  onMarkRead,
-  onDelete,
-}) => {
+const AlertListPanel = ({ alerts = [], nameLookup = {}, onMarkRead }) => {
   const navigate = useNavigate();
   const [openSimpleModal, setOpenSimpleModal] = useState(false);
   const [openGraphModal, setOpenGraphModal] = useState(false);
@@ -54,48 +52,46 @@ const AlertListPanel = ({
     }
   };
 
-  const openModalSimple = async (nextImgUrl, alert) => {
-    setImgUrl(nextImgUrl);
-    setOpenSimpleModal(true);
-    await markAlertRead(alert);
-  };
+  const handleRowClick = async (alert, kind) => {
+    if (!alert || !kind || kind === "none") return;
 
-  const openModalGraph = async (alert) => {
-    setPatientId(alert.patientId);
-    setQuestionId(alert.questionId);
-    setDailyorDia(alert.dailyordia);
-    setIsGraphVar(alert.isGraph);
-    setQuestionTitle(alert.questionTitle);
-    setQuestionUnit(alert.questionUnit);
-    setOpenGraphModal(true);
-    await markAlertRead(alert);
-  };
-
-  const openModalTable = async (alert) => {
-    setPatientId(alert.patientId);
-    setQuestionId(alert.questionId);
-    setDailyorDia(alert.dailyordia);
-    setIsGraphVar(alert.isGraph);
-    setQuestionTitle(alert.questionTitle);
-    setQuestionUnit(alert.questionUnit);
-    setOpenTableModal(true);
-    await markAlertRead(alert);
-  };
-
-  const handleDeleteAlert = async (item) => {
-    if (!window.confirm("Delete this alert?")) return;
-    try {
-      await deleteAlertById(item.id);
-      onDelete?.(item);
-    } catch (error) {
-      console.error("Error deleting alert:", error);
-      window.alert("Failed to delete alert.");
+    if (kind === "media") {
+      const url = getAlertMediaUrl(alert);
+      if (!url) return;
+      setImgUrl(url);
+      setOpenSimpleModal(true);
+      await markAlertRead(alert);
+      return;
     }
-  };
 
-  const handleOpenDestination = async (alert) => {
-    await markAlertRead(alert);
-    await openAlertDestination(alert, navigate);
+    if (kind === "graph") {
+      setPatientId(alert.patientId);
+      setQuestionId(alert.questionId);
+      setDailyorDia(alert.dailyordia);
+      setIsGraphVar(alert.isGraph);
+      setQuestionTitle(alert.questionTitle);
+      setQuestionUnit(alert.questionUnit);
+      setOpenGraphModal(true);
+      await markAlertRead(alert);
+      return;
+    }
+
+    if (kind === "table") {
+      setPatientId(alert.patientId);
+      setQuestionId(alert.questionId);
+      setDailyorDia(alert.dailyordia);
+      setIsGraphVar(alert.isGraph);
+      setQuestionTitle(alert.questionTitle);
+      setQuestionUnit(alert.questionUnit);
+      setOpenTableModal(true);
+      await markAlertRead(alert);
+      return;
+    }
+
+    if (kind === "route" && isNavigableSystemAlert(alert)) {
+      await markAlertRead(alert);
+      await openAlertDestination(alert, navigate);
+    }
   };
 
   if (!Array.isArray(alerts) || alerts.length === 0) {
@@ -120,15 +116,7 @@ const AlertListPanel = ({
               key={item.id ?? index}
               alert={item}
               patientNameOverride={override}
-              onOpenDestination={
-                isNavigableSystemAlert(item)
-                  ? handleOpenDestination
-                  : undefined
-              }
-              onOpenMedia={(url) => openModalSimple(url, item)}
-              onOpenGraph={openModalGraph}
-              onOpenTable={openModalTable}
-              onDelete={handleDeleteAlert}
+              onRowClick={handleRowClick}
             />
           );
         })}
@@ -170,7 +158,6 @@ AlertListPanel.propTypes = {
   alerts: PropTypes.array,
   nameLookup: PropTypes.object,
   onMarkRead: PropTypes.func,
-  onDelete: PropTypes.func,
 };
 
 export default AlertListPanel;

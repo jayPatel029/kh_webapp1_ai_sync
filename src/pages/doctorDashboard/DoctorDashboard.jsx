@@ -410,14 +410,6 @@ const DoctorDashboard = () => {
     }));
   }, []);
 
-  const removeAlertById = useCallback((alert) => {
-    if (alert?.id == null) return;
-    setBuckets((prev) => ({
-      ...prev,
-      alert: (prev.alert || []).filter((item) => item.id !== alert.id),
-    }));
-  }, []);
-
   const markCommentReadById = useCallback((commentId) => {
     if (commentId == null) return;
     setBuckets((prev) => ({
@@ -617,7 +609,6 @@ const DoctorDashboard = () => {
                 alerts={buckets.alert}
                 nameLookup={nameLookup}
                 onMarkRead={markAlertReadById}
-                onDelete={removeAlertById}
               />
             ) : activeRows.length === 0 ? (
               <Flex justify="center" align="center" className="py-12 text-gray-500">

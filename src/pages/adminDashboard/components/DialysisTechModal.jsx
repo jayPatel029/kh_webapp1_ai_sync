@@ -7,7 +7,9 @@ import TableModal from "./TableModal";
 import ThemedModalShell, {
   THEMED_MODAL,
 } from "../../../components/modals/ThemedModalShell";
-import AlertListRow from "../../../components/dashboard/AlertListRow";
+import AlertListRow, {
+  getAlertMediaUrl,
+} from "../../../components/dashboard/AlertListRow";
 import { ROUTES } from "../../../routes/routeConstants";
 
 const DiaAlertModal = ({ closeModal }) => {
@@ -24,32 +26,8 @@ const DiaAlertModal = ({ closeModal }) => {
   const [imgUrl, setImgUrl] = useState("");
   const navigate = useNavigate();
 
-  const openModalSimple = (url) => {
-    setOpenSimpleModal(true);
-    setImgUrl(url);
-  };
   const closeModalSimple = () => setOpenSimpleModal(false);
-
-  const openModalGraph = (alert) => {
-    setPatientId(alert.patientId);
-    setQuestionId(alert.questionId);
-    setDailyorDia(alert.dailyordia);
-    setIsGraphVar(alert.isGraph);
-    setQuestionTitle(alert.questionTitle);
-    setQuestionUnit(alert.questionUnit);
-    setOpenGraphModal(true);
-  };
   const closeModalGraph = () => setOpenGraphModal(false);
-
-  const openModalTable = (alert) => {
-    setPatientId(alert.patientId);
-    setQuestionId(alert.questionId);
-    setDailyorDia(alert.dailyordia);
-    setIsGraphVar(alert.isGraph);
-    setQuestionTitle(alert.questionTitle);
-    setQuestionUnit(alert.questionUnit);
-    setOpenTableModal(true);
-  };
   const closeModalTable = () => setOpenTableModal(false);
 
   useEffect(() => {
@@ -83,6 +61,39 @@ const DiaAlertModal = ({ closeModal }) => {
     localStorage.removeItem("Dialysis_updates");
     localStorage.removeItem("alertAlerts");
     closeModal();
+  };
+
+  const handleRowClick = (alert, kind) => {
+    if (!alert || !kind || kind === "none") return;
+
+    if (kind === "media") {
+      const url = getAlertMediaUrl(alert);
+      if (!url) return;
+      setImgUrl(url);
+      setOpenSimpleModal(true);
+      return;
+    }
+
+    if (kind === "graph") {
+      setPatientId(alert.patientId);
+      setQuestionId(alert.questionId);
+      setDailyorDia(alert.dailyordia);
+      setIsGraphVar(alert.isGraph);
+      setQuestionTitle(alert.questionTitle);
+      setQuestionUnit(alert.questionUnit);
+      setOpenGraphModal(true);
+      return;
+    }
+
+    if (kind === "table") {
+      setPatientId(alert.patientId);
+      setQuestionId(alert.questionId);
+      setDailyorDia(alert.dailyordia);
+      setIsGraphVar(alert.isGraph);
+      setQuestionTitle(alert.questionTitle);
+      setQuestionUnit(alert.questionUnit);
+      setOpenTableModal(true);
+    }
   };
 
   const viewProfile = () => {
@@ -124,9 +135,7 @@ const DiaAlertModal = ({ closeModal }) => {
               <AlertListRow
                 key={alert.id ?? index}
                 alert={alert}
-                onOpenMedia={openModalSimple}
-                onOpenGraph={openModalGraph}
-                onOpenTable={openModalTable}
+                onRowClick={handleRowClick}
               />
             ))}
           </div>

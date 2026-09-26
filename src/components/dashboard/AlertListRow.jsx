@@ -1,17 +1,14 @@
 /**
  * Shared alert list row — Comments / Dialysis / Important Alerts pattern.
- * Unread: red dot + soft red background. Actions on the right.
+ * Unread: red dot + soft red background. Whole row click opens when actionable.
  *
  * @file src/components/dashboard/AlertListRow.jsx
  */
 
 import React from "react";
 import PropTypes from "prop-types";
-import InsertChartIcon from "@mui/icons-material/InsertChart";
-import DatasetLinkedIcon from "@mui/icons-material/DatasetLinked";
-import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
-import { FaFilePdf } from "react-icons/fa6";
 import { getPatientName } from "../../helpers/alertGrouping";
+import { isNavigableSystemAlert } from "../../helpers/alertNavigation";
 import { THEMED_MODAL } from "../modals/ThemedModalShell";
 
 const formatAlertDate = (value) => {
@@ -39,54 +36,72 @@ const extractTypeMediaUrl = (type) => {
   return match ? match[0] : "";
 };
 
-const getAlertMediaUrl = (alert) =>
+export const getAlertMediaUrl = (alert) =>
   alert?.image ||
   alert?.url ||
   alert?.mediaUrl ||
   extractTypeMediaUrl(alert?.type) ||
   "";
 
-const isGraphAlert = (alert) =>
+export const isGraphAlert = (alert) =>
   alert?.questionId != null &&
   alert?.questionId !== "" &&
   (alert?.isGraph === 1 || alert?.isGraph === "1" || alert?.isGraph === true);
 
-const isTableAlert = (alert) =>
+export const isTableAlert = (alert) =>
   alert?.questionId != null &&
   alert?.questionId !== "" &&
   (alert?.isGraph === 0 || alert?.isGraph === "0" || alert?.isGraph === false);
 
-const actionBtn =
-  "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap";
+/**
+ * Priority: media → graph → table → route → none (informational only).
+ * Matches main: reading alerts open viewers; system alerts route; else no-op.
+ */
+export const resolveAlertRowKind = (alert) => {
+  if (getAlertMediaUrl(alert)) return "media";
+  if (isGraphAlert(alert)) return "graph";
+  if (isTableAlert(alert)) return "table";
+  if (isNavigableSystemAlert(alert)) return "route";
+  return "none";
+};
 
-const AlertListRow = ({
-  alert,
-  patientNameOverride,
-  onOpenDestination,
-  onOpenMedia,
-  onOpenGraph,
-  onOpenTable,
-  onDelete,
-  showNavigableOpen = true,
-}) => {
+const AlertListRow = ({ alert, patientNameOverride, onRowClick }) => {
   const unread = isAlertRowUnread(alert);
-  const mediaUrl = getAlertMediaUrl(alert);
+  const kind = resolveAlertRowKind(alert);
+  const actionable = kind !== "none" && typeof onRowClick === "function";
   const title =
     alert?.type?.split("https:")[0]?.trim()?.toUpperCase() || "ALERT";
-  const isPdf = /\.pdf$/i.test(mediaUrl);
   const patientName =
     (patientNameOverride && String(patientNameOverride).trim()) ||
     getPatientName(alert);
 
+  const handleActivate = () => {
+    if (!actionable) return;
+    onRowClick(alert, kind);
+  };
+
   return (
     <div
-      className="w-full rounded-xl px-4 py-3 shadow-sm transition-colors"
+      role={actionable ? "button" : undefined}
+      tabIndex={actionable ? 0 : undefined}
+      className={`w-full rounded-xl px-4 py-3 shadow-sm transition-colors ${
+        actionable ? "cursor-pointer" : "cursor-default"
+      }`}
       style={{
         border: `1px solid ${unread ? "#fecaca" : THEMED_MODAL.border}`,
         background: unread ? "#fff8f8" : "#fff",
         textAlign: "left",
       }}
+      onClick={handleActivate}
+      onKeyDown={(e) => {
+        if (!actionable) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleActivate();
+        }
+      }}
       onMouseEnter={(e) => {
+        if (!actionable) return;
         e.currentTarget.style.borderColor = THEMED_MODAL.cyan;
       }}
       onMouseLeave={(e) => {
@@ -138,90 +153,6 @@ const AlertListRow = ({
             ) : null}
           </div>
         </div>
-
-        <div className="flex items-center justify-end gap-2 flex-wrap flex-shrink-0">
-          {showNavigableOpen && onOpenDestination ? (
-            <button
-              type="button"
-              onClick={() => onOpenDestination(alert)}
-              className={actionBtn}
-              style={{
-                background: THEMED_MODAL.cyan,
-                borderColor: THEMED_MODAL.cyan,
-                color: "#fff",
-              }}
-              title="Open related page"
-            >
-              Open
-            </button>
-          ) : null}
-
-          {mediaUrl && onOpenMedia ? (
-            <button
-              type="button"
-              onClick={() => onOpenMedia(mediaUrl)}
-              className={actionBtn}
-              style={{
-                borderColor: THEMED_MODAL.blue,
-                color: THEMED_MODAL.blue,
-                background: "#eff2ff",
-              }}
-              title={isPdf ? "Open document" : "Open image"}
-            >
-              {isPdf ? (
-                <FaFilePdf className="h-3.5 w-3.5 text-red-500" />
-              ) : (
-                <ImageOutlinedIcon style={{ fontSize: 16 }} />
-              )}
-              {isPdf ? "View file" : "View image"}
-            </button>
-          ) : null}
-
-          {isGraphAlert(alert) && onOpenGraph ? (
-            <button
-              type="button"
-              onClick={() => onOpenGraph(alert)}
-              className={actionBtn}
-              style={{
-                borderColor: THEMED_MODAL.slate,
-                color: THEMED_MODAL.slate,
-                background: "#fff",
-              }}
-              title="Open graph"
-            >
-              <InsertChartIcon style={{ fontSize: 18 }} />
-              Graph
-            </button>
-          ) : null}
-
-          {isTableAlert(alert) && onOpenTable ? (
-            <button
-              type="button"
-              onClick={() => onOpenTable(alert)}
-              className={actionBtn}
-              style={{
-                borderColor: THEMED_MODAL.slate,
-                color: THEMED_MODAL.slate,
-                background: "#fff",
-              }}
-              title="Open table"
-            >
-              <DatasetLinkedIcon style={{ fontSize: 18 }} />
-              Table
-            </button>
-          ) : null}
-
-          {onDelete ? (
-            <button
-              type="button"
-              onClick={() => onDelete(alert)}
-              className="text-xs text-red-400 hover:text-red-600 px-1 transition-colors"
-              title="Delete alert"
-            >
-              ✕
-            </button>
-          ) : null}
-        </div>
       </div>
     </div>
   );
@@ -230,12 +161,7 @@ const AlertListRow = ({
 AlertListRow.propTypes = {
   alert: PropTypes.object.isRequired,
   patientNameOverride: PropTypes.string,
-  onOpenDestination: PropTypes.func,
-  onOpenMedia: PropTypes.func,
-  onOpenGraph: PropTypes.func,
-  onOpenTable: PropTypes.func,
-  onDelete: PropTypes.func,
-  showNavigableOpen: PropTypes.bool,
+  onRowClick: PropTypes.func,
 };
 
 export default AlertListRow;

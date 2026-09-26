@@ -113,19 +113,13 @@ export function isNavigableSystemAlert(alert) {
 }
 
 /**
- * Mark read + navigate. Falls back to patient profile when no mapped route.
+ * Mark read + navigate when the alert has a mapped destination (main parity).
+ * Returns false when there is no route — does not fall back to profile.
  */
 export async function openAlertDestination(alert, navigate) {
   if (!alert || typeof navigate !== "function") return false;
 
-  let dest = resolveAlertDestination(alert);
-  if (!dest?.path) {
-    const patientId = alert.patientId || alert.patient_id || alert.pid;
-    if (patientId) {
-      dest = { path: ROUTES.userProfile(patientId) };
-    }
-  }
-
+  const dest = resolveAlertDestination(alert);
   if (!dest?.path) return false;
 
   persistAlertLocalIds(alert);

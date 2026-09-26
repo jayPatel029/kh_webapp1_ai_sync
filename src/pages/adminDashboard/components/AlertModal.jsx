@@ -1,7 +1,5 @@
-import React from "react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { postDailyAlertsUpdateIsRead } from "../../../ApiCalls/remainingApis";
-import { deleteAlertById } from "../../../ApiCalls/alertsApis";
 import SimpleModal from "./SimpleModal";
 import { insertAlert } from "../../../ApiCalls/appAlerts";
 import { useNavigate } from "react-router-dom";
@@ -16,7 +14,9 @@ import { ROUTES } from "../../../routes/routeConstants";
 import ThemedModalShell, {
   THEMED_MODAL,
 } from "../../../components/modals/ThemedModalShell";
-import AlertListRow from "../../../components/dashboard/AlertListRow";
+import AlertListRow, {
+  getAlertMediaUrl,
+} from "../../../components/dashboard/AlertListRow";
 
 const toolbarBtn =
   "inline-flex items-center justify-center rounded-lg border px-3 py-2 text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap";
@@ -38,33 +38,8 @@ const AlertModal = ({ closeModal }) => {
 
   const openSendMessage = () => setSmessage(true);
   const closeSendMessage = () => setSmessage(false);
-
-  const openModalSimple = (nextImgUrl) => {
-    setOpenSimpleModal(true);
-    setImgUrl(nextImgUrl);
-  };
   const closeModalSimple = () => setOpenSimpleModal(false);
-
-  const openModalGraph = (alert) => {
-    setPatientId(alert.patientId);
-    setQuestionId(alert.questionId);
-    setDailyorDia(alert.dailyordia);
-    setIsGraphVar(alert.isGraph);
-    setQuestionTitle(alert.questionTitle);
-    setQuestionUnit(alert.questionUnit);
-    setOpenGraphModal(true);
-  };
   const closeModalGraph = () => setOpenGraphModal(false);
-
-  const openModalTable = (alert) => {
-    setPatientId(alert.patientId);
-    setQuestionId(alert.questionId);
-    setDailyorDia(alert.dailyordia);
-    setIsGraphVar(alert.isGraph);
-    setQuestionTitle(alert.questionTitle);
-    setQuestionUnit(alert.questionUnit);
-    setOpenTableModal(true);
-  };
   const closeModalTable = () => setOpenTableModal(false);
 
   useEffect(() => {
@@ -112,22 +87,45 @@ const AlertModal = ({ closeModal }) => {
     }
   };
 
-  const handleDeleteAlert = async (alert) => {
-    if (!window.confirm("Delete this alert?")) return;
-    try {
-      await deleteAlertById(alert.id);
-      setAlerts((prev) => prev.filter((a) => a.id !== alert.id));
-    } catch (error) {
-      console.error("Error deleting alert:", error);
-      alert("Failed to delete alert.");
-    }
-  };
+  const handleRowClick = async (alert, kind) => {
+    if (!alert || !kind || kind === "none") return;
 
-  const handleOpenDestination = async (alert) => {
-    const ok = await openAlertDestination(alert, navigate);
-    if (ok) {
-      localStorage.removeItem("alertAlerts");
-      closeModal();
+    if (kind === "media") {
+      const url = getAlertMediaUrl(alert);
+      if (!url) return;
+      setImgUrl(url);
+      setOpenSimpleModal(true);
+      return;
+    }
+
+    if (kind === "graph") {
+      setPatientId(alert.patientId);
+      setQuestionId(alert.questionId);
+      setDailyorDia(alert.dailyordia);
+      setIsGraphVar(alert.isGraph);
+      setQuestionTitle(alert.questionTitle);
+      setQuestionUnit(alert.questionUnit);
+      setOpenGraphModal(true);
+      return;
+    }
+
+    if (kind === "table") {
+      setPatientId(alert.patientId);
+      setQuestionId(alert.questionId);
+      setDailyorDia(alert.dailyordia);
+      setIsGraphVar(alert.isGraph);
+      setQuestionTitle(alert.questionTitle);
+      setQuestionUnit(alert.questionUnit);
+      setOpenTableModal(true);
+      return;
+    }
+
+    if (kind === "route" && isNavigableSystemAlert(alert)) {
+      const ok = await openAlertDestination(alert, navigate);
+      if (ok) {
+        localStorage.removeItem("alertAlerts");
+        closeModal();
+      }
     }
   };
 
@@ -195,15 +193,7 @@ const AlertModal = ({ closeModal }) => {
               <AlertListRow
                 key={alert.id ?? index}
                 alert={alert}
-                onOpenDestination={
-                  isNavigableSystemAlert(alert)
-                    ? handleOpenDestination
-                    : undefined
-                }
-                onOpenMedia={openModalSimple}
-                onOpenGraph={openModalGraph}
-                onOpenTable={openModalTable}
-                onDelete={handleDeleteAlert}
+                onRowClick={handleRowClick}
               />
             ))}
           </div>
