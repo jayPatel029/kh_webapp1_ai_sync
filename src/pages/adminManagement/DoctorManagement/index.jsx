@@ -209,7 +209,7 @@ function AdminManagement() {
   };
 
   const validateTechnicianData = (doctorData) => {
-    const { name, email, phoneNo, specialities } = doctorData;
+    const { name, email, phoneNo, specialities, dialysisCenterRole, dialysisCenterRoleOther } = doctorData;
     if (!name || typeof name !== "string") {
       return false;
     }
@@ -222,6 +222,12 @@ function AdminManagement() {
     }
     const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(phoneNo)) {
+      return false;
+    }
+    if (!dialysisCenterRole || typeof dialysisCenterRole !== "string") {
+      return false;
+    }
+    if (dialysisCenterRole === "Other" && (!dialysisCenterRoleOther || !dialysisCenterRoleOther.trim())) {
       return false;
     }
     return true;
@@ -420,9 +426,9 @@ function AdminManagement() {
           clearDoctorFields();
           setIsFormModalOpen(false);
         } else {
-          setErrMsg((editMode ? "Update Error! " : "Registration Error! ") + response.data);
+          const serverMsg = response.data || "Request failed";
+          setErrMsg((editMode ? "Update Error! " : "Registration Error! ") + serverMsg);
           setSuccessMessage("");
-          setErrMsg("Please fill all the * fields correctly!");
         }
       } else {
         // Validation failed — highlight the invalid fields
