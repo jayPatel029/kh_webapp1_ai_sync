@@ -1,7 +1,9 @@
-name: Sync Private Repo to Public AI Repo
+name: Sync Alerts Branch to Public AI Repository
 
 on:
   push:
+    branches:
+      - fix/alerts-workflow-stabilization
   workflow_dispatch:
 
 jobs:
@@ -9,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout private repository
+      - name: Checkout private branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -23,8 +25,7 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-      - name: Sync to public repository
+      - name: Sync alerts branch
         run: |
           git remote add public git@github.com:jayPatel029/kh_webapp1_ai.git
-          git push public --all --force
-          git push public --tags --force
+          git push public HEAD:refs/heads/fix/alerts-workflow-stabilization --force
