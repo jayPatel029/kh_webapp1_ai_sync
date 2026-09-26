@@ -301,11 +301,18 @@ const PatientList = ({ data, onAddClick }) => {
 
     setTeamActionLoading(true);
     try {
-      if (teamModal.type === 'doctor') {
-        await addDoctorToPatient(teamModal.patient.id, { doctor_id: selectedUserId });
-      } else {
-        await addAdminToPatient(teamModal.patient.id, { admin_id: selectedUserId });
+      const result = teamModal.type === 'doctor'
+        ? await addDoctorToPatient(teamModal.patient.id, { doctor_id: selectedUserId })
+        : await addAdminToPatient(teamModal.patient.id, { admin_id: selectedUserId });
+
+      if (!result?.success) {
+        const message = typeof result?.data === 'string'
+          ? result.data
+          : result?.data?.message || result?.error || 'Failed to assign user.';
+        setError(message);
+        return;
       }
+
       setSelectedUserId('');
       await loadTeamModalData(teamModal.patient.id, teamModal.type);
       // Reload assigned users cache for this patient
@@ -341,11 +348,18 @@ const PatientList = ({ data, onAddClick }) => {
 
     setTeamActionLoading(true);
     try {
-      if (teamModal.type === 'doctor') {
-        await deleteAssignedDoctor(teamModal.patient.id, userId);
-      } else {
-        await deleteAssignedAdmin(teamModal.patient.id, userId);
+      const result = teamModal.type === 'doctor'
+        ? await deleteAssignedDoctor(teamModal.patient.id, userId)
+        : await deleteAssignedAdmin(teamModal.patient.id, userId);
+
+      if (!result?.success) {
+        const message = typeof result?.data === 'string'
+          ? result.data
+          : result?.data?.message || result?.error || 'Failed to remove user.';
+        setError(message);
+        return;
       }
+
       await loadTeamModalData(teamModal.patient.id, teamModal.type);
       // Reload assigned users cache for this patient
       try {
