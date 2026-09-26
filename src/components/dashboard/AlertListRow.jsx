@@ -7,6 +7,7 @@
 
 import React from "react";
 import PropTypes from "prop-types";
+import InsertChartIcon from "@mui/icons-material/InsertChart";
 import { getPatientName } from "../../helpers/alertGrouping";
 import { isNavigableSystemAlert } from "../../helpers/alertNavigation";
 import { THEMED_MODAL } from "../modals/ThemedModalShell";
@@ -74,6 +75,7 @@ const AlertListRow = ({ alert, patientNameOverride, onRowClick }) => {
   const patientName =
     (patientNameOverride && String(patientNameOverride).trim()) ||
     getPatientName(alert);
+  const showGraphIcon = isGraphAlert(alert);
 
   const handleActivate = () => {
     if (!actionable) return;
@@ -128,12 +130,24 @@ const AlertListRow = ({ alert, patientNameOverride, onRowClick }) => {
               </p>
             ) : null}
             <p
-              className={`text-sm font-semibold break-words ${
+              className={`text-sm font-semibold break-words flex items-start gap-1.5 ${
                 patientName ? "mt-0.5" : ""
               }`}
               style={{ color: alert?.color || THEMED_MODAL.danger }}
             >
-              {title}
+              <span className="min-w-0 break-words">{title}</span>
+              {showGraphIcon ? (
+                <InsertChartIcon
+                  className="flex-shrink-0"
+                  style={{
+                    fontSize: 20,
+                    color: THEMED_MODAL.slate,
+                    marginTop: 1,
+                  }}
+                  titleAccess="Graph available"
+                  aria-label="Graph available"
+                />
+              ) : null}
             </p>
             {alert?.category ? (
               <p
