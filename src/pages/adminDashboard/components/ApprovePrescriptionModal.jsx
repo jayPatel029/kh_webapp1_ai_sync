@@ -1,6 +1,6 @@
 /**
- * Approve Prescription modal — ThemedModalShell, right-side prescription preview,
- * mark-read only after approve / disapprove.
+ * Approve Prescription modal — same Form/Base modal + 1fr 2fr layout as
+ * Add Alarm (prescription on the right), mark-read only after action.
  *
  * @file src/pages/adminDashboard/components/ApprovePrescriptionModal.jsx
  */
@@ -12,14 +12,12 @@ import {
   approveAllAlerts,
   updateIsReadAlert,
 } from "../../../ApiCalls/alertsApis";
-import ThemedModalShell, {
-  THEMED_MODAL,
-} from "../../../components/modals/ThemedModalShell";
+import { BaseModal } from "../../../component-library/modals/BaseModal";
+import { Box, Flex, Grid, GridItem } from "../../../component-library/layout/Layout";
+import { Button } from "../../../component-library/primitives/Button";
+import { Text } from "../../../component-library/primitives/Typography";
 import MyPDFViewer from "../../../components/pdf/MyPDFViewer";
 import DisapproveReasonModal from "./Modal";
-
-const actionBtn =
-  "inline-flex items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap";
 
 const getPrescriptionImageUrl = (item) =>
   item?.presImg ||
@@ -37,7 +35,11 @@ const formatDate = (value) => {
     const [y, m, d] = raw.split("-");
     return `${d}-${m}-${y}`;
   }
-  return String(value);
+  try {
+    return new Date(value).toDateString();
+  } catch {
+    return String(value);
+  }
 };
 
 const groupByPresId = (list) => {
@@ -61,7 +63,10 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
   useEffect(() => {
     try {
       const raw = localStorage.getItem("prescriptionAlerts");
-      setAlerts(raw ? JSON.parse(raw) : []);
+      const list = raw ? JSON.parse(raw) : [];
+      setAlerts(list);
+      const firstUrl = getPrescriptionImageUrl(list[0]);
+      if (firstUrl) setPreviewUrl(firstUrl);
     } catch {
       setAlerts([]);
     }
@@ -78,8 +83,7 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
         console.error("mark prescription alert read failed", err);
       }
     }
-    const ids = list.map((a) => a.id);
-    onResolved?.(ids);
+    onResolved?.(list.map((a) => a.id));
   };
 
   const removeAlertsByPredicate = useCallback(
@@ -177,134 +181,112 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
 
   const groupKeys = Object.keys(groupedData);
   const previewIsPdf = /\.pdf$/i.test(String(previewUrl || ""));
+  const hasPreview = Boolean(previewUrl);
 
   return (
     <>
-      <ThemedModalShell
-        title="Prescription alerts"
-        subtitle="Approve or disapprove digitised prescription alarms"
+      <BaseModal
+        isOpen
         onClose={closeModal}
-        width="min(1200px, 96vw)"
-        maxHeight="90vh"
-        fillBody
-        bodyScroll={false}
-        bodyClassName="p-0"
+        title="Digitised Prescription Copy"
+        size="8xl"
+        footer={
+          <Flex justify="end">
+            <Button variant="danger" onClick={closeModal} isDisabled={busy}>
+              Close
+            </Button>
+          </Flex>
+        }
       >
         {groupKeys.length === 0 ? (
-          <p
-            className="text-sm py-10 px-5"
-            style={{ color: THEMED_MODAL.slate, textAlign: "left" }}
-          >
+          <Text color="muted" size="sm">
             No prescription alerts
-          </p>
+          </Text>
         ) : (
-          <div className="flex flex-col lg:flex-row flex-1 min-h-0 h-full">
-            <div className="flex-1 min-w-0 min-h-0 overflow-y-auto px-4 sm:px-5 py-4">
-              <div className="flex flex-col gap-5">
+          <Grid
+            gap={6}
+            className="!min-w-full"
+            templateColumns={hasPreview ? "1fr 2fr" : "1fr"}
+          >
+            <GridItem colSpan={1} className="min-w-0">
+              <Flex direction="column" gap={5}>
                 {groupKeys.map((presId) => {
                   const items = groupedData[presId];
                   const first = items[0] || {};
-                  const hasImage = Boolean(getPrescriptionImageUrl(first));
+                  const imageUrl = getPrescriptionImageUrl(first);
+                  const isActivePreview =
+                    previewUrl && imageUrl && previewUrl === imageUrl;
+
                   return (
-                    <div
+                    <Box
                       key={presId}
-                      className="rounded-xl border overflow-hidden"
-                      style={{ borderColor: THEMED_MODAL.border }}
+                      className="border border-accent rounded-md overflow-hidden"
                     >
-                      <div
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3"
-                        style={{ background: "#f8fafc" }}
+                      <Flex
+                        justify="between"
+                        align="center"
+                        wrap="wrap"
+                        gap={3}
+                        className="bg-gray-50 border-b border-accent px-4 py-3"
                       >
-                        <div className="text-left min-w-0">
-                          <p
-                            className="text-sm font-bold"
-                            style={{ color: THEMED_MODAL.ink }}
-                          >
+                        <Box className="min-w-0 text-left">
+                          <Text weight="semibold" size="sm">
                             Prescription on {formatDate(first.date)}
-                          </p>
+                          </Text>
                           {first.name ? (
-                            <p
-                              className="text-xs mt-0.5"
-                              style={{ color: THEMED_MODAL.slate }}
-                            >
+                            <Text size="xs" color="muted" className="mt-0.5">
                               {first.name}
-                            </p>
+                            </Text>
                           ) : null}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
+                        </Box>
+                        <Flex gap={2} wrap="wrap" align="center">
+                          <Button
                             type="button"
+                            variant="outline"
+                            size="sm"
                             onClick={() => showPrescriptionPreview(first)}
-                            className={actionBtn}
-                            style={{
-                              borderColor: THEMED_MODAL.blue,
-                              color: THEMED_MODAL.blue,
-                              background: "#eff2ff",
-                              opacity: hasImage ? 1 : 0.55,
-                            }}
-                            title={
-                              hasImage
-                                ? "View prescription"
-                                : "No prescription image"
+                            isDisabled={!imageUrl}
+                            className={
+                              isActivePreview ? "ring-2 ring-primary" : ""
                             }
                           >
                             View prescription
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
-                            disabled={busy}
+                            variant="secondary"
+                            size="sm"
+                            isDisabled={busy}
                             onClick={() => handleApproveAll(presId, items)}
-                            className={actionBtn}
-                            style={{
-                              borderColor: THEMED_MODAL.cyan,
-                              background: THEMED_MODAL.cyan,
-                              color: "#fff",
-                            }}
                           >
                             Approve All
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
-                            disabled={busy}
+                            variant="danger"
+                            size="sm"
+                            isDisabled={busy}
                             onClick={() => openDisapproveAll(presId, items)}
-                            className={actionBtn}
-                            style={{
-                              borderColor: THEMED_MODAL.danger,
-                              background: THEMED_MODAL.danger,
-                              color: "#fff",
-                            }}
                           >
                             Disapprove All
-                          </button>
-                        </div>
-                      </div>
+                          </Button>
+                        </Flex>
+                      </Flex>
 
                       <div className="overflow-x-auto">
-                        <table className="w-full text-sm border-collapse">
-                          <thead>
-                            <tr style={{ background: "#f1f5f9" }}>
-                              <th
-                                className="text-left px-4 py-2 font-semibold hidden lg:table-cell"
-                                style={{ color: THEMED_MODAL.slate }}
-                              >
-                                Alarm description
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 border-b border-accent">
+                            <tr>
+                              <th className="px-4 py-3 text-left hidden lg:table-cell">
+                                Alarm Description
                               </th>
-                              <th
-                                className="text-left px-4 py-2 font-semibold hidden lg:table-cell"
-                                style={{ color: THEMED_MODAL.slate }}
-                              >
+                              <th className="px-4 py-3 text-left hidden lg:table-cell">
                                 Frequency
                               </th>
-                              <th
-                                className="text-left px-4 py-2 font-semibold hidden lg:table-cell"
-                                style={{ color: THEMED_MODAL.slate }}
-                              >
-                                Days / month
+                              <th className="px-4 py-3 text-left hidden lg:table-cell">
+                                Days/Month
                               </th>
-                              <th
-                                className="text-left px-4 py-2 font-semibold hidden lg:table-cell"
-                                style={{ color: THEMED_MODAL.slate }}
-                              >
+                              <th className="px-4 py-3 text-left hidden lg:table-cell">
                                 Actions
                               </th>
                             </tr>
@@ -313,31 +295,19 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                             {items.map((item, index) => (
                               <tr
                                 key={item.id ?? `${presId}-${index}`}
-                                className="border-t flex flex-col lg:table-row"
-                                style={{ borderColor: THEMED_MODAL.border }}
+                                className="border-b hover:bg-gray-50 flex flex-col lg:table-row"
                               >
                                 <td className="px-4 py-3 text-left align-top">
-                                  <span
-                                    className="lg:hidden block text-xs font-semibold mb-1"
-                                    style={{ color: THEMED_MODAL.slate }}
-                                  >
-                                    Alarm description
+                                  <span className="lg:hidden block text-xs font-semibold text-gray-500 mb-1">
+                                    Alarm Description
                                   </span>
-                                  <span style={{ color: THEMED_MODAL.ink }}>
-                                    {item.desc || "—"}
-                                  </span>
+                                  {item.desc || "—"}
                                 </td>
                                 <td className="px-4 py-3 text-left align-top">
-                                  <span
-                                    className="lg:hidden block text-xs font-semibold mb-1"
-                                    style={{ color: THEMED_MODAL.slate }}
-                                  >
+                                  <span className="lg:hidden block text-xs font-semibold text-gray-500 mb-1">
                                     Frequency
                                   </span>
-                                  <div
-                                    className="font-semibold"
-                                    style={{ color: THEMED_MODAL.ink }}
-                                  >
+                                  <div className="font-semibold">
                                     {item.timesaday}{" "}
                                     {item.timesaday > 1 ? "times" : "time"}{" "}
                                     {item.isWeek ? "a day" : "a month"}
@@ -345,107 +315,80 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                                   {(item.doses || []).map((dose, i) => (
                                     <div
                                       key={`${item.id}-dose-${i}`}
-                                      style={{ color: THEMED_MODAL.slate }}
+                                      className="text-gray-600"
                                     >
                                       {dose}
                                     </div>
                                   ))}
                                 </td>
                                 <td className="px-4 py-3 text-left align-top">
-                                  <span
-                                    className="lg:hidden block text-xs font-semibold mb-1"
-                                    style={{ color: THEMED_MODAL.slate }}
-                                  >
-                                    Days / month
+                                  <span className="lg:hidden block text-xs font-semibold text-gray-500 mb-1">
+                                    Days/Month
                                   </span>
-                                  <span style={{ color: THEMED_MODAL.ink }}>
-                                    {item.weekdays || "—"}
-                                  </span>
+                                  {item.weekdays || "—"}
                                 </td>
                                 <td className="px-4 py-3 align-top">
-                                  <span
-                                    className="lg:hidden block text-xs font-semibold mb-1"
-                                    style={{ color: THEMED_MODAL.slate }}
-                                  >
+                                  <span className="lg:hidden block text-xs font-semibold text-gray-500 mb-1">
                                     Actions
                                   </span>
-                                  <div className="flex flex-wrap gap-2">
-                                    <button
+                                  <Flex gap={2} wrap="wrap">
+                                    <Button
                                       type="button"
-                                      disabled={busy}
+                                      variant="secondary"
+                                      size="sm"
+                                      isDisabled={busy}
                                       onClick={() => handleApprove(item)}
-                                      className={actionBtn}
-                                      style={{
-                                        borderColor: THEMED_MODAL.cyan,
-                                        background: THEMED_MODAL.cyan,
-                                        color: "#fff",
-                                      }}
                                     >
                                       Approve
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
                                       type="button"
-                                      disabled={busy}
+                                      variant="danger"
+                                      size="sm"
+                                      isDisabled={busy}
                                       onClick={() =>
                                         openDisapproveOne(item, presId)
                                       }
-                                      className={actionBtn}
-                                      style={{
-                                        borderColor: THEMED_MODAL.danger,
-                                        background: THEMED_MODAL.danger,
-                                        color: "#fff",
-                                      }}
                                     >
                                       Disapprove
-                                    </button>
-                                  </div>
+                                    </Button>
+                                  </Flex>
                                 </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
-                    </div>
+                    </Box>
                   );
                 })}
-              </div>
-            </div>
+              </Flex>
+            </GridItem>
 
-            <div
-              className="w-full lg:w-[42%] flex-shrink-0 border-t lg:border-t-0 lg:border-l min-h-[240px] lg:min-h-0 overflow-y-auto"
-              style={{
-                borderColor: THEMED_MODAL.border,
-                background: "#f8fafc",
-              }}
-            >
-              {previewUrl ? (
-                <div className="p-3 h-full min-h-[240px]">
+            {hasPreview ? (
+              <GridItem colSpan={1}>
+                <Box className="p-2 max-h-[70vh] overflow-auto">
                   {previewIsPdf ? (
-                    <div className="w-full min-h-[320px] h-full">
-                      <MyPDFViewer file={previewUrl} fitWidth />
+                    <div className="h-full min-h-[320px]">
+                      <MyPDFViewer
+                        file={previewUrl}
+                        onLoadSuccess={() => {}}
+                        onLoadError={() => {}}
+                      />
                     </div>
                   ) : (
                     <img
                       src={previewUrl}
-                      alt="Prescription"
-                      className="w-full h-auto rounded-lg shadow-sm object-contain bg-white"
+                      alt="prescription-view"
+                      className="w-full h-auto rounded"
                     />
                   )}
-                </div>
-              ) : (
-                <div className="h-full min-h-[240px] flex items-center justify-center px-6 py-10">
-                  <p
-                    className="text-sm text-center"
-                    style={{ color: THEMED_MODAL.slate }}
-                  >
-                    Click View prescription to see the image here.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+                </Box>
+              </GridItem>
+            ) : null}
+          </Grid>
         )}
-      </ThemedModalShell>
+      </BaseModal>
 
       {disapproveCtx && (
         <DisapproveReasonModal
