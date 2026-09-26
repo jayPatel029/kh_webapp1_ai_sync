@@ -30,6 +30,7 @@ import {
 // Doctor APIs
 import { getDoctorIdByEmail } from '../ApiCalls/doctorApis';
 import { getDoctorSortAlerts } from '../ApiCalls/doctorAlert';
+import { canReceiveDailyAlerts } from '../ApiCalls/alertsApis';
 
 // Patient APIs
 import { getPatients } from '../ApiCalls/patientAPis';
@@ -67,6 +68,28 @@ function safeNumber(val) {
 const ALERTS_REFETCH_MS = 60_000; // 60 seconds
 
 const stripChatAlerts = (alerts = []) => alerts.filter((alert) => !isChatAlert(alert));
+
+/** Main DoctorContainer parity: hide reading alerts when capability is off. */
+const applyDailyAlertsCapabilityFilter = (alerts = [], canReceive) => {
+  if (canReceive) return alerts;
+  return alerts.filter(
+    (alert) => alert?.dailyordia !== 'daily' && alert?.dailyordia !== 'dialysis'
+  );
+};
+
+/** True when GET /alerts/dailyAlerts succeeds (main treated HTTP 200 as allowed). */
+const resolveDailyAlertsCapability = async () => {
+  try {
+    const result = await canReceiveDailyAlerts();
+    if (result?.isAxiosError) return false;
+    if (result?.response?.status === 403) return false;
+    // axios error objects often have a message / config without success payload
+    if (result instanceof Error) return false;
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 // ─── useAdminDashboardData ──────────────────────────────────
 
@@ -255,9 +278,11 @@ export function useDoctorDashboardData() {
     totalPatients: 0,
     newPatients: 0,
     activePatients: 0,
+    canReceiveDailyAlerts: false,
   });
 
   const alertIntervalRef = useRef(null);
+  const dailyCapabilityRef = useRef(false);
 
   const fetchAlerts = useCallback(async (doctorId) => {
     try {
@@ -269,6 +294,8 @@ export function useDoctorDashboardData() {
         const allAlertsRes = await getAlerts();
         alerts = stripChatAlerts(safeArray(allAlertsRes?.data ?? allAlertsRes));
       }
+
+      alerts = applyDailyAlertsCapabilityFilter(alerts, dailyCapabilityRef.current);
 
       setData((prev) => ({ ...prev, alerts }));
     } catch (err) {
@@ -305,6 +332,9 @@ export function useDoctorDashboardData() {
         return;
       }
 
+      const canReceive = await resolveDailyAlertsCapability();
+      dailyCapabilityRef.current = canReceive;
+
       // Parallel fetch
       const [alertsRes, allAlertsRes, patientsRes] = await Promise.allSettled([
         getDoctorSortAlerts(doctorId),
@@ -316,7 +346,8 @@ export function useDoctorDashboardData() {
       const doctorAlerts = alertsRaw?.success ? stripChatAlerts(safeArray(alertsRaw.data)) : [];
       const allAlertsRaw = settled(allAlertsRes);
       const fallbackAlerts = stripChatAlerts(safeArray(allAlertsRaw?.data ?? allAlertsRaw));
-      const alerts = doctorAlerts.length ? doctorAlerts : fallbackAlerts;
+      let alerts = doctorAlerts.length ? doctorAlerts : fallbackAlerts;
+      alerts = applyDailyAlertsCapabilityFilter(alerts, canReceive);
 
       const patientsRaw = settled(patientsRes);
       const patients = patientsRaw?.success ? safeArray(patientsRaw.data) : [];
@@ -338,6 +369,7 @@ export function useDoctorDashboardData() {
         totalPatients: patients.length,
         newPatients,
         activePatients: patients.length,
+        canReceiveDailyAlerts: canReceive,
       });
 
       // Start alert polling
