@@ -2,10 +2,11 @@ import axiosInstance from "../helpers/axios/axiosInstance";
 import { server_url } from "../constants/constants";
 
 export const addComment = async (content, fileId, fileType, userId, iSDoctor) => {
+    // userId = patient integer id; when doctor posts, docId is doctor email.
     var uid = userId;
-    var docId="";
-    if (iSDoctor === 1){
-        docId= localStorage.getItem("email");
+    var docId = "";
+    if (iSDoctor === 1) {
+        docId = localStorage.getItem("email") || "";
     }
     const data = {
         content,
@@ -16,16 +17,14 @@ export const addComment = async (content, fileId, fileType, userId, iSDoctor) =>
         docId,
     };
 
-    // { "content": "hey", "fileId": 26, "fileType": "Diet Details", "userId": 10, "iSDoctor": 0, "docId": "" }
-
-    // { "content": "hey", "fileId": 27, "fileType": "10", "userId": 0, "docId": "" }
+    // Expected: { content, fileId, fileType, userId: 10, iSDoctor: 1, docId: "doctor@..." }
 
     try {
-        console.log("adding pres commmetn with data:", data);  
         const response = await axiosInstance.post(`${server_url}/comments/addComment`, data);
         return response.data;
     } catch (error) {
         console.error("Error adding comment:", error);
+        throw error;
     }
 };
 

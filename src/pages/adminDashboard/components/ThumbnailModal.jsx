@@ -71,13 +71,23 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
   const uploadComment = async () => {
     const trimmedComment = newComment.trim();
     if (!trimmedComment || submitting) return;
+
+    // comments.userId is patient integer id — not doctor email (docId carries email).
+    const patientUserId =
+      comment?.userId ?? comment?.patientId ?? comment?.userid ?? null;
+    if (patientUserId == null || Number.isNaN(Number(patientUserId))) {
+      console.error("Cannot add comment: missing patient userId on comment", comment);
+      alert("Unable to post comment — patient id is missing.");
+      return;
+    }
+
     try {
       setSubmitting(true);
       await addComment(
         trimmedComment,
         comment.fileId,
         comment.fileType,
-        localStorage.getItem("email"),
+        Number(patientUserId),
         1
       );
       setNewComment("");
