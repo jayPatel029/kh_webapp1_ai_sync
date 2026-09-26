@@ -1,11 +1,25 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import ThumbnailModal from "./ThumbnailModal";
-import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
 import { insertAlert } from "../../../ApiCalls/appAlerts";
 import SendMessage from "./SendMessage";
-import { checkURl, isValidHttpUrl } from "../../../helpers/utils";
+import { isValidHttpUrl } from "../../../helpers/utils";
 import { useIsMobile } from "../../../components/mobile/useIsMobile";
+import { ROUTES } from "../../../routes/routeConstants";
+
+const formatCommentDate = (value) => {
+  if (!value) return "";
+  const raw = String(value).slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [y, m, d] = raw.split("-");
+    return `${d}-${m}-${y}`;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}-${month}-${date.getFullYear()}`;
+};
 
 const CommentContainer = ({ comments, closeModal }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -13,95 +27,108 @@ const CommentContainer = ({ comments, closeModal }) => {
   const [comment, setComment] = useState(null);
   const [smessage, setSmessage] = useState(false);
   const { isMobile } = useIsMobile();
-  console.log(comments)
-  const openSendMessage = () => {
-    setSmessage(true);
-  };
 
-  const closeSendMessage = () => {
-    setSmessage(false);
-  };
+  const patientId = comments?.[0]?.userId || comments?.[0]?.patientId;
 
-  const openThumbnailModal = (image, comment) => {
-    setComment(comment);
+  const openSendMessage = () => setSmessage(true);
+  const closeSendMessage = () => setSmessage(false);
+
+  const openThumbnailModal = (img, nextComment) => {
+    setComment(nextComment);
     setIsModalOpen(true);
-    setImage(image);
+    setImage(img);
   };
+
   const closeThumbnailModal = async () => {
     setIsModalOpen(false);
   };
 
   const consultDoctor = async () => {
-    // console.log("comment[0]:", comments[0])
-    const patientId = comments[0].userId;
+    if (!patientId) return;
     const doctorEmail = localStorage.getItem("email");
-    const mess = "";
-    const category = "Consult Doctor";
-
     try {
-      await insertAlert(doctorEmail, patientId, category, mess);
-      alert("Your Message has been sent for immediate consultation")
+      await insertAlert(doctorEmail, patientId, "Consult Doctor", "");
+      alert("Your Message has been sent for immediate consultation");
     } catch (error) {
       console.log(error);
-      alert("something Went wrong please try again")
+      alert("something Went wrong please try again");
     }
   };
 
-  // https://kifaytidata2024.s3.amazonaws.com/7036_3D_ETRX_17_KAUSTUBH_GHARAT%20(2).jpg
+  const visibleComments = useMemo(() => {
+    const list = Array.isArray(comments) ? [...comments] : [];
+    return list
+      .filter((c) => isValidHttpUrl(c?.url))
+      .sort(
+        (a, b) =>
+          new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+      );
+  }, [comments]);
 
-  var reversedComments = comments.reverse();
-  console.log(reversedComments);
-  var coms = reversedComments.filter(function (comment) {
-    console.log("comment url")
-    console.log(comment.url, isValidHttpUrl(comment.url));
+  const actionBtn =
+    "inline-flex items-center justify-center rounded-lg border px-3 py-2 text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap";
 
-    return isValidHttpUrl(comment.url);
-  });
-
-  // console.log(checkURl("https://kifaytidata2024.s3.amazonaws.com/7036_3D_ETRX_17_KAUSTUBH_GHARAT%20(2).jpg"))
-
-  // var coms = comments.reverse();
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-10 bg-black/10 overflow-y-auto">
-      <div className={`bg-white shadow-md border-t-4 border-primary rounded z-50 overflow-y-auto ${isMobile ? 'mx-2 mt-2 p-4 w-full h-[95vh]' : 'p-7 ml-4 mr-4 mt-4 w-max lg:w-[80%] h-[100vh]'}`}>
-        <div className={`header flex justify-between items-center border-b pb-2 mb-4 ${isMobile ? 'flex-col gap-2' : 'flex-col lg:flex-row'}`}>
-          <h2 className={`${isMobile ? 'text-lg' : 'text-2xl'} font-bold`}>Comments</h2>
-          <div className={`flex ${isMobile ? 'flex-wrap gap-2 w-full' : 'flex-col lg:flex-row gap-2'}`}>
-            <div className={`flex ${isMobile ? 'gap-1 flex-1' : 'lg:flex-row gap-2'}`}>
-              <Link to={"/userProfile/" + comments[0]?.userId} className={isMobile ? 'flex-1' : ''}>
-                <div
-                  className={`rounded-lg text-primary border-2 border-primary py-2 justify-center flex cursor-pointer shadow-lg hover:bg-gray-300 hover:text-gray-900 transition duration-300 ease-in-out transform hover:scale-105 ${isMobile ? 'w-full text-xs px-2' : 'w-40'}`}
-                >
-                  View Profile
-                </div>
-              </Link>
-              <div
-                className={`rounded-lg text-white bg-red-600 border-red-900 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-red-600 hover:text-white transition duration-300 ease-in-out transform hover:scale-105 ${isMobile ? 'flex-1 text-xs px-2' : 'w-40'}`}
-                onClick={consultDoctor}
-              >
-                Consult Doctor
-              </div>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 overflow-y-auto p-2 sm:p-4">
+      <div
+        className={`relative bg-white shadow-md border-t-4 border-primary rounded-xl z-50 overflow-y-auto w-full ${
+          isMobile ? "max-h-[95vh] p-4" : "max-w-5xl max-h-[92vh] p-6"
+        }`}
+      >
+        {/* Close icon — top right */}
+        <button
+          type="button"
+          onClick={closeModal}
+          className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+          aria-label="Close"
+          title="Close"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="w-5 h-5"
+            aria-hidden
+          >
+            <path
+              fillRule="evenodd"
+              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
 
-            <div className={`flex ${isMobile ? 'gap-1 flex-1' : 'lg:flex-row gap-2'}`}>
-              <div
-                className={`rounded-lg text-white border-2 bg-primary border-primary py-2 justify-center flex cursor-pointer shadow-lg hover:bg-primary-dark hover:text-white transition duration-300 ease-in-out transform hover:scale-105 ${isMobile ? 'flex-1 text-xs px-2' : 'w-40'}`}
-                onClick={openSendMessage}
+        {/* Header */}
+        <div className="pr-10 border-b border-[#e5eef3] pb-4 mb-4">
+          <h2 className={`${isMobile ? "text-lg" : "text-2xl"} font-bold text-[#3F6B85] text-left`}>
+            Comments
+          </h2>
+          <div className="mt-3 flex flex-wrap items-center justify-start gap-2">
+            {patientId ? (
+              <Link
+                to={ROUTES.userProfile(patientId)}
+                className={`${actionBtn} border-[#00cccc] text-[#00cccc] hover:bg-[#e6fafa]`}
               >
-                Send Message
-              </div>
-              <div
-                className={`rounded-lg text-red-900 border-2 border-red-900 py-2 justify-center flex cursor-pointer shadow-lg hover:bg-red-200 hover:text-red-900 transition duration-300 ease-in-out transform hover:scale-105 ${isMobile ? 'flex-1 text-xs px-2' : 'w-40'}`}
-                onClick={closeModal}
-                style={{
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </div>
-            </div>
+                View Profile
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              onClick={consultDoctor}
+              className={`${actionBtn} border-red-600 bg-red-600 text-white hover:bg-red-700`}
+            >
+              Consult Doctor
+            </button>
+            <button
+              type="button"
+              onClick={openSendMessage}
+              className={`${actionBtn} border-[#00cccc] bg-[#00cccc] text-white hover:bg-[#00b3b3]`}
+            >
+              Send Message
+            </button>
           </div>
         </div>
+
         {isModalOpen && (
           <ThumbnailModal
             closeModal={closeThumbnailModal}
@@ -109,41 +136,48 @@ const CommentContainer = ({ comments, closeModal }) => {
             comment={comment}
           />
         )}
-        {smessage && (
-          <SendMessage
-            closeModal={closeSendMessage}
-            patientid={comments[0].userId}
-          />
+        {smessage && patientId && (
+          <SendMessage closeModal={closeSendMessage} patientid={patientId} />
         )}
-        {coms.map((comment) => (
-          <div className={`shadow-md hover:shadow-lg border rounded-lg border-gray-200 transition duration-300 ease-in-out m-1 ${isMobile ? 'p-3' : 'p-4'}`}>
-            <div className={`flex justify-between items-center ${isMobile ? 'flex-col gap-2' : 'flex-col lg:flex-row'}`}>
-              <div className="flex items-center">
-                <div className="mb-4">
-                  <label
-                    className={`block font-semibold mb-2 text-red-400 ${isMobile ? 'text-xs' : 'text-sm'}`}
+
+        {/* Comment rows */}
+        {visibleComments.length === 0 ? (
+          <p className="text-sm text-gray-500 text-left py-8">
+            No comments with attachments to show.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {visibleComments.map((item, index) => (
+              <div
+                key={item.id ?? `${item.url}-${index}`}
+                className="border border-[#e5eef3] rounded-xl px-4 py-3 shadow-sm hover:border-[#00cccc]/60 transition-colors"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="min-w-0 flex-1 text-left">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-red-500 mb-1">
+                      {item.fileType === "Lab" ? "Lab Report" : item.fileType || "Comment"}
+                    </p>
+                    <p className="text-sm font-semibold text-gray-900 break-words">
+                      PATIENT COMMENT — &quot;{item.content || "—"}&quot;
+                    </p>
+                    {item.date ? (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formatCommentDate(item.date)}
+                      </p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openThumbnailModal(item.url, item)}
+                    className={`${actionBtn} shrink-0 border-[#00cccc] bg-[#00cccc] text-white hover:bg-[#00b3b3] sm:self-center`}
                   >
-                    {comment.fileType}
-                  </label>
-                  <label className={`block font-bold mb-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                    PATIENT COMMENT - "{comment.content}"
-                  </label>
+                    View/Comment
+                  </button>
                 </div>
               </div>
-              <div
-                className={`rounded-lg text-white border-2 bg-primary border-primary py-2 justify-center flex cursor-pointer shadow-lg hover:bg-primary-dark hover:text-white transition duration-300 ease-in-out transform hover:scale-105 ${isMobile ? 'w-full text-xs' : 'w-40'}`}
-                onClick={() => {
-                  openThumbnailModal(comment.url, comment);
-                }}
-                style={{
-                  cursor: "pointer",
-                }}
-              >
-                View/Comment
-              </div>
-            </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

@@ -156,6 +156,7 @@ const DoctorDashboard = () => {
   });
   const [activeCategory, setActiveCategory] = useState(null);
   const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [selectedPatientLabel, setSelectedPatientLabel] = useState("");
   const [modals, setModals] = useState({
     prescription: false,
     comment: false,
@@ -262,51 +263,137 @@ const DoctorDashboard = () => {
   const visibleTabs = useMemo(
     () =>
       CATEGORY_META.filter((tab) => (buckets[tab.key] || []).length > 0).map(
-        (tab) => ({
-          ...tab,
-          count: (buckets[tab.key] || []).length,
-          unread: (buckets[tab.key] || []).filter((item) =>
-            tab.key === "comments"
-              ? item.isRead === 0 || item.isRead === false || item.isRead === "0"
-              : isUnreadAlert(item)
-          ).length,
-        })
+        (tab) => {
+          const items = buckets[tab.key] || [];
+          if (tab.key === "comments") {
+            const byPatient = new Map();
+            items.forEach((c) => {
+              const key = String(getPatientId(c) || c.name || "");
+              if (!key) return;
+              if (!byPatient.has(key)) {
+                byPatient.set(key, { unread: 0 });
+              }
+              const entry = byPatient.get(key);
+              if (
+                c.isRead === 0 ||
+                c.isRead === false ||
+                c.isRead === "0"
+              ) {
+                entry.unread += 1;
+              }
+            });
+            const patients = [...byPatient.values()];
+            return {
+              ...tab,
+              count: patients.length,
+              unread: patients.filter((p) => p.unread > 0).length,
+            };
+          }
+          return {
+            ...tab,
+            count: items.length,
+            unread: items.filter(isUnreadAlert).length,
+          };
+        }
       ),
     [buckets]
   );
 
-  const activeRows = buckets[activeCategory] || [];
+  /** Comments tab: one summary row per patient (not per comment). */
+  const commentPatientRows = useMemo(() => {
+    const map = new Map();
+    (buckets.comments || []).forEach((c) => {
+      const pid = getPatientId(c);
+      const key = String(pid || c.name || "");
+      if (!key) return;
+
+      const unread =
+        c.isRead === 0 || c.isRead === false || c.isRead === "0";
+      const ts = new Date(c.date || 0).getTime();
+
+      if (!map.has(key)) {
+        map.set(key, {
+          id: `comment-patient-${key}`,
+          patientId: pid || null,
+          name: c.name || nameLookup[String(pid)] || `Patient ${key}`,
+          category: "Comments",
+          type: "Comments",
+          date: c.date,
+          isRead: unread ? 0 : 1,
+          _commentTotal: 1,
+          _commentUnread: unread ? 1 : 0,
+          _latestTs: ts,
+        });
+        return;
+      }
+
+      const row = map.get(key);
+      row._commentTotal += 1;
+      if (unread) {
+        row._commentUnread += 1;
+        row.isRead = 0;
+      }
+      if (ts >= (row._latestTs || 0)) {
+        row._latestTs = ts;
+        row.date = c.date;
+      }
+      if (!row.patientId && pid) row.patientId = pid;
+      if (!row.name && c.name) row.name = c.name;
+    });
+
+    return [...map.values()].sort(
+      (a, b) => (b._latestTs || 0) - (a._latestTs || 0)
+    );
+  }, [buckets.comments, nameLookup]);
+
+  const activeRows =
+    activeCategory === "comments"
+      ? commentPatientRows
+      : buckets[activeCategory] || [];
   const activeMeta =
     CATEGORY_META.find((c) => c.key === activeCategory) || CATEGORY_META[2];
 
   const alertsForPatient = useCallback(
-    (patientId, categoryKey) => {
+    (patientId, categoryKey, patientName) => {
       const pid = String(patientId || "");
-      return (buckets[categoryKey] || []).filter(
-        (a) => String(getPatientId(a) || "") === pid
-      );
+      const name = String(patientName || "").trim();
+      return (buckets[categoryKey] || []).filter((a) => {
+        const aPid = String(getPatientId(a) || "");
+        if (pid && aPid && aPid === pid) return true;
+        if (name && String(a.name || "").trim() === name) return true;
+        return false;
+      });
     },
     [buckets]
   );
 
-  const markRowsReadLocally = useCallback((categoryKey, patientId) => {
-    setBuckets((prev) => {
-      const list = prev[categoryKey] || [];
-      const nextList = list.map((item) => {
-        const samePatient =
-          !patientId ||
-          String(getPatientId(item) || "") === String(patientId);
-        if (!samePatient) return item;
-        return { ...item, isRead: 1 };
+  const markRowsReadLocally = useCallback(
+    (categoryKey, patientId, patientName) => {
+      setBuckets((prev) => {
+        const list = prev[categoryKey] || [];
+        const name = String(patientName || "").trim();
+        const nextList = list.map((item) => {
+          const aPid = String(getPatientId(item) || "");
+          const samePatient =
+            (patientId && aPid && aPid === String(patientId)) ||
+            (name && String(item.name || "").trim() === name);
+          if (!samePatient) return item;
+          return { ...item, isRead: 1 };
+        });
+        return { ...prev, [categoryKey]: nextList };
       });
-      return { ...prev, [categoryKey]: nextList };
-    });
-  }, []);
+    },
+    []
+  );
 
   const closeModal = useCallback(
     async (type) => {
-      if (type === "comment" && selectedPatientId) {
-        const comments = alertsForPatient(selectedPatientId, "comments");
+      if (type === "comment" && (selectedPatientId || selectedPatientLabel)) {
+        const comments = alertsForPatient(
+          selectedPatientId,
+          "comments",
+          selectedPatientLabel
+        );
         const unread = comments.filter(
           (c) => c?.isRead === false || c?.isRead === 0 || c?.isRead === "0"
         );
@@ -320,7 +407,11 @@ const DoctorDashboard = () => {
         } catch (err) {
           console.error("Error updating comment read table:", err);
         }
-        markRowsReadLocally("comments", selectedPatientId);
+        markRowsReadLocally(
+          "comments",
+          selectedPatientId,
+          selectedPatientLabel
+        );
       }
 
       if (type === "alert") {
@@ -333,14 +424,21 @@ const DoctorDashboard = () => {
 
       setModals((prev) => ({ ...prev, [type]: false }));
       setSelectedPatientId(null);
+      setSelectedPatientLabel("");
     },
-    [selectedPatientId, alertsForPatient, markRowsReadLocally]
+    [
+      selectedPatientId,
+      selectedPatientLabel,
+      alertsForPatient,
+      markRowsReadLocally,
+    ]
   );
 
   const openWorkflowForRow = useCallback(
     (row) => {
       const patientId = getPatientId(row);
       setSelectedPatientId(patientId);
+      setSelectedPatientLabel(row?.name || "");
 
       if (activeCategory === "prescription") {
         const list = patientId
@@ -382,9 +480,13 @@ const DoctorDashboard = () => {
   );
 
   const selectedComments = useMemo(() => {
-    if (!selectedPatientId) return [];
-    return alertsForPatient(selectedPatientId, "comments");
-  }, [selectedPatientId, alertsForPatient]);
+    if (!selectedPatientId && !selectedPatientLabel) return [];
+    return alertsForPatient(
+      selectedPatientId,
+      "comments",
+      selectedPatientLabel
+    );
+  }, [selectedPatientId, selectedPatientLabel, alertsForPatient]);
 
   const selectedDialysis = useMemo(() => {
     if (!selectedPatientId) return [];
@@ -392,13 +494,20 @@ const DoctorDashboard = () => {
   }, [selectedPatientId, alertsForPatient]);
 
   const selectedPatientName = useMemo(() => {
+    if (selectedPatientLabel) return selectedPatientLabel;
     if (!selectedPatientId) return "";
     return (
       nameLookup[String(selectedPatientId)] ||
       getPatientName(selectedDialysis[0] || selectedComments[0] || {}) ||
       ""
     );
-  }, [selectedPatientId, nameLookup, selectedDialysis, selectedComments]);
+  }, [
+    selectedPatientId,
+    selectedPatientLabel,
+    nameLookup,
+    selectedDialysis,
+    selectedComments,
+  ]);
 
   if (loading) {
     return (
@@ -459,7 +568,9 @@ const DoctorDashboard = () => {
               Important Alerts
             </Heading>
             <Text size="sm" color="muted">
-              {activeRows.length} item{activeRows.length === 1 ? "" : "s"}
+              {activeCategory === "comments"
+                ? `${activeRows.length} patient${activeRows.length === 1 ? "" : "s"}`
+                : `${activeRows.length} item${activeRows.length === 1 ? "" : "s"}`}
               {data.canReceiveDailyAlerts ? "" : " · reading alerts hidden"}
             </Text>
           </Flex>
@@ -519,15 +630,20 @@ const DoctorDashboard = () => {
                 {activeRows.map((row, index) => {
                   const pid = getPatientId(row);
                   const override = pid ? nameLookup[String(pid)] : row.name;
+                  const categoryLabel =
+                    activeCategory === "comments"
+                      ? row._commentUnread > 0
+                        ? `Comments · ${row._commentUnread} unread`
+                        : `Comments · ${row._commentTotal || 0}`
+                      : row.category ||
+                        getAlertCategory(row) ||
+                        activeMeta.label;
                   return (
                     <AlertRow
                       key={row.id ?? `${activeCategory}-${index}`}
                       alert={{
                         ...row,
-                        category:
-                          row.category ||
-                          getAlertCategory(row) ||
-                          activeMeta.label,
+                        category: categoryLabel,
                       }}
                       patientNameOverride={override}
                       onClick={() => openWorkflowForRow(row)}
