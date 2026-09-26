@@ -32,6 +32,16 @@ import {
   hasDeletePermission,
 } from "../../helpers/permissions";
 import PermissionsTable from '../../components/PermissionsTable/PermissionsTable';
+import { invalidatePageCache, emitCacheInvalidation, PAGE_CACHE } from "../../cache";
+
+const invalidateAdminRoleCaches = () => {
+  const pages = [
+    PAGE_CACHE.USER_ROLES.name,
+    PAGE_CACHE.ADMIN_MANAGEMENT.name,
+  ];
+  pages.forEach(invalidatePageCache);
+  emitCacheInvalidation(pages);
+};
 
 const AddRole = () => {
   const navigate = useNavigate();
@@ -50,6 +60,7 @@ const AddRole = () => {
   const [fieldErrors, setFieldErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
   const [editingRoleName, setEditingRoleName] = useState(null);
+  const [listEpoch, setListEpoch] = useState(0);
 
   const canViewRoles = hasViewPermission(myRole, "manageRoles") || hasEditPermission(myRole, "manageRoles") || hasDeletePermission(myRole, "manageRoles");
   const canEditRoles = hasEditPermission(myRole, "manageRoles");
@@ -69,7 +80,13 @@ const AddRole = () => {
       }
     };
     fetchRoles();
-  }, [successMessage]);
+  }, [successMessage, listEpoch]);
+
+  const markRolesChanged = (message) => {
+    setSuccessMessage(message);
+    setListEpoch((n) => n + 1);
+    invalidateAdminRoleCaches();
+  };
 
   const clearFields = () => {
     setRoleName("");
@@ -119,22 +136,22 @@ const AddRole = () => {
       if (!editMode) {
         const result = await createRole(role);
         if (result.success) {
-          setSuccessMessage("Role added successfully");
+          markRolesChanged("Role added successfully");
           showToast("Role added successfully!", "success");
           clearFields();
           setIsFormModalOpen(false);
         } else {
-          setErrorMessage(result.message || "Failed to add role");
+          setErrorMessage(result.error || "Failed to add role");
         }
       } else {
         const result = await updateRoleByName(editingRoleName, role);
         if (result.success) {
-          setSuccessMessage("Role updated successfully");
+          markRolesChanged("Role updated successfully");
           showToast("Role updated successfully!", "success");
           clearFields();
           setIsFormModalOpen(false);
         } else {
-          setErrorMessage(result.message || "Failed to update role");
+          setErrorMessage(result.error || "Failed to update role");
         }
       }
     } catch (error) {
@@ -154,10 +171,10 @@ const AddRole = () => {
         const result = await deleteRoleByName(roleName);
         if (result.success) {
           setRoles((prev) => prev.filter((r) => r.role_name !== roleName));
-          setSuccessMessage("Role deleted successfully");
+          markRolesChanged("Role deleted successfully");
           showToast("Role deleted successfully!", "success");
         } else {
-          setErrorMessage("Failed to delete role");
+          setErrorMessage(result.error || "Failed to delete role");
         }
       } catch (error) {
         setErrorMessage("Error deleting role: " + error.message);

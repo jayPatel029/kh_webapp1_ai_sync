@@ -63,6 +63,8 @@ export const MUTATION_CACHE_MAP = [
   // ── Admin / User management ────────────────────────────────────────
   { pattern: /\/auth\/register/, pages: ['adminManagement', 'dashboard'] },
   { pattern: /\/users\/(delete|update)/, pages: ['adminManagement'] },
+  // Roles CRUD — Admin role dropdown caches getRoles under adminManagement
+  { pattern: /\/roles(?:\/|$)/, pages: ['userRoles', 'adminManagement'] },
 
   // ── Parameters ─────────────────────────────────────────────────────
   { pattern: /\/manageParameters\//, pages: ['manageParameters'] },
