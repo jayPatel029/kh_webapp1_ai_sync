@@ -6,6 +6,7 @@ import LineChartDialysis from "../../../components/Linechart/Linechart_Dialysis/
 import LineChartDialyisisSys from "../../../components/Linechart/Linechart_Dialysis/LineChartDialyisisSys"
 import { getSystolicIdByTitle, getDialysisSystolicIdByTitle } from "../../../ApiCalls/readingsApis";
 import ThemedModalShell from "../../../components/modals/ThemedModalShell";
+import AlertViewerToolbar from "../../../components/dashboard/AlertViewerToolbar";
 
 const GraphModal = ({ closeModal, patientId, questionId, dailyordia, isGraph, questionTitle, questionUnit }) => {
     // console.log(patientId, questionId, dailyordia, isGraph)
@@ -203,6 +204,7 @@ const GraphModal = ({ closeModal, patientId, questionId, dailyordia, isGraph, qu
             maxHeight="90vh"
             zIndex={70}
             bodyClassName="px-4 sm:px-5 py-4"
+            toolbar={patientId ? <AlertViewerToolbar patientId={patientId} /> : null}
         >
             <div className="w-full min-h-[320px]">
                 {componentToRenderFunc()}

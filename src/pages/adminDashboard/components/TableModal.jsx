@@ -2,6 +2,7 @@ import React from "react";
 import Table from "../../../components/table/table";
 import DialysisTable from "../../../components/table/DialysisTable";
 import ThemedModalShell from "../../../components/modals/ThemedModalShell";
+import AlertViewerToolbar from "../../../components/dashboard/AlertViewerToolbar";
 
 const TableModal = ({
   closeModal,
@@ -39,6 +40,7 @@ const TableModal = ({
       maxHeight="90vh"
       zIndex={70}
       bodyClassName="px-4 sm:px-5 py-4"
+      toolbar={patientId ? <AlertViewerToolbar patientId={patientId} /> : null}
     >
       <div className="w-full min-h-[280px]">{componentToRenderFunc()}</div>
     </ThemedModalShell>

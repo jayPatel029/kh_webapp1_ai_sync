@@ -69,6 +69,7 @@ const DiaAlertModal = ({ closeModal }) => {
     if (kind === "media") {
       const url = getAlertMediaUrl(alert);
       if (!url) return;
+      setPatientId(alert.patientId);
       setImgUrl(url);
       setOpenSimpleModal(true);
       return;
@@ -150,7 +151,11 @@ const DiaAlertModal = ({ closeModal }) => {
       </ThemedModalShell>
 
       {openSimpleModal && (
-        <SimpleModal closeModal={closeModalSimple} image={imgUrl} />
+        <SimpleModal
+          closeModal={closeModalSimple}
+          image={imgUrl}
+          patientId={patientId}
+        />
       )}
       {openGraphModal && (
         <GraphModal

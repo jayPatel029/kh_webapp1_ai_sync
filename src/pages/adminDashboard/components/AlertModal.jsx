@@ -93,6 +93,7 @@ const AlertModal = ({ closeModal }) => {
     if (kind === "media") {
       const url = getAlertMediaUrl(alert);
       if (!url) return;
+      setPatientId(alert.patientId);
       setImgUrl(url);
       setOpenSimpleModal(true);
       return;
@@ -208,7 +209,11 @@ const AlertModal = ({ closeModal }) => {
       </ThemedModalShell>
 
       {openSimpleModal && (
-        <SimpleModal closeModal={closeModalSimple} image={imgUrl} />
+        <SimpleModal
+          closeModal={closeModalSimple}
+          image={imgUrl}
+          patientId={patientId}
+        />
       )}
       {smessage && (
         <SendMessage

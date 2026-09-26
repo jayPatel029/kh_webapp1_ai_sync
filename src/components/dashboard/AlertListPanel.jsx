@@ -58,6 +58,7 @@ const AlertListPanel = ({ alerts = [], nameLookup = {}, onMarkRead }) => {
     if (kind === "media") {
       const url = getAlertMediaUrl(alert);
       if (!url) return;
+      setPatientId(alert.patientId || getPatientId(alert));
       setImgUrl(url);
       setOpenSimpleModal(true);
       await markAlertRead(alert);
@@ -126,6 +127,7 @@ const AlertListPanel = ({ alerts = [], nameLookup = {}, onMarkRead }) => {
         <SimpleModal
           closeModal={() => setOpenSimpleModal(false)}
           image={imgUrl}
+          patientId={patientId}
         />
       )}
       {openGraphModal && (

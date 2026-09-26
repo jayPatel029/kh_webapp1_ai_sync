@@ -3,8 +3,9 @@ import MyPDFViewer from "../../../components/pdf/MyPDFViewer";
 import ThemedModalShell, {
   THEMED_MODAL,
 } from "../../../components/modals/ThemedModalShell";
+import AlertViewerToolbar from "../../../components/dashboard/AlertViewerToolbar";
 
-const SimpleModal = ({ closeModal, image }) => {
+const SimpleModal = ({ closeModal, image, patientId }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,7 +19,7 @@ const SimpleModal = ({ closeModal, image }) => {
 
   return (
     <ThemedModalShell
-      title="Uploaded file"
+      title={isPdf ? "Uploaded PDF" : "Uploaded image"}
       onClose={closeModal}
       width="min(900px, 96vw)"
       height="min(85vh, 720px)"
@@ -27,6 +28,7 @@ const SimpleModal = ({ closeModal, image }) => {
       bodyScroll={false}
       bodyClassName="p-4"
       bodyStyle={{ background: "#f8fafc" }}
+      toolbar={patientId ? <AlertViewerToolbar patientId={patientId} /> : null}
     >
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {loading ? (
