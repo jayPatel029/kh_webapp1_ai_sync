@@ -269,27 +269,14 @@ const CommentContainer = ({ comments, closeModal, onCommentRead }) => {
                         aria-label={unread ? "Unread" : "Read"}
                       />
                       <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <p
-                          className="text-xs font-semibold uppercase tracking-wide m-0"
-                          style={{ color: THEME.type, textAlign: "left" }}
-                        >
-                          {item.fileType === "Lab"
-                            ? "Lab Report"
-                            : item.fileType || "Comment"}
-                        </p>
-                        {unread ? (
-                          <span
-                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{
-                              color: "#b91c1c",
-                              background: "#fee2e2",
-                            }}
-                          >
-                            New
-                          </span>
-                        ) : null}
-                      </div>
+                      <p
+                        className="text-xs font-semibold uppercase tracking-wide mb-1"
+                        style={{ color: THEME.type, textAlign: "left" }}
+                      >
+                        {item.fileType === "Lab"
+                          ? "Lab Report"
+                          : item.fileType || "Comment"}
+                      </p>
                       <p
                         className="text-sm font-semibold break-words"
                         style={{ color: THEME.ink, textAlign: "left" }}
