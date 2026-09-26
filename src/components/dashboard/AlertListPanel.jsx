@@ -18,10 +18,16 @@ import {
 import SimpleModal from "../../pages/adminDashboard/components/SimpleModal";
 import GraphModal from "../../pages/adminDashboard/components/graphModal";
 import TableModal from "../../pages/adminDashboard/components/TableModal";
+import { getPatientId } from "../../helpers/alertGrouping";
 import AlertListRow, { isAlertRowUnread } from "./AlertListRow";
 import { THEMED_MODAL } from "../modals/ThemedModalShell";
 
-const AlertListPanel = ({ alerts = [], onMarkRead, onDelete }) => {
+const AlertListPanel = ({
+  alerts = [],
+  nameLookup = {},
+  onMarkRead,
+  onDelete,
+}) => {
   const navigate = useNavigate();
   const [openSimpleModal, setOpenSimpleModal] = useState(false);
   const [openGraphModal, setOpenGraphModal] = useState(false);
@@ -106,19 +112,26 @@ const AlertListPanel = ({ alerts = [], onMarkRead, onDelete }) => {
   return (
     <>
       <div className="flex flex-col gap-3">
-        {alerts.map((item, index) => (
-          <AlertListRow
-            key={item.id ?? index}
-            alert={item}
-            onOpenDestination={
-              isNavigableSystemAlert(item) ? handleOpenDestination : undefined
-            }
-            onOpenMedia={(url) => openModalSimple(url, item)}
-            onOpenGraph={openModalGraph}
-            onOpenTable={openModalTable}
-            onDelete={handleDeleteAlert}
-          />
-        ))}
+        {alerts.map((item, index) => {
+          const pid = getPatientId(item);
+          const override = pid ? nameLookup[String(pid)] : undefined;
+          return (
+            <AlertListRow
+              key={item.id ?? index}
+              alert={item}
+              patientNameOverride={override}
+              onOpenDestination={
+                isNavigableSystemAlert(item)
+                  ? handleOpenDestination
+                  : undefined
+              }
+              onOpenMedia={(url) => openModalSimple(url, item)}
+              onOpenGraph={openModalGraph}
+              onOpenTable={openModalTable}
+              onDelete={handleDeleteAlert}
+            />
+          );
+        })}
       </div>
 
       {openSimpleModal && (
@@ -155,6 +168,7 @@ const AlertListPanel = ({ alerts = [], onMarkRead, onDelete }) => {
 
 AlertListPanel.propTypes = {
   alerts: PropTypes.array,
+  nameLookup: PropTypes.object,
   onMarkRead: PropTypes.func,
   onDelete: PropTypes.func,
 };

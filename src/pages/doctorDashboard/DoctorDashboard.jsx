@@ -615,6 +615,7 @@ const DoctorDashboard = () => {
             {activeCategory === "alert" ? (
               <AlertListPanel
                 alerts={buckets.alert}
+                nameLookup={nameLookup}
                 onMarkRead={markAlertReadById}
                 onDelete={removeAlertById}
               />

@@ -11,6 +11,7 @@ import InsertChartIcon from "@mui/icons-material/InsertChart";
 import DatasetLinkedIcon from "@mui/icons-material/DatasetLinked";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import { FaFilePdf } from "react-icons/fa6";
+import { getPatientName } from "../../helpers/alertGrouping";
 import { THEMED_MODAL } from "../modals/ThemedModalShell";
 
 const formatAlertDate = (value) => {
@@ -60,6 +61,7 @@ const actionBtn =
 
 const AlertListRow = ({
   alert,
+  patientNameOverride,
   onOpenDestination,
   onOpenMedia,
   onOpenGraph,
@@ -72,6 +74,9 @@ const AlertListRow = ({
   const title =
     alert?.type?.split("https:")[0]?.trim()?.toUpperCase() || "ALERT";
   const isPdf = /\.pdf$/i.test(mediaUrl);
+  const patientName =
+    (patientNameOverride && String(patientNameOverride).trim()) ||
+    getPatientName(alert);
 
   return (
     <div
@@ -99,8 +104,18 @@ const AlertListRow = ({
             aria-label={unread ? "Unread" : "Read"}
           />
           <div className="min-w-0 flex-1 text-left">
+            {patientName ? (
+              <p
+                className="text-sm font-bold break-words"
+                style={{ color: THEMED_MODAL.ink }}
+              >
+                {patientName}
+              </p>
+            ) : null}
             <p
-              className="text-sm font-semibold break-words"
+              className={`text-sm font-semibold break-words ${
+                patientName ? "mt-0.5" : ""
+              }`}
               style={{ color: alert?.color || THEMED_MODAL.danger }}
             >
               {title}
@@ -108,7 +123,7 @@ const AlertListRow = ({
             {alert?.category ? (
               <p
                 className="text-sm font-medium mt-0.5"
-                style={{ color: THEMED_MODAL.ink }}
+                style={{ color: THEMED_MODAL.slate }}
               >
                 {alert.category}
               </p>
@@ -214,6 +229,7 @@ const AlertListRow = ({
 
 AlertListRow.propTypes = {
   alert: PropTypes.object.isRequired,
+  patientNameOverride: PropTypes.string,
   onOpenDestination: PropTypes.func,
   onOpenMedia: PropTypes.func,
   onOpenGraph: PropTypes.func,
