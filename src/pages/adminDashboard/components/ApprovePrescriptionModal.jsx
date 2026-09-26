@@ -255,7 +255,7 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                             size="sm"
                             isDisabled={busy}
                             onClick={() => handleApproveAll(presId, items)}
-                            className="hover:!bg-[var(--color-primary)] hover:!text-white hover:!border-[var(--color-primary)]"
+                            className="!border-0 hover:!bg-[var(--color-primary)] hover:!text-white"
                           >
                             Approve All
                           </Button>
@@ -317,7 +317,7 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                                 size="sm"
                                 isDisabled={busy}
                                 onClick={() => handleApprove(item)}
-                                className="hover:!bg-[var(--color-primary)] hover:!text-white hover:!border-[var(--color-primary)]"
+                                className="!border-0 hover:!bg-[var(--color-primary)] hover:!text-white"
                               >
                                 Approve
                               </Button>
