@@ -27,5 +27,5 @@ jobs:
 
       - name: Sync alerts branch
         run: |
-          git remote add public git@github.com:jayPatel029/kh_webapp1_ai.git
+          git remote add public git@github.com:jayPatel029/kh_webapp1_ai_sync.git
           git push public HEAD:refs/heads/fix/alerts-workflow-stabilization --force
