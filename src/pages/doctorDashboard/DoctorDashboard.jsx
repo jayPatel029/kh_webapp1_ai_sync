@@ -17,7 +17,6 @@ import {
 } from "../../helpers/alertGrouping";
 import { getAlertCategory } from "../../helpers/alertNavigation";
 import { getDoctorComments } from "../../ApiCalls/GetComments";
-import { updateReadTable } from "../../ApiCalls/commentApi";
 
 import StatCard from "../../components/dashboard/StatCard";
 import AlertRow from "../../components/dashboard/AlertRow";
@@ -389,32 +388,7 @@ const DoctorDashboard = () => {
 
   const closeModal = useCallback(
     async (type) => {
-      if (type === "comment" && (selectedPatientId || selectedPatientLabel)) {
-        const comments = alertsForPatient(
-          selectedPatientId,
-          "comments",
-          selectedPatientLabel
-        );
-        const unread = comments.filter(
-          (c) => c?.isRead === false || c?.isRead === 0 || c?.isRead === "0"
-        );
-        try {
-          if (unread.length) {
-            await updateReadTable({
-              email: localStorage.getItem("email"),
-              commentIds: unread.map((c) => c.id),
-            });
-          }
-        } catch (err) {
-          console.error("Error updating comment read table:", err);
-        }
-        markRowsReadLocally(
-          "comments",
-          selectedPatientId,
-          selectedPatientLabel
-        );
-      }
-
+      // Comments: mark-read happens per opened item in CommentContainer — not on dismiss.
       if (type === "alert") {
         markRowsReadLocally("alert", selectedPatientId);
       }
@@ -427,13 +401,18 @@ const DoctorDashboard = () => {
       setSelectedPatientId(null);
       setSelectedPatientLabel("");
     },
-    [
-      selectedPatientId,
-      selectedPatientLabel,
-      alertsForPatient,
-      markRowsReadLocally,
-    ]
+    [selectedPatientId, markRowsReadLocally]
   );
+
+  const markCommentReadById = useCallback((commentId) => {
+    if (commentId == null) return;
+    setBuckets((prev) => ({
+      ...prev,
+      comments: (prev.comments || []).map((c) =>
+        c.id === commentId ? { ...c, isRead: 1 } : c
+      ),
+    }));
+  }, []);
 
   const openWorkflowForRow = useCallback(
     (row) => {
@@ -667,6 +646,7 @@ const DoctorDashboard = () => {
         <CommentContainer
           comments={[...selectedComments]}
           closeModal={() => closeModal("comment")}
+          onCommentRead={markCommentReadById}
         />
       )}
 

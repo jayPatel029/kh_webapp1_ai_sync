@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import ThumbnailModal from "./ThumbnailModal";
 import { insertAlert } from "../../../ApiCalls/appAlerts";
+import { updateReadTable } from "../../../ApiCalls/commentApi";
 import SendMessage from "./SendMessage";
 import { isValidHttpUrl } from "../../../helpers/utils";
 import { useIsMobile } from "../../../components/mobile/useIsMobile";
@@ -33,23 +34,56 @@ const formatCommentDate = (value) => {
   return `${day}-${month}-${date.getFullYear()}`;
 };
 
-const CommentContainer = ({ comments, closeModal }) => {
+const CommentContainer = ({ comments, closeModal, onCommentRead }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [image, setImage] = useState("");
   const [comment, setComment] = useState(null);
   const [smessage, setSmessage] = useState(false);
+  const [localComments, setLocalComments] = useState(() =>
+    Array.isArray(comments) ? comments : []
+  );
   const { isMobile } = useIsMobile();
 
-  const patientId = comments?.[0]?.userId || comments?.[0]?.patientId;
-  const patientName = comments?.[0]?.name || "";
+  useEffect(() => {
+    setLocalComments(Array.isArray(comments) ? comments : []);
+  }, [comments]);
+
+  const patientId =
+    localComments?.[0]?.userId || localComments?.[0]?.patientId;
+  const patientName = localComments?.[0]?.name || "";
 
   const openSendMessage = () => setSmessage(true);
   const closeSendMessage = () => setSmessage(false);
 
-  const openThumbnailModal = (img, nextComment) => {
+  const markCommentOpened = async (nextComment) => {
+    const id = nextComment?.id;
+    if (id == null) return;
+
+    const alreadyRead =
+      nextComment.isRead === 1 ||
+      nextComment.isRead === true ||
+      nextComment.isRead === "1";
+    if (alreadyRead) return;
+
+    try {
+      await updateReadTable({
+        email: localStorage.getItem("email"),
+        commentIds: [id],
+      });
+      setLocalComments((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, isRead: 1 } : c))
+      );
+      onCommentRead?.(id);
+    } catch (err) {
+      console.error("Error marking comment as read:", err);
+    }
+  };
+
+  const openThumbnailModal = async (img, nextComment) => {
     setComment(nextComment);
     setIsModalOpen(true);
     setImage(img);
+    await markCommentOpened(nextComment);
   };
 
   const closeThumbnailModal = async () => {
@@ -69,14 +103,14 @@ const CommentContainer = ({ comments, closeModal }) => {
   };
 
   const visibleComments = useMemo(() => {
-    const list = Array.isArray(comments) ? [...comments] : [];
+    const list = Array.isArray(localComments) ? [...localComments] : [];
     return list
       .filter((c) => isValidHttpUrl(c?.url))
       .sort(
         (a, b) =>
           new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
       );
-  }, [comments]);
+  }, [localComments]);
 
   const outlineBtn = {
     display: "inline-flex",
