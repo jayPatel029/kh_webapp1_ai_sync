@@ -190,13 +190,7 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
         onClose={closeModal}
         title="Digitised Prescription Copy"
         size="8xl"
-        footer={
-          <Flex justify="end">
-            <Button variant="danger" onClick={closeModal} isDisabled={busy}>
-              Close
-            </Button>
-          </Flex>
-        }
+        showCloseButton
       >
         {groupKeys.length === 0 ? (
           <Text color="muted" size="sm">
@@ -251,7 +245,7 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                           </Button>
                           <Button
                             type="button"
-                            variant="secondary"
+                            variant="outline"
                             size="sm"
                             isDisabled={busy}
                             onClick={() => handleApproveAll(presId, items)}
@@ -260,7 +254,7 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                           </Button>
                           <Button
                             type="button"
-                            variant="danger"
+                            variant="danger-outline"
                             size="sm"
                             isDisabled={busy}
                             onClick={() => openDisapproveAll(presId, items)}
@@ -312,7 +306,7 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                             <Flex gap={2} wrap="wrap" className="mt-3">
                               <Button
                                 type="button"
-                                variant="secondary"
+                                variant="outline"
                                 size="sm"
                                 isDisabled={busy}
                                 onClick={() => handleApprove(item)}
@@ -321,7 +315,7 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
                               </Button>
                               <Button
                                 type="button"
-                                variant="danger"
+                                variant="danger-outline"
                                 size="sm"
                                 isDisabled={busy}
                                 onClick={() => openDisapproveOne(item, presId)}
