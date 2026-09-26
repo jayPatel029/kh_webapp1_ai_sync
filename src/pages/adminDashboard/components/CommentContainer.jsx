@@ -206,8 +206,8 @@ const CommentContainer = ({ comments, closeModal, onCommentRead }) => {
             aria-hidden
             style={{
               height: 3,
-              marginLeft: isMobile ? 12 : 10,
-              marginRight: isMobile ? 12 : 10,
+              marginLeft: 5,
+              marginRight: 5,
               background: THEME.cyan,
               borderRadius: 2,
             }}
