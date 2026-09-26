@@ -567,48 +567,79 @@ const DoctorDashboard = () => {
             </Text>
           </Flex>
 
-          {/* Global category tabs */}
-          <Flex gap={2} wrap="wrap" className="mb-5">
-            {visibleTabs.length === 0 ? (
-              <Text size="sm" color="muted">
-                No alerts
-              </Text>
-            ) : (
-              visibleTabs.map((tab) => {
+          {/* Global category tabs — same rectangular card UI as patient stats */}
+          {visibleTabs.length === 0 ? (
+            <Text size="sm" color="muted" className="mb-5">
+              No alerts
+            </Text>
+          ) : (
+            <div
+              className="stat-grid mb-5"
+              style={{
+                gridTemplateColumns: isMobile
+                  ? "repeat(2, 1fr)"
+                  : `repeat(${Math.min(visibleTabs.length, 4)}, 1fr)`,
+              }}
+            >
+              {visibleTabs.map((tab) => {
                 const isActive = activeCategory === tab.key;
+                const count =
+                  tab.key === "comments"
+                    ? tab.unread
+                    : tab.unread > 0
+                      ? tab.unread
+                      : tab.count;
                 return (
                   <button
                     key={tab.key}
                     type="button"
                     onClick={() => setActiveCategory(tab.key)}
-                    className="px-4 py-2 rounded-full text-xs font-bold border transition-colors"
-                    style={
-                      isActive
-                        ? {
-                            background: tab.color,
-                            borderColor: tab.color,
-                            color: "#fff",
-                          }
-                        : {
-                            background: "#fff",
-                            borderColor: tab.color,
-                            color: tab.color,
-                          }
-                    }
+                    className="stat-card text-left w-full cursor-pointer"
+                    style={{
+                      border: `1.5px solid ${isActive ? tab.color : "#e5eef3"}`,
+                      background: isActive ? `${tab.color}14` : "#fff",
+                      borderRadius: "16px",
+                      padding: "1rem 1.15rem",
+                      boxShadow: isActive
+                        ? "0 4px 12px rgba(0,0,0,0.08)"
+                        : "0 1px 3px rgba(0,0,0,0.06)",
+                    }}
                   >
-                    {tab.label}
-                    <span className="ml-2 opacity-90">
-                      {tab.key === "comments"
-                        ? tab.unread
-                        : tab.unread > 0
-                          ? tab.unread
-                          : tab.count}
-                    </span>
+                    <div className="stat-card__inner">
+                      <div
+                        className="stat-card__icon"
+                        style={{
+                          backgroundColor: `${tab.color}18`,
+                          color: tab.color,
+                          border: `1px solid ${tab.color}40`,
+                        }}
+                        aria-hidden
+                      >
+                        <span
+                          style={{
+                            fontSize: "1.1rem",
+                            fontWeight: 700,
+                            lineHeight: 1,
+                          }}
+                        >
+                          {tab.label.charAt(0)}
+                        </span>
+                      </div>
+                      <div className="stat-card__text">
+                        <span className="stat-card__label">{tab.label}</span>
+                        <span
+                          className="stat-card__value"
+                          style={{ color: isActive ? tab.color : undefined }}
+                        >
+                          {Number(count || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
                   </button>
                 );
-              })
-            )}
-          </Flex>
+              })}
+            </div>
+          )}
 
           <Box
             className={`bg-white rounded-xl border border-[#e5eef3] ${
