@@ -46,6 +46,7 @@ function AdminManagement() {
   const [errMsg, setErrMsg] = useState([]);
   const [fieldErrors, setFieldErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
+  const [listEpoch, setListEpoch] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [passEditMode, setPassEditMode] = useState(false);
   const [editMail, setEditMail] = useState("");
@@ -93,7 +94,12 @@ function AdminManagement() {
     };
 
     fetchData();
-  }, [successMessage, refreshKey]);
+  }, [successMessage, refreshKey, listEpoch]);
+
+  const markAdminListChanged = (message) => {
+    setSuccessMessage(message);
+    setListEpoch((n) => n + 1);
+  };
 
   function searchUser(keyword) {
     setUsers(
@@ -175,13 +181,14 @@ function AdminManagement() {
         });
         if (response.success) {
           setErrMsg([]);
-          setSuccessMessage("Admin added successfully!");
+          markAdminListChanged("Admin added successfully!");
           showToast("Admin added successfully!", "success");
           clearFields();
           setIsFormModalOpen(false);
         } else {
-          setErrMsg(["Registration Error! " + response.data]);
-          showToast("Registration Error! " + response.data, "error");
+          const errorMsg = response.error || "Registration failed";
+          setErrMsg(["Registration Error! " + errorMsg]);
+          showToast("Registration Error! " + errorMsg, "error");
         }
       } else {
         const names = newUser.name.split(" ");
@@ -209,13 +216,14 @@ function AdminManagement() {
         });
         if (response.success) {
           setErrMsg([]);
-          setSuccessMessage("Admin updated successfully!");
+          markAdminListChanged("Admin updated successfully!");
           showToast("Admin updated successfully!", "success");
           clearFields();
           setIsFormModalOpen(false);
         } else {
-          setErrMsg(["Update Error! " + response.data.message]);
-          showToast("Update Error! " + response.data.message, "error");
+          const errorMsg = response.error || "Update failed";
+          setErrMsg(["Update Error! " + errorMsg]);
+          showToast("Update Error! " + errorMsg, "error");
         }
       }
     } else {
@@ -241,11 +249,12 @@ function AdminManagement() {
     });
     if (response.success) {
       setErrMsg([]);
-      setSuccessMessage("User deleted successfully!");
+      markAdminListChanged("User deleted successfully!");
       showToast("User deleted successfully!", "success");
     } else {
-      setErrMsg(["Delete Error! " + response.data.message]);
-      showToast("Delete Error! " + response.data.message, "error");
+      const errorMsg = response.error || "Delete failed";
+      setErrMsg(["Delete Error! " + errorMsg]);
+      showToast("Delete Error! " + errorMsg, "error");
     }
   }
 
@@ -361,6 +370,7 @@ function AdminManagement() {
               columns={columns}
               data={tableData}
               onEdit={canEditAdmins ? (row) => prepareEditForm(row, false) : undefined}
+              onPassword={canEditAdmins ? (row) => prepareEditForm(row, true) : undefined}
               onDelete={canDeleteAdmins ? (row) => deleteUser(row.email) : undefined}
               rowsPerPage={8}
               emptyMessage="No admin records found"
@@ -380,7 +390,7 @@ function AdminManagement() {
           isOpen={isFormModalOpen}
           onClose={closeFormModal}
           onSubmit={handleSubmit}
-          title={editMode ? "Edit Admin" : "Add Admin"}
+          title={passEditMode ? "Change Password" : editMode ? "Edit Admin" : "Add Admin"}
           submitText={editMode ? "Update" : "Submit"}
           size="lg"
           errorMessage={errMsg.length > 0 ? errMsg[0] : ""}

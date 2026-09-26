@@ -270,6 +270,17 @@
   background-color: rgba(65, 100, 223, 0.1);
 }
 
+.list-table__action-btn--password {
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--color-accent, #5886a5);
+  font-size: 1rem;
+}
+
+.list-table__action-btn--password:hover {
+  background-color: rgba(88, 134, 165, 0.1);
+}
+
 .list-table__action-btn--delete {
   width: 1.25rem;
   height: 1.25rem;
@@ -739,6 +750,13 @@
   color: var(--color-primary, #4164df);
   border-color: var(--color-primary, #4164df);
   background: rgba(65, 100, 223, 0.06);
+}
+
+.list-table__card-action-btn--password:hover,
+.list-table__card-action-btn--password:active {
+  color: var(--color-accent, #5886a5);
+  border-color: var(--color-accent, #5886a5);
+  background: rgba(88, 134, 165, 0.06);
 }
 
 .list-table__card-action-btn--delete:hover,

@@ -29,7 +29,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Box, Flex } from '../../component-library';
-import { BsTrash, BsPencilSquare, BsDownload } from 'react-icons/bs';
+import { BsTrash, BsPencilSquare, BsDownload, BsKey } from 'react-icons/bs';
 import { useIsMobile } from '../mobile/useIsMobile';
 import './UnifiedListTable.css';
 import DeleteIcon from '../../assets/Delete.svg';
@@ -43,6 +43,7 @@ const UnifiedListTable = ({
     onEdit = null,
     onDelete = null,
     onDownload = null,
+    onPassword = null,
     onAction = null,
     onRowClick = null,
     isLoading = false,
@@ -214,6 +215,16 @@ const UnifiedListTable = ({
                                         <img src={EditIcon} alt="Edit" />
                                     </button>
                                 )}
+                                {onPassword && (
+                                    <button
+                                        className="list-table__action-btn list-table__action-btn--password"
+                                        onClick={(e) => { e.stopPropagation(); onPassword(row); }}
+                                        title="Change password"
+                                        aria-label="Change password"
+                                    >
+                                        <BsKey />
+                                    </button>
+                                )}
                                 {onDownload && (
                                     <button
                                         className="list-table__action-btn list-table__action-btn--download"
@@ -248,7 +259,7 @@ const UnifiedListTable = ({
     };
 
     // Determine whether any action buttons are enabled for rows
-    const hasAnyAction = actionButtons && (onEdit || onDelete || onDownload || onAction);
+    const hasAnyAction = actionButtons && (onEdit || onDelete || onDownload || onPassword || onAction);
 
     // If there are no action callbacks enabled, hide any 'actions' columns
     const visibleColumns = useMemo(() => {
@@ -359,7 +370,7 @@ const UnifiedListTable = ({
                                     )}
 
                                     {/* Card Actions */}
-                                    {actionButtons && (onEdit || onDelete || onDownload) && (
+                                    {actionButtons && (onEdit || onDelete || onDownload || onPassword) && (
                                         <div className="list-table__card-actions">
                                             {onEdit && (
                                                 <button
@@ -368,6 +379,15 @@ const UnifiedListTable = ({
                                                     aria-label="Edit"
                                                 >
                                                     <BsPencilSquare /> Edit
+                                                </button>
+                                            )}
+                                            {onPassword && (
+                                                <button
+                                                    className="list-table__card-action-btn list-table__card-action-btn--password"
+                                                    onClick={(e) => { e.stopPropagation(); onPassword(row); }}
+                                                    aria-label="Change password"
+                                                >
+                                                    <BsKey /> Password
                                                 </button>
                                             )}
                                             {onDownload && (
