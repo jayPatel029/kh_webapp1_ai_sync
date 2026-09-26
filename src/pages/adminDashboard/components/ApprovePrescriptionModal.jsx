@@ -82,11 +82,6 @@ const PrescriptionModal = ({ closeModal, onResolved }) => {
     return first ? getPatientId(first) || first.patientId : null;
   }, [alerts]);
 
-  const persistAlerts = useCallback((next) => {
-    setAlerts(next);
-    localStorage.setItem("prescriptionAlerts", JSON.stringify(next));
-  }, []);
-
   const markAlertsRead = async (items) => {
     const list = (items || []).filter((a) => a?.id != null);
     for (const alert of list) {
