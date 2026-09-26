@@ -1,7 +1,12 @@
 /**
  * Patient Alert Card Component - Refactored
  * Uses component-library and Tailwind CSS
- * 
+ *
+ * interactionMode:
+ * - "default" — show buttons when count > 0 (admin-style)
+ * - "doctor"  — main DoctorContainer parity: show button if items exist;
+ *               count is unread; unread>0 = highlighted, else gray
+ *
  * @file src/pages/adminDashboard/components/PatientAlertCard.jsx
  */
 
@@ -14,9 +19,9 @@ import {
     Heading
 } from '../../../component-library';
 import { useIsMobile } from '../../../components/mobile/useIsMobile';
-import dummyadmin from '../../../assets/dummyadmin.png'; 
+import dummyadmin from '../../../assets/dummyadmin.png';
 
-const PatientAlertCard = ({ patient, onAction }) => {
+const PatientAlertCard = ({ patient, onAction, interactionMode = 'default' }) => {
     const {
         name,
         prescriptionCount = 0,
@@ -24,8 +29,38 @@ const PatientAlertCard = ({ patient, onAction }) => {
         alertCount = 0,
         dialysisCount = 0,
         avatar,
+        prescriptionAlerts = [],
+        commentAlerts = [],
+        alertAlerts = [],
+        dialysisAlerts = [],
     } = patient;
     const { isMobile } = useIsMobile();
+    const isDoctorMode = interactionMode === 'doctor';
+
+    const showPrescription = isDoctorMode
+        ? prescriptionAlerts.length > 0 || prescriptionCount > 0
+        : prescriptionCount > 0;
+    const showDialysis = isDoctorMode
+        ? dialysisAlerts.length > 0 || dialysisCount > 0
+        : dialysisCount > 0;
+    const showComments = isDoctorMode
+        ? commentAlerts.length > 0 || commentCount > 0
+        : commentCount > 0;
+    const showAlerts = isDoctorMode
+        ? alertAlerts.length > 0 || alertCount > 0
+        : alertCount > 0;
+
+    const prescriptionLabel = prescriptionCount;
+    const dialysisLabel = isDoctorMode ? dialysisCount : dialysisCount;
+    const commentLabel = commentCount;
+    const alertLabel = alertCount;
+
+    const dialysisActive = !isDoctorMode || dialysisCount > 0;
+    const commentsActive = !isDoctorMode || commentCount > 0;
+    const alertsActive = !isDoctorMode || alertCount > 0;
+
+    const hasAny =
+        showPrescription || showDialysis || showComments || showAlerts;
 
     // Mobile compact card
     if (isMobile) {
@@ -45,43 +80,43 @@ const PatientAlertCard = ({ patient, onAction }) => {
                             {name}
                         </Heading>
                         <Flex gap={2} wrap="wrap">
-                            {prescriptionCount > 0 && (
+                            {showPrescription && (
                                 <button
                                     className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold text-white border-none cursor-pointer"
                                     style={{ background: '#00cccc' }}
                                     onClick={(e) => { e.stopPropagation(); onAction(patient, 'prescription'); }}
                                 >
-                                    {prescriptionCount} Rx
+                                    {prescriptionLabel} Rx
                                 </button>
                             )}
-                            {dialysisCount > 0 && (
+                            {showDialysis && (
                                 <button
                                     className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold text-white border-none cursor-pointer"
-                                    style={{ background: '#6b21a8' }}
+                                    style={{ background: dialysisActive ? '#6b21a8' : '#9ca3af' }}
                                     onClick={(e) => { e.stopPropagation(); onAction(patient, 'dialysis'); }}
                                 >
-                                    {dialysisCount} DT
+                                    {dialysisLabel} DT
                                 </button>
                             )}
-                            {commentCount > 0 && (
+                            {showComments && (
                                 <button
                                     className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold text-white border-none cursor-pointer"
-                                    style={{ background: '#00c008' }}
+                                    style={{ background: commentsActive ? '#00c008' : '#9ca3af' }}
                                     onClick={(e) => { e.stopPropagation(); onAction(patient, 'comment'); }}
                                 >
-                                    {commentCount} Cmt
+                                    {commentLabel} Cmt
                                 </button>
                             )}
-                            {alertCount > 0 && (
+                            {showAlerts && (
                                 <button
                                     className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold text-white border-none cursor-pointer"
-                                    style={{ background: '#fd0000' }}
+                                    style={{ background: alertsActive ? '#fd0000' : '#9ca3af' }}
                                     onClick={(e) => { e.stopPropagation(); onAction(patient, 'alert'); }}
                                 >
-                                    {alertCount} Alert
+                                    {alertLabel} Alert
                                 </button>
                             )}
-                            {prescriptionCount === 0 && commentCount === 0 && alertCount === 0 && dialysisCount === 0 && (
+                            {!hasAny && (
                                 <span className="text-[11px] text-gray-400 font-medium">No alerts</span>
                             )}
                         </Flex>
@@ -91,15 +126,13 @@ const PatientAlertCard = ({ patient, onAction }) => {
         );
     }
 
-    // Desktop card (original)
+    // Desktop card
     return (
         <Box
             className="p-6 bg-white hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-0"
-            onClick={() => onAction && onAction(patient, 'view')} // Optional click handler
+            onClick={() => onAction && onAction(patient, 'view')}
         >
             <Flex align="center" gap={6} className="md:flex-row flex-col items-start md:items-center">
-
-                {/* Patient Avatar */}
                 <Box className="flex-shrink-0">
                     <img
                         src={avatar || dummyadmin}
@@ -108,14 +141,13 @@ const PatientAlertCard = ({ patient, onAction }) => {
                     />
                 </Box>
 
-                {/* Patient Info */}
                 <Box className="flex-1 w-full">
                     <Heading as="h3" size="xl" className="mb-4 text-black font-semibold">
                         {name}
                     </Heading>
 
                     <Flex gap={4} wrap="wrap" className="w-full">
-                        {prescriptionCount > 0 && (
+                        {showPrescription && (
                             <Button
                                 variant="solid"
                                 size="sm"
@@ -125,53 +157,65 @@ const PatientAlertCard = ({ patient, onAction }) => {
                                     onAction(patient, 'prescription');
                                 }}
                             >
-                                {prescriptionCount} Approve Prescription
+                                {prescriptionLabel} Approve Prescription
                             </Button>
                         )}
 
-                        {dialysisCount > 0 && (
+                        {showDialysis && (
                             <Button
                                 variant="solid"
                                 size="sm"
-                                className="bg-[#6b21a8] hover:bg-[#581c87] text-white font-bold px-6 border-none shadow-sm"
+                                className={`${
+                                    dialysisActive
+                                        ? 'bg-[#6b21a8] hover:bg-[#581c87]'
+                                        : 'bg-[#9ca3af] hover:bg-[#9ca3af]'
+                                } text-white font-bold px-6 border-none shadow-sm`}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onAction(patient, 'dialysis');
                                 }}
                             >
-                                {dialysisCount} Dialysis Tech Alerts
+                                {dialysisLabel} Dialysis Tech Alerts
                             </Button>
                         )}
 
-                        {commentCount > 0 && (
+                        {showComments && (
                             <Button
-                                variant="success" // Assuming success variant maps to green
+                                variant="success"
                                 size="sm"
-                                className="bg-[#00c008] hover:bg-[#00a807] text-white font-bold px-6 border-none shadow-sm"
+                                className={`${
+                                    commentsActive
+                                        ? 'bg-[#00c008] hover:bg-[#00a807]'
+                                        : 'bg-[#9ca3af] hover:bg-[#9ca3af]'
+                                } text-white font-bold px-6 border-none shadow-sm`}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onAction(patient, 'comment');
                                 }}
                             >
-                                {commentCount} Comments
+                                {commentLabel} Comments
                             </Button>
                         )}
 
-                        {alertCount > 0 && (
+                        {showAlerts && (
                             <Button
-                                variant="danger" // Assuming danger variant maps to red
+                                variant="danger"
                                 size="sm"
-                                className="bg-[#fd0000] hover:bg-[#e00000] text-white font-bold px-6 border-none shadow-sm"
+                                className={`${
+                                    alertsActive
+                                        ? 'bg-[#fd0000] hover:bg-[#e00000]'
+                                        : 'bg-[#9ca3af] hover:bg-[#9ca3af]'
+                                } text-white font-bold px-6 border-none shadow-sm`}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onAction(patient, 'alert');
                                 }}
                             >
-                                {alertCount} Alerts
+                                {alertLabel} Alerts
                             </Button>
                         )}
 
-                        {prescriptionCount === 0 && commentCount === 0 && alertCount === 0 && dialysisCount === 0 && (
+                        {!hasAny && (
                             <Badge
                                 variant="gray"
                                 className="bg-[#989898] text-white px-6 py-2 rounded text-sm font-bold"

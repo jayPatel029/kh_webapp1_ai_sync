@@ -3,6 +3,11 @@
  * Main DoctorContainer workflow (patient cards + typed action buttons + modals)
  * with the current new-layout theme. Admin dashboard stays on flat inbox.
  *
+ * Parity with main:
+ * 1) Patient list order = API first-seen order
+ * 2) View/close alerts/comments/dialysis → mark read + un-highlight badge (keep card)
+ * 3) Remove/rebuild only after Rx approve reload or when API stops returning items
+ *
  * @file src/pages/doctorDashboard/DoctorDashboard.jsx
  */
 
@@ -11,11 +16,14 @@ import { useNavigate } from "react-router-dom";
 
 import { useDoctorDashboardData } from "../../hooks/useDashboardData";
 import {
+  getPatientId,
   groupAlertsByPatient,
   isChatAlert,
+  isUnreadAlert,
 } from "../../helpers/alertGrouping";
 import { ROUTES } from "../../routes/routeConstants";
 import { getDoctorComments } from "../../ApiCalls/GetComments";
+import { updateReadTable } from "../../ApiCalls/commentApi";
 
 import StatCard from "../../components/dashboard/StatCard";
 import PageHeader from "../../components/PageHeader";
@@ -87,6 +95,33 @@ const DashboardError = ({ message, onRetry }) => (
   </div>
 );
 
+/** Main: unique names from API array order (first-seen). We key by patientId for stability. */
+const orderPatientsByApiFirstSeen = (alerts, patientsById) => {
+  const seen = new Set();
+  const ordered = [];
+
+  alerts.forEach((alert) => {
+    const id = String(getPatientId(alert) || "");
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const patient = patientsById.get(id);
+    if (patient) ordered.push(patient);
+  });
+
+  return ordered;
+};
+
+const withUnreadBadgeCounts = (patient) => ({
+  ...patient,
+  // Badge numbers = unread only (main Alerts button / comments badge)
+  alertCount: (patient.alertAlerts || []).filter(isUnreadAlert).length,
+  dialysisCount: (patient.dialysisAlerts || []).filter(isUnreadAlert).length,
+  prescriptionCount: (patient.prescriptionAlerts || []).length,
+  commentCount: (patient.commentAlerts || []).filter(
+    (c) => c?.isRead === false || c?.isRead === 0 || c?.isRead === "0"
+  ).length,
+});
+
 const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
@@ -129,10 +164,16 @@ const DoctorDashboard = () => {
       const sourceAlerts = Array.isArray(data?.alerts) ? data.alerts : [];
       const nonChat = sourceAlerts.filter((alert) => !isChatAlert(alert));
       const grouped = groupAlertsByPatient(nonChat, { includeChats: false });
+      const byId = new Map(
+        grouped.patients.map((p) => [String(p.id), p])
+      );
+
+      // 1) Preserve API first-seen patient order (main Set(names) behavior)
+      const orderedBase = orderPatientsByApiFirstSeen(nonChat, byId);
 
       const email = localStorage.getItem("email");
       const enriched = await Promise.all(
-        grouped.patients.map(async (patient) => {
+        orderedBase.map(async (patient) => {
           const mapped = patientLookup.get(String(patient.id));
           let next = {
             ...patient,
@@ -140,7 +181,17 @@ const DoctorDashboard = () => {
             avatar: patient.avatar || mapped?.avatar || "",
           };
 
-          // Main DoctorContainer: enrich comments from comments API by patient name
+          // Cap general alerts at 50 newest (main UserCard)
+          if (Array.isArray(next.alertAlerts) && next.alertAlerts.length > 50) {
+            next.alertAlerts = [...next.alertAlerts]
+              .sort(
+                (a, b) =>
+                  new Date(b.date || b.created_at || 0) -
+                  new Date(a.date || a.created_at || 0)
+              )
+              .slice(0, 50);
+          }
+
           if (email && next.name) {
             try {
               const commentRes = await getDoctorComments(email, next.name);
@@ -148,14 +199,12 @@ const DoctorDashboard = () => {
                 ? commentRes.comments
                 : [];
               if (comments.length) {
-                const ordered = [...comments].sort(
-                  (a, b) => new Date(b.date || 0) - new Date(a.date || 0)
-                );
-                const unreadCount = ordered.filter((c) => !c.isRead).length;
+                const ordered = [...comments]
+                  .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+                  .slice(0, 50);
                 next = {
                   ...next,
                   commentAlerts: ordered,
-                  commentCount: unreadCount || ordered.length,
                 };
               }
             } catch {
@@ -163,7 +212,7 @@ const DoctorDashboard = () => {
             }
           }
 
-          return next;
+          return withUnreadBadgeCounts(next);
         })
       );
 
@@ -176,13 +225,85 @@ const DoctorDashboard = () => {
     };
   }, [data?.alerts, patientLookup]);
 
+  const clearUnreadBadge = useCallback((patientId, kind) => {
+    setPatients((prev) =>
+      prev.map((p) => {
+        if (String(p.id) !== String(patientId)) return p;
+
+        if (kind === "alert") {
+          return {
+            ...p,
+            alertCount: 0,
+            alertAlerts: (p.alertAlerts || []).map((a) => ({
+              ...a,
+              isRead: 1,
+            })),
+          };
+        }
+
+        if (kind === "dialysis" || kind === "dialysisTech") {
+          return {
+            ...p,
+            dialysisCount: 0,
+            dialysisAlerts: (p.dialysisAlerts || []).map((a) => ({
+              ...a,
+              isRead: 1,
+            })),
+          };
+        }
+
+        if (kind === "comment") {
+          return {
+            ...p,
+            commentCount: 0,
+            commentAlerts: (p.commentAlerts || []).map((c) => ({
+              ...c,
+              isRead: true,
+            })),
+          };
+        }
+
+        return p;
+      })
+    );
+  }, []);
+
+  /**
+   * 2) Close → mark read / un-highlight; do NOT refetch (keeps card).
+   * 3) Prescription approve still reloads inside ApprovePrescriptionModal.
+   */
   const closeModal = useCallback(
-    (type) => {
+    async (type) => {
+      const patientId = selectedPatient?.id;
+
+      if (type === "comment" && selectedPatient) {
+        try {
+          const unread = (selectedPatient.commentAlerts || []).filter(
+            (c) => c?.isRead === false || c?.isRead === 0 || c?.isRead === "0"
+          );
+          if (unread.length) {
+            await updateReadTable({
+              email: localStorage.getItem("email"),
+              commentIds: unread.map((c) => c.id),
+            });
+          }
+        } catch (err) {
+          console.error("Error updating comment read table:", err);
+        }
+      }
+
+      // AlertModal / DialysisTechModal already call dailyAlerts/updateIsRead on their Close.
+      if (patientId && (type === "alert" || type === "dialysis" || type === "dialysisTech" || type === "comment")) {
+        clearUnreadBadge(patientId, type);
+      }
+
       setModals((prev) => ({ ...prev, [type]: false }));
       setSelectedPatient(null);
-      refetch();
+
+      // Prescription dismiss without approve: no reload (main also only reloads on approve).
+      // Do not refetch here — avoids dropping cards until API/polling omits them.
     },
-    [refetch]
+    [selectedPatient, clearUnreadBadge]
   );
 
   const handlePatientAction = useCallback(
@@ -209,7 +330,6 @@ const DoctorDashboard = () => {
       }
 
       if (type === "dialysis") {
-        // Prefer props-based modal; also stash for DialysisTechModal parity with main
         localStorage.setItem(
           "Dialysis_updates",
           JSON.stringify(patient.dialysisAlerts || [])
@@ -218,8 +338,6 @@ const DoctorDashboard = () => {
           "alertAlerts",
           JSON.stringify(patient.dialysisAlerts || [])
         );
-        // Use PatientDialysisAlertModal when alerts look like category rows;
-        // DialysisTechModal mirrors main reading-alert UX when dailyordia present.
         const hasReadingShape = (patient.dialysisAlerts || []).some(
           (a) => a?.dailyordia || a?.questionId
         );
@@ -327,6 +445,7 @@ const DoctorDashboard = () => {
                   <PatientAlertCard
                     patient={patient}
                     onAction={handlePatientAction}
+                    interactionMode="doctor"
                   />
                 </React.Fragment>
               ))
