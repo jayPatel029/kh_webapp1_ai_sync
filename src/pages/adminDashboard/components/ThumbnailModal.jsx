@@ -1,49 +1,78 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { addComment, getComments } from "../../../ApiCalls/commentApi";
-import { useLocation } from "react-router-dom";
 import MyPDFViewer from "../../../components/pdf/MyPDFViewer";
+import { useIsMobile } from "../../../components/mobile/useIsMobile";
+
+/** New-layout theme (matches CommentContainer). */
+const THEME = {
+  ink: "#32617d",
+  slate: "#3F6B85",
+  cyan: "#00cccc",
+  blue: "#4164df",
+  border: "#e5eef3",
+  doctorBg: "#eef2ff",
+  doctorBorder: "#c7d2fe",
+  patientBg: "#e6fafa",
+  patientBorder: "#a5f3fc",
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return "";
+  const dateObject = new Date(dateString);
+  const offsetInMinutes = 330;
+  const istDateObject = new Date(
+    dateObject.getTime() + offsetInMinutes * 60000
+  );
+
+  const day = istDateObject.getDate();
+  const month = istDateObject.toLocaleString("default", { month: "short" });
+  const year = istDateObject.getFullYear();
+
+  let hours = istDateObject.getHours();
+  const minutes = istDateObject.getMinutes().toString().padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+  return `${day} ${month} ${year}, ${hours}:${minutes} ${ampm}`;
+};
 
 const ThumbnailModal = ({ closeModal, image, comment }) => {
-  
   const [newComment, setNewComment] = useState("");
   const [prevComments, setPrevComments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [successful,setSuccessful]=useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { isMobile } = useIsMobile();
+
+  const fileType =
+    comment?.fileType === "Lab" ? "Lab Report" : comment?.fileType || "File";
 
   useEffect(() => {
     const data = {
-      fileId: comment.fileId || 0,
-      fileType: comment.fileType || 0,
+      fileId: comment?.fileId || 0,
+      fileType: comment?.fileType || 0,
     };
     getComments(data)
       .then((res) => {
-        console.log("Comments", res?.data);
-        setPrevComments(res?.data || []);
+        setPrevComments(Array.isArray(res?.data) ? res.data : []);
       })
       .catch((err) => {
         console.log(err);
+        setPrevComments([]);
       });
-  }, [successful]);
-  // console.log(image);
+  }, [refreshKey, comment?.fileId, comment?.fileType]);
 
   useEffect(() => {
-    setLoading(true); // Set loading to true when file changes
-    // Check if file is loaded
-    if (image && image !== "") {
-      setLoading(false);
-    }
+    setLoading(true);
+    if (image) setLoading(false);
   }, [image]);
 
-  const isPdf = /.*\.pdf$/.test(image);
+  const isPdf = /\.pdf$/i.test(String(image || ""));
 
   const uploadComment = async () => {
+    const trimmedComment = newComment.trim();
+    if (!trimmedComment || submitting) return;
     try {
-      const trimmedComment = newComment.trim();
-      if(!trimmedComment) return;
-      var type = "";
-      if (comment.fileType === "Lab") {
-        type = "Lab Report";
-      }
+      setSubmitting(true);
       await addComment(
         trimmedComment,
         comment.fileId,
@@ -52,133 +81,238 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
         1
       );
       setNewComment("");
-      setSuccessful(!successful)
+      setRefreshKey((k) => k + 1);
     } catch (error) {
       console.error("Error adding comment:", error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-    const dateObject = new Date(dateString);
-  
-    // Converting the date to Indian Standard Time (GMT+5:30)
-    const offsetInMinutes = 330; // IST is GMT+5:30, i.e., 330 minutes ahead of GMT
-    const istDateObject = new Date(dateObject.getTime() + offsetInMinutes * 60000);
-  
-    // Extracting date
-    const day = istDateObject.getDate();
-    const month = istDateObject.toLocaleString("default", { month: "short" });
-    const year = istDateObject.getFullYear();
-  
-    // Extracting and formatting time in 12-hour format
-    let hours = istDateObject.getHours();
-    const minutes = istDateObject.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12; // Convert to 12-hour format, 0 -> 12
-    const formattedTime = `${hours}:${minutes} ${ampm}`;
-  
-    return `${day} ${month} ${year}, ${formattedTime}`;
+  const onComposeKeyDown = (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      uploadComment();
+    }
   };
-  
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50 bg-black">
-      <div className="p-7 ml-4 mr-4 mt-4 bg-white w-max lg:w-[80%] h-4/5 shadow-md border-t-4 border-teal-500 rounded z-50 overflow-y-auto">
-        <div className="header flex justify-between items-center border-b pb-2 mb-4">
-          <h1 className="text-2xl font-bold">Uploaded Image</h1>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden w-full"
+        style={{
+          width: isMobile ? "100%" : "min(1200px, 96vw)",
+          height: isMobile ? "min(95vh, 900px)" : "min(88vh, 820px)",
+          textAlign: "left",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="px-5 sm:px-6 py-3.5 flex-shrink-0 relative"
+          style={{
+            background:
+              "linear-gradient(135deg, #1e3a5f 0%, #3F6B85 55%, #00cccc 100%)",
+          }}
+        >
           <button
+            type="button"
             onClick={closeModal}
-            className="border-2 border-teal-500 text-teal-500 py-2 px-4 rounded focus:outline-none focus:shadow-outline ml-2"
+            className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center text-white/90 hover:bg-white/20 transition-colors"
+            aria-label="Close"
+            title="Close"
           >
-            Close
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-5 h-5"
+              aria-hidden
+            >
+              <path
+                fillRule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
           </button>
+
+          <div className="pr-10 text-left">
+            <p className="text-cyan-100 text-[11px] font-semibold uppercase tracking-wide">
+              {fileType}
+            </p>
+            <h2 className="text-white text-lg font-bold leading-tight mt-0.5">
+              View &amp; Comment
+            </h2>
+            {comment?.content ? (
+              <p className="text-white/80 text-xs mt-1 line-clamp-2">
+                {comment.content}
+              </p>
+            ) : null}
+          </div>
         </div>
 
-        <div className="h-full">
-          {loading ? ( // Show loading indicator if isLoading is true
-            <div className="flex justify-center items-center h-full">
-              <p>Loading...</p>
+        {/* Body: split on desktop, stack on mobile */}
+        <div
+          className={`flex-1 min-h-0 flex ${
+            isMobile ? "flex-col" : "flex-row"
+          }`}
+        >
+          {/* File preview */}
+          <div
+            className={`flex flex-col min-h-0 ${
+              isMobile ? "h-[42%] border-b" : "w-[58%] border-r"
+            }`}
+            style={{ borderColor: THEME.border, background: "#f8fafc" }}
+          >
+            <div
+              className="px-4 py-2 text-xs font-semibold flex-shrink-0"
+              style={{ color: THEME.slate, borderBottom: `1px solid ${THEME.border}` }}
+            >
+              Attachment
             </div>
-          ) : (
-            <div className="overflow-auto h-4/5">
-              {isPdf ? (
-                <div className="h-full">
+            <div className="flex-1 min-h-0 overflow-auto p-3 flex items-center justify-center">
+              {loading ? (
+                <p className="text-sm" style={{ color: THEME.slate }}>
+                  Loading…
+                </p>
+              ) : isPdf ? (
+                <div className="w-full h-full min-h-[240px]">
                   <MyPDFViewer file={image} />
                 </div>
               ) : (
                 <img
-                  src={image ? image : ""}
-                  alt="prescription"
-                  className="w-full h-auto object-contain"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                  }}
+                  src={image || ""}
+                  alt={fileType}
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
                 />
               )}
             </div>
-          )}
-          <div className="flex-1 mt-4">
-            <div className="mb-4 overflow-auto h-3/4">
-              <h2 className="font-medium">Previous Comments</h2>
-              <div className="bg-gray-100 p-4 rounded-lg overflow-y-auto max-h-[400px]">
-                {prevComments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className={`flex items-start mb-4 ${
-                      comment.isDoctor ? "justify-start" : "justify-end"
-                    }`}
-                  >
-                    <div
-                      className={`rounded-full bg-teal-500 text-white w-8 h-8 flex items-center justify-center mr-2 ${
-                        comment.isDoctor ? "order-1" : "order-2"
-                      }`}
-                    >
-                      {comment.isDoctor ? "D" : "P"}
-                    </div>
-                    <div
-                      className={`bg-white text-black p-2 text-sm rounded-lg shadow-md max-w-3/4 ${
-                        comment.isDoctor
-                          ? "ml-2 bg-black"
-                          : "mr-2 bg-teal-500 text-black"
-                      }`}
-                    >
-                      <span className="font-medium text-xs text-gray-500 mr-2">
-                        {comment.isDoctor ? "Doctor: " : "Patient: "}
-                      </span>
-                      <span className="flex-grow text-sm text-black font-bold">
-                        {comment.content}
-                      </span>
-                      <p className="flex justify-end text-gray-600 italic text-xs">
-                        {formatDate(comment.date)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          </div>
+
+          {/* Comments panel */}
+          <div
+            className={`flex flex-col min-h-0 bg-white ${
+              isMobile ? "flex-1" : "w-[42%]"
+            }`}
+          >
+            <div
+              className="px-4 py-2 text-xs font-semibold flex-shrink-0"
+              style={{ color: THEME.slate, borderBottom: `1px solid ${THEME.border}` }}
+            >
+              Conversation
+              {prevComments.length > 0 ? (
+                <span className="ml-1 font-normal opacity-70">
+                  ({prevComments.length})
+                </span>
+              ) : null}
             </div>
 
-            <div>
-              <h2 className="font-medium">Add a Comment</h2>
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3">
+              {prevComments.length === 0 ? (
+                <p className="text-sm py-6" style={{ color: THEME.slate }}>
+                  No comments yet. Add the first one below.
+                </p>
+              ) : (
+                prevComments.map((item) => {
+                  const isDoctor = Boolean(item.isDoctor);
+                  return (
+                    <div
+                      key={item.id}
+                      className={`flex items-start gap-2 ${
+                        isDoctor ? "flex-row" : "flex-row-reverse"
+                      }`}
+                    >
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                        style={{
+                          background: isDoctor ? THEME.blue : THEME.cyan,
+                        }}
+                        title={isDoctor ? "Doctor" : "Patient"}
+                      >
+                        {isDoctor ? "D" : "P"}
+                      </div>
+                      <div
+                        className="max-w-[85%] rounded-xl px-3 py-2 text-left shadow-sm"
+                        style={{
+                          background: isDoctor ? THEME.doctorBg : THEME.patientBg,
+                          border: `1px solid ${
+                            isDoctor ? THEME.doctorBorder : THEME.patientBorder
+                          }`,
+                        }}
+                      >
+                        <p
+                          className="text-[10px] font-semibold uppercase tracking-wide mb-0.5"
+                          style={{ color: isDoctor ? THEME.blue : THEME.cyan }}
+                        >
+                          {isDoctor ? "Doctor" : "Patient"}
+                        </p>
+                        <p
+                          className="text-sm font-medium break-words"
+                          style={{ color: THEME.ink }}
+                        >
+                          {item.content}
+                        </p>
+                        <p
+                          className="text-[10px] mt-1"
+                          style={{ color: THEME.slate }}
+                        >
+                          {formatDate(item.date)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Compose */}
+            <div
+              className="flex-shrink-0 px-4 py-3 border-t"
+              style={{ borderColor: THEME.border, background: "#f8fafc" }}
+            >
+              <label
+                className="block text-xs font-semibold mb-1.5"
+                style={{ color: THEME.slate }}
+                htmlFor="thumbnail-new-comment"
+              >
+                Add a comment
+              </label>
               <textarea
-                id="text"
-                className="w-full border-2 py-2 px-3 rounded focus:outline-none focus:border-amber-950"
-                rows="1"
-                style={{ minHeight: "38px", height: "auto" }}
+                id="thumbnail-new-comment"
+                className="w-full rounded-lg px-3 py-2 text-sm resize-none focus:outline-none"
+                style={{
+                  border: `1px solid ${THEME.border}`,
+                  color: THEME.ink,
+                  minHeight: "44px",
+                }}
+                rows={2}
                 value={newComment}
+                placeholder="Write a reply…"
                 onChange={(e) => {
                   setNewComment(e.target.value);
                   e.target.style.height = "auto";
-                  e.target.style.height = e.target.scrollHeight + "px";
+                  e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                }}
+                onKeyDown={onComposeKeyDown}
+                onFocus={(e) => {
+                  e.target.style.borderColor = THEME.blue;
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = THEME.border;
                 }}
               />
-              <div className="flex justify-end mt-4">
+              <div className="flex items-center justify-between mt-2 gap-2">
+                <span className="text-[10px]" style={{ color: THEME.slate }}>
+                  Ctrl+Enter to send
+                </span>
                 <button
+                  type="button"
                   onClick={uploadComment}
-                  className="bg-teal-500 text-white py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                  disabled={submitting || !newComment.trim()}
+                  className="rounded-lg px-4 py-2 text-xs font-semibold text-white transition-opacity disabled:opacity-50"
+                  style={{ background: THEME.blue }}
                 >
-                  Submit
+                  {submitting ? "Sending…" : "Submit"}
                 </button>
               </div>
             </div>
