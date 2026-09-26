@@ -153,11 +153,6 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
             <h2 className="text-white text-lg font-bold leading-tight mt-0.5">
               View &amp; Comment
             </h2>
-            {comment?.content ? (
-              <p className="text-white/80 text-xs mt-1 line-clamp-2">
-                {comment.content}
-              </p>
-            ) : null}
           </div>
         </div>
 
@@ -167,34 +162,41 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
             isMobile ? "flex-col" : "flex-row"
           }`}
         >
-          {/* File preview */}
+          {/* File preview — scrollable, fits images/PDFs in pane */}
           <div
             className={`flex flex-col min-h-0 ${
               isMobile ? "h-[42%] border-b" : "w-[58%] border-r"
             }`}
             style={{ borderColor: THEME.border, background: "#f8fafc" }}
           >
-            <div
-              className="px-4 py-2 text-xs font-semibold flex-shrink-0"
-              style={{ color: THEME.slate, borderBottom: `1px solid ${THEME.border}` }}
-            >
-              Attachment
-            </div>
-            <div className="flex-1 min-h-0 overflow-auto p-3 flex items-center justify-center">
+            <div className="flex-1 min-h-0 overflow-auto p-3">
               {loading ? (
-                <p className="text-sm" style={{ color: THEME.slate }}>
-                  Loading…
-                </p>
+                <div className="h-full min-h-[200px] flex items-center justify-center">
+                  <p className="text-sm" style={{ color: THEME.slate }}>
+                    Loading…
+                  </p>
+                </div>
               ) : isPdf ? (
-                <div className="w-full h-full min-h-[240px]">
+                <div
+                  className="w-full h-full"
+                  style={{ minHeight: isMobile ? 220 : 360 }}
+                >
                   <MyPDFViewer file={image} />
                 </div>
               ) : (
-                <img
-                  src={image || ""}
-                  alt={fileType}
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
-                />
+                <div className="w-full">
+                  <img
+                    src={image || ""}
+                    alt={fileType}
+                    className="rounded-lg shadow-sm block mx-auto"
+                    style={{
+                      maxWidth: "100%",
+                      width: "100%",
+                      height: "auto",
+                      objectFit: "contain",
+                    }}
+                  />
+                </div>
               )}
             </div>
           </div>
