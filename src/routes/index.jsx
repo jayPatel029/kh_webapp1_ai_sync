@@ -10,7 +10,7 @@ import { getMedicalRoutes } from "./medicalRoutes";
 import { getSettingsRoutes } from "./settingsRoutes";
 import { getReadingRoutes } from "./readingRoutes";
 import { getDialysisRoutes } from "./dialysisRoutes";
-import { isRole } from "../helpers/roleUtils";
+import { isRole, isSuperAdminUser } from "../helpers/roleUtils";
 import { clearAuthSession, getHomePathForRole } from "../helpers/authSession";
 import { clearAllCaches } from "../cache";
 import { clearPermissions } from "../redux/permissionSlice";
@@ -56,6 +56,9 @@ const RoleGuard = ({ children, allowedRoles }) => {
 
   return <Navigate to={getHomePathForRole(roleName)} replace />;
 };
+
+const SuperAdminOnly = ({ children, fallbackPath }) =>
+  isSuperAdminUser() ? children : <Navigate to={fallbackPath} replace />;
 
 /** Send doctors to the doctor dashboard; everyone else to AdminDashboard. */
 const DashboardEntry = () => {
@@ -333,7 +336,9 @@ function AppRoutes() {
             {
               path: "doctor",
               element: guard(
-                <GlobalChatsPage chatType="doctor" />,
+                <SuperAdminOnly fallbackPath={ROUTES.GLOBAL_CHATS_ADMIN}>
+                  <GlobalChatsPage chatType="doctor" />
+                </SuperAdminOnly>,
                 ROUTE_NAMES.GLOBAL_DOCTOR_CHATS,
                 ["Admin", "PSadmin"]
               ),

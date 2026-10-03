@@ -25,7 +25,7 @@ import Account from "../../assets/Account.svg";
 import { ROUTES } from "../../routes/routeConstants";
 import { IconButton } from "../../component-library";
 import { hasAnyPermission, hasDashboardAccess } from "../../helpers/permissions";
-import { isRole } from '../../helpers/roleUtils';
+import { isRole, isSuperAdminUser } from '../../helpers/roleUtils';
 
 const Sidebar = ({ mobile = false, forceExpanded = false }) => {
   const [dropdown, setDropdown] = useState(false);
@@ -395,7 +395,7 @@ const Sidebar = ({ mobile = false, forceExpanded = false }) => {
         {shouldShowChildren && (
           <div className="mt-2 flex flex-col gap-1 pl-4">
             {renderAdminChild('Admin Team', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_ADMIN)}
-            {renderAdminChild('Medical Team', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_DOCTOR)}
+            {isSuperAdminUser() && renderAdminChild('Medical Team', SubdirectoryArrowRightIcon, ROUTES.GLOBAL_CHATS_DOCTOR)}
           </div>
         )}
       </li>

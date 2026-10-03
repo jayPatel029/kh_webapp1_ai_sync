@@ -21,7 +21,7 @@ import {
 } from "../../ApiCalls/chatApis";
 import { createMessageAlert } from "../../ApiCalls/alertsApis";
 import { adminEmail } from "../../constants/constants";
-import { normalizeRole } from "../../helpers/roleUtils";
+import { normalizeRole, isSuperAdminUser } from "../../helpers/roleUtils";
 import { ROUTES } from "../../routes/routeConstants";
 import ReactLoading from "react-loading";
 
@@ -409,6 +409,11 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
       const userEmail = localStorage.getItem("email") || "";
       setRole(userRole);
       setSender(userEmail);
+
+      if (chatType === "doctor" && isAdminRole(userRole) && !isSuperAdminUser()) {
+        setContactsError("Only the super admin can view doctor chats.");
+        return;
+      }
 
       let list = [];
       let failed = false;

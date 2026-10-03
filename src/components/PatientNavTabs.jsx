@@ -18,7 +18,7 @@ import reqIcon from '../assets/Requsition_report.svg';
 import manageIcon from '../assets/admin_management.png';
 import { ROUTES } from '../routes/routeConstants';
 import { useIsMobile } from './mobile/useIsMobile';
-import { isRole } from '../helpers/roleUtils';
+import { isRole, isSuperAdminUser } from '../helpers/roleUtils';
 
 export const PatientNavTabs = ({
   patientId,
@@ -35,7 +35,7 @@ export const PatientNavTabs = ({
     { id: 'alarms', label: 'Alarms', path: ROUTES.patientAlarms(patientId), visible: !isRole(role, 'Dialysis Technician') },
     { id: 'diet', label: 'Diet details', path: ROUTES.patientDiet(patientId), state: userData, visible: !isRole(role, 'Dialysis Technician') },
     { id: 'adminChat', label: 'Admin Chat', path: ROUTES.patientAdminChat(patientId), unread: unreadAdminCount, visible: !isRole(role, ['Dialysis Technician', 'Medical Staff']) },
-    { id: 'doctorChat', label: 'Doctor Chat', path: ROUTES.patientDoctorChat(patientId), unread: unreadDoctorCount, visible: !isRole(role, 'Dialysis Technician') },
+    { id: 'doctorChat', label: 'Doctor Chat', path: ROUTES.patientDoctorChat(patientId), unread: unreadDoctorCount, visible: !isRole(role, 'Dialysis Technician') && (!isRole(role, 'Admin') || isSuperAdminUser()) },
     { id: 'labs', label: 'Lab reports', path: ROUTES.patientLabs(patientId), state: userData, visible: true },
     { id: 'prescriptions', label: 'Prescriptions', path: ROUTES.patientPrescriptions(patientId), state: userData, visible: true },
     { id: 'requisition', label: 'Requisition reports', path: ROUTES.patientRequisitions(patientId), state: userData, visible: true },

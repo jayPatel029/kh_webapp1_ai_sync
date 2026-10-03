@@ -1,6 +1,12 @@
 // Centralized role normalization and checks
 // Usage: import { normalizeRole, isRole } from '../helpers/roleUtils';
 
+import { adminEmail } from '../constants/constants';
+
+// The superadmin is the seeded user id 1, whose login is the shared admin email.
+export const isSuperAdminUser = () =>
+  String(localStorage.getItem('email') || '').trim().toLowerCase() === adminEmail.toLowerCase();
+
 export const normalizeRole = (role) => {
   if (!role && role !== 0) return '';
   let name = '';
@@ -37,4 +43,5 @@ export const isRole = (role, target) => {
 export default {
   normalizeRole,
   isRole,
+  isSuperAdminUser,
 };
