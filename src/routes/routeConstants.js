@@ -103,6 +103,7 @@ export const ROUTE_NAMES = {
   MANAGE_ROLES: "UserRoles",
   EDIT_ROLE: "EditRole",
   LANGUAGE_MASTER: "LanguageMaster",
+  AILMENTS: "AlimentMaster",
   CHANGE_PASSWORD: "ChangePassword",
   PATIENTS: "Patient",
   PATIENT_LOGS: "Patientlogs",
