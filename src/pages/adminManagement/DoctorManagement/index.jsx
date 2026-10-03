@@ -148,6 +148,10 @@ function AdminManagement() {
     clinic_id: null,
   });
 
+  // API stores `speciality.value`, so send the { value, label } shape it returns.
+  const toSpecialityPayload = (values) =>
+    (values || []).map((value) => ({ value, label: value }));
+
   const specialitiesOptions = useMemo(() => {
     const base = newDoctor.role === "Doctor" ? doctorSpeciality : staffSpeciality;
     return [{ value: "General", label: "General" }, ...base];
@@ -299,7 +303,7 @@ function AdminManagement() {
           Dialysis_updates: newDoctor.Dialysis_updates,
           dailyReadingsAlerts: newDoctor.dailyReadingsAlerts,
           can_export: newDoctor.can_export,
-          specialities: newDoctor.specialities,
+          specialities: toSpecialityPayload(newDoctor.specialities),
           dailyReadings: newDoctor.dailyReadings,
           dialysisReadings: newDoctor.dialysisReadings,
           reports: newDoctor.reports,
@@ -353,7 +357,7 @@ function AdminManagement() {
           description: newDoctor.description,
           email_notification: newDoctor.email_notification,
           can_export: newDoctor.can_export,
-          specialities: newDoctor.specialities,
+          specialities: toSpecialityPayload(newDoctor.specialities),
           reports: newDoctor.reports,
           changeby: localStorage.getItem("email"),
           doctorid: newDoctor.id,
@@ -403,7 +407,7 @@ function AdminManagement() {
           dialysisCenterRole: newDoctor.dialysisCenterRole,
           dialysisCenterRoleOther: newDoctor.dialysisCenterRoleOther,
           email_notification: newDoctor.email_notification,
-          specialities: newDoctor.specialities,
+          specialities: toSpecialityPayload(newDoctor.specialities),
           can_export: newDoctor.can_export,
           dailyReadings: newDoctor.dailyReadings,
           dialysisReadings: newDoctor.dialysisReadings,
@@ -505,7 +509,7 @@ function AdminManagement() {
       payload: {
         id: doctor.id,
         name: doctor.name,
-        // Older records store specialities as react-select { value, label } objects.
+        // API returns specialities as { value, label }; MultiSelect works with plain strings.
         specialities: Array.isArray(doctor.specialities)
           ? doctor.specialities.map((spec) =>
               spec && typeof spec === "object" ? spec.value : spec
