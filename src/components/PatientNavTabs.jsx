@@ -175,7 +175,7 @@ export const PatientNavTabs = ({
             <span className={`truncate text-md ${isActive(tab.path) ? 'text-white' : 'text-textLight'}`}>{tab.label}</span>
             <Box className="ml-auto flex items-center gap-2">
               {tab.unread > 0 && (
-                <Badge colorScheme="error" isPill size="sm" className="badge-error">
+                <Badge colorScheme="danger" variant="solid" isPill size="sm">
                   {tab.unread}
                 </Badge>
               )}
