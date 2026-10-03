@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, startTransition } from 'react';
+import React, { useState, useEffect, useMemo, useRef, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import {
@@ -12,7 +12,8 @@ import {
   deleteAssignedAdmin,
 } from '../../../ApiCalls/adminPatientApis';
 import { exportPatientDataById, exportPatientData, deletePatient } from '../../../ApiCalls/patientAPis';
-import { getDoctors } from '../../../ApiCalls/doctorApis';
+import { getDoctorsByClinic } from '../../../ApiCalls/doctorApis';
+import { getClinics } from '../../../ApiCalls/clinicApis';
 import { getAdmins } from '../../../ApiCalls/authapis';
 import { ROUTES } from '../../../routes/routeConstants';
 import {
@@ -64,8 +65,12 @@ const PatientList = ({ data, onAddClick }) => {
   const [currentTeamMembers, setCurrentTeamMembers] = useState([]);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedHospital, setSelectedHospital] = useState('');
-  const [hospitalOptions, setHospitalOptions] = useState([]);
+  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const [clinicOptions, setClinicOptions] = useState([]);
+  const [clinicDoctorsLoading, setClinicDoctorsLoading] = useState(false);
+  const [clinicDoctorsError, setClinicDoctorsError] = useState('');
+  // Latest requested clinic, so a slow response for a previous clinic is ignored.
+  const clinicRequestRef = useRef(null);
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamActionLoading, setTeamActionLoading] = useState(false);
   const [assignedDoctorsByPatient, setAssignedDoctorsByPatient] = useState({});
@@ -150,22 +155,13 @@ const PatientList = ({ data, onAddClick }) => {
     setTeamLoading(true);
     try {
       if (type === 'doctor') {
-        const [assignedRes, allDoctorsRes] = await Promise.all([
+        // Available doctors are fetched per clinic in handleClinicChange.
+        const [assignedRes, clinicsRes] = await Promise.all([
           getAssignedDoctorData(patientId),
-          getDoctors(),
+          getClinics(),
         ]);
-        const doctors = getCollection(allDoctorsRes);
-        const hospitals = Array.from(
-          new Set(
-            doctors
-              .map((doc) => doc?.practicingAt || doc?.institute || doc?.hospital || '')
-              .filter(Boolean)
-          )
-        );
         setCurrentTeamMembers(getCollection(assignedRes));
-        setAvailableUsers(doctors);
-        setHospitalOptions(hospitals);
-        setSelectedHospital('');
+        setClinicOptions(getCollection(clinicsRes));
       } else {
         const [assignedRes, allAdminsRes] = await Promise.all([
           getAssignedAdminData(patientId),
@@ -173,8 +169,7 @@ const PatientList = ({ data, onAddClick }) => {
         ]);
         setCurrentTeamMembers(getCollection(assignedRes));
         setAvailableUsers(getCollection(allAdminsRes));
-        setHospitalOptions([]);
-        setSelectedHospital('');
+        setClinicOptions([]);
       }
       setError(null);
     } catch (err) {
@@ -188,7 +183,8 @@ const PatientList = ({ data, onAddClick }) => {
   const openTeamModal = async (patient, type, event) => {
     event?.stopPropagation?.();
     setSelectedUserId('');
-    setSelectedHospital('');
+    resetClinicSelection();
+    setAvailableUsers([]);
     setTeamModal({ isOpen: true, type, patient });
     await loadTeamModalData(patient.id, type);
   };
@@ -196,10 +192,39 @@ const PatientList = ({ data, onAddClick }) => {
   const closeTeamModal = () => {
     setTeamModal({ isOpen: false, type: null, patient: null });
     setSelectedUserId('');
-    setSelectedHospital('');
+    resetClinicSelection();
     setCurrentTeamMembers([]);
     setAvailableUsers([]);
-    setHospitalOptions([]);
+    setClinicOptions([]);
+  };
+
+  const resetClinicSelection = () => {
+    clinicRequestRef.current = null;
+    setSelectedClinicId('');
+    setClinicDoctorsLoading(false);
+    setClinicDoctorsError('');
+  };
+
+  const handleClinicChange = async (clinicId) => {
+    clinicRequestRef.current = clinicId;
+    setSelectedClinicId(clinicId);
+    setSelectedUserId('');
+    setAvailableUsers([]);
+    setClinicDoctorsError('');
+    setClinicDoctorsLoading(Boolean(clinicId));
+    if (!clinicId) return;
+
+    const res = await getDoctorsByClinic(clinicId);
+    if (clinicRequestRef.current !== clinicId) return;
+
+    setClinicDoctorsLoading(false);
+    if (res.success) {
+      setAvailableUsers(getCollection(res));
+    } else {
+      setClinicDoctorsError(
+        typeof res.data === 'string' ? res.data : 'Failed to load doctors for this clinic.'
+      );
+    }
   };
 
   // Load appointments for a patient (uses existing ApiCalls helper)
@@ -875,16 +900,13 @@ const PatientList = ({ data, onAddClick }) => {
               <div className="mb-4">
                 {teamModal.type === 'doctor' ? (
                   <>
-                    <label htmlFor="hospital-select" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
-                      Select Hospital
+                    <label htmlFor="clinic-select" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+                      Select Clinic
                     </label>
                     <select
-                      id="hospital-select"
-                      value={selectedHospital}
-                      onChange={(e) => {
-                        setSelectedHospital(e.target.value);
-                        setSelectedUserId('');
-                      }}
+                      id="clinic-select"
+                      value={selectedClinicId}
+                      onChange={(e) => handleClinicChange(e.target.value)}
                       style={{
                         width: '100%',
                         border: '1px solid #d1d5db',
@@ -894,10 +916,10 @@ const PatientList = ({ data, onAddClick }) => {
                         marginBottom: '12px',
                       }}
                     >
-                      <option value="">Select hospital...</option>
-                      {hospitalOptions.map((hospital) => (
-                        <option key={hospital} value={hospital}>
-                          {hospital}
+                      <option value="">Select clinic...</option>
+                      {clinicOptions.map((clinic) => (
+                        <option key={clinic.id} value={String(clinic.id)}>
+                          {clinic.clinic_name || clinic.name || `Clinic #${clinic.id}`}
                         </option>
                       ))}
                     </select>
@@ -909,7 +931,7 @@ const PatientList = ({ data, onAddClick }) => {
                       id="team-member-select"
                       value={selectedUserId}
                       onChange={(e) => setSelectedUserId(e.target.value)}
-                      disabled={!selectedHospital}
+                      disabled={!selectedClinicId || clinicDoctorsLoading}
                       style={{
                         width: '100%',
                         border: '1px solid #d1d5db',
@@ -918,27 +940,27 @@ const PatientList = ({ data, onAddClick }) => {
                         outline: 'none',
                       }}
                     >
-                      <option value="">Select...</option>
+                      <option value="">{clinicDoctorsLoading ? 'Loading doctors...' : 'Select...'}</option>
                       {availableUsers
                         .filter((candidate) => {
                           const candidateId = String(getEntityId(candidate, teamModal.type));
-                          const candidateHospital = getMemberHospital(candidate);
-                          return (
-                            candidateHospital === selectedHospital &&
-                            !currentTeamMembers.some((member) => String(getEntityId(member, teamModal.type)) === candidateId)
-                          );
+                          return !currentTeamMembers.some((member) => String(getEntityId(member, teamModal.type)) === candidateId);
                         })
                         .map((candidate) => {
                           const candidateId = getEntityId(candidate, teamModal.type);
-                          const hospitalLabel = getMemberHospital(candidate);
                           const roleLabel = getMemberRole(candidate);
                           return (
                             <option key={candidateId} value={candidateId}>
-                              {getDisplayName(candidate)}{hospitalLabel ? ` — ${hospitalLabel}` : ''}{roleLabel ? ` (${roleLabel})` : ''}
+                              {getDisplayName(candidate)}{roleLabel ? ` (${roleLabel})` : ''}
                             </option>
                           );
                         })}
                     </select>
+                    {clinicDoctorsError ? (
+                      <p style={{ color: '#dc2626', fontSize: '12px', marginTop: '6px' }}>{clinicDoctorsError}</p>
+                    ) : selectedClinicId && !clinicDoctorsLoading && availableUsers.length === 0 ? (
+                      <p style={{ color: '#6b7280', fontSize: '12px', marginTop: '6px' }}>No doctors in this clinic.</p>
+                    ) : null}
                   </>
                 ) : (
                   <>

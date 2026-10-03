@@ -21,6 +21,16 @@ export async function getDoctors() {
   }
 }
 
+export async function getDoctorsByClinic(clinicId) {
+  try {
+    const response = await axiosInstance.get(server_url + "/doctor/byClinic/" + encodeURIComponent(clinicId));
+    return { success: true, data: response.data };
+  } catch (error) {
+    const msg = error?.response?.data?.message ?? error?.response?.data ?? error?.message ?? String(error);
+    return { success: false, data: msg };
+  }
+}
+
 export async function getDoctorsChat(patientId) {
   try {
     const response = await axiosInstance.get(server_url + "/doctor/getDoctorsChat/"+patientId);
