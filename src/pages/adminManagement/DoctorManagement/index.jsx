@@ -119,6 +119,8 @@ function AdminManagement() {
 
 
   const [editMode, setEditMode] = useState(false);
+  // Organization stays locked on edit only when the doctor was saved with one.
+  const [hasSavedOrg, setHasSavedOrg] = useState(false);
 
   const [newDoctor, newDoctorDispatch] = useReducer(newDoctorReducer, {
     id: null,
@@ -495,6 +497,7 @@ function AdminManagement() {
       }
     });
     setEditMode(false);
+    setHasSavedOrg(false);
     setErrMsg("");
     setFieldErrors({});
     devLog("clearDoctorFields executed");
@@ -551,6 +554,7 @@ function AdminManagement() {
       },
     });
     setEditMode(true);
+    setHasSavedOrg(doctor.org_id != null && doctor.org_id !== "");
     setIsFormModalOpen(true);
   };
 
@@ -674,7 +678,7 @@ function AdminManagement() {
                 orgId={newDoctor.org_id}
                 setOrgId={(val) => newDoctorDispatch({ type: 'org_id', payload: val })}
                 label="ORGANIZATION"
-                isDisabled={editMode}
+                isDisabled={editMode && hasSavedOrg}
               />
             </Box>
             <Box>
