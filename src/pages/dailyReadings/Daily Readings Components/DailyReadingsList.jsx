@@ -1,4 +1,4 @@
-import { React, useEffect, useState, useReducer } from "react";
+import React, { useEffect, useState, useReducer } from "react";
 import { newQuestionReducer } from "./reducers";
 import {
   addDailyReading,
