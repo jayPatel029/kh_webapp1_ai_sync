@@ -32,18 +32,14 @@ const Navbar = () => {
     const ddRef = useRef(null);
     const navigate = useNavigate();
 
+    // Collapsing from the sidebar only fires this event; without it the expand button stays stale.
     useEffect(() => {
-        // const handleStorageChange = () => {
-        //     const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-        //     setIsCollapsed(collapsed);
-        // };
-        const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-        setIsCollapsed(collapsed);
-        // window.addEventListener('storage', handleStorageChange);
-        // return () => {
-        //     window.removeEventListener('storage', handleStorageChange);
-        // };
-    }, [localStorage.getItem('sidebarCollapsed')]);
+        const handler = (e) => {
+            if (e?.detail?.isCollapsed !== undefined) setIsCollapsed(!!e.detail.isCollapsed);
+        };
+        window.addEventListener('sidebar:toggle', handler);
+        return () => window.removeEventListener('sidebar:toggle', handler);
+    }, []);
 
     const logout = () => {
         clearAllCaches();

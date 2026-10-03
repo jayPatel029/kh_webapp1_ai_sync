@@ -458,7 +458,7 @@ const Sidebar = ({ mobile = false, forceExpanded = false }) => {
   const desktopSidebarClasses = clsx(
     'flex flex-col justify-between text-white transition-all duration-300 shadow-2xl !z-[200]',
     isCollapsed && !mobile ? 'w-20 px-0.5' : 'w-[250px] px-3',
-    'bg-primaryDark min-h-screen'
+    'bg-primaryDark h-screen overflow-y-auto overflow-x-hidden'
   );
 
   const renderDesktop = () => (
@@ -469,6 +469,9 @@ const Sidebar = ({ mobile = false, forceExpanded = false }) => {
       <div className="flex flex-col  gap-4">
         {!isCollapsed && !mobile && (
           <IconButton variant="outline" size="sm" icon={<ArrowBack className="fill-white hover:fill-primaryDark" style={{ fill: "white" }} />} onClick={toggleCollapse} aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} className="hover:bg-primaryDark !hover:float-none  border-white  absolute right-0 mt-2  mr-2 " />
+        )}
+        {isIconOnly && (
+          <IconButton variant="outline" size="sm" icon={<ArrowBack className="rotate-180" style={{ fill: "white" }} />} onClick={toggleCollapse} aria-label="Expand sidebar" className="hover:bg-primaryDark border-white self-center mt-3" />
         )}
         <SidebarHeader className={clsx('pt-3', isCollapsed && !mobile ? 'flex justify-center' : 'flex items-center gap-3')}>
           <Link to={ROUTES.DASHBOARD} className={clsx('flex items-center transition-all', isCollapsed && !mobile ? 'justify-center' : 'gap-3')}>

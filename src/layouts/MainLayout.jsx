@@ -126,7 +126,7 @@ const MainLayout = () => {
 
       {/* Main content area */}
       <Box
-        className="flex-1 min-h-screen transition-all duration-300"
+        className="flex-1 min-w-0 min-h-screen transition-all duration-300"
         style={{
           marginLeft: showDesktopSidebar ? `${sidebarOffset}px` : '0px',
         }}
