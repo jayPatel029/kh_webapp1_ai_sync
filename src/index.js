@@ -7,6 +7,11 @@ import { Provider } from "react-redux";
 import { reportError } from "./helpers/errors/reportError";
 import { notifyError } from "./helpers/notify";
 
+// Silence console.log in production builds so nothing is printed to the browser console.
+if (process.env.NODE_ENV === "production") {
+  console.log = () => {};
+}
+
 // ── Global unhandled-error listeners ────────────────────────────────
 // These catch errors that escape React's error boundary
 // (e.g. async code, event handlers, third-party scripts).
