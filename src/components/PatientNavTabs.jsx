@@ -35,7 +35,7 @@ export const PatientNavTabs = ({
     { id: 'alarms', label: 'Alarms', path: ROUTES.patientAlarms(patientId), visible: !isRole(role, 'Dialysis Technician') },
     { id: 'diet', label: 'Diet details', path: ROUTES.patientDiet(patientId), state: userData, visible: !isRole(role, 'Dialysis Technician') },
     { id: 'adminChat', label: 'Admin Chat', path: ROUTES.patientAdminChat(patientId), unread: unreadAdminCount, visible: !isRole(role, ['Dialysis Technician', 'Medical Staff']) },
-    { id: 'doctorChat', label: 'Doctor Chat', path: ROUTES.patientDoctorChat(patientId), unread: unreadDoctorCount, visible: !isRole(role, ['Medical Staff', 'Dialysis Technician']) },
+    { id: 'doctorChat', label: 'Doctor Chat', path: ROUTES.patientDoctorChat(patientId), unread: unreadDoctorCount, visible: !isRole(role, 'Dialysis Technician') },
     { id: 'labs', label: 'Lab reports', path: ROUTES.patientLabs(patientId), state: userData, visible: true },
     { id: 'prescriptions', label: 'Prescriptions', path: ROUTES.patientPrescriptions(patientId), state: userData, visible: true },
     { id: 'requisition', label: 'Requisition reports', path: ROUTES.patientRequisitions(patientId), state: userData, visible: true },
