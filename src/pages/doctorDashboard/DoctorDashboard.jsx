@@ -42,7 +42,7 @@ const CATEGORY_META = [
   },
   {
     key: "dialysis",
-    label: "Dialysis",
+    label: "Dialysis Technician",
     color: "#6b21a8",
   },
   {
@@ -335,10 +335,41 @@ const DoctorDashboard = () => {
     );
   }, [buckets.comments, nameLookup]);
 
+  /** Dialysis Technician tab: one row per patient with their alert count. */
+  const dialysisPatientRows = useMemo(() => {
+    const map = new Map();
+    (buckets.dialysis || []).forEach((alert) => {
+      const pid = getPatientId(alert);
+      const key = String(pid || alert.name || "");
+      if (!key) return;
+
+      if (!map.has(key)) {
+        map.set(key, {
+          id: `dialysis-patient-${key}`,
+          patientId: pid || null,
+          name: alert.name || nameLookup[String(pid)] || getPatientName(alert),
+          date: alert.date || alert.created_at || alert.sent_at,
+          isRead: 1,
+          _alerts: [],
+        });
+      }
+
+      const row = map.get(key);
+      row._alerts.push(alert);
+      if (isUnreadAlert(alert)) row.isRead = 0;
+    });
+
+    // buckets.dialysis is newest-first, so insertion order is by latest alert.
+    return [...map.values()];
+  }, [buckets.dialysis, nameLookup]);
+
   const activeRows =
     activeCategory === "comments"
       ? commentPatientRows
-      : buckets[activeCategory] || [];
+      : activeCategory === "dialysis"
+        ? dialysisPatientRows
+        : buckets[activeCategory] || [];
+  const activeAlertCount = (buckets[activeCategory] || []).length;
   const activeMeta =
     CATEGORY_META.find((c) => c.key === activeCategory) || CATEGORY_META[2];
 
@@ -447,9 +478,7 @@ const DoctorDashboard = () => {
       }
 
       if (activeCategory === "dialysis") {
-        const list = patientId
-          ? alertsForPatient(patientId, "dialysis")
-          : [row];
+        const list = row._alerts || [row];
         localStorage.setItem("Dialysis_updates", JSON.stringify(list));
         localStorage.setItem("alertAlerts", JSON.stringify(list));
         const hasReadingShape = list.some(
@@ -562,7 +591,7 @@ const DoctorDashboard = () => {
             <Text size="sm" color="muted">
               {activeCategory === "comments"
                 ? `${activeRows.length} patient${activeRows.length === 1 ? "" : "s"}`
-                : `${activeRows.length} item${activeRows.length === 1 ? "" : "s"}`}
+                : `${activeAlertCount} item${activeAlertCount === 1 ? "" : "s"}`}
               {data.canReceiveDailyAlerts ? "" : " · reading alerts hidden"}
             </Text>
           </Flex>
@@ -666,7 +695,9 @@ const DoctorDashboard = () => {
                   const categoryLabel =
                     activeCategory === "comments"
                       ? `Comments · ${row._commentUnread || 0}`
-                      : row.category ||
+                      : activeCategory === "dialysis"
+                        ? `${activeMeta.label} · ${row._alerts.length}`
+                        : row.category ||
                         getAlertCategory(row) ||
                         activeMeta.label;
                   return (
