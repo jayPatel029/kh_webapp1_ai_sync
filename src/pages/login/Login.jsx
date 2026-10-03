@@ -90,7 +90,7 @@ function Login() {
         }
         theNavigate(getHomePathForRole(roleName));
       } else {
-        setErrMsg(["Login Error: " + response.data.message]);
+        setErrMsg(["Login Error: " + response.error]);
       }
     } else {
       setErrMsg(errors);
