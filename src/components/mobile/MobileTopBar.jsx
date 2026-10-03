@@ -1,6 +1,6 @@
 /**
  * MobileTopBar Component
- * Top navigation bar for mobile showing menu, Kifayti Health branding, and logout
+ * Top navigation bar for mobile showing menu, Kifayti Health branding, profile and logout
  * Menu opens the full sidebar drawer (User Management and other destinations).
  *
  * @file src/components/mobile/MobileTopBar.jsx
@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box } from '../../component-library/layout/Layout';
 import { IconButton } from '../../component-library/primitives/Button';
 import { Menu as MenuIcon, PowerSettingsNew } from '@mui/icons-material';
+import Account from '../../assets/Account.svg';
 import kifayti_logo from '../../assets/kifayti_logo.png';
 import { clearAllCaches } from '../../cache';
 import { clearAuthSession } from '../../helpers/authSession';
@@ -23,6 +24,7 @@ const MobileTopBar = ({ onMenuClick }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const roleName = useSelector((state) => state.permission?.role_name);
+  const user = useSelector((state) => state.auth?.user);
 
   const handleLogout = () => {
     const goDoctorLogin = isRole(roleName, 'Doctor');
@@ -77,20 +79,40 @@ const MobileTopBar = ({ onMenuClick }) => {
           </span>
         </div>
 
-        {/* Right - Logout icon */}
-        <IconButton
-          onClick={handleLogout}
-          className="p-0"
-          variant="ghost"
-          aria-label="Logout"
-        >
-          <PowerSettingsNew
-            style={{
-              fontSize: '24px',
-              color: '#6b7280',
-            }}
-          />
-        </IconButton>
+        {/* Right - Profile (settings) and logout */}
+        <div className="flex items-center gap-2">
+          <IconButton
+            onClick={() => navigate(ROUTES.SETTINGS)}
+            className="p-0"
+            variant="ghost"
+            aria-label="Profile"
+          >
+            <img
+              src={user?.profilePicture || Account}
+              alt="Profile"
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '2px solid #e5e7eb',
+              }}
+            />
+          </IconButton>
+          <IconButton
+            onClick={handleLogout}
+            className="p-0"
+            variant="ghost"
+            aria-label="Logout"
+          >
+            <PowerSettingsNew
+              style={{
+                fontSize: '24px',
+                color: '#6b7280',
+              }}
+            />
+          </IconButton>
+        </div>
       </div>
     </Box>
   );
