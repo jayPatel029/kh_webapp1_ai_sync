@@ -77,7 +77,9 @@ const PatientProfileRouteLayout = () => {
         let counts;
         if (isAdminRole(role)) {
             // Admins only view doctor↔doctor threads read-only, so only the admin side counts.
-            counts = { admin: sumUnread(chatRows(await getAllChatsAdmin(patientId))), doctor: 0 };
+            // Legacy admin↔admin rows are skipped: that chat no longer exists and can't be opened.
+            const adminRows = chatRows(await getAllChatsAdmin(patientId)).filter((chat) => !isAdminRole(chat.role));
+            counts = { admin: sumUnread(adminRows), doctor: 0 };
         } else {
             const myEmail = localStorage.getItem("email");
             const [adminRes, ownRes] = await Promise.all([

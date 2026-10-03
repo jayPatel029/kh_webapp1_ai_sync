@@ -7,7 +7,6 @@ import { usePatientProfileShell } from "../common/PatientProfileShellContext";
 import {
   getPatientById,
   getPatientMedicalTeam,
-  getPatientAdminTeam,
 } from "../../ApiCalls/patientAPis";
 import { getDoctorsChat } from "../../ApiCalls/doctorApis";
 import { identifyRole } from "../../ApiCalls/authapis";
@@ -16,7 +15,6 @@ import {
   getChatId,
   getMessages,
   sendMessage,
-  getSWMessages,
   getAllSWChats,
 } from "../../ApiCalls/chatApis";
 import { createMessageAlert } from "../../ApiCalls/alertsApis";
@@ -65,30 +63,10 @@ const asArray = (value) => {
 // Mirrors the backend, which treats exactly "Admin" / "PSadmin" as admins.
 const isAdminRole = (role) => ["admin", "psadmin"].includes(normalizeRole(role));
 
-// For SW endpoints (getSWMessages): only true for Admin↔Admin chats.
-const isSWChatBetween = (myRole, contactRole) =>
-  isAdminRole(myRole) && isAdminRole(contactRole);
-
-// Canonical receiver email to use in getChatId / sendMessage.
-//
-// The backend stores every Admin/PSadmin as the shared ADMIN_EMAIL in the chat
-// row (messages.sender still holds the real email), and findChat() matches the
-// pair in either direction.
-//
-// Admin↔Admin: both JWTs map to the shared admin, so the row can only be told
-//   apart by the receiver. Both admins pick the alphabetically-larger email so
-//   they resolve the same row.
-// Doctor→Admin team: the contact is the shared admin address itself (see
-//   ADMIN_TEAM_CONTACT), giving (doctor, ADMIN_EMAIL) — the same row admins open
-//   as (ADMIN_EMAIL, doctor). One group thread per doctor per patient.
-// Admin→Doctor and Doctor↔Doctor: the contact's email.
-const canonicalReceiver = (myRole, contactRole, myEmail, contactEmail) => {
-  if (isAdminRole(myRole) && isAdminRole(contactRole)) {
-    return [normEmail(myEmail), normEmail(contactEmail)].sort()[1];
-  }
-  return contactEmail;
-};
-
+// There is no admin↔admin chat. The backend stores every Admin/PSadmin as the
+// shared ADMIN_EMAIL in the chat row (messages.sender keeps the real email), so
+// a doctor messaging ADMIN_TEAM_CONTACT and any admin messaging that doctor land
+// in the same thread: one admin-team discussion per doctor per patient.
 const ADMIN_TEAM_CONTACT = {
   email: adminEmail,
   firstname: "Admin",
@@ -273,7 +251,6 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
 
   const socket = useRef(null);
   const activeChatIdRef = useRef(null);
-  const activeChatIsSWRef = useRef(false);
   const prevChatIdRef = useRef(null);
   // Incremented on every open / patient switch so stale responses are dropped.
   const openRequestRef = useRef(0);
@@ -302,8 +279,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
     let hasConnectedBefore = false;
 
     const reloadActiveChat = async (chatId) => {
-      const fetchHistory = activeChatIsSWRef.current ? getSWMessages : getMessages;
-      const res = await fetchHistory(chatId);
+      const res = await getMessages(chatId);
       if (!res.success || String(activeChatIdRef.current) !== String(chatId)) return;
       setMessages((prev) => mergeWithHistory(asArray(res.data), prev));
     };
@@ -326,7 +302,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
       const { chatId } = payload;
       if (!chatId || String(chatId) !== String(activeChatIdRef.current)) return;
       // The user is looking at this chat; getMessages is the only call that marks messages read.
-      if (!activeChatIsSWRef.current && !sameEmail(payload.sender, localStorage.getItem("email"))) {
+      if (!sameEmail(payload.sender, localStorage.getItem("email"))) {
         getMessages(chatId);
       }
       setMessages((prev) =>
@@ -421,16 +397,14 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
       if (chatType === "admin" && !isAdminRole(userRole)) {
         list = [ADMIN_TEAM_CONTACT];
       } else if (chatType === "admin") {
-        // Admins reply to the patient's doctors and chat with fellow admins.
-        const [doctorsRes, adminsRes] = await Promise.all([
-          getPatientMedicalTeam(patientId),
-          getPatientAdminTeam(patientId),
-        ]);
-        failed = !doctorsRes.success && !adminsRes.success;
-        list = [
-          ...(doctorsRes.success ? asArray(doctorsRes.data).map((u) => toContact(u, "Doctor")) : []),
-          ...(adminsRes.success ? asArray(adminsRes.data).map((u) => toContact(u, "Admin")) : []),
-        ];
+        // Admins only take part in each doctor's admin-team thread.
+        const res = await getPatientMedicalTeam(patientId);
+        failed = !res.success;
+        list = res.success
+          ? asArray(res.data)
+              .map((u) => toContact(u, "Doctor"))
+              .filter((c) => !isAdminRole(c.role))
+          : [];
       } else if (isAdminRole(userRole)) {
         const res = await getDoctorsChat(patientId);
         failed = !res.success;
@@ -520,9 +494,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
           return;
         }
 
-        const myEmail = localStorage.getItem("email");
-        const receiver = canonicalReceiver(role, contact.role, myEmail, contact.email);
-        const idRes = await getChatId(receiver, patientId);
+        const idRes = await getChatId(contact.email, patientId);
         if (!isCurrent()) return;
         const chatId = idRes.success ? idRes.data?.chatId : null;
         if (!chatId) {
@@ -530,12 +502,10 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
           return;
         }
 
-        const sw = isSWChatBetween(role, contact.role);
-        activeChatIsSWRef.current = sw;
         // Join the room before loading history so nothing sent meanwhile is missed.
         setActiveChatId(chatId);
 
-        const msgRes = sw ? await getSWMessages(chatId) : await getMessages(chatId);
+        const msgRes = await getMessages(chatId);
         if (!isCurrent()) return;
         if (!msgRes.success) {
           setChatError("Could not load messages. Please try again.");
@@ -586,9 +556,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
     ]);
 
     try {
-      const myEmail = localStorage.getItem("email");
-      const receiver = canonicalReceiver(role, activeContact.role, myEmail, activeContact.email);
-      const res = await sendMessage({ message: text, receiver, pid: patientId });
+      const res = await sendMessage({ message: text, receiver: activeContact.email, pid: patientId });
 
       if (!res.success) {
         setMessages((prev) => prev.filter((m) => m.clientId !== clientId));
@@ -618,7 +586,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
   const sidebarLabel =
     chatType === "doctor"
       ? isReadOnlyView ? "Doctors" : "Medical Team"
-      : isAdminRole(role) ? "Doctors & Admins" : "Admin Team";
+      : isAdminRole(role) ? "Doctors" : "Admin Team";
   const title = chatType === "admin" ? "Admin Chat" : "Doctor Chat";
 
   const activeThread = threads.find((t) => t.id === activeThreadId) || null;
