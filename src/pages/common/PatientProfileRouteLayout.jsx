@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, startTransition } from "react";
-import { Outlet, useNavigate, useParams } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 import { Box } from "../../component-library";
@@ -9,20 +9,34 @@ import ThemeProvider from "../../components/ThemeProvider";
 import { useIsMobile } from "../../components/mobile/useIsMobile";
 
 import axiosInstance from "../../helpers/axios/axiosInstance";
-import { server_url } from "../../constants/constants";
-import { getAllChatsAdmin } from "../../ApiCalls/chatApis";
+import { server_url, adminEmail } from "../../constants/constants";
+import { getAllChats, getAllChatsAdmin } from "../../ApiCalls/chatApis";
+import { normalizeRole } from "../../helpers/roleUtils";
 import { ROUTES } from "../../routes/routeConstants";
 import { PatientProfileShellContext } from "./PatientProfileShellContext";
+
+const normEmail = (email) => String(email || "").trim().toLowerCase();
+const sameEmail = (a, b) => normEmail(a) !== "" && normEmail(a) === normEmail(b);
+const isAdminRole = (role) => ["admin", "psadmin"].includes(normalizeRole(role));
+
+const chatRows = (res) => (res?.success && Array.isArray(res.data) ? res.data : []);
+// unreadCount = messages from others in that chat not yet marked read.
+const sumUnread = (rows) => rows.reduce((acc, chat) => acc + (Number(chat.unreadCount) || 0), 0);
+const isAdminThread = (chat) =>
+    sameEmail(chat.user1, adminEmail) || sameEmail(chat.user2, adminEmail) || isAdminRole(chat.role);
+
+const EMPTY_UNREAD = { admin: 0, doctor: 0 };
 
 const PatientProfileRouteLayout = () => {
     const { id: patientId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const role = useSelector((state) => state.permission);
     const { isMobile } = useIsMobile();
 
     const [userData, setUserData] = useState({});
-    const [totalUnreadCount, setTotalUnreadCount] = useState(0);
-    const [totalUnreadCountDoc, setTotalUnreadCountDoc] = useState(0);
+    const [unreadCounts, setUnreadCounts] = useState(EMPTY_UNREAD);
+    const unreadRequestRef = useRef(0);
 
     useEffect(() => {
         const fetchPatientData = async () => {
@@ -37,32 +51,50 @@ const PatientProfileRouteLayout = () => {
         fetchPatientData();
     }, [patientId]);
 
-    useEffect(() => {
-        const fetchUnreadMessages = async () => {
-            try {
-                const chatResult = await getAllChatsAdmin(patientId);
-                if (chatResult.success) {
-                    const unreadMsgs = chatResult.data.filter((chat) => chat.unreadCount > 0);
-                    setTotalUnreadCount(unreadMsgs.reduce((acc, chat) => acc + chat.unreadCount, 0));
-                }
-            } catch (error) {
-                console.error("Error fetching unread messages:", error);
-            }
-        };
+    const refreshUnreadCounts = useCallback(async () => {
+        if (!patientId || !normalizeRole(role)) return;
+        const requestId = ++unreadRequestRef.current;
 
-        fetchUnreadMessages();
+        let counts;
+        if (isAdminRole(role)) {
+            // Admins only view doctor↔doctor threads read-only, so only the admin side counts.
+            counts = { admin: sumUnread(chatRows(await getAllChatsAdmin(patientId))), doctor: 0 };
+        } else {
+            const myEmail = localStorage.getItem("email");
+            const [adminRes, ownRes] = await Promise.all([
+                getAllChatsAdmin(patientId),
+                getAllChats(patientId),
+            ]);
+            counts = {
+                // /chat/admin returns every doctor's admin-team thread for the patient; keep only ours.
+                admin: sumUnread(chatRows(adminRes).filter((chat) => sameEmail(chat.receiverEmail, myEmail))),
+                doctor: sumUnread(chatRows(ownRes).filter((chat) => !isAdminThread(chat))),
+            };
+        }
+
+        if (unreadRequestRef.current === requestId) setUnreadCounts(counts);
+    }, [patientId, role]);
+
+    useEffect(() => {
+        setUnreadCounts(EMPTY_UNREAD);
     }, [patientId]);
+
+    // Re-count on tab switches so messages read in a chat tab drop off the badges.
+    useEffect(() => {
+        refreshUnreadCounts();
+    }, [refreshUnreadCounts, location.pathname]);
 
     const shellValue = useMemo(
         () => ({
             patientId,
             userData,
             role,
-            unreadAdminCount: totalUnreadCount,
-            unreadDoctorCount: totalUnreadCountDoc,
+            unreadAdminCount: unreadCounts.admin,
+            unreadDoctorCount: unreadCounts.doctor,
+            refreshUnreadCounts,
             isMobile,
         }),
-        [patientId, userData, role, totalUnreadCount, totalUnreadCountDoc, isMobile]
+        [patientId, userData, role, unreadCounts, refreshUnreadCounts, isMobile]
     );
 
     return (
@@ -83,8 +115,8 @@ const PatientProfileRouteLayout = () => {
                         <PatientNavTabs
                             patientId={patientId}
                             userData={userData}
-                            unreadAdminCount={totalUnreadCount}
-                            unreadDoctorCount={totalUnreadCountDoc}
+                            unreadAdminCount={unreadCounts.admin}
+                            unreadDoctorCount={unreadCounts.doctor}
                             role={role}
                             className={isMobile ? "px-4" : "px-8"}
                         />

@@ -3,6 +3,7 @@ import { io } from "socket.io-client";
 import { MdSend } from "react-icons/md";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import PatientDetailLayout from "../common/PatientDetailLayout";
+import { usePatientProfileShell } from "../common/PatientProfileShellContext";
 import {
   getPatientById,
   getPatientMedicalTeam,
@@ -241,6 +242,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
   const location = useLocation();
   // Email passed from GlobalChatsPage via navigate(path, { state: { autoSelectStaffEmail } })
   const autoSelectEmail = location.state?.autoSelectStaffEmail ?? null;
+  const refreshUnreadCounts = usePatientProfileShell()?.refreshUnreadCounts;
 
   const [role, setRole] = useState("");
   const [sender, setSender] = useState("");
@@ -315,6 +317,10 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
     ws.on("chat:message", (payload = {}) => {
       const { chatId } = payload;
       if (!chatId || String(chatId) !== String(activeChatIdRef.current)) return;
+      // The user is looking at this chat; getMessages is the only call that marks messages read.
+      if (!activeChatIsSWRef.current && !sameEmail(payload.sender, localStorage.getItem("email"))) {
+        getMessages(chatId);
+      }
       setMessages((prev) =>
         addIncomingMessage(prev, {
           chatId,
@@ -504,6 +510,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
           return;
         }
         setMessages((prev) => mergeWithHistory(asArray(msgRes.data), prev));
+        refreshUnreadCounts?.();
       } catch (err) {
         console.error("openChat error:", err);
         if (isCurrent()) setChatError("Could not open this chat. Please try again.");
@@ -514,7 +521,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
         }
       }
     },
-    [role, patientId, isReadOnlyView]
+    [role, patientId, isReadOnlyView, refreshUnreadCounts]
   );
 
   // ── Auto-select staff when navigated from GlobalChatsPage ─────────────────
