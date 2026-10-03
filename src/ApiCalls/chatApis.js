@@ -19,6 +19,25 @@ export async function getChatId(receiver, pid) {
     }
 }
 
+// The patient's single Admin Team thread shared by all assigned doctors and all admins.
+export async function getAdminGroupChatId(pid) {
+    try {
+        const response = await axiosInstance.post(`${server_url}/chat/adminGroup/${pid}`);
+        return { success: true, data: response.data };
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message };
+    }
+}
+
+export async function sendAdminGroupMessage(pid, message) {
+    try {
+        const response = await axiosInstance.post(`${server_url}/chat/adminGroup/${pid}/message`, { message });
+        return { success: true, data: response.data };
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.message || error.message };
+    }
+}
+
 export async function getAllChats(pid) {
     try {
         const token = localStorage.getItem("token"); // Fetch token from local storage

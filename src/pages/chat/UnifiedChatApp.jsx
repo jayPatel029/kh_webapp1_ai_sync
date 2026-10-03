@@ -4,10 +4,7 @@ import { MdSend } from "react-icons/md";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import PatientDetailLayout from "../common/PatientDetailLayout";
 import { usePatientProfileShell } from "../common/PatientProfileShellContext";
-import {
-  getPatientById,
-  getPatientMedicalTeam,
-} from "../../ApiCalls/patientAPis";
+import { getPatientById, getPatientMedicalTeam } from "../../ApiCalls/patientAPis";
 import { getDoctorsChat } from "../../ApiCalls/doctorApis";
 import { identifyRole } from "../../ApiCalls/authapis";
 import {
@@ -16,6 +13,8 @@ import {
   getMessages,
   sendMessage,
   getAllSWChats,
+  getAdminGroupChatId,
+  sendAdminGroupMessage,
 } from "../../ApiCalls/chatApis";
 import { createMessageAlert } from "../../ApiCalls/alertsApis";
 import { adminEmail } from "../../constants/constants";
@@ -63,10 +62,8 @@ const asArray = (value) => {
 // Mirrors the backend, which treats exactly "Admin" / "PSadmin" as admins.
 const isAdminRole = (role) => ["admin", "psadmin"].includes(normalizeRole(role));
 
-// There is no admin↔admin chat. The backend stores every Admin/PSadmin as the
-// shared ADMIN_EMAIL in the chat row (messages.sender keeps the real email), so
-// a doctor messaging ADMIN_TEAM_CONTACT and any admin messaging that doctor land
-// in the same thread: one admin-team discussion per doctor per patient.
+// Admin Chat is one thread per patient shared by every assigned doctor and every
+// admin (there are no admin↔admin chats). It is opened via the adminGroup endpoints.
 const ADMIN_TEAM_CONTACT = {
   email: adminEmail,
   firstname: "Admin",
@@ -188,8 +185,9 @@ const MessageBubble = ({ message, isOwn, showDateSeparator, dateLabel }) => (
     <div className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-xs lg:max-w-md flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
         {!isOwn && (
-          <p className="text-[11px] text-gray-500 px-1 mb-0.5 font-medium">
+          <p className="flex items-center gap-1.5 text-[11px] text-gray-500 px-1 mb-0.5 font-medium">
             {message.firstname ? `${message.firstname} ${message.lastname || ""}` : message.sender}
+            {message.role && <RolePill role={message.role} />}
           </p>
         )}
         <div
@@ -312,6 +310,9 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
           message: payload.message,
           sent_at: payload.sent_at,
           patientid: payload.patientid,
+          firstname: payload.firstname,
+          lastname: payload.lastname,
+          role: payload.role,
         })
       );
     });
@@ -394,17 +395,8 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
       let list = [];
       let failed = false;
 
-      if (chatType === "admin" && !isAdminRole(userRole)) {
+      if (chatType === "admin") {
         list = [ADMIN_TEAM_CONTACT];
-      } else if (chatType === "admin") {
-        // Admins only take part in each doctor's admin-team thread.
-        const res = await getPatientMedicalTeam(patientId);
-        failed = !res.success;
-        list = res.success
-          ? asArray(res.data)
-              .map((u) => toContact(u, "Doctor"))
-              .filter((c) => !isAdminRole(c.role))
-          : [];
       } else if (isAdminRole(userRole)) {
         const res = await getDoctorsChat(patientId);
         failed = !res.success;
@@ -421,6 +413,8 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
       const seen = new Set();
       setContacts(
         list.filter((c) => {
+          // The superadmin's own login is the shared admin address.
+          if (c.isAdminGroup) return true;
           const key = normEmail(c.email);
           if (!key || sameEmail(key, userEmail) || seen.has(key)) return false;
           seen.add(key);
@@ -494,7 +488,9 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
           return;
         }
 
-        const idRes = await getChatId(contact.email, patientId);
+        const idRes = contact.isAdminGroup
+          ? await getAdminGroupChatId(patientId)
+          : await getChatId(contact.email, patientId);
         if (!isCurrent()) return;
         const chatId = idRes.success ? idRes.data?.chatId : null;
         if (!chatId) {
@@ -539,11 +535,18 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
     }
   }, [autoSelectEmail, contacts, loadingContacts, openChat]);
 
+  // Admin Chat has a single shared thread, so open it straight away.
+  useEffect(() => {
+    if (chatType !== "admin" || loadingContacts || activeContact) return;
+    const group = contacts.find((c) => c.isAdminGroup);
+    if (group) openChat(group);
+  }, [chatType, contacts, loadingContacts, activeContact, openChat]);
+
   // ── Send message ──────────────────────────────────────────────────────────
   // Shown immediately as "Sending…"; the WS echo replaces it with the stored copy.
   const handleSend = async () => {
     const text = currentMessage.trim();
-    if (!text || !activeContact || !activeChatId || isReadOnlyView) return;
+    if (!text || !activeContact || !activeChatId || !canSend) return;
 
     const chatIdAtSend = activeChatId;
     const clientId = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -556,7 +559,9 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
     ]);
 
     try {
-      const res = await sendMessage({ message: text, receiver: activeContact.email, pid: patientId });
+      const res = activeContact.isAdminGroup
+        ? await sendAdminGroupMessage(patientId, text)
+        : await sendMessage({ message: text, receiver: activeContact.email, pid: patientId });
 
       if (!res.success) {
         setMessages((prev) => prev.filter((m) => m.clientId !== clientId));
@@ -584,10 +589,15 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const sidebarLabel =
-    chatType === "doctor"
-      ? isReadOnlyView ? "Doctors" : "Medical Team"
-      : isAdminRole(role) ? "Doctors" : "Admin Team";
+    chatType === "doctor" ? (isReadOnlyView ? "Doctors" : "Medical Team") : "Admin Team";
   const title = chatType === "admin" ? "Admin Chat" : "Doctor Chat";
+
+  // In Admin Chat, admins only reply to doctors, so they can post once a doctor has written.
+  const isAdminInAdminChat = chatType === "admin" && isAdminRole(role);
+  const hasDoctorMessage = messages.some(
+    (m) => !m.clientId && !sameEmail(m.sender, sender) && !isAdminRole(m.role)
+  );
+  const canSend = !isReadOnlyView && (!isAdminInAdminChat || hasDoctorMessage);
 
   const activeThread = threads.find((t) => t.id === activeThreadId) || null;
   const visibleMessages = isReadOnlyView ? activeThread?.messages || [] : messages;
@@ -639,8 +649,12 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
       return (
         <EmptyState
           icon="🌱"
-          title="No messages yet"
-          subtitle={isReadOnlyView ? undefined : "Send the first message to start the conversation."}
+          title={isAdminInAdminChat ? "No messages from doctors yet" : "No messages yet"}
+          subtitle={
+            isReadOnlyView || isAdminInAdminChat
+              ? undefined
+              : "Send the first message to start the conversation."
+          }
         />
       );
     }
@@ -672,7 +686,9 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
             <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
               {sidebarLabel}
             </h2>
-            {contacts.length > 0 && (
+            {chatType === "admin" ? (
+              <p className="text-xs text-gray-400 mt-0.5">All doctors and admins of this patient</p>
+            ) : contacts.length > 0 && (
               <p className="text-xs text-gray-400 mt-0.5">
                 {contacts.length} member{contacts.length !== 1 ? "s" : ""}
               </p>
@@ -774,6 +790,10 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
               <p className="text-xs text-gray-400 text-center py-2">
                 Admins can view doctor conversations but cannot post in them.
               </p>
+            ) : !canSend && activeChatId && !loadingMessages ? (
+              <p className="text-xs text-gray-400 text-center py-2">
+                You can reply here once a doctor has posted a message.
+              </p>
             ) : (
               <>
                 {sendError && <p className="text-xs text-red-600 mb-2 px-2">{sendError}</p>}
@@ -781,7 +801,13 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
                   <input
                     ref={inputRef}
                     type="text"
-                    placeholder={activeContact ? `Message ${activeContact.firstname}…` : "Select a contact first…"}
+                    placeholder={
+                      !activeContact
+                        ? "Select a contact first…"
+                        : activeContact.isAdminGroup
+                          ? isAdminInAdminChat ? "Reply to the doctors…" : "Message the admin team…"
+                          : `Message ${activeContact.firstname}…`
+                    }
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
                     onKeyDown={(e) => {
