@@ -505,7 +505,12 @@ function AdminManagement() {
       payload: {
         id: doctor.id,
         name: doctor.name,
-        specialities: Array.isArray(doctor.specialities) ? doctor.specialities : [],
+        // Older records store specialities as react-select { value, label } objects.
+        specialities: Array.isArray(doctor.specialities)
+          ? doctor.specialities.map((spec) =>
+              spec && typeof spec === "object" ? spec.value : spec
+            )
+          : [],
         email: doctor.email,
         phoneNo: doctor.phoneno,
         licenseNo: doctor["license no"] || doctor.licenseNo,
