@@ -12,6 +12,7 @@ import {
 import { getDoctorsChat } from "../../ApiCalls/doctorApis";
 import { identifyRole } from "../../ApiCalls/authapis";
 import {
+  getAllChats,
   getChatId,
   getMessages,
   sendMessage,
@@ -175,7 +176,7 @@ const Avatar = ({ src, firstname = "", lastname = "", size = "md" }) => {
   );
 };
 
-const ContactRow = ({ contact, isActive, onClick }) => (
+const ContactRow = ({ contact, isActive, unreadCount = 0, onClick }) => (
   <button
     onClick={onClick}
     className={`w-full text-left flex items-center gap-3 px-4 py-3 border-b border-gray-100 transition-all duration-150 ${
@@ -189,6 +190,11 @@ const ContactRow = ({ contact, isActive, onClick }) => (
       </p>
       <RolePill role={contact.role} />
     </div>
+    {unreadCount > 0 && (
+      <span className="flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-semibold flex items-center justify-center">
+        {unreadCount}
+      </span>
+    )}
   </button>
 );
 
@@ -261,6 +267,8 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
   const [loadingContacts, setLoadingContacts] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  // Doctor Chat only: unread messages per contact, keyed by normalised email.
+  const [unreadByEmail, setUnreadByEmail] = useState({});
   const autoSelectDoneRef = useRef(false);
 
   const socket = useRef(null);
@@ -454,6 +462,25 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
     return () => { cancelled = true; };
   }, [chatType, patientId]);
 
+  // ── Per-contact unread counts (Doctor Chat, non-admins) ───────────────────
+  useEffect(() => {
+    setUnreadByEmail({});
+    if (chatType !== "doctor" || !role || isAdminRole(role)) return;
+    let cancelled = false;
+
+    getAllChats(patientId).then((res) => {
+      if (cancelled || !res.success) return;
+      const counts = {};
+      asArray(res.data).forEach((chat) => {
+        const key = normEmail(chat.receiverEmail);
+        if (key) counts[key] = (counts[key] || 0) + (Number(chat.unreadCount) || 0);
+      });
+      setUnreadByEmail(counts);
+    });
+
+    return () => { cancelled = true; };
+  }, [chatType, patientId, role]);
+
   // ── Open chat ─────────────────────────────────────────────────────────────
   const openChat = useCallback(
     async (contact) => {
@@ -510,6 +537,8 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
           return;
         }
         setMessages((prev) => mergeWithHistory(asArray(msgRes.data), prev));
+        // getMessages has just marked this chat read on the server.
+        setUnreadByEmail((prev) => ({ ...prev, [normEmail(contact.email)]: 0 }));
         refreshUnreadCounts?.();
       } catch (err) {
         console.error("openChat error:", err);
@@ -696,6 +725,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
                   key={contact.email ?? idx}
                   contact={contact}
                   isActive={sameEmail(activeContact?.email, contact.email)}
+                  unreadCount={unreadByEmail[normEmail(contact.email)] || 0}
                   onClick={() => openChat(contact)}
                 />
               ))
