@@ -35,21 +35,40 @@ const PatientProfileRouteLayout = () => {
     const { isMobile } = useIsMobile();
 
     const [userData, setUserData] = useState({});
+    // "loading" until the current patient's first response; "error" only if that first load fails.
+    const [patientStatus, setPatientStatus] = useState("loading");
+    const patientRequestRef = useRef(0);
     const [unreadCounts, setUnreadCounts] = useState(EMPTY_UNREAD);
     const unreadRequestRef = useRef(0);
 
-    useEffect(() => {
-        const fetchPatientData = async () => {
-            try {
-                const response = await axiosInstance.get(`${server_url}/patient/getPatient/${patientId}`);
-                setUserData(response.data.data || {});
-            } catch (error) {
-                console.error("Error fetching patient data:", error);
+    const refreshPatient = useCallback(async () => {
+        const requestId = ++patientRequestRef.current;
+        const isCurrent = () => patientRequestRef.current === requestId;
+        try {
+            const response = await axiosInstance.get(`${server_url}/patient/getPatient/${patientId}`);
+            const patient = response.data?.data || {};
+            if (isCurrent()) {
+                setUserData(patient);
+                setPatientStatus("ready");
             }
-        };
-
-        fetchPatientData();
+            return patient;
+        } catch (error) {
+            console.error("Error fetching patient data:", error);
+            if (isCurrent()) setPatientStatus((status) => (status === "ready" ? status : "error"));
+            return null;
+        }
     }, [patientId]);
+
+    // The layout stays mounted across patients, so drop the previous patient's data first.
+    const reloadPatient = useCallback(() => {
+        setUserData({});
+        setPatientStatus("loading");
+        return refreshPatient();
+    }, [refreshPatient]);
+
+    useEffect(() => {
+        reloadPatient();
+    }, [reloadPatient]);
 
     const refreshUnreadCounts = useCallback(async () => {
         if (!patientId || !normalizeRole(role)) return;
@@ -88,13 +107,16 @@ const PatientProfileRouteLayout = () => {
         () => ({
             patientId,
             userData,
+            patientStatus,
+            refreshPatient,
+            reloadPatient,
             role,
             unreadAdminCount: unreadCounts.admin,
             unreadDoctorCount: unreadCounts.doctor,
             refreshUnreadCounts,
             isMobile,
         }),
-        [patientId, userData, role, unreadCounts, refreshUnreadCounts, isMobile]
+        [patientId, userData, patientStatus, refreshPatient, reloadPatient, role, unreadCounts, refreshUnreadCounts, isMobile]
     );
 
     return (

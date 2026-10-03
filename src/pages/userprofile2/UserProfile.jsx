@@ -331,11 +331,9 @@ function UserProfile() {
     if (showLoader) setLoading(true);
     let patientData = null;
     try {
-      // If we are rendered inside a patient profile shell, prefer using that pre-fetched data
-      if (isInPatientProfileShell && shellContext?.userData) {
-        patientData = shellContext.userData || { ailments: [] };
-        setUserData(patientData);
-        setAilments(patientData?.ailments || []);
+      // Inside the profile shell the layout owns the patient data; the sync effect below picks it up.
+      if (isInPatientProfileShell) {
+        patientData = await shellContext.refreshPatient();
         if (showLoader) setLoading(false);
         return patientData;
       }
@@ -432,8 +430,16 @@ function UserProfile() {
   }, [id, isInPatientProfileShell, shellContext]);
 
   useEffect(() => {
+    if (isInPatientProfileShell) return;
     fetchPatientData();
   }, [id]);
+
+  useEffect(() => {
+    if (!isInPatientProfileShell) return;
+    const patientData = shellContext.userData || {};
+    setUserData(patientData);
+    setAilments(patientData.ailments || []);
+  }, [isInPatientProfileShell, shellContext?.userData]);
 
   useEffect(() => {
     const fetchGeneralParameters = async () => {
@@ -625,7 +631,24 @@ function UserProfile() {
     setShowAdminPicker(true);
   };
 
-  if (loading) return <PageSkeleton variant="detail" />;
+  const shellPatientStatus = shellContext?.patientStatus;
+  if (isInPatientProfileShell ? shellPatientStatus === "loading" : loading) {
+    return <PageSkeleton variant="detail" />;
+  }
+
+  if (isInPatientProfileShell && shellPatientStatus === "error") {
+    return (
+      <Box className="flex flex-col items-center gap-3 py-16 text-center">
+        <Box className="text-gray-600">Could not load patient details.</Box>
+        <button
+          onClick={() => shellContext.reloadPatient()}
+          className="text-sm bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full hover:bg-blue-100 transition-colors font-medium"
+        >
+          Retry
+        </button>
+      </Box>
+    );
+  }
 
   return (
     <WrapperComponent>
