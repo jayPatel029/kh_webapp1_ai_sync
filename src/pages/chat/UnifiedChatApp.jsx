@@ -63,10 +63,9 @@ const asArray = (value) => {
 // Mirrors the backend, which treats exactly "Admin" / "PSadmin" as admins.
 const isAdminRole = (role) => ["admin", "psadmin"].includes(normalizeRole(role));
 
-// There is no admin↔admin chat. The backend stores every Admin/PSadmin as the
-// shared ADMIN_EMAIL in the chat row (messages.sender keeps the real email), so
-// a doctor messaging ADMIN_TEAM_CONTACT and any admin messaging that doctor land
-// in the same thread: one admin-team discussion per doctor per patient.
+// Admin Chat is one shared thread per patient: the backend routes any message
+// to or from an admin into it, and every assigned doctor and admin reads it.
+// messages.sender keeps the real author.
 const ADMIN_TEAM_CONTACT = {
   email: adminEmail,
   firstname: "Admin",
@@ -188,9 +187,12 @@ const MessageBubble = ({ message, isOwn, showDateSeparator, dateLabel }) => (
     <div className={`flex gap-2 ${isOwn ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-xs lg:max-w-md flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
         {!isOwn && (
-          <p className="text-[11px] text-gray-500 px-1 mb-0.5 font-medium">
-            {message.firstname ? `${message.firstname} ${message.lastname || ""}` : message.sender}
-          </p>
+          <div className="flex items-center gap-1.5 px-1 mb-0.5">
+            <p className="text-[11px] text-gray-500 font-medium">
+              {message.firstname ? `${message.firstname} ${message.lastname || ""}` : message.sender}
+            </p>
+            {message.role && <RolePill role={message.role} />}
+          </div>
         )}
         <div
           className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
@@ -312,6 +314,9 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
           message: payload.message,
           sent_at: payload.sent_at,
           patientid: payload.patientid,
+          firstname: payload.firstname,
+          lastname: payload.lastname,
+          role: payload.role,
         })
       );
     });
@@ -394,17 +399,8 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
       let list = [];
       let failed = false;
 
-      if (chatType === "admin" && !isAdminRole(userRole)) {
+      if (chatType === "admin") {
         list = [ADMIN_TEAM_CONTACT];
-      } else if (chatType === "admin") {
-        // Admins only take part in each doctor's admin-team thread.
-        const res = await getPatientMedicalTeam(patientId);
-        failed = !res.success;
-        list = res.success
-          ? asArray(res.data)
-              .map((u) => toContact(u, "Doctor"))
-              .filter((c) => !isAdminRole(c.role))
-          : [];
       } else if (isAdminRole(userRole)) {
         const res = await getDoctorsChat(patientId);
         failed = !res.success;
@@ -422,7 +418,8 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
       setContacts(
         list.filter((c) => {
           const key = normEmail(c.email);
-          if (!key || sameEmail(key, userEmail) || seen.has(key)) return false;
+          // The super admin's own email is the Admin Team address.
+          if (!key || (!c.isAdminGroup && sameEmail(key, userEmail)) || seen.has(key)) return false;
           seen.add(key);
           return true;
         })
@@ -528,16 +525,18 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
     [role, patientId, isReadOnlyView, refreshUnreadCounts]
   );
 
-  // ── Auto-select staff when navigated from GlobalChatsPage ─────────────────
+  // ── Auto-open: the single Admin Team chat, or the staff member picked in GlobalChatsPage ──
   useEffect(() => {
-    if (!autoSelectEmail || autoSelectDoneRef.current) return;
-    if (loadingContacts || contacts.length === 0) return;
-    const match = contacts.find((c) => sameEmail(c.email, autoSelectEmail));
+    if (autoSelectDoneRef.current || loadingContacts || contacts.length === 0) return;
+    const match =
+      chatType === "admin"
+        ? contacts[0]
+        : autoSelectEmail && contacts.find((c) => sameEmail(c.email, autoSelectEmail));
     if (match) {
       autoSelectDoneRef.current = true;
       openChat(match);
     }
-  }, [autoSelectEmail, contacts, loadingContacts, openChat]);
+  }, [chatType, autoSelectEmail, contacts, loadingContacts, openChat]);
 
   // ── Send message ──────────────────────────────────────────────────────────
   // Shown immediately as "Sending…"; the WS echo replaces it with the stored copy.
@@ -586,7 +585,7 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
   const sidebarLabel =
     chatType === "doctor"
       ? isReadOnlyView ? "Doctors" : "Medical Team"
-      : isAdminRole(role) ? "Doctors" : "Admin Team";
+      : "Admin Team";
   const title = chatType === "admin" ? "Admin Chat" : "Doctor Chat";
 
   const activeThread = threads.find((t) => t.id === activeThreadId) || null;
@@ -672,7 +671,9 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
             <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
               {sidebarLabel}
             </h2>
-            {contacts.length > 0 && (
+            {chatType === "admin" ? (
+              <p className="text-xs text-gray-400 mt-0.5">All doctors and admins of this patient</p>
+            ) : contacts.length > 0 && (
               <p className="text-xs text-gray-400 mt-0.5">
                 {contacts.length} member{contacts.length !== 1 ? "s" : ""}
               </p>
