@@ -16,6 +16,8 @@ import {
   getMessages,
   sendMessage,
   getAllSWChats,
+  getSharedAdminChatId,
+  sendSharedAdminMessage,
 } from "../../ApiCalls/chatApis";
 import { createMessageAlert } from "../../ApiCalls/alertsApis";
 import { adminEmail } from "../../constants/constants";
@@ -63,9 +65,8 @@ const asArray = (value) => {
 // Mirrors the backend, which treats exactly "Admin" / "PSadmin" as admins.
 const isAdminRole = (role) => ["admin", "psadmin"].includes(normalizeRole(role));
 
-// Admin Chat is one shared thread per patient: the backend routes any message
-// to or from an admin into it, and every assigned doctor and admin reads it.
-// messages.sender keeps the real author.
+// Admin Chat is one shared thread per patient (POST /chat/admin/:pid) that every
+// assigned doctor and admin reads and posts in. messages.sender keeps the real author.
 const ADMIN_TEAM_CONTACT = {
   email: adminEmail,
   firstname: "Admin",
@@ -491,7 +492,9 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
           return;
         }
 
-        const idRes = await getChatId(contact.email, patientId);
+        const idRes = contact.isAdminGroup
+          ? await getSharedAdminChatId(patientId)
+          : await getChatId(contact.email, patientId);
         if (!isCurrent()) return;
         const chatId = idRes.success ? idRes.data?.chatId : null;
         if (!chatId) {
@@ -555,7 +558,9 @@ const UnifiedChatApp = ({ chatType = "doctor" }) => {
     ]);
 
     try {
-      const res = await sendMessage({ message: text, receiver: activeContact.email, pid: patientId });
+      const res = activeContact.isAdminGroup
+        ? await sendSharedAdminMessage(patientId, text)
+        : await sendMessage({ message: text, receiver: activeContact.email, pid: patientId });
 
       if (!res.success) {
         setMessages((prev) => prev.filter((m) => m.clientId !== clientId));

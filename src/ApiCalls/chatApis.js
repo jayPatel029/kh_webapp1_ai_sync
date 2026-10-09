@@ -81,6 +81,25 @@ export async function getAllChatsAdmin(pid) {
     }
 }
 
+// The patient's shared Admin chat (doctors, admins and the super admin).
+export async function getSharedAdminChatId(pid) {
+    try {
+        const response = await axiosInstance.post(server_url + "/chat/admin/" + pid);
+        return { success: true, data: response.data };
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.error || error.message };
+    }
+}
+
+export async function sendSharedAdminMessage(pid, message) {
+    try {
+        const response = await axiosInstance.post(server_url + "/chat/admin/" + pid + "/message", { message });
+        return { success: true, data: response.data };
+    } catch (error) {
+        return { success: false, error: error?.response?.data?.error || error.message };
+    }
+}
+
 export async function getAllSWChats(pid, sender) {
     try {
         const payload = {
