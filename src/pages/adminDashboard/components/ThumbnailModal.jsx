@@ -43,11 +43,14 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
 
   const fileType =
     comment?.fileType === "Lab" ? "Lab Report" : comment?.fileType || "File";
+  // For lab reports fileType is labreport.Report_Type; the comment thread is keyed by
+  // comments.type ("Lab Report"), which the patient app also reads.
+  const threadType = comment?.commentType || comment?.fileType;
 
   useEffect(() => {
     const data = {
       fileId: comment?.fileId || 0,
-      fileType: comment?.fileType || 0,
+      fileType: threadType || 0,
     };
     getComments(data)
       .then((res) => {
@@ -57,7 +60,7 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
         console.log(err);
         setPrevComments([]);
       });
-  }, [refreshKey, comment?.fileId, comment?.fileType]);
+  }, [refreshKey, comment?.fileId, threadType]);
 
   useEffect(() => {
     setLoading(true);
@@ -84,7 +87,7 @@ const ThumbnailModal = ({ closeModal, image, comment }) => {
       await addComment(
         trimmedComment,
         comment.fileId,
-        comment.fileType,
+        threadType,
         Number(patientUserId),
         1
       );
