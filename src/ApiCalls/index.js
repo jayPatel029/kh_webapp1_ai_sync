@@ -27,6 +27,7 @@ export {
   createNewRequisitionAlert,
   createPrescriptionDisapprovedAlarmAlert,
   createPrescriptionNotViewedAlert,
+  createDialysisWeightVarianceAlert,
   updateIsReadAlert
 } from './alertsApis';
 export * from './analyticsApis';

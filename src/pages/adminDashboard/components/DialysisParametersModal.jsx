@@ -60,8 +60,7 @@ import { Accordion, AccordionItem } from '../../../component-library/primitives/
 import {
   submitDialysisHealthParams,
   getDialysisReadings,
-  getAssignedDoctorData,
-  insertAlert,
+  createDialysisWeightVarianceAlert,
 } from '../../../ApiCalls';
 import {
   startDialysisSession,
@@ -1195,34 +1194,16 @@ const navigate = useNavigate();
     if (!reason?.trim() || !patient?.patient_id) return;
 
     try {
-      const doctorsRes = await getAssignedDoctorData(patient.patient_id);
-      const doctors = doctorsRes?.data?.data || doctorsRes?.data || [];
-      const doctorEmails = [...new Set(
-        (Array.isArray(doctors) ? doctors : [])
-          .map((doctor) => doctor?.email || doctor?.doctor_email || doctor?.user_email || doctor?.mail)
-          .filter(Boolean)
-      )];
-
-      if (!doctorEmails.length) {
-        console.warn('No assigned doctor emails found for weight variance alert.');
-        return;
-      }
-
-      const dryW = varianceSnapshot?.dryWeight ?? dryWeightValue;
-      const afterW = varianceSnapshot?.afterWeight ?? postDialysisWeightValue;
-      const variance = varianceSnapshot?.varianceKg ?? weightVarianceKg;
-
-      const message = `Dialysis post-weight alert for patient ${patient?.patient_name || patient?.patient_id}: dry weight ${dryW ?? 'N/A'} kg, post-dialysis weight ${afterW ?? 'N/A'} kg, variance +${variance ?? 'N/A'} kg. Reason: ${reason.trim()}`;
-
-      await Promise.allSettled(
-        doctorEmails.map((email) =>
-          insertAlert(email, Number(patient.patient_id) || patient.patient_id, 'Dialysis Weight Variance', message)
-        )
-      );
+      // The server raises one doctor alert for every doctor assigned to the patient.
+      // The weights and reason are already saved in the session's postDialysisNotes.
+      await createDialysisWeightVarianceAlert({
+        patientId: Number(patient.patient_id) || patient.patient_id,
+        varianceKg: varianceSnapshot?.varianceKg ?? weightVarianceKg,
+      });
     } catch (error) {
       console.error('Failed to send weight variance alert to assigned doctor(s):', error);
     }
-  }, [dryWeightValue, patient?.patient_id, patient?.patient_name, postDialysisWeightValue, weightVarianceKg]);
+  }, [patient?.patient_id, weightVarianceKg]);
 
   const handleCloseDialysis = useCallback(async (weightVarianceReason = '') => {
     try {

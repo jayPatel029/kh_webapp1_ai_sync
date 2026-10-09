@@ -238,6 +238,11 @@ const createPrescriptionNotViewedAlert = async (payload) => {
     }
 }
 
+const createDialysisWeightVarianceAlert = async (payload) => {
+    const response = await axiosInstance.post(`${server_url}/alerts/dialysisWeightVariance`, payload);
+    return response.data;
+}
+
 const updateIsReadAlert = async (payload) => {
     try {
         const response = await axiosInstance.put(`${server_url}/alerts/updateIsRead`, payload);
@@ -272,5 +277,6 @@ export {
     createNewRequisitionAlert,
     createPrescriptionDisapprovedAlarmAlert,
     createPrescriptionNotViewedAlert,
+    createDialysisWeightVarianceAlert,
     updateIsReadAlert
 };
