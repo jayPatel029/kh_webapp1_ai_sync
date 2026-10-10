@@ -38,6 +38,9 @@ import { useAdminToast } from "../../components/AdminToast";
 import { usePageCache, PAGE_CACHE } from "../../cache";
 import RefreshButton from "../../components/RefreshButton/RefreshButton";
 
+// "Generic Profile" is not a real ailment: a question with no linked ailments is a Generic Profile question.
+const GENERIC_PROFILE = "Generic Profile";
+
 function ProfileQuestions() {
   const navigate = useNavigate();
   const [editMode, setEditMode] = useState(false);
@@ -70,21 +73,24 @@ function ProfileQuestions() {
     setModelOpenOpt(false);
   };
 
+  const loadQuestions = async (options) => {
+    const result = await fetchWithCache('questions', () => getQuestions(), options);
+    if (result.success) {
+      setQuestionsList(result.data);
+      setQuestions(result.data);
+    } else {
+      console.error("Failed to fetch questions:", result.data);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await fetchWithCache('questions', () => getQuestions());
-        if (result.success) {
-          console.log(result.data);
-          setQuestionsList(result.data);
-          setQuestions(result.data);
-        } else {
-          console.error("Failed to fetch questions:", result.data);
-        }
+        await loadQuestions();
         fetchWithCache('ailments', () => getAilments()).then((resultAilment) => {
           if (resultAilment.success && resultAilment.data.listOfAilments) {
             setAilments([
-              { name: "Generic Profile" },
+              { name: GENERIC_PROFILE },
               ...resultAilment.data.listOfAilments,
             ]);
             newQuestionDispatch({
@@ -153,6 +159,7 @@ function ProfileQuestions() {
 
   function validateForm() {
     const nextFieldErrors = {};
+    if (newQuestion.ailment.length === 0) nextFieldErrors.ailment = true;
     if (newQuestion.type.trim() === "") nextFieldErrors.type = true;
     if (newQuestion.name.trim() === "") nextFieldErrors.name = true;
 
@@ -182,6 +189,9 @@ function ProfileQuestions() {
   }
   async function handleSubmit() {
     if (validateForm()) {
+      const ailmentIds = newQuestion.ailment
+        .filter((ailmentId) => ailmentId !== GENERIC_PROFILE)
+        .map(Number);
       try {
         if (!editMode) {
 
@@ -194,15 +204,9 @@ function ProfileQuestions() {
             ])
           );
 
-          // Convert ailment IDs back to ailment objects
-          const ailmentObjects = newQuestion.ailment.map(ailmentId => {
-            const ailmentObj = ailments.find(a => String(a.id || a.name) === String(ailmentId));
-            return ailmentObj || { id: ailmentId, name: ailmentId };
-          });
-
           console.log("after format: ", formattedTranslations);
           const payload = {
-            ailment: ailmentObjects,
+            ailment: ailmentIds,
             type: newQuestion.type,
             name: newQuestion.name,
             options: newQuestion.options,
@@ -218,21 +222,15 @@ function ProfileQuestions() {
               type: "all",
               payload: {},
             });
+            await loadQuestions({ forceRefresh: true });
           } else {
-            setErrMsg("Error Creating Question:" + response.data);
+            setErrMsg("Error Creating Question: " + (response.error || response.data));
             setSuccessful("");
           }
         } else {
-
-          // Convert ailment IDs back to ailment objects
-          const ailmentObjects = newQuestion.ailment.map(ailmentId => {
-            const ailmentObj = ailments.find(a => String(a.id || a.name) === String(ailmentId));
-            return ailmentObj || { id: ailmentId, name: ailmentId };
-          });
-
           const payload = {
             id: newQuestion.id,
-            ailment: ailmentObjects,
+            ailment: ailmentIds,
             type: newQuestion.type,
             name: newQuestion.name,
             options: newQuestion.options,
@@ -253,8 +251,9 @@ function ProfileQuestions() {
               type: "all",
               payload: {},
             });
+            await loadQuestions({ forceRefresh: true });
           } else {
-            setErrMsg("Error Updating Question:" + response.data);
+            setErrMsg("Error Updating Question: " + (response.error || response.data));
             setSuccessful("");
           }
         }
@@ -268,6 +267,21 @@ function ProfileQuestions() {
       setSuccessful("");
     }
   }
+
+  // Generic Profile means "no ailment", so it cannot be combined with real ailments.
+  const handleAilmentChange = (ailmentIds) => {
+    const nextIds = ailmentIds.map(String);
+    const addedIds = nextIds.filter((ailmentId) => !newQuestion.ailment.includes(ailmentId));
+    let resolvedIds = nextIds;
+    if (nextIds.includes(GENERIC_PROFILE) && nextIds.length > 1) {
+      const pickedGenericOnly = addedIds.length === 1 && addedIds[0] === GENERIC_PROFILE;
+      resolvedIds = pickedGenericOnly
+        ? [GENERIC_PROFILE]
+        : nextIds.filter((ailmentId) => ailmentId !== GENERIC_PROFILE);
+    }
+    newQuestionDispatch({ type: "ailment", payload: resolvedIds });
+    setFieldErrors((prev) => ({ ...prev, ailment: false }));
+  };
 
   const questionTypeOptions = questionTypes.map((q, index) => {
     return (
@@ -285,7 +299,7 @@ function ProfileQuestions() {
       type: "all",
       payload: {
         id: q.id,
-        ailment: q.ailments?.map(a => String(a.id || a.name)) || [],
+        ailment: q.ailments?.length ? q.ailments.map(a => String(a.id)) : [GENERIC_PROFILE],
         type: q.type,
         name: q.name,
         options: q.options,
@@ -433,17 +447,15 @@ function ProfileQuestions() {
           errorMessage={errMsg}
           fieldErrors={fieldErrors}
           onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
-        >{/* ... existing modal fields ... */}
-          <FormControl>
-            <FormLabel>Ailment</FormLabel>
+          bodyStyle={{ overflowY: 'visible', overflowX: 'visible' }}
+        >
+          <FormControl isInvalid={Boolean(fieldErrors.ailment)}>
+            <FormLabel>Ailment<span className="text-red-500">*</span></FormLabel>
             <MultiSelect
+              placeholder="Select ailment"
               value={newQuestion.ailment}
-              onChange={(ailmentIds) => {
-                newQuestionDispatch({
-                  type: "ailment",
-                  payload: ailmentIds.map(String),
-                });
-              }}
+              isInvalid={Boolean(fieldErrors.ailment)}
+              onChange={handleAilmentChange}
             >
               {ailments.map((ailment) => (
                 <option key={ailment.id || ailment.name} value={String(ailment.id || ailment.name)}>
@@ -568,6 +580,7 @@ function ProfileQuestions() {
           onClose={() => {
             setIsBulkUploadModalOpen(false);
             setSuccessful("Bulk upload completed successfully!");
+            loadQuestions({ forceRefresh: true });
           }}
         />
         <ToastContainer />
