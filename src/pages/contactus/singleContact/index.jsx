@@ -153,10 +153,16 @@ export default function ContactUsThread() {
                     <li
                       key={message.id}
                       className="px-4 py-3 border-b border-gray-100 last:border-b-0"
-                      style={{ borderLeft: `4px solid ${isAdmin ? "#32617d" : "transparent"}` }}
+                      style={{
+                        borderLeft: `4px solid ${isAdmin ? "var(--color-accent)" : "transparent"}`,
+                        background: isAdmin ? "var(--color-info-light)" : undefined,
+                      }}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                        <span className={`admin-badge ${isAdmin ? "admin-badge--teal" : "admin-badge--gray"}`}>
+                        <span
+                          className={`admin-badge ${isAdmin ? "" : "admin-badge--gray"}`}
+                          style={isAdmin ? { background: "var(--color-accent)", color: "white" } : undefined}
+                        >
                           {isAdmin ? `Admin${message.senderEmail ? ` · ${message.senderEmail}` : ""}` : "Patient"}
                         </span>
                         <span className="text-xs text-gray-500">{formatDateTime(message.createdAt)}</span>
