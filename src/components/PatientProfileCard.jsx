@@ -278,10 +278,10 @@ export const PatientProfileCard = ({
                       as="h4"
                       size="md"
                       weight="bold"
-                      className="pb-2 mb-4 border-b border-info"
-                      style={{ color: 'var(--color-heading)' }}
+                      className="mb-4"
+                      style={{ color: '#111827', fontSize: '1.5rem', fontWeight: 800 }}
                     >
-                      Ailment Details
+                      Details
                     </Heading>
 
                     {isFetchingProfile && !hasPatientAilments ? (
