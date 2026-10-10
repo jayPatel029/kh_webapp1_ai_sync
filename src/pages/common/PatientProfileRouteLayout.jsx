@@ -124,13 +124,25 @@ const PatientProfileRouteLayout = () => {
                 <Box className="flex-1 flex flex-col min-w-0">
                     <Box className={`sticky ${isMobile ? "top-0" : "top-[112px]"} z-20 bg-white`}>
                         <PageHeader
-                            title={userData?.name || "Patient"}
+                            title={
+                                <>
+                                    {userData?.name || "Patient"}{" "}
+                                    <span className="whitespace-nowrap text-lg font-semibold">
+                                        (
+                                        <button
+                                            type="button"
+                                            onClick={() => startTransition(() => navigate(ROUTES.patientDetail(patientId)))}
+                                            className="text-primary hover:underline cursor-pointer"
+                                        >
+                                            Profile
+                                        </button>
+                                        )
+                                    </span>
+                                </>
+                            }
                             className={`${isMobile ? "top-0" : "top-[112px]"}`}
                             variant={isMobile ? "mobile" : "desktop"}
-                            breadcrumbs={[
-                                { label: "Patient  /", path: ROUTES.patientDetail(patientId), active: false },
-                                // { label: userData?.name || "Patient", active: true },
-                            ]}
+                            breadcrumbs={[]}
                             onBack={() => startTransition(() => navigate(ROUTES.PATIENTS))}
                         />
                         <PatientNavTabs

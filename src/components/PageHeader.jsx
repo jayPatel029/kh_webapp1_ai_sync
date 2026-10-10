@@ -308,32 +308,34 @@ export const PageHeader = ({
           <img src={onBackButton} alt="back" onClick={onBack} className="w-6 h-6" />
         )}
         <Flex gap={4} direction="column" align="flex-start">
-          <Text size="sm" weight="normal" className="text-muted">
-            {crumbs.map((c, i) => (
-              <span key={i}>
-                {i > 0 && <span className="mx-2">/</span>}
-                {c.icon && assets[c.icon] ? (
-                  <img
-                    src={assets[c.icon]}
-                    alt="icon"
-                    className="inline-block mr-2"
-                    style={{ width: 14, height: 14 }}
-                  />
-                ) : null}
-                {c.path && !c.active ? (
-                  <Link
-                    to={c.path}
-                    className="text-muted hover:text-primary transition-colors"
-                    style={{ textDecoration: 'none' }}
-                  >
-                    {c.label}
-                  </Link>
-                ) : (
-                  <span>{c.label}</span>
-                )}
-              </span>
-            ))}
-          </Text>
+          {crumbs.length > 0 && (
+            <Text size="sm" weight="normal" className="text-muted">
+              {crumbs.map((c, i) => (
+                <span key={i}>
+                  {i > 0 && <span className="mx-2">/</span>}
+                  {c.icon && assets[c.icon] ? (
+                    <img
+                      src={assets[c.icon]}
+                      alt="icon"
+                      className="inline-block mr-2"
+                      style={{ width: 14, height: 14 }}
+                    />
+                  ) : null}
+                  {c.path && !c.active ? (
+                    <Link
+                      to={c.path}
+                      className="text-muted hover:text-primary transition-colors"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      {c.label}
+                    </Link>
+                  ) : (
+                    <span>{c.label}</span>
+                  )}
+                </span>
+              ))}
+            </Text>
+          )}
 
           <div className="self-stretch justify-start text-accent text-2xl font-bold font-['Sora']">{title}</div>
         </Flex>
