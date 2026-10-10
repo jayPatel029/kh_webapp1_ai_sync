@@ -31,7 +31,7 @@ const AlertColumn = ({ title, alerts, loading, onAlertClick, nameLookup }) => (
         <Text size="md">No alerts</Text>
       </Flex>
     ) : (
-      <Flex direction="column" gap={3}>
+      <Flex direction="column" gap={3} className="max-h-[60vh] overflow-y-auto pr-1">
         {alerts.map((alert, index) => {
           const patientId = getPatientId(alert);
           const override = patientId
