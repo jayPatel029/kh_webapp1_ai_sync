@@ -64,7 +64,6 @@ import { getSystolicIdByTitle, getDialysisSystolicIdByTitle } from "../../ApiCal
 import LineChartComponent from "../../components/Linechart/LineChartComponent";
 import LineChartDialysis from "../../components/Linechart/Linechart_Dialysis/LineChartDialysis";
 import LineChartDialyisisSys from "../../components/Linechart/Linechart_Dialysis/LineChartDialyisisSys";
-import QuestionsContainer from "../../components/questions/QuestionsContainer";
 import Table from "../../components/table/table";
 import DialysisTable from "../../components/table/DialysisTable";
 import LineChartComponentSys from "../../components/linecomponent-sys-dys/LineChartComponentSys";
@@ -844,12 +843,6 @@ function UserProfile() {
                   Daily Readings
                 </Box>
                 <Box className="grid grid-cols-3 gap-2">
-                  <button
-                    className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
-                    onClick={() => setSelectedGeneralParam({ type: 'generic', title: 'Generic Profile' })}
-                  >
-                    Generic Profile
-                  </button>
                   {generalParameters.map((question, index) => {
                     if (question.title?.toLowerCase().includes('diastolic') && hasGeneralSystolic) return null;
                     return (
@@ -896,23 +889,16 @@ function UserProfile() {
               <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '820px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                   <h2 style={{ fontWeight: '700', color: '#32617d', fontSize: '1.2rem', margin: 0 }}>
-                    {selectedGeneralParam.type === 'generic' ? 'Generic Profile' : selectedGeneralParam.question?.title}
+                    {selectedGeneralParam.question?.title}
                   </h2>
                   <button onClick={() => setSelectedGeneralParam(null)} style={{ background: 'none', border: 'none', fontSize: '1.6rem', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
                 </div>
-                {selectedGeneralParam.type === 'generic' ? (
-                  <QuestionsContainer aliment="Generic Profile" user_id={id} />
-                ) : (() => {
-                  const q = selectedGeneralParam.question;
-                  return (
-                    <ParameterDetailView
-                      question={q}
-                      userId={userData.id}
-                      isDialysis={false}
-                      aspect={2 / 1}
-                    />
-                  );
-                })()}
+                <ParameterDetailView
+                  question={selectedGeneralParam.question}
+                  userId={userData.id}
+                  isDialysis={false}
+                  aspect={2 / 1}
+                />
               </div>
             </div>
           )}

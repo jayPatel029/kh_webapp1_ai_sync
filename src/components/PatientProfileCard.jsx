@@ -157,6 +157,13 @@ export const PatientProfileCard = ({
 
   const showCardSkeleton = isFetchingProfile && !mergedUserData?.id && !mergedUserData?.name;
 
+  const showGenericProfile = !isRole(role, 'Dialysis Technician') && mergedUserData?.program !== 'Basic';
+  const ailmentSections = [
+    ...(showGenericProfile ? ['Generic Profile'] : []),
+    ...(mergedUserData?.ailments || []).filter((ailment) => String(ailment).toLowerCase() !== 'generic profile'),
+  ];
+  const hasPatientAilments = (mergedUserData?.ailments?.length || 0) > 0;
+
   return (
     <Card variant="elevated" className="w-full mt-4 mb-4 self-stretch bg-white rounded-2xl shadow-[2px_2px_8px_0px_rgba(0,0,0,0.35)]">
       <CardHeader
@@ -277,19 +284,20 @@ export const PatientProfileCard = ({
                       Ailment Details
                     </Heading>
 
-                    {isFetchingProfile && mergedUserData?.ailments?.length === 0 ? (
+                    {isFetchingProfile && !hasPatientAilments ? (
                       <Text size="sm" className="text-slate-500">Loading profile details...</Text>
-                    ) : mergedUserData?.ailments && mergedUserData.ailments.length > 0 ? (
+                    ) : (
                       <Box className="space-y-8">
-                        {mergedUserData.ailments.map((ailment, idx) => (
+                        {ailmentSections.map((ailment, idx) => (
                           <Box key={`${ailment}-${idx}`}>
                             <Heading as="h5" size="sm" weight="bold" className="text-accent mb-3">{ailment}</Heading>
                             <QuestionsContainer aliment={ailment} user_id={mergedUserData?.id || routePatientId} />
                           </Box>
                         ))}
+                        {!hasPatientAilments && (
+                          <Text size="sm" className="text-slate-500">No ailments listed.</Text>
+                        )}
                       </Box>
-                    ) : (
-                      <Text size="sm" className="text-slate-500">No ailments listed.</Text>
                     )}
                   </Box>
                 </>
