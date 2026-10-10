@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, startTransiti
 import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
-import { Box } from "../../component-library";
+import { Box, Flex } from "../../component-library";
 import PageHeader from "../../components/PageHeader";
 import PatientNavTabs from "../../components/PatientNavTabs";
 import ThemeProvider from "../../components/ThemeProvider";
@@ -123,28 +123,38 @@ const PatientProfileRouteLayout = () => {
             <PatientProfileShellContext.Provider value={shellValue}>
                 <Box className="flex-1 flex flex-col min-w-0">
                     <Box className={`sticky ${isMobile ? "top-0" : "top-[112px]"} z-20 bg-white`}>
-                        <PageHeader
-                            title={
-                                <>
-                                    {userData?.name || "Patient"}{" "}
-                                    <span className="whitespace-nowrap text-lg font-semibold">
-                                        (
-                                        <button
-                                            type="button"
-                                            onClick={() => startTransition(() => navigate(ROUTES.patientDetail(patientId)))}
-                                            className="text-primary hover:underline cursor-pointer"
-                                        >
-                                            Profile
-                                        </button>
-                                        )
-                                    </span>
-                                </>
-                            }
-                            className={`${isMobile ? "top-0" : "top-[112px]"}`}
-                            variant={isMobile ? "mobile" : "desktop"}
-                            breadcrumbs={[]}
-                            onBack={() => startTransition(() => navigate(ROUTES.PATIENTS))}
-                        />
+                        <Flex align="center" justify="between" gap={4}>
+                            <Box className="flex-1 min-w-0">
+                                <PageHeader
+                                    title={
+                                        <>
+                                            {userData?.name || "Patient"}{" "}
+                                            <span className="whitespace-nowrap text-lg font-semibold">
+                                                (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => startTransition(() => navigate(ROUTES.patientDetail(patientId)))}
+                                                    className="text-primary hover:underline cursor-pointer"
+                                                >
+                                                    Profile
+                                                </button>
+                                                )
+                                            </span>
+                                        </>
+                                    }
+                                    className={`${isMobile ? "top-0" : "top-[112px]"}`}
+                                    variant={isMobile ? "mobile" : "desktop"}
+                                    breadcrumbs={[]}
+                                />
+                            </Box>
+                            <button
+                                type="button"
+                                onClick={() => startTransition(() => navigate(ROUTES.PATIENTS))}
+                                className={`flex-shrink-0 rounded-lg border-2 border-primary text-primary font-semibold bg-transparent hover:bg-primary hover:text-white transition-colors cursor-pointer ${isMobile ? "h-8 px-3 text-sm" : "h-10 px-6 text-base"}`}
+                            >
+                                Back
+                            </button>
+                        </Flex>
                         <PatientNavTabs
                             patientId={patientId}
                             userData={userData}
