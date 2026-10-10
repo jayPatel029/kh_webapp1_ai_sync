@@ -118,6 +118,27 @@ export default function ContactUsThread() {
             <h2 className="admin-card__header-title">Messages</h2>
           </div>
           <div className="admin-card__body">
+            <form onSubmit={handleSend} className="p-4 space-y-3 border-b border-gray-100">
+              {sendError && <div className="admin-message admin-message--error">{sendError}</div>}
+              <textarea
+                placeholder={`Write a message to ${patientName}...`}
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                rows={3}
+                disabled={sending || Boolean(error)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#32617d] disabled:opacity-50"
+              />
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={!reply.trim() || sending || Boolean(error)}
+                  className="admin-btn admin-btn--primary disabled:opacity-50"
+                >
+                  {sending ? "Sending..." : "Send"}
+                </button>
+              </div>
+            </form>
+
             {loading ? (
               <p className="p-4 text-sm text-gray-500">Loading messages...</p>
             ) : error ? (
@@ -148,32 +169,6 @@ export default function ContactUsThread() {
                 })}
               </ul>
             )}
-          </div>
-        </div>
-
-        {/* Reply */}
-        <div className="admin-card sticky bottom-0 z-10">
-          <div className="admin-card__body">
-            <form onSubmit={handleSend} className="p-4 space-y-3">
-              {sendError && <div className="admin-message admin-message--error">{sendError}</div>}
-              <textarea
-                placeholder={`Write a message to ${patientName}...`}
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                rows={3}
-                disabled={sending || Boolean(error)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#32617d] disabled:opacity-50"
-              />
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={!reply.trim() || sending || Boolean(error)}
-                  className="admin-btn admin-btn--primary disabled:opacity-50"
-                >
-                  {sending ? "Sending..." : "Send"}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       </Box>
