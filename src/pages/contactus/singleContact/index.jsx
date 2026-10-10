@@ -159,7 +159,7 @@ export default function ContactUsThread() {
                       }}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                        <span className="text-[11px] text-gray-500 font-medium">
+                        <span className={`text-sm font-bold ${isAdmin ? "text-primary" : "text-[#1A9A9A]"}`}>
                           {isAdmin ? `Admin${message.senderEmail ? ` · ${message.senderEmail}` : ""}` : "Patient"}
                         </span>
                         <span className="text-xs text-gray-500">{formatDateTime(message.createdAt)}</span>
