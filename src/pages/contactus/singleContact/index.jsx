@@ -159,10 +159,7 @@ export default function ContactUsThread() {
                       }}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                        <span
-                          className={`admin-badge ${isAdmin ? "" : "admin-badge--gray"}`}
-                          style={isAdmin ? { background: "var(--color-accent)", color: "white" } : undefined}
-                        >
+                        <span className="text-[11px] text-gray-500 font-medium">
                           {isAdmin ? `Admin${message.senderEmail ? ` · ${message.senderEmail}` : ""}` : "Patient"}
                         </span>
                         <span className="text-xs text-gray-500">{formatDateTime(message.createdAt)}</span>
