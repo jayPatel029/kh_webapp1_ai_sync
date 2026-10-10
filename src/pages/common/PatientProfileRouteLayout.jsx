@@ -134,7 +134,7 @@ const PatientProfileRouteLayout = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => startTransition(() => navigate(ROUTES.patientDetail(patientId)))}
-                                                    className="text-primary hover:underline cursor-pointer"
+                                                    className="text-accent hover:underline cursor-pointer"
                                                 >
                                                     Profile
                                                 </button>
