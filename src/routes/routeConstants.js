@@ -74,7 +74,7 @@ export const ROUTES = {
   SUPPORT: "/support",
   supportTicket: (id) => (id ? `/support?id=${id}` : "/support"),
   supportPatient: (patientId) =>
-    patientId ? `/support?patientId=${patientId}` : "/support",
+    patientId ? `/support/thread?patientId=${patientId}` : "/support",
 
   ALERTS: "/alerts",
 
