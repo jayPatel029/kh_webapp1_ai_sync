@@ -132,7 +132,7 @@ export default function ContactUsThread() {
                 <button
                   type="submit"
                   disabled={!reply.trim() || sending || Boolean(error)}
-                  className="admin-btn admin-btn--primary disabled:opacity-50"
+                  className="px-6 py-2 bg-[#32617d] text-white rounded-lg text-sm font-semibold hover:bg-[#274f65] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {sending ? "Sending..." : "Send"}
                 </button>
