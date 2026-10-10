@@ -5,7 +5,7 @@
  * @file src/components/PatientNavTabs.jsx
  */
 
-import React, { startTransition, useEffect, useRef } from 'react';
+import React, { startTransition, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Flex, Box, Badge } from '../component-library';
 import '../design-system/styles/index.css';
@@ -64,6 +64,50 @@ export const PatientNavTabs = ({
     { id: 'requisition', label: 'Requisition reports', path: ROUTES.patientRequisitions(patientId), state: userData, visible: true },
     { id: 'manage', label: 'Manage Parameters', path: ROUTES.patientParameters(patientId), state: userData, visible: isRole(role, 'Admin') },
   ];
+  const visibleTabCount = tabs.filter(tab => tab.visible).length;
+
+  const [canScroll, setCanScroll] = useState({ left: false, right: false });
+
+  useEffect(() => {
+    const tabsBar = tabsScrollRef.current;
+    if (!tabsBar) return undefined;
+
+    const updateCanScroll = () => {
+      const maxScrollLeft = tabsBar.scrollWidth - tabsBar.clientWidth;
+      setCanScroll({
+        left: tabsBar.scrollLeft > 1,
+        right: tabsBar.scrollLeft < maxScrollLeft - 1,
+      });
+    };
+
+    updateCanScroll();
+    tabsBar.addEventListener('scroll', updateCanScroll, { passive: true });
+    const resizeObserver = new ResizeObserver(updateCanScroll);
+    resizeObserver.observe(tabsBar);
+    return () => {
+      tabsBar.removeEventListener('scroll', updateCanScroll);
+      resizeObserver.disconnect();
+    };
+  }, [isMobile, visibleTabCount]);
+
+  const scrollTabs = (direction) => {
+    const tabsBar = tabsScrollRef.current;
+    if (!tabsBar) return;
+    tabsBar.scrollBy({ left: direction * tabsBar.clientWidth * 0.6, behavior: 'smooth' });
+  };
+
+  const renderScrollButton = (side) => (
+    <button
+      type="button"
+      onClick={() => scrollTabs(side === 'left' ? -1 : 1)}
+      aria-label={side === 'left' ? 'Scroll tabs left' : 'Scroll tabs right'}
+      className={`absolute top-1/2 -translate-y-1/2 ${side === 'left' ? 'left-0' : 'right-0'} z-10 flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white/70 text-gray-600 shadow-md backdrop-blur-sm transition-colors hover:bg-white/90 hover:text-primary cursor-pointer`}
+    >
+      <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className={`h-5 w-5 ${side === 'left' ? 'rotate-180' : ''}`}>
+        <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+      </svg>
+    </button>
+  );
 
   const icons = {
     adminChat: manageIcon,
@@ -163,53 +207,57 @@ export const PatientNavTabs = ({
 
   // Desktop tabs (original)
   return (
-    <Flex
-      ref={tabsScrollRef}
-      gap={3}
-      align="center"
-      justify="start"
-      className="patient-nav-tabs noscrollbar py-4 overflow-x-auto bg-white justify-between sticky top-0"
-      aria-label="Patient Navigation Tabs"
-    >
-      {tabs.filter(tab => tab.visible).map((tab) => (
-        <Button
-          key={tab.id}
-          variant={isActive(tab.path) ? 'secondary' : 'outline'}
-          onClick={() => {
-            startTransition(() => {
-              navigate(tab.path, { state: tab.state });
-            });
-          }}
-          className=" h-10 px-4  py-4 rounded-md flex items-center gap-3 shrink-0 bg-white border-2 border-textLight transition-colors"
-          aria-label={tab.label}
-        >
-          <Flex align="center" gap={2} className="w-full justify-start ">
-            <Box className="flex items-center justify-center" style={{ width: 34, height: 34 }}>
-              <img
-                src={icons[tab.id]}
-                alt={tab.label}
-                style={{
-                  width: 24,
-                  height: 24,
-                  filter: isActive(tab.path)
-                    ? 'brightness(0) invert(1)' // White
-                    : 'brightness(0) saturate(100%) invert(39%) sepia(0%) saturate(0%) hue-rotate(173deg) brightness(95%) contrast(87%)' // Muted
-                }}
-              />
-            </Box>
-            <span className={`truncate text-md ${isActive(tab.path) ? 'text-white' : 'text-textLight'}`}>{tab.label}</span>
-            <Box className="ml-auto flex items-center gap-2">
-              {tab.unread > 0 && (
-                <Badge colorScheme="danger" variant="solid" isPill size="sm">
-                  {tab.unread}
-                </Badge>
-              )}
-              {/* {tab.id === 'doctorChat' && <span style={{ fontSize: 12 }}>▾</span>} */}
-            </Box>
-          </Flex>
-        </Button>
-      ))}
-    </Flex>
+    <Box className="sticky top-0 bg-white">
+      {canScroll.left && renderScrollButton('left')}
+      {canScroll.right && renderScrollButton('right')}
+      <Flex
+        ref={tabsScrollRef}
+        gap={3}
+        align="center"
+        justify="start"
+        className="patient-nav-tabs noscrollbar py-4 overflow-x-auto bg-white justify-between"
+        aria-label="Patient Navigation Tabs"
+      >
+        {tabs.filter(tab => tab.visible).map((tab) => (
+          <Button
+            key={tab.id}
+            variant={isActive(tab.path) ? 'secondary' : 'outline'}
+            onClick={() => {
+              startTransition(() => {
+                navigate(tab.path, { state: tab.state });
+              });
+            }}
+            className=" h-10 px-4  py-4 rounded-md flex items-center gap-3 shrink-0 bg-white border-2 border-textLight transition-colors"
+            aria-label={tab.label}
+          >
+            <Flex align="center" gap={2} className="w-full justify-start ">
+              <Box className="flex items-center justify-center" style={{ width: 34, height: 34 }}>
+                <img
+                  src={icons[tab.id]}
+                  alt={tab.label}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    filter: isActive(tab.path)
+                      ? 'brightness(0) invert(1)' // White
+                      : 'brightness(0) saturate(100%) invert(39%) sepia(0%) saturate(0%) hue-rotate(173deg) brightness(95%) contrast(87%)' // Muted
+                  }}
+                />
+              </Box>
+              <span className={`truncate text-md ${isActive(tab.path) ? 'text-white' : 'text-textLight'}`}>{tab.label}</span>
+              <Box className="ml-auto flex items-center gap-2">
+                {tab.unread > 0 && (
+                  <Badge colorScheme="danger" variant="solid" isPill size="sm">
+                    {tab.unread}
+                  </Badge>
+                )}
+                {/* {tab.id === 'doctorChat' && <span style={{ fontSize: 12 }}>▾</span>} */}
+              </Box>
+            </Flex>
+          </Button>
+        ))}
+      </Flex>
+    </Box>
   );
 };
 
