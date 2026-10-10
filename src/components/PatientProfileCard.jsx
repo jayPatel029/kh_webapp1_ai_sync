@@ -12,7 +12,6 @@ import upIcon from '../assets/up.png';
 import { Edit } from '@mui/icons-material';
 import { useParams } from 'react-router-dom';
 import { getPatientAilments, getPatientById } from '../ApiCalls/patientAPis';
-import { Grid } from '@mui/material';
 
 
 const normalizeAilments = (data = {}) => {
@@ -216,7 +215,7 @@ export const PatientProfileCard = ({
               </Box>
             </Flex>
           ) : (
-            <Flex direction="flex-row" gap={8} align="start" wrap={!showAilmentDetails ? 'wrap' : 'nowrap'}>
+            <Flex direction="flex-row" gap={4} align="start" wrap={!showAilmentDetails ? 'wrap' : 'nowrap'}>
               <Flex className={showAilmentDetails ? "w-1/3" : "w-full"} direction="column" align="center" gap={3}>
                 <Flex align="end" justify="between" className="w-full">
                   <Flex align="center" direction="column" gap={2}>
@@ -250,28 +249,13 @@ export const PatientProfileCard = ({
                 <Flex direction="column" align="start" justify="start" className="w-full gap-2">
                   {infoItems.map((it, i) => (
                     it.label?.toLowerCase().includes('ailments') ? (
-                      <Grid container key={i} alignItems="flex-start" spacing={1}>
-                        <Grid item xs={12}>
-                          <Text size="xs" weight="bold" className="text-slate-400 uppercase">{it.label}</Text>
-                        </Grid>
-
-                        {(mergedUserData?.ailments || []).length > 0 ? (
-                          (mergedUserData?.ailments || []).map((ailment, idx) => (
-                            <Grid item xs={12} sm={6} md={4} key={`${ailment}-${idx}`}>
-                              <Box className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-semibold">
-                                {ailment}
-                              </Box>
-                            </Grid>
-                          ))
-                        ) : (
-                          <Grid item xs={12}>
-                            <Text size="sm" weight="semibold" className="text-slate-700">-</Text>
-                          </Grid>
-                        )}
-                      </Grid>
+                      <Flex key={i} className="items-start gap-2 w-full">
+                        <Text size="xs" weight="bold" className="text-slate-400 uppercase flex-shrink-0 mt-0.5" style={{ width: 80 }}>{it.label}</Text>
+                        <Text size="sm" weight="semibold" className="text-slate-700 min-w-0 break-words">{it.value || '-'}</Text>
+                      </Flex>
                     ) : (
                       <Flex key={i} className="items-center gap-2">
-                        <Text size="xs" weight="bold" className="text-slate-400 uppercase mr-2" style={{ width: 80 }}>{it.label}</Text>
+                        <Text size="xs" weight="bold" className="text-slate-400 uppercase flex-shrink-0" style={{ width: 80 }}>{it.label}</Text>
                         <Text size="sm" weight="semibold" className="text-slate-700 truncate">{it.value || '-'}</Text>
                       </Flex>
                     )
@@ -282,8 +266,6 @@ export const PatientProfileCard = ({
               </Flex>
               {showAilmentDetails && (
                 <>
-                  <div className="w-0 self-stretch " />
-
                   <Box className="flex-1 w-full border border-info rounded-md p-4">
                       <Box className="space-y-6">
                       <Heading as="h4" size="sm" weight="bold">Ailment Details</Heading>
