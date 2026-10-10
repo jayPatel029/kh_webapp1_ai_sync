@@ -255,6 +255,45 @@ export const ParameterDetailView = ({
   );
 };
 
+const CollapsibleReadingRow = ({ title, hasNoReadings = false, actions = null, children }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <Box className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <Flex align="center" className="gap-2 px-4 py-3">
+        <button
+          type="button"
+          onClick={() => setIsOpen((open) => !open)}
+          aria-expanded={isOpen}
+          className="flex flex-1 min-w-0 items-center gap-3 text-left cursor-pointer"
+        >
+          <span className="flex-1 min-w-0 truncate text-sm font-semibold text-[#4164df]">{title}</span>
+          {hasNoReadings && (
+            <span className="flex-shrink-0 rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+              No readings
+            </span>
+          )}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden
+            className={`h-5 w-5 flex-shrink-0 text-gray-500 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+        {actions}
+      </Flex>
+      {isOpen && <Box className="border-t border-gray-100 p-4">{children}</Box>}
+    </Box>
+  );
+};
+
 function UserProfile() {
   const [totalUnreadCount, settotalUnreadCount] = useState(0);
   const [totalUnreadCountDoc, settotalUnreadCountDoc] = useState(0);
@@ -283,9 +322,6 @@ function UserProfile() {
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState({ ailments: [] });
   const [selectedReading, setSelectedReading] = useState(null);
-  const [selectedGeneralParam, setSelectedGeneralParam] = useState(null);
-  const [selectedDialysisParam, setSelectedDialysisParam] = useState(null);
-
   const navigate = useNavigate();
   const { isMobile } = useIsMobile();
   const shellContext = useContext(PatientProfileShellContext);
@@ -834,143 +870,108 @@ function UserProfile() {
 
           {/* Ailment details are now shown inside the PatientProfileCard component */}
 
-          {/* Daily Readings & Dialysis Readings - side by side tile grid */}
-          <Box className={`grid gap-4 ${isSmall ? 'grid-cols-1' : 'grid-cols-2'}`}>
-
-            {/* Daily Readings */}
-            {!isRole(role, 'Dialysis Technician') && userData.program !== "Basic" && (
-              <Box className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                <Box as="h2" className={`${isSmall ? 'text-md' : 'text-lg'} font-bold text-[#32617d] mb-4 text-center`}>
-                  Daily Readings
-                </Box>
-                <Box className="grid grid-cols-3 gap-2">
-                  <button
-                    className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
-                    onClick={() => setSelectedGeneralParam({ type: 'generic', title: 'Generic Profile' })}
-                  >
-                    Generic Profile
-                  </button>
-                  {generalParameters.map((question, index) => {
-                    if (question.title?.toLowerCase().includes('diastolic') && hasGeneralSystolic) return null;
-                    return (
-                      <button
-                        key={index}
-                        className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
-                        onClick={() => setSelectedGeneralParam({ type: 'general', question })}
-                      >
-                        {question.title}
-                      </button>
-                    );
-                  })}
-                </Box>
-              </Box>
-            )}
-
-            {/* Dialysis Readings */}
-            {userData.program !== "Basic" && dialysisParameters.length > 0 && (
-              <Box className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-                <Box as="h2" className={`${isSmall ? 'text-md' : 'text-lg'} font-bold text-[#32617d] mb-4 text-center`}>
-                  Dialysis Readings
-                </Box>
-                <Box className="grid grid-cols-3 gap-2">
-                  {dialysisParameters.map((question, index) => {
-                    if (question.title?.toLowerCase().includes('diastolic') && hasDialysisSystolic) return null;
-                    return (
-                      <button
-                        key={index}
-                        className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
-                        onClick={() => setSelectedDialysisParam({ question })}
-                      >
-                        {question.title}
-                      </button>
-                    );
-                  })}
-                </Box>
-              </Box>
-            )}
-          </Box>
-
-          {/* Modal overlay: General Parameter chart */}
-          {selectedGeneralParam && (
-            <div onClick={() => setSelectedGeneralParam(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-              <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '820px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h2 style={{ fontWeight: '700', color: '#32617d', fontSize: '1.2rem', margin: 0 }}>
-                    {selectedGeneralParam.type === 'generic' ? 'Generic Profile' : selectedGeneralParam.question?.title}
-                  </h2>
-                  <button onClick={() => setSelectedGeneralParam(null)} style={{ background: 'none', border: 'none', fontSize: '1.6rem', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
-                </div>
-                {selectedGeneralParam.type === 'generic' ? (
+          {/* Daily Readings */}
+          {!isRole(role, 'Dialysis Technician') && userData.program !== "Basic" && (
+            <Box className="space-y-4">
+              <Box as="h2" className="text-xl font-bold">Daily Readings</Box>
+              <div className="space-y-3">
+                <CollapsibleReadingRow title="Generic Profile">
                   <QuestionsContainer aliment="Generic Profile" user_id={id} />
-                ) : (() => {
-                  const q = selectedGeneralParam.question;
+                </CollapsibleReadingRow>
+                {generalParameters.map((question, index) => {
+                  if (question.title?.toLowerCase().includes('diastolic') && hasGeneralSystolic) return null;
                   return (
-                    <ParameterDetailView
-                      question={q}
-                      userId={userData.id}
-                      isDialysis={false}
-                      aspect={2 / 1}
-                    />
+                    <CollapsibleReadingRow
+                      key={question.id ?? index}
+                      title={question.title}
+                      hasNoReadings={question.responseCount === 0}
+                    >
+                      <ParameterDetailView
+                        question={question}
+                        userId={userData.id}
+                        isDialysis={false}
+                        aspect={2 / 1}
+                      />
+                    </CollapsibleReadingRow>
                   );
-                })()}
+                })}
               </div>
-            </div>
+            </Box>
           )}
 
-          {/* Modal overlay: Dialysis Parameter chart */}
-          {selectedDialysisParam && (
-            <div onClick={() => setSelectedDialysisParam(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-              <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '820px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h2 style={{ fontWeight: '700', color: '#32617d', fontSize: '1.2rem', margin: 0 }}>{selectedDialysisParam.question?.title}</h2>
-                  <button onClick={() => setSelectedDialysisParam(null)} style={{ background: 'none', border: 'none', fontSize: '1.6rem', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
-                </div>
-                {(() => {
-                  const q = selectedDialysisParam.question;
+          {/* Dialysis Readings */}
+          {userData.program !== "Basic" && dialysisParameters.length > 0 && (
+            <Box className="space-y-4">
+              <Box as="h2" className="text-xl font-bold">Dialysis Readings</Box>
+              <div className="space-y-3">
+                {dialysisParameters.map((question, index) => {
+                  if (question.title?.toLowerCase().includes('diastolic') && hasDialysisSystolic) return null;
                   return (
-                    <ParameterDetailView
-                      question={q}
-                      userId={userData.id}
-                      isDialysis={true}
-                      aspect={2 / 1}
-                      dryWeight={userData?.dry_weight}
-                    />
+                    <CollapsibleReadingRow
+                      key={question.id ?? index}
+                      title={question.title}
+                      hasNoReadings={question.responseCount === 0}
+                    >
+                      <ParameterDetailView
+                        question={question}
+                        userId={userData.id}
+                        isDialysis={true}
+                        aspect={2 / 1}
+                        dryWeight={userData?.dry_weight}
+                      />
+                    </CollapsibleReadingRow>
                   );
-                })()}
+                })}
               </div>
-            </div>
+            </Box>
           )}
-          
-          {/* Lab Reports - tile grid */}
+
+          {/* Lab Reports */}
           {userData.program !== "Basic" && (
-            <Box className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <Box as="h2" className={`${isSmall ? 'text-md' : 'text-xl'} font-bold text-[#32617d] mb-6 text-center`}>
-                Lab Reports
-              </Box>
+            <Box className="space-y-4">
+              <Box as="h2" className="text-xl font-bold">Lab Reports</Box>
               {labReadings.length === 0 ? (
-                <Box className="text-center text-gray-400 italic py-4">No lab reports available</Box>
+                <Box className="text-sm text-gray-400 italic">No lab reports available.</Box>
               ) : (
-                <Box className={`grid gap-4 ${isSmall ? 'grid-cols-1' : 'grid-cols-3'}`}>
+                <div className="space-y-3">
                   {labReadings.map((reading) => (
-                    <Box key={reading.id} className="relative">
-                      <button
-                        className={`w-full rounded-xl border border-gray-200 bg-gray-50 ${isSmall ? 'p-4' : 'p-5'} font-bold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 hover:text-[#32617d] transition-colors cursor-pointer ${isSmall ? 'text-sm' : 'text-base'}`}
-                        onClick={() => openLabReadingModal(reading.title, reading.id)}
-                      >
-                        {reading.title}
-                      </button>
-                      {isRole(role, 'Admin') && (
-                        <button
-                          onClick={() => deleteLabReading(reading.id)}
-                          title="Delete reading"
-                          className="absolute top-2 right-2 opacity-60 hover:opacity-100 transition-opacity bg-white rounded p-0.5"
-                        >
-                          <img src={Delete} alt="Delete" className="w-4 h-4" />
-                        </button>
-                      )}
-                    </Box>
+                    <CollapsibleReadingRow
+                      key={reading.id}
+                      title={reading.title}
+                      hasNoReadings={reading.responseCount === 0}
+                      actions={
+                        <Flex align="center" className="gap-1 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => openLabReadingModal(reading.title, reading.id)}
+                            title="Edit readings"
+                            className="p-1 rounded opacity-70 hover:opacity-100 hover:bg-gray-100 transition"
+                          >
+                            <img src={Edit} alt="Edit readings" className="w-4 h-4" />
+                          </button>
+                          {isRole(role, 'Admin') && (
+                            <button
+                              type="button"
+                              onClick={() => deleteLabReading(reading.id)}
+                              title="Delete reading"
+                              className="p-1 rounded opacity-70 hover:opacity-100 hover:bg-gray-100 transition"
+                            >
+                              <img src={Delete} alt="Delete" className="w-4 h-4" />
+                            </button>
+                          )}
+                        </Flex>
+                      }
+                    >
+                      <LineChartComponentLab
+                        aspect={2 / 1}
+                        questionId={reading.id}
+                        user_id={userData.id}
+                        title={reading.title}
+                        unit={reading.unit}
+                      />
+                    </CollapsibleReadingRow>
                   ))}
-                </Box>
+                </div>
               )}
 
               {selectedReading && (
