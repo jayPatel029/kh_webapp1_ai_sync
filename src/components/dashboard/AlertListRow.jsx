@@ -133,7 +133,11 @@ const AlertListRow = ({ alert, patientNameOverride, onRowClick }) => {
   const mediaUrl = getAlertMediaUrl(alert);
   const actionable = kind !== "none" && typeof onRowClick === "function";
   const title =
-    alert?.type?.split("https:")[0]?.trim()?.toUpperCase() || "ALERT";
+    alert?.type
+      ?.split("https:")[0]
+      ?.replace(/([A-Za-z]):(?=\S)/g, "$1: ")
+      ?.trim()
+      ?.toUpperCase() || "ALERT";
   const patientName =
     (patientNameOverride && String(patientNameOverride).trim()) ||
     getPatientName(alert);
