@@ -5,7 +5,7 @@
  * @file src/components/PatientNavTabs.jsx
  */
 
-import React, { startTransition } from 'react';
+import React, { startTransition, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Flex, Box, Badge } from '../component-library';
 import '../design-system/styles/index.css';
@@ -30,6 +30,29 @@ export const PatientNavTabs = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { isMobile } = useIsMobile();
+  const tabsScrollRef = useRef(null);
+
+  // Mouse wheels only scroll vertically; map that to horizontal scrolling of the tab bar.
+  // Registered natively because React's onWheel listener is passive and cannot preventDefault.
+  useEffect(() => {
+    const tabsBar = tabsScrollRef.current;
+    if (!tabsBar) return undefined;
+
+    const handleWheel = (event) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      const maxScrollLeft = tabsBar.scrollWidth - tabsBar.clientWidth;
+      if (maxScrollLeft <= 0) return;
+      const canScroll = event.deltaY > 0
+        ? tabsBar.scrollLeft < maxScrollLeft
+        : tabsBar.scrollLeft > 0;
+      if (!canScroll) return;
+      event.preventDefault();
+      tabsBar.scrollLeft += event.deltaY;
+    };
+
+    tabsBar.addEventListener('wheel', handleWheel, { passive: false });
+    return () => tabsBar.removeEventListener('wheel', handleWheel);
+  }, [isMobile]);
 
   const tabs = [
     { id: 'alarms', label: 'Alarms', path: ROUTES.patientAlarms(patientId), visible: !isRole(role, 'Dialysis Technician') },
@@ -60,6 +83,7 @@ export const PatientNavTabs = ({
   if (isMobile) {
     return (
       <Flex
+        ref={tabsScrollRef}
         gap={2}
         align="center"
         justify="start"
@@ -140,6 +164,7 @@ export const PatientNavTabs = ({
   // Desktop tabs (original)
   return (
     <Flex
+      ref={tabsScrollRef}
       gap={3}
       align="center"
       justify="start"
