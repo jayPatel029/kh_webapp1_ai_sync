@@ -98,7 +98,7 @@ export function resolveAlertDestination(alert) {
   ) {
     return {
       path: patientId
-        ? ROUTES.supportPatient(patientId)
+        ? ROUTES.supportPatient(patientId, alert.contactUsId)
         : ROUTES.supportTicket(alert.contactUsId),
     };
   }

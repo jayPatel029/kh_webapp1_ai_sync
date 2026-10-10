@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   getContactUsByPatient,
@@ -25,6 +25,7 @@ export default function ContactUsThread() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get("patientId");
+  const highlightedMessageId = searchParams.get("messageId");
 
   const [patient, setPatient] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -34,6 +35,9 @@ export default function ContactUsThread() {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
+
+  const highlightedRowRef = useRef(null);
+  const [flashing, setFlashing] = useState(false);
 
   useEffect(() => {
     if (!patientId) {
@@ -54,6 +58,14 @@ export default function ContactUsThread() {
     };
     fetchMessages();
   }, [patientId, navigate]);
+
+  useEffect(() => {
+    if (loading || !highlightedRowRef.current) return undefined;
+    highlightedRowRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashing(true);
+    const timer = setTimeout(() => setFlashing(false), 2000);
+    return () => clearTimeout(timer);
+  }, [loading, highlightedMessageId]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -149,13 +161,20 @@ export default function ContactUsThread() {
               <ul>
                 {messages.map((message) => {
                   const isAdmin = message.senderType === "admin";
+                  const isHighlighted = String(message.id) === highlightedMessageId;
                   return (
                     <li
                       key={message.id}
-                      className="px-4 py-3 border-b border-gray-100 last:border-b-0"
+                      ref={isHighlighted ? highlightedRowRef : undefined}
+                      className="px-4 py-3 border-b border-gray-100 last:border-b-0 transition-colors duration-700"
                       style={{
                         borderLeft: `4px solid ${isAdmin ? "var(--color-accent)" : "transparent"}`,
-                        background: isAdmin ? "var(--color-info-light)" : undefined,
+                        background:
+                          isHighlighted && flashing
+                            ? "#FEF3C7"
+                            : isAdmin
+                              ? "var(--color-info-light)"
+                              : "transparent",
                       }}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-1">

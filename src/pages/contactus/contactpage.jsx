@@ -33,7 +33,9 @@ export default function ContactUs() {
     const openLegacyLink = async () => {
       const response = await getContactUsById(legacyContactUsId);
       const patientId = response.success ? response.data?.contactus?.patientId : null;
-      if (patientId) navigate(ROUTES.supportPatient(patientId), { replace: true });
+      if (patientId) {
+        navigate(ROUTES.supportPatient(patientId, legacyContactUsId), { replace: true });
+      }
     };
     openLegacyLink();
   }, [legacyContactUsId, navigate]);
