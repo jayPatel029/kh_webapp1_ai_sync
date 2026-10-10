@@ -266,30 +266,31 @@ export const PatientProfileCard = ({
               </Flex>
               {showAilmentDetails && (
                 <>
-                  <Box className="flex-1 w-full border border-info rounded-md p-4">
-                      <Box className="space-y-6">
-                      <Heading as="h4" size="sm" weight="bold">Ailment Details</Heading>
+                  <Box className="flex-1 w-full min-w-0">
+                    <Heading
+                      as="h4"
+                      size="md"
+                      weight="bold"
+                      className="pb-2 mb-4 border-b border-info"
+                      style={{ color: 'var(--color-heading)' }}
+                    >
+                      Ailment Details
+                    </Heading>
 
-                      {isFetchingProfile && mergedUserData?.ailments?.length === 0 ? (
-                        <Text size="sm" className="text-slate-500">Loading profile details...</Text>
-                      ) : mergedUserData?.ailments && mergedUserData.ailments.length > 0 ? (
-                        <>
-                          <Box className="rounded-lg overflow-hidden">
-                            <Box className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                              {mergedUserData.ailments.map((ailment, idx) => (
-                                <Box key={`${ailment}-${idx}`} className={clsx('p-3', (idx % 2 === 1) && 'md:border-l md:border-info md:pl-6')}>
-                                  <Heading as="h5" size="xs" weight="bold" className="text-accent mb-2">{ailment}</Heading>
-                                  <QuestionsContainer aliment={ailment} user_id={mergedUserData?.id || routePatientId} />
-                                </Box>
-                              ))}
-                            </Box>
+                    {isFetchingProfile && mergedUserData?.ailments?.length === 0 ? (
+                      <Text size="sm" className="text-slate-500">Loading profile details...</Text>
+                    ) : mergedUserData?.ailments && mergedUserData.ailments.length > 0 ? (
+                      <Box className="space-y-8">
+                        {mergedUserData.ailments.map((ailment, idx) => (
+                          <Box key={`${ailment}-${idx}`}>
+                            <Heading as="h5" size="sm" weight="bold" className="text-accent mb-3">{ailment}</Heading>
+                            <QuestionsContainer aliment={ailment} user_id={mergedUserData?.id || routePatientId} />
                           </Box>
-                        </>
-
-                      ) : (
-                        <Text size="sm" className="text-slate-500">No ailments listed.</Text>
-                      )}
-                    </Box>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Text size="sm" className="text-slate-500">No ailments listed.</Text>
+                    )}
                   </Box>
                 </>
               )}
