@@ -91,7 +91,11 @@ export function resolveAlertDestination(alert) {
   }
 
   if (category === "New Feedback" || category === "Contact Us") {
-    return { path: ROUTES.supportTicket(alert.contactUsId) };
+    return {
+      path: patientId
+        ? ROUTES.supportPatient(patientId)
+        : ROUTES.supportTicket(alert.contactUsId),
+    };
   }
 
   if (
