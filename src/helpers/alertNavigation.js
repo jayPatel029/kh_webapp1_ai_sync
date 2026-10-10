@@ -90,7 +90,12 @@ export function resolveAlertDestination(alert) {
     return { path: ROUTES.patientLabs(patientId) };
   }
 
-  if (category === "New Feedback" || category === "Contact Us") {
+  if (
+    category === "New Feedback" ||
+    category === "Contact Us" ||
+    category.startsWith("Contact us request") ||
+    alert.contactUsId != null
+  ) {
     return {
       path: patientId
         ? ROUTES.supportPatient(patientId)
