@@ -30,21 +30,47 @@ import { VStack, HStack, Box, Flex } from "../../component-library/layout/Layout
 import { Text, Heading } from "../../component-library/primitives/Typography";
 import { useAdminToast } from "../../components/AdminToast";
 
+const isPdfItem = (item) =>
+  item?.type === "pdf" ||
+  item?.file?.type === "application/pdf" ||
+  item?.name?.toLowerCase?.().endsWith(".pdf");
+
 const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedReportType, setSelectedReportType] = useState("");
   const [selectedImages, setSelectedImages] = useState([]);
   const [extractedValues, setExtractedValues] = useState(null);
+  const [uploadedReportUrl, setUploadedReportUrl] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [email] = useState(localStorage.getItem("email"));
   const [errorMsg, setErrorMsg] = useState("");
   const { showToast, ToastContainer } = useAdminToast();
 
+  // Values can only be read from an original text PDF; merged uploads are rendered as images.
+  const isSingleOriginalPdf =
+    selectedImages.length === 1 && !!selectedImages[0]?.file && isPdfItem(selectedImages[0]);
+  const willExtract = selectedReportType === "Lab" && isSingleOriginalPdf;
+
   const handleImageChange = (imagesArray) => {
     // FileUploadWithCamera passes an array of { data, name, file }
     setSelectedImages(imagesArray);
+    setExtractedValues(null);
+    setUploadedReportUrl("");
     setErrorMsg("");
+  };
+
+  const uploadReportFile = async () => {
+    if (willExtract) {
+      const originalPdf = selectedImages[0].file;
+      // The extract API only parses URLs ending in lowercase ".pdf".
+      const fileName = originalPdf.name.replace(/\.pdf$/i, "") + ".pdf";
+      const uploadRes = await getFileRes(originalPdf, fileName);
+      return uploadRes.data.objectUrl;
+    }
+    const mergedPdfFile = await buildMergedPdfFile(selectedImages, "LabReport.pdf");
+    const uploadRes = await getFileRes(mergedPdfFile, mergedPdfFile.name);
+    return uploadRes.data.objectUrl;
   };
 
   const handleExtract = async () => {
@@ -62,9 +88,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
     setErrorMsg("");
 
     try {
-      const mergedPdfFile = await buildMergedPdfFile(selectedImages, "LabReport.pdf");
-      const uploadRes = await getFileRes(mergedPdfFile, mergedPdfFile.name);
-      const pdfUrl = uploadRes.data.objectUrl;
+      const pdfUrl = await uploadReportFile();
 
       if (!pdfUrl) {
         setErrorMsg("Failed to upload the document.");
@@ -78,12 +102,23 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
         Report_Type: selectedReportType,
         email,
         Lab_Report: pdfUrl,
+        skipExtraction: !willExtract,
       };
 
       const extractRes = await postLabreportExtract(data);
 
       if (extractRes.success) {
-        setExtractedValues(extractRes.data.extractedValues);
+        const { reportId, extractedValues: values } = extractRes.data || {};
+        if (reportId != null) {
+          showToast("Lab report uploaded successfully.", "success");
+          onSuccess();
+          closeModal();
+        } else if (!values || values.code === 1) {
+          setErrorMsg("Could not read values from this PDF. Please check the file and try again.");
+        } else {
+          setUploadedReportUrl(pdfUrl);
+          setExtractedValues(values);
+        }
       } else {
         const msg = typeof extractRes.data === 'string' ? extractRes.data : extractRes.data?.message || "Failed to extract data.";
         setErrorMsg(msg);
@@ -108,16 +143,12 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
 
     setIsSaving(true);
     try {
-      const mergedPdfFile = await buildMergedPdfFile(selectedImages, "LabReport.pdf");
-      const uploadRes = await getFileRes(mergedPdfFile, mergedPdfFile.name);
-      const pdfUrl = uploadRes.data.objectUrl;
-
       const finalData = {
         patient_id: user_id,
         date: selectedDate,
         Report_Type: selectedReportType,
         email,
-        Lab_Report: pdfUrl,
+        Lab_Report: uploadedReportUrl,
         confirmedValues: extractedValues,
       };
 
@@ -188,6 +219,8 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
                 placeholder="Select report type"
                 onChange={(e) => {
                   setSelectedReportType(e.target.value);
+                  setExtractedValues(null);
+                  setUploadedReportUrl("");
                   setErrorMsg("");
                 }}
               >
@@ -254,10 +287,10 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
             <Button
               variant="solid"
               isLoading={isExtracting}
-              loadingText="Extracting Data..."
+              loadingText={willExtract ? "Extracting Data..." : "Uploading..."}
               onClick={handleExtract}
             >
-                { selectedReportType === "Lab" ? "Extract Data" : "Upload" }
+                { willExtract ? "Extract Data" : "Upload" }
             </Button>
           )}
           {extractedValues && (
