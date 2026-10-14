@@ -13,34 +13,12 @@ import { UnifiedListTable, SearchBar } from "../../components";
 import { Box } from "../../component-library";
 import { usePageCache, PAGE_CACHE } from "../../cache";
 import RefreshButton from "../../components/RefreshButton/RefreshButton";
-
-const PROGRAM_OPTIONS = ["Basic", "Standard", "Advanced"];
-
-const formatDate = (dateString) => {
-  if (!dateString) return "-";
-  const dateObject = new Date(dateString);
-  if (Number.isNaN(dateObject.getTime())) return "-";
-  const day = String(dateObject.getDate()).padStart(2, "0");
-  const month = String(dateObject.getMonth() + 1).padStart(2, "0");
-  const year = dateObject.getFullYear();
-  return `${day}-${month}-${year}`;
-};
-
-const normalizeProgramName = (program) => {
-  const raw = program == null ? "" : String(program).trim();
-  if (!raw) return "Basic";
-  const match = PROGRAM_OPTIONS.find(
-    (option) => option.toLowerCase() === raw.toLowerCase()
-  );
-  return match || raw;
-};
-
-const normalizeAlertsList = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.data?.data)) return payload.data.data;
-  return [];
-};
+import {
+  formatDate,
+  normalizeProgramName,
+  ProgramButtons,
+  ProgramRequestList,
+} from "./programSelectionShared";
 
 function UserProgramSelection() {
   const navigate = useNavigate();
@@ -61,10 +39,7 @@ function UserProgramSelection() {
           () => getAlertByCategory(),
           { forceRefresh }
         );
-        const alerts = normalizeAlertsList(
-          response?.success ? response.data : response
-        );
-        setRequest(alerts);
+        setRequest(response.success && Array.isArray(response.data) ? response.data : []);
       } catch (error) {
         console.error("Error fetching program alerts:", error);
         setRequest([]);
@@ -159,34 +134,11 @@ function UserProgramSelection() {
         label: "Request For",
         type: "custom",
         render: (item) => (
-          <div>
-            {request
-              ?.filter((alert) => String(alert.patientId) === String(item.id))
-              .map((alert) => (
-                <div key={alert.id} style={{ marginBottom: "0.5rem" }}>
-                  <p style={{ fontWeight: 600, color: "#1A9A9A" }}>
-                    {normalizeProgramName(alert.programName)}
-                  </p>
-                  <p style={{ fontSize: "0.875rem", color: "#6B7280" }}>
-                    Date: {formatDate(alert.date)}
-                  </p>
-                  <button
-                    className="admin-btn admin-btn--teal"
-                    style={{
-                      padding: "0.25rem 0.75rem",
-                      fontSize: "0.75rem",
-                      marginTop: "0.25rem",
-                    }}
-                    disabled={String(updatingPatientId) === String(item.id)}
-                    onClick={() =>
-                      handleSubmit(alert.programName || "Basic", item.id)
-                    }
-                  >
-                    Accept
-                  </button>
-                </div>
-              ))}
-          </div>
+          <ProgramRequestList
+            requests={request.filter((alert) => String(alert.patientId) === String(item.id))}
+            isDisabled={String(updatingPatientId) === String(item.id)}
+            onAccept={(programName) => handleSubmit(programName, item.id)}
+          />
         ),
         width: "200px",
       },
@@ -195,30 +147,13 @@ function UserProgramSelection() {
         label: "Program",
         type: "custom",
         render: (item) => (
-          <select
-            value={normalizeProgramName(item.program)}
-            disabled={String(updatingPatientId) === String(item.id)}
-            onChange={(e) => handleSubmit(e.target.value, item.id)}
-            style={{
-              padding: "0.5rem",
-              borderRadius: "0.375rem",
-              border: "1px solid #D1D5DB",
-              backgroundColor: "#FFFFFF",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              color: "#1A9A9A",
-              minWidth: "120px",
-            }}
-          >
-            {PROGRAM_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+          <ProgramButtons
+            currentProgram={item.program}
+            isDisabled={String(updatingPatientId) === String(item.id)}
+            onSelect={(program) => handleSubmit(program, item.id)}
+          />
         ),
-        width: "150px",
+        width: "300px",
       },
     ],
     [request, handleSubmit, updatingPatientId]

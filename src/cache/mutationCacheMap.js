@@ -56,6 +56,7 @@ export const MUTATION_CACHE_MAP = [
 
   // ── Patient data ───────────────────────────────────────────────────
   { pattern: /\/patientdata\//, pages: ['patients', 'patientDetail', 'dashboard', 'userProgram'] },
+  { pattern: /\/patient\/updateProgram/, pages: ['userProgram', 'patients', 'patientDetail'] },
 
   // ── Doctor management (specific paths to avoid matching query POSTs) ─
   { pattern: /\/doctor\/(add|update|delete)/, pages: ['doctorManagement', 'dashboard'] },
