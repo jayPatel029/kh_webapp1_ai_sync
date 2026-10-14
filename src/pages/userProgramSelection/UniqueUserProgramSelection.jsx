@@ -32,34 +32,38 @@ function UniqueUserProgramSelection() {
     }
   };
 
+  const getProgramChangeAlert = async () => {
+    try {
+      const response = await getAlertByCategory();
+      const alerts = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+          ? response.data
+          : [];
+      setRequest(alerts);
+    } catch (error) {
+      console.log(error);
+      setRequest([]);
+    }
+  };
+
   useEffect(() => {
-    const getProgramChangeAlert = async () => {
-      try {
-        const response = await getAlertByCategory();
-        const alerts = Array.isArray(response)
-          ? response
-          : Array.isArray(response?.data)
-            ? response.data
-            : [];
-        setRequest(alerts);
-      } catch (error) {
-        console.log(error);
-        setRequest([]);
-      }
-    };
     getProgramChangeAlert();
   }, []);
 
   const handleSubmit = async (program, patientId) => {
     try {
-      await updateProgram({
+      const result = await updateProgram({
         id: patientId,
         program_id: program,
       });
+      if (!result?.success) {
+        console.error("Error updating patient program:", result?.data);
+        return;
+      }
 
-      // Update the patient state with the new program
-      setPatient({ ...patient, program });
-      console.log("Selected Program:", program);
+      // The backend closes the patient's open program requests, so reload both from the server.
+      await Promise.all([getPatientsList(), getProgramChangeAlert()]);
     } catch (error) {
       console.error("Error updating patient program:", error);
     }
