@@ -26,6 +26,7 @@ import {
   isChatAlert,
   isDisplayableInboxAlert,
   partitionDashboardAlerts,
+  sortAlertsNewestFirst,
   toArray,
 } from "../../helpers/alertGrouping";
 import { openAlertDestination } from "../../helpers/alertNavigation";
@@ -111,7 +112,7 @@ const AdminDashboard = () => {
       const partitions = partitionDashboardAlerts(nonChatAlerts);
 
       const doctorList = [...(partitions.doctor || [])].filter(isDisplayableInboxAlert);
-      const patientList = [...(partitions.patient || []), ...(partitions.other || [])]
+      const patientList = sortAlertsNewestFirst([...(partitions.patient || []), ...(partitions.other || [])])
         .filter((alert) => !shouldExcludeFromPatientColumn(alert))
         .filter(isDisplayableInboxAlert);
 

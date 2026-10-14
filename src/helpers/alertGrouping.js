@@ -270,11 +270,13 @@ const classifyAlert = (alert) => {
   };
 };
 
-const sortAlertsNewestFirst = (alerts) => [...alerts].sort((a, b) => {
-  const first = new Date(a?.date || a?.created_at || a?.updated_at || 0).getTime();
-  const second = new Date(b?.date || b?.created_at || b?.updated_at || 0).getTime();
-  return second - first;
-});
+const getAlertTime = (alert) =>
+  new Date(alert?.date || alert?.created_at || alert?.updated_at || 0).getTime() || 0;
+
+// alerts.date has no time part, so same-day alerts fall back to the auto-increment id (creation order).
+const sortAlertsNewestFirst = (alerts) => [...alerts].sort((a, b) =>
+  getAlertTime(b) - getAlertTime(a) || (Number(b?.id) || 0) - (Number(a?.id) || 0)
+);
 
 const groupAlertsByPatient = (alerts, options = {}) => {
   const { includeChats = false } = options;
@@ -535,5 +537,6 @@ export {
   isDisplayableInboxAlert,
   isUnreadAlert,
   partitionDashboardAlerts,
+  sortAlertsNewestFirst,
   toArray,
 };
