@@ -1,195 +1,173 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { updateProgram } from "../../ApiCalls/patientAPis";
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { getPatients, updateProgram } from "../../ApiCalls/patientAPis";
 import { getAlertByCategory } from "../../ApiCalls/alertsApis";
-import { getPatientGetPatientByid } from "../../ApiCalls/remainingApis";
-import PageHeader from "../../components/PageHeader";
-import ThemeProvider from "../../components/ThemeProvider";
-import { useAdminToast } from "../../components/AdminToast";
 import dummyadmin from "../../assets/dummyadmin.png";
-import { ROUTES } from "../../routes/routeConstants";
-import { Box } from "../../component-library";
-import { usePageCache, PAGE_CACHE } from "../../cache";
-import {
-  formatDate,
-  normalizeProgramName,
-  ProgramButtons,
-  ProgramRequestList,
-} from "./programSelectionShared";
 
 function UniqueUserProgramSelection() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const role = useSelector((state) => state.permission);
-  const { showToast, ToastContainer } = useAdminToast();
-  const { fetchWithCache, mutate } = usePageCache(PAGE_CACHE.USER_PROGRAM);
-
+  const { id } = useParams(); // Get the id from the URL
   const [patient, setPatient] = useState(null);
-  // "loading" | "ready" | "notFound" | "error"
-  const [patientStatus, setPatientStatus] = useState("loading");
-  const [requests, setRequests] = useState([]);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const loadRequestIdRef = useRef(0);
-
-  const loadRequests = useCallback(
-    async (forceRefresh = false) => {
-      const response = await fetchWithCache("programAlerts", () => getAlertByCategory(), {
-        forceRefresh,
-      });
-      const allRequests = response.success && Array.isArray(response.data) ? response.data : [];
-      return allRequests.filter((request) => String(request.patientId) === String(id));
-    },
-    [fetchWithCache, id]
-  );
-
-  const loadPage = useCallback(async () => {
-    const loadRequestId = ++loadRequestIdRef.current;
-    const isCurrent = () => loadRequestIdRef.current === loadRequestId;
-
-    setPatient(null);
-    setRequests([]);
-    setPatientStatus("loading");
-
-    const [patientResponse, patientRequests] = await Promise.all([
-      getPatientGetPatientByid(id),
-      loadRequests(),
-    ]);
-    if (!isCurrent()) return;
-
-    if (!patientResponse.success) {
-      setPatientStatus("error");
-      return;
-    }
-    const loadedPatient = patientResponse.data?.data;
-    if (!loadedPatient?.id) {
-      setPatientStatus("notFound");
-      return;
-    }
-    setPatient(loadedPatient);
-    setRequests(patientRequests);
-    setPatientStatus("ready");
-  }, [id, loadRequests]);
+  const [request, setRequest] = useState([]);
 
   useEffect(() => {
-    loadPage();
-  }, [loadPage]);
+    // Fetch patients data when component mounts
+    getPatientsList();
+  }, [id]); // Dependency array includes id
 
-  const handleProgramChange = async (program) => {
-    if (!role?.canEditUserProgramSelection) {
-      showToast("You are not authorized to perform this action", "error");
-      return;
-    }
-    const normalizedProgram = normalizeProgramName(program);
-    setIsUpdating(true);
+  const getPatientsList = async () => {
     try {
-      const result = await mutate(() =>
-        updateProgram({ id: patient.id, program_id: normalizedProgram })
-      );
-      if (!result?.success) {
-        const message =
-          typeof result?.data === "string"
-            ? result.data
-            : result?.data?.data || "Failed to update program";
-        showToast(message, "error");
-        return;
+      const response = await getPatients();
+      if (response.success) {
+        const records = response?.data?.data || [];
+        const selectedPatient = records.find(record => record.id === Number(id));
+
+        if (selectedPatient) {
+          setPatient(selectedPatient);
+        } else {
+          console.error("Patient not found.");
+        }
       }
-      setPatient((prev) => ({ ...prev, program: result.data?.program || normalizedProgram }));
-      setRequests(await loadRequests(true));
-      showToast(`Program updated to ${normalizedProgram}`, "success");
+    } catch (error) {
+      console.error("Error fetching patients:", error);
+    }
+  };
+
+  useEffect(() => {
+    const getProgramChangeAlert = async () => {
+      try {
+        const response = await getAlertByCategory();
+        const alerts = Array.isArray(response)
+          ? response
+          : Array.isArray(response?.data)
+            ? response.data
+            : [];
+        setRequest(alerts);
+      } catch (error) {
+        console.log(error);
+        setRequest([]);
+      }
+    };
+    getProgramChangeAlert();
+  }, []);
+
+  const handleSubmit = async (program, patientId) => {
+    try {
+      await updateProgram({
+        id: patientId,
+        program_id: program,
+      });
+
+      // Update the patient state with the new program
+      setPatient({ ...patient, program });
+      console.log("Selected Program:", program);
     } catch (error) {
       console.error("Error updating patient program:", error);
-      showToast("Error updating patient program", "error");
-    } finally {
-      setIsUpdating(false);
     }
   };
 
-  const renderBody = () => {
-    if (patientStatus === "loading") {
-      return <p className="text-sm text-gray-500">Loading patient details...</p>;
-    }
-    if (patientStatus === "notFound") {
-      return <p className="text-sm text-gray-500">Patient not found.</p>;
-    }
-    if (patientStatus === "error") {
-      return (
-        <div className="flex items-center gap-3">
-          <p className="text-sm text-red-600">Could not load patient details.</p>
-          <button
-            type="button"
-            onClick={loadPage}
-            className="text-sm font-semibold text-primary underline cursor-pointer"
-          >
-            Try again
-          </button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-col gap-8">
-        <div className="flex items-center gap-4">
-          <img
-            src={patient.profile_photo || dummyadmin}
-            alt={patient.name}
-            className="h-16 w-16 rounded-full object-cover"
-          />
-          <div className="min-w-0">
-            <p className="text-lg font-bold text-gray-900">{patient.name || "-"}</p>
-            <p className="text-sm text-gray-600">{patient.number || "-"}</p>
-            <p className="text-xs text-gray-500">
-              Registered on {formatDate(patient.registered_date)}
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-base font-bold text-gray-900">Program change request</h3>
-          <ProgramRequestList
-            requests={requests}
-            isDisabled={isUpdating}
-            onAccept={handleProgramChange}
-            emptyText="No pending program change request."
-          />
-        </div>
-
-        <div>
-          <h3 className="mb-1 text-base font-bold text-gray-900">Program</h3>
-          <p className="mb-3 text-sm text-gray-500">
-            Current program: {normalizeProgramName(patient.program) || "Not set"}
-          </p>
-          <ProgramButtons
-            currentProgram={patient.program}
-            isDisabled={isUpdating}
-            onSelect={handleProgramChange}
-          />
-        </div>
-      </div>
-    );
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    const dateObject = new Date(dateString);
+    if (Number.isNaN(dateObject.getTime())) return "-";
+    const day = String(dateObject.getDate()).padStart(2, "0");
+    const month = String(dateObject.getMonth() + 1).padStart(2, "0");
+    const year = dateObject.getFullYear();
+    return `${day}-${month}-${year}`;
   };
+
+  if (!patient) {
+    return <div>Loading...</div>;
+  }
 
   return (
-    <ThemeProvider>
-      <Box className="flex-1 flex flex-col min-w-0">
-        <Box className="sticky top-[56px] z-20 bg-white">
-          <PageHeader
-            title={patient?.name || "User Program Selection"}
-            breadcrumbs={[
-              { label: "Dashboard", path: "/" },
-              { label: "User Program Selection", path: ROUTES.PROGRAMS },
-              { label: patient?.name || "Patient", active: true },
-            ]}
-            onBack={() => navigate(ROUTES.PROGRAMS)}
-          />
-        </Box>
+    <div className="flex-1 flex flex-col min-w-0">
+      <div className="bg-gray-100 min-h-screen md:py-10 md:px-40">
+          <div className=" bg-white md:p-12 border p-2 rounded-md border-t-primary border-t-4 shadow-md">
+            <span className=" text-gray-900 tracking-wide text-xl ">
+              User Program Selection
+            </span>
 
-        <div className="admin-card">
-          <div className="admin-card__body">{renderBody()}</div>
+            <div className="mt-4">
+              <table className=" w-full text-sm text-left rtl:text-right text-gray-800 ">
+                <thead className="text-sm text-gray-700 border-b-2 border-gray-800 ">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 ">
+                      Profile Photo
+                    </th>
+                    <th scope="col" className="px-6 py-3 ">
+                      Name
+                    </th>
+                    <th scope="col" className="px-6 py-3 ">
+                      Number
+                    </th>
+                    <th scope="col" className="px-6 py-3 ">
+                      Registration Date
+                    </th>
+                    <th scope="col" className="px-6 py-3 ">
+                      Request For
+                    </th>
+                    <th scope="col" className="px-6 py-3 ">
+                      Program
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr key={patient.id}>
+                    <td className="py-2 px-4">
+                      <div className="flex justify-center items-center">
+                        <img
+                          src={dummyadmin}
+                          alt={patient.name}
+                          className="rounded-full w-12 h-12"
+                        />
+                      </div>
+                    </td>
+                    <td className="py-2 px-6">{patient.name}</td>
+                    <td className="py-2 px-4">{patient.number}</td>
+                    <td className="py-2 px-8">{formatDate(patient.registered_date)}</td>
+                    <td className="py-2 px-4">
+                      {request?.filter(alert => String(alert.patientId) === String(patient.id)).map(alert => (
+                        <div key={alert.id}>
+                          <p className="font-bold">{alert.programName}</p>
+                          <p>Date: {formatDate(alert.date)}</p>
+                          <button
+                            className="bg-green-800 p-2 rounded-sm text-white"
+                            onClick={() => handleSubmit(alert.programName, patient.id)}>
+                            Accept?
+                          </button>
+                        </div>
+                      ))}
+                    </td>
+                    <td className="py-2 px-4">
+                      <button
+                        className={`block mb-2 text-primary border-primary border-2 rounded-md w-40 ${
+                          patient.program === "Basic" ? "bg-blue-500" : ""
+                        }`}
+                        onClick={() => handleSubmit("Basic", patient.id)}>
+                        Basic
+                      </button>
+                      <button
+                        className={`block mb-2  text-primary border-primary border-2 w-40 rounded-md ${
+                          patient.program === "Standard" ? "bg-blue-500" : ""
+                        }`}
+                        onClick={() => handleSubmit("Standard", patient.id)}>
+                        Standard
+                      </button>
+                      <button
+                        className={`block  text-primary border-primary border-2 w-40 rounded-md ${
+                          patient.program === "Advanced" ? "bg-blue-500" : ""
+                        }`}
+                        onClick={() => handleSubmit("Advanced", patient.id)}>
+                        Advanced
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+          </div>
         </div>
-        <ToastContainer />
-      </Box>
-    </ThemeProvider>
+      </div>
+    </div>
   );
 }
 

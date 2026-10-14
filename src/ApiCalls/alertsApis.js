@@ -85,13 +85,12 @@ const approveOrDisapprovePrescription = async (payload) => {
     }
 }
 
-// Open program-change requests ("New Program Enrollment" alerts with isOpened = 0).
 const getAlertByCategory = async () => {
     try {
         const response = await axiosInstance.get(`${server_url}/alerts/byCategory`);
-        return { success: true, data: Array.isArray(response.data) ? response.data : [] };
+        return response.data;
     } catch (error) {
-        return { success: false, data: error.response?.data || error.message };
+        return error;
     }
 }
 
