@@ -1,6 +1,6 @@
 /**
  * Questions Container Component
- * Definition-list layout: question left, answer right (stacks on mobile)
+ * Definition-list layout: question left, answer right
  *
  * @file src/components/questions/QuestionsContainer.jsx
  */
@@ -81,27 +81,25 @@ function QuestionsContainer({ aliment, user_id }) {
           const hasAnswer = answer !== "" && answer !== "-";
 
           return (
-            <Flex
+            <div
               key={question.id ?? index}
-              align="start"
-              gap={3}
-              className={`py-3 first:pt-1 last:pb-1 flex-col sm:flex-row sm:items-start ${
+              className={`d-flex items-start gap-3 py-3 first:pt-1 last:pb-1 ${
                 canEdit ? "cursor-pointer group" : ""
               }`}
+              style={{ flexDirection: "row" }}
               onClick={() => canEdit && openModal(question)}
             >
               <Text
                 size="sm"
-                className="text-slate-500 sm:w-[42%] sm:flex-shrink-0 leading-snug"
+                className="text-slate-500 leading-snug"
+                style={{ width: "42%", flexShrink: 0 }}
               >
                 {question.name}
               </Text>
 
-              <Flex
-                align="start"
-                justify="between"
-                gap={2}
-                className="min-w-0 w-full sm:flex-1"
+              <div
+                className="d-flex items-start justify-between gap-2"
+                style={{ flex: 1, minWidth: 0 }}
               >
                 <Text
                   size="sm"
@@ -116,12 +114,12 @@ function QuestionsContainer({ aliment, user_id }) {
                 </Text>
                 {canEdit && (
                   <BorderColorIcon
-                    className="text-primary opacity-40 group-hover:opacity-100 flex-shrink-0 mt-0.5"
-                    style={{ fontSize: 15 }}
+                    className="text-primary opacity-40 group-hover:opacity-100"
+                    style={{ fontSize: 15, flexShrink: 0, marginTop: 2 }}
                   />
                 )}
-              </Flex>
-            </Flex>
+              </div>
+            </div>
           );
         })}
       </Box>
