@@ -46,9 +46,12 @@ const LineChartDialysis = ({
   onToggleEditPanel,
 }) => {
   const [patientData, setPatientData] = useState([]);
+  const [idwgStatusRows, setIdwgStatusRows] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showModalEnterReadings, setShowModalEnterReadings] = useState(false);
   const [showModalUpdateRange, setShowModalUpdateRange] = useState(false);
+
+  const isInterDialyticTitle = /inter/i.test(String(title || ""));
   const [highRange, setHighRange] = useState(0);
   const [lowRange, setLowRange] = useState(0);
   const [highRange2, setHighRange2] = useState(0);
@@ -900,30 +903,53 @@ const LineChartDialysis = ({
       .then((response) => {
         console.log("Response data:", response.data.data);
 
-        const formattedData = (response.data.data || [])
-          .map((item, key) => {
-            const rawDate = item.date;
-            const formattedDate =
-              typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(rawDate)
-                ? rawDate.slice(0, 10)
-                : new Date(rawDate).toISOString().split("T")[0];
-            const numericReading = parseFloat(item.readings);
-            return {
-              date: formattedDate,
-              readings: Number.isFinite(numericReading) ? numericReading : null,
-              note: Number.isFinite(numericReading) ? null : item.readings,
-              number: key,
-            };
-          })
-          // Interdialytic API returns status strings for first day / missing data.
-          // Recharts cannot plot those — keep numeric IDWG points only.
-          .filter((item) => Number.isFinite(item.readings));
+        const rows = Array.isArray(response.data.data) ? response.data.data : [];
 
-        const sortedData = formattedData.sort((a, b) => {
-          const dateA = new Date(a.date);
-          const dateB = new Date(b.date);
-          return dateA - dateB;
+        const normalized = rows.map((item, key) => {
+          const rawDate = item.date;
+          const formattedDate =
+            typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(rawDate)
+              ? rawDate.slice(0, 10)
+              : new Date(rawDate).toISOString().split("T")[0];
+          const numericFromValue = parseFloat(item.value);
+          const numericFromReadings = parseFloat(item.readings);
+          const numericReading = Number.isFinite(numericFromValue)
+            ? numericFromValue
+            : numericFromReadings;
+          const message =
+            item.message ||
+            item.error ||
+            (Number.isFinite(numericReading) ? null : item.readings);
+
+          return {
+            date: formattedDate,
+            readings: Number.isFinite(numericReading) ? numericReading : null,
+            message: message || null,
+            status: item.status || null,
+            number: key,
+          };
         });
+
+        // Status / missing-data messages for Inter-dialysis Weight (shown under chart)
+        if (isInterDialyticTitle) {
+          setIdwgStatusRows(
+            normalized
+              .filter((item) => item.message)
+              .map((item) => ({
+                date: item.date,
+                message: item.message,
+                status: item.status,
+                hasValue: Number.isFinite(item.readings),
+              }))
+          );
+        } else {
+          setIdwgStatusRows([]);
+        }
+
+        // Recharts can only plot numeric IDWG points
+        const sortedData = normalized
+          .filter((item) => Number.isFinite(item.readings))
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
 
         setPatientData(sortedData);
         setOriginalData(sortedData);
@@ -1172,6 +1198,30 @@ const LineChartDialysis = ({
           </LineChart>
         </ResponsiveContainer>
       </GraphChartFrame>
+
+      {isInterDialyticTitle && idwgStatusRows.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-900 mb-2">
+            Inter-dialysis weight notes
+          </p>
+          <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+            {idwgStatusRows.map((row, idx) => (
+              <li
+                key={`${row.date}-${idx}`}
+                className="text-sm text-amber-950 flex gap-2"
+              >
+                <span className="font-semibold whitespace-nowrap text-[#32617d]">
+                  {row.date}
+                </span>
+                <span className="text-slate-700">
+                  {row.message}
+                  {row.hasValue ? " (value still plotted)" : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </GraphShell>
   );
 };
