@@ -273,49 +273,30 @@ export const PatientProfileCard = ({
               </Flex>
               {showAilmentDetails && (
                 <Box className="flex-1 w-full min-w-0">
-                  <Flex align="center" justify="between" gap={3} className="mb-4">
-                    <Box>
-                      <Heading
-                        as="h4"
-                        size="md"
-                        weight="bold"
-                        style={{ color: '#111827', fontSize: '1.35rem', fontWeight: 800 }}
-                      >
-                        Details
-                      </Heading>
-                      <Text size="xs" className="text-slate-500 mt-1">
-                        Profile answers grouped by ailment
-                      </Text>
-                    </Box>
-                    {ailmentSections.length > 0 && (
-                      <Box className="rounded-full bg-slate-100 px-3 py-1 flex-shrink-0">
-                        <Text size="xs" weight="semibold" className="text-accent">
-                          {ailmentSections.length} section{ailmentSections.length === 1 ? '' : 's'}
-                        </Text>
-                      </Box>
-                    )}
-                  </Flex>
+                  <Heading
+                    as="h4"
+                    size="md"
+                    weight="bold"
+                    className="mb-5"
+                    style={{ color: '#111827', fontSize: '1.35rem', fontWeight: 800 }}
+                  >
+                    Details
+                  </Heading>
 
                   {isFetchingProfile && !hasPatientAilments ? (
                     <Text size="sm" className="text-slate-500">Loading profile details…</Text>
                   ) : (
-                    <Box className="space-y-4 max-h-[520px] overflow-y-auto pr-1">
+                    <Box className="space-y-6 max-h-[520px] overflow-y-auto pr-1">
                       {ailmentSections.map((ailment, idx) => (
-                        <Box
-                          key={`${ailment}-${idx}`}
-                          className="rounded-2xl border border-gray-200 bg-slate-50/60 p-4 shadow-sm"
-                        >
-                          <Flex align="center" gap={2} className="mb-3">
-                            <Box className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                            <Heading
-                              as="h5"
-                              size="sm"
-                              weight="bold"
-                              className="text-[#32617d]"
-                            >
-                              {ailment}
-                            </Heading>
-                          </Flex>
+                        <Box key={`${ailment}-${idx}`}>
+                          <Heading
+                            as="h5"
+                            size="sm"
+                            weight="bold"
+                            className="text-[#32617d] mb-3 pb-1.5 border-b border-gray-100"
+                          >
+                            {ailment}
+                          </Heading>
                           <QuestionsContainer
                             aliment={ailment}
                             user_id={mergedUserData?.id || routePatientId}
@@ -323,9 +304,7 @@ export const PatientProfileCard = ({
                         </Box>
                       ))}
                       {!hasPatientAilments && (
-                        <Box className="rounded-xl border border-dashed border-gray-200 bg-slate-50 px-4 py-6 text-center">
-                          <Text size="sm" className="text-slate-500">No ailments listed for this patient.</Text>
-                        </Box>
+                        <Text size="sm" className="text-slate-500">No ailments listed for this patient.</Text>
                       )}
                     </Box>
                   )}

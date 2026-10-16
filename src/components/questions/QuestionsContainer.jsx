@@ -54,10 +54,10 @@ function QuestionsContainer({ aliment, user_id }) {
 
   if (loading) {
     return (
-      <Flex align="center" justify="center" className="py-6">
+      <Flex align="center" className="py-3">
         <Spinner size="sm" />
-        <Text size="sm" className="ml-2 text-accent">
-          Loading questions…
+        <Text size="sm" className="ml-2 text-slate-500">
+          Loading…
         </Text>
       </Flex>
     );
@@ -65,65 +65,55 @@ function QuestionsContainer({ aliment, user_id }) {
 
   if (!questions.length) {
     return (
-      <Box className="rounded-lg border border-dashed border-gray-200 bg-slate-50/80 px-4 py-3">
-        <Text size="sm" className="text-slate-500">
-          No answers recorded for this section yet.
-        </Text>
-      </Box>
+      <Text size="sm" className="text-slate-400 italic pl-0.5">
+        No answers yet
+      </Text>
     );
   }
 
   const canEdit = Boolean(role?.canEditPatients);
 
   return (
-    <Box className="questions-container">
-      <Box className="rounded-xl border border-gray-200 overflow-hidden bg-white divide-y divide-gray-100">
-        {questions.map((question, index) => {
-          const answer = String(question.response ?? "").trim();
-          const hasAnswer = answer !== "" && answer !== "-";
+    <Box className="questions-container space-y-3">
+      {questions.map((question, index) => {
+        const answer = String(question.response ?? "").trim();
+        const hasAnswer = answer !== "" && answer !== "-";
 
-          return (
-            <Flex
-              key={question.id ?? index}
-              align="start"
-              justify="between"
-              gap={3}
-              className={`px-4 py-3.5 ${canEdit ? "hover:bg-slate-50/90 cursor-pointer" : ""} transition-colors`}
-              onClick={() => canEdit && openModal(question)}
-            >
-              <Box className="min-w-0 flex-1 space-y-1">
-                <Text
-                  size="xs"
-                  weight="semibold"
-                  className="text-accent uppercase tracking-wide"
-                >
-                  {question.name}
-                </Text>
-                <Text
-                  size="sm"
-                  weight={hasAnswer ? "semibold" : "regular"}
-                  className={
-                    hasAnswer
-                      ? "text-slate-800 whitespace-pre-wrap break-words"
-                      : "text-slate-400 italic"
-                  }
-                >
-                  {hasAnswer ? answer : "Not answered"}
-                </Text>
-              </Box>
+        return (
+          <Flex
+            key={question.id ?? index}
+            align="start"
+            justify="between"
+            gap={3}
+            className={`group ${canEdit ? "cursor-pointer" : ""}`}
+            onClick={() => canEdit && openModal(question)}
+          >
+            <Box className="min-w-0 flex-1">
+              <Text size="sm" className="text-slate-500">
+                {question.name}
+              </Text>
+              <Text
+                size="sm"
+                weight="semibold"
+                className={
+                  hasAnswer
+                    ? "text-slate-800 mt-0.5 whitespace-pre-wrap break-words"
+                    : "text-slate-400 italic mt-0.5"
+                }
+              >
+                {hasAnswer ? answer : "Not answered"}
+              </Text>
+            </Box>
 
-              {canEdit && (
-                <Box
-                  className="flex-shrink-0 mt-0.5 rounded-md p-1.5 text-primary hover:bg-primary/10"
-                  aria-label={`Edit ${question.name}`}
-                >
-                  <BorderColorIcon style={{ fontSize: 16 }} />
-                </Box>
-              )}
-            </Flex>
-          );
-        })}
-      </Box>
+            {canEdit && (
+              <BorderColorIcon
+                className="text-primary opacity-50 group-hover:opacity-100 flex-shrink-0 mt-0.5"
+                style={{ fontSize: 15 }}
+              />
+            )}
+          </Flex>
+        );
+      })}
 
       {showModal && selectedQuestion && (
         <DynamicModal
