@@ -900,26 +900,30 @@ const LineChartDialysis = ({
       .then((response) => {
         console.log("Response data:", response.data.data);
 
-        const formattedData = response.data.data.map((item, key) => {
-          const date = new Date(item.date);
-          const formattedDate = date.toISOString().split("T")[0];
-          console.log("redings", item.readings);
-          return {
-            date: formattedDate,
-            readings: isNaN(parseFloat(item.readings))
-              ? item.readings
-              : parseFloat(item.readings),
-            number: key,
-          };
-        });
+        const formattedData = (response.data.data || [])
+          .map((item, key) => {
+            const rawDate = item.date;
+            const formattedDate =
+              typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(rawDate)
+                ? rawDate.slice(0, 10)
+                : new Date(rawDate).toISOString().split("T")[0];
+            const numericReading = parseFloat(item.readings);
+            return {
+              date: formattedDate,
+              readings: Number.isFinite(numericReading) ? numericReading : null,
+              note: Number.isFinite(numericReading) ? null : item.readings,
+              number: key,
+            };
+          })
+          // Interdialytic API returns status strings for first day / missing data.
+          // Recharts cannot plot those — keep numeric IDWG points only.
+          .filter((item) => Number.isFinite(item.readings));
 
         const sortedData = formattedData.sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
           return dateA - dateB;
         });
-
-        // console.log("formatted data", sortedData)
 
         setPatientData(sortedData);
         setOriginalData(sortedData);
