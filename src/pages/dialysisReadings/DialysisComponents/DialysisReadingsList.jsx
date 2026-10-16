@@ -96,9 +96,27 @@ function DialysisReadingsList() {
     fetchData();
   }, [refreshKey]);
 
+  const resolveAilmentIds = () =>
+    (Array.isArray(newReading.ailment) ? newReading.ailment : [])
+      .map((item) => (item && typeof item === "object" ? item.value ?? item.id : item))
+      .map((id) => String(id))
+      .filter(Boolean);
+
+  // Backend add looks up ailments by name; update expects ailment IDs.
+  const resolveAilmentsForApi = (forUpdate) => {
+    const ids = resolveAilmentIds();
+    if (forUpdate) {
+      return ids.map(Number).filter((id) => Number.isInteger(id) && id > 0);
+    }
+    return ids
+      .map((id) => ailments.find((a) => String(a.id) === String(id))?.name)
+      .filter(Boolean);
+  };
+
   function validateForm() {
     const errors = {};
     if (newReading.title.trim() === "") errors.title = true;
+    if (resolveAilmentIds().length === 0) errors.ailment = true;
     if (
       newReading.assign_range.trim() === "yes" &&
       (isNaN(newReading.lower_assign_range) ||
@@ -115,11 +133,23 @@ function DialysisReadingsList() {
     setSuccessful("");
     setErrMsg("");
     try {
+      if (!validateForm()) {
+        setErrMsg("Please fill all the fields!");
+        setSuccessful("");
+        return;
+      }
+
+      const ailmentsPayload = resolveAilmentsForApi(editMode);
+      if (ailmentsPayload.length === 0) {
+        setFieldErrors((prev) => ({ ...prev, ailment: true }));
+        setErrMsg("Please select at least one valid ailment");
+        return;
+      }
 
       const payload = {
         id: newReading.id,
         title: newReading.title,
-        ailments: newReading.ailment,
+        ailments: ailmentsPayload,
         type: newReading.type,
         assign_range: newReading.assign_range,
         low_range: newReading.lower_assign_range,
@@ -129,64 +159,60 @@ function DialysisReadingsList() {
         alertTextDoc: newReading.alertTextDoc,
         unit: newReading.unit,
         sendAlert: newReading.sendAlert,
-        condition: newReading.condition || 'stable',
+        condition: newReading.condition || "stable",
       };
-      if (validateForm()) {
-        console.log("submiting ailmetns", payload.ailments);
-        if (!editMode) {
-          const response = await mutate(() => addDialysisReading(payload));
-          if (response.success) {
-            let transaltiondict = {};
-            languages.forEach((lang) => {
-              if (lang.id !== 1) {
-                transaltiondict[lang.id] = "";
-              }
-            });
-            setTranslations(transaltiondict);
-            setErrMsg("");
-            setSuccessful("Reading Created Successful!");
-            showToast("Dialysis reading created successfully!", "success");
-            setIsFormModalOpen(false);
-            newReadingDsipatch({
-              type: "all",
-              payload: {},
-            });
-          } else {
-            setErrMsg("Error Creating Reading:" + response.data.data);
-            setSuccessful("");
-          }
+
+      if (!editMode) {
+        const response = await mutate(() => addDialysisReading(payload));
+        if (response.success) {
+          let transaltiondict = {};
+          languages.forEach((lang) => {
+            if (lang.id !== 1) {
+              transaltiondict[lang.id] = "";
+            }
+          });
+          setTranslations(transaltiondict);
+          setErrMsg("");
+          setSuccessful("Reading Created Successful!");
+          showToast("Dialysis reading created successfully!", "success");
+          setIsFormModalOpen(false);
+          newReadingDsipatch({
+            type: "all",
+            payload: {},
+          });
         } else {
-          const response = await mutate(() => updateDialysisReading(payload));
-          if (response.success) {
-            let transaltiondict = {};
-            languages.forEach((lang) => {
-              if (lang.id !== 1) {
-                transaltiondict[lang.id] = "";
-              }
-            });
-            setTranslations(transaltiondict);
-            setErrMsg("");
-            setEditMode(false);
-            setSuccessful("Reading Updated Successful!");
-            showToast("Dialysis reading updated successfully!", "success");
-            setIsFormModalOpen(false);
-            newReadingDsipatch({
-              type: "all",
-              payload: {},
-            });
-          } else {
-            setErrMsg("Error Updating Reading:" + response.data);
-            setSuccessful("");
-          }
+          setErrMsg("Error Creating Reading: " + (response.error || response.data || "Unknown error"));
+          setSuccessful("");
         }
       } else {
-        setErrMsg("Please fill all the fields!");
-        setSuccessful("");
+        const response = await mutate(() => updateDialysisReading(payload));
+        if (response.success) {
+          let transaltiondict = {};
+          languages.forEach((lang) => {
+            if (lang.id !== 1) {
+              transaltiondict[lang.id] = "";
+            }
+          });
+          setTranslations(transaltiondict);
+          setErrMsg("");
+          setEditMode(false);
+          setSuccessful("Reading Updated Successful!");
+          showToast("Dialysis reading updated successfully!", "success");
+          setIsFormModalOpen(false);
+          newReadingDsipatch({
+            type: "all",
+            payload: {},
+          });
+        } else {
+          setErrMsg("Error Updating Reading: " + (response.error || response.data || "Unknown error"));
+          setSuccessful("");
+        }
       }
     } catch (error) {
       console.error("Error in dialysis readings submit:", error);
-      const msg = error?.message || "An unexpected error occurred. Please try again.";
-      setErrMsg(msg.includes("Network") ? "Network error — please check your connection." : msg);
+      const msg = error?.response?.data || error?.message || "An unexpected error occurred. Please try again.";
+      const text = typeof msg === "string" ? msg : msg?.message || "Request failed";
+      setErrMsg(String(text).includes("Network") ? "Network error — please check your connection." : String(text));
     }
   }
 
@@ -227,6 +253,7 @@ function DialysisReadingsList() {
         errorMessage={errMsg}
         fieldErrors={fieldErrors}
         onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
+        bodyStyle={{ overflowY: "visible", overflowX: "visible" }}
       >
         {modelOpen && (
           <TranslationModal
@@ -240,15 +267,16 @@ function DialysisReadingsList() {
           />
         )}
 
-        <FormControl>
-          <FormLabel>Ailment</FormLabel>
+        <FormControl isRequired isInvalid={Boolean(fieldErrors.ailment)}>
+          <FormLabel>Ailment *</FormLabel>
           <MultiSelect
             value={newReading.ailment}
-            onChange={(ailments) => {
+            onChange={(ailmentIds) => {
               newReadingDsipatch({
                 type: "ailment",
-                payload: ailments,
+                payload: ailmentIds,
               });
+              setFieldErrors((prev) => ({ ...prev, ailment: false }));
             }}
           >
             {ailments.map((ailment, index) => {

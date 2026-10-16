@@ -103,9 +103,27 @@ function DailyForm() {
     }
   }, [ailments, editMode, newReading.ailment]);
 
+  const resolveAilmentIds = () =>
+    (Array.isArray(newReading.ailment) ? newReading.ailment : [])
+      .map((item) => (item && typeof item === "object" ? item.value ?? item.id : item))
+      .map((id) => String(id))
+      .filter(Boolean);
+
+  // Backend add looks up ailments by name; update expects ailment IDs.
+  const resolveAilmentsForApi = (forUpdate) => {
+    const ids = resolveAilmentIds();
+    if (forUpdate) {
+      return ids.map(Number).filter((id) => Number.isInteger(id) && id > 0);
+    }
+    return ids
+      .map((id) => ailments.find((a) => String(a.id) === String(id))?.name)
+      .filter(Boolean);
+  };
+
   function validateForm() {
     const errors = {};
     if (newReading.title.trim() === "") errors.title = true;
+    if (resolveAilmentIds().length === 0) errors.ailment = true;
     if (
       newReading.assign_range.trim() === "yes" &&
       (isNaN(newReading.lower_assign_range) ||
@@ -122,85 +140,86 @@ function DailyForm() {
     setSuccessful("");
     setErrMsg("");
     try {
-    const payload = {
+    if (!validateForm()) {
+      setErrMsg("Please fill all the fields!");
+      setSuccessful("");
+      return;
+    }
+
+    const ailmentsPayload = resolveAilmentsForApi(editMode);
+    if (ailmentsPayload.length === 0) {
+      setFieldErrors((prev) => ({ ...prev, ailment: true }));
+      setErrMsg("Please select at least one valid ailment");
+      return;
+    }
+
+    const finalTranslations = {
+      ...translations,
+      1: translations[1] || newReading.title,
+    };
+    const payloadWithTranslations = {
       id: newReading.id,
       title: newReading.title,
-      ailments: newReading.ailment,
+      ailments: ailmentsPayload,
       type: newReading.type,
       assign_range: newReading.assign_range,
       low_range: newReading.lower_assign_range,
       high_range: newReading.upper_assign_range,
       isGraph: Number(newReading.isGraph),
       unit: newReading.unit,
-      readingsTranslations: translations,
+      readingsTranslations: finalTranslations,
       alertTextDoc: newReading.alertTextDoc,
       sendAlert: newReading.sendAlert,
-      condition: newReading.condition || 'stable',
+      condition: newReading.condition || "stable",
     };
 
-    // console.log(payload)
-    if (validateForm()) {
-      const finalTranslations = {
-        ...translations,
-        1: translations[1] || newReading.title,
-      };
-      const payloadWithTranslations = {
-        ...payload,
-        readingsTranslations: finalTranslations,
-      };
-
-      if (!editMode) {
-        console.log("Payload:", payloadWithTranslations);
-        const response = await mutate(() => addDailyReading(payloadWithTranslations));
-        if (response.success) {
-          let transaltiondict = {};
-          languages.forEach((lang) => {
-            transaltiondict[lang.id] = "";
-          });
-          setTranslations(transaltiondict);
-          setErrMsg("");
-          setSuccessful("Reading Created Successful!");
-          showToast("Daily reading created successfully!", "success");
-          setIsFormModalOpen(false);
-          newReadingDsipatch({
-            type: "all",
-            payload: {},
-          });
-        } else {
-          setErrMsg("Error Creating Reading:" + response.data.data);
-          setSuccessful("");
-        }
+    if (!editMode) {
+      const response = await mutate(() => addDailyReading(payloadWithTranslations));
+      if (response.success) {
+        let transaltiondict = {};
+        languages.forEach((lang) => {
+          transaltiondict[lang.id] = "";
+        });
+        setTranslations(transaltiondict);
+        setErrMsg("");
+        setSuccessful("Reading Created Successful!");
+        showToast("Daily reading created successfully!", "success");
+        setIsFormModalOpen(false);
+        newReadingDsipatch({
+          type: "all",
+          payload: {},
+        });
       } else {
-        console.log("Payload:", payloadWithTranslations);
-        const response = await mutate(() => updateDailyReading(payloadWithTranslations));
-        if (response.success) {
-          let transaltiondict = {};
-          languages.forEach((lang) => {
-            transaltiondict[lang.id] = "";
-          });
-          setTranslations(transaltiondict);
-          setErrMsg("");
-          setEditMode(false);
-          setSuccessful("Reading Updated Successful!");
-          showToast("Daily reading updated successfully!", "success");
-          setIsFormModalOpen(false);
-          newReadingDsipatch({
-            type: "all",
-            payload: {},
-          });
-        } else {
-          setErrMsg("Error Updating Reading:" + response.data);
-          setSuccessful("");
-        }
+        setErrMsg("Error Creating Reading: " + (response.error || response.data || "Unknown error"));
+        setSuccessful("");
       }
     } else {
-      setErrMsg("Please fill all the fields!");
-      setSuccessful("");
+      const response = await mutate(() => updateDailyReading(payloadWithTranslations));
+      if (response.success) {
+        let transaltiondict = {};
+        languages.forEach((lang) => {
+          transaltiondict[lang.id] = "";
+        });
+        setTranslations(transaltiondict);
+        setErrMsg("");
+        setEditMode(false);
+        setSuccessful("Reading Updated Successful!");
+        showToast("Daily reading updated successfully!", "success");
+        setIsFormModalOpen(false);
+        newReadingDsipatch({
+          type: "all",
+          payload: {},
+        });
+      } else {
+        setErrMsg("Error Updating Reading: " + (response.error || response.data || "Unknown error"));
+        setSuccessful("");
+      }
     }
     } catch (error) {
       console.error("Error in daily readings submit:", error);
-      const msg = error?.message || "An unexpected error occurred. Please try again.";
-      setErrMsg(msg.includes("Network") ? "Network error — please check your connection." : msg);
+      const msg = error?.response?.data || error?.message || "An unexpected error occurred. Please try again.";
+      const text = typeof msg === "string" ? msg : msg?.message || "Request failed";
+      setErrMsg(String(text).includes("Network") ? "Network error — please check your connection." : String(text));
     }
   }
 
@@ -241,6 +260,7 @@ function DailyForm() {
         errorMessage={errMsg}
         fieldErrors={fieldErrors}
         onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
+        bodyStyle={{ overflowY: "visible", overflowX: "visible" }}
       >
         {modelOpen && (
           <TranslationModal
@@ -255,8 +275,8 @@ function DailyForm() {
           />
         )}
 
-        <FormControl>
-          <FormLabel>Ailment</FormLabel>
+        <FormControl isRequired isInvalid={Boolean(fieldErrors.ailment)}>
+          <FormLabel>Ailment *</FormLabel>
           <MultiSelect
             value={newReading.ailment}
             onChange={(ailmentIds) => {
@@ -264,6 +284,7 @@ function DailyForm() {
                 type: "ailment",
                 payload: ailmentIds,
               });
+              setFieldErrors((prev) => ({ ...prev, ailment: false }));
             }}
           >
             {ailments.map((ailment) => (

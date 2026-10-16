@@ -91,9 +91,18 @@ export default function DialysisTableComponent({
   const handleDelete = (item) => {
     if (window.confirm(`Delete reading "${item.title}"?`)) {
       setSuccessful("");
-      deleteDialysisReading(item.id).then(() => {
+      deleteDialysisReading(item.id).then((response) => {
+        if (response?.success === false) {
+          showToast(response.error || "Failed to delete dialysis reading", "error");
+          setSuccessful("refresh-after-delete-error");
+          return;
+        }
         setSuccessful("Reading Deleted Successful!");
         showToast("Dialysis reading deleted successfully!", "success");
+      }).catch((error) => {
+        console.error("Delete dialysis reading failed:", error);
+        showToast("Failed to delete dialysis reading", "error");
+        setSuccessful("refresh-after-delete-error");
       });
     }
   };

@@ -96,9 +96,18 @@ export default function DailyTable({
   const handleDelete = (item) => {
     if (window.confirm(`Delete reading "${item.title}"?`)) {
       setSuccessful("");
-      deleteDailyReading(item.id).then(() => {
+      deleteDailyReading(item.id).then((response) => {
+        if (response?.success === false) {
+          showToast(response.error || "Failed to delete daily reading", "error");
+          setSuccessful("refresh-after-delete-error");
+          return;
+        }
         setSuccessful("Reading Deleted Successful!");
         showToast("Daily reading deleted successfully!", "success");
+      }).catch((error) => {
+        console.error("Delete daily reading failed:", error);
+        showToast("Failed to delete daily reading", "error");
+        setSuccessful("refresh-after-delete-error");
       });
     }
   };
