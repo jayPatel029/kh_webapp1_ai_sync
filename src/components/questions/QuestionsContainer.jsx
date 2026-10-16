@@ -1,6 +1,6 @@
 /**
  * Questions Container Component
- * Definition-list layout: question left, answer right
+ * Displays questions and responses with edit functionality
  *
  * @file src/components/questions/QuestionsContainer.jsx
  */
@@ -54,10 +54,10 @@ function QuestionsContainer({ aliment, user_id }) {
 
   if (loading) {
     return (
-      <Flex align="center" className="py-3">
+      <Flex align="center" justify="center" className="py-6">
         <Spinner size="sm" />
-        <Text size="sm" className="ml-2 text-slate-500">
-          Loading…
+        <Text size="sm" className="ml-2 text-accent">
+          Loading questions…
         </Text>
       </Flex>
     );
@@ -65,9 +65,11 @@ function QuestionsContainer({ aliment, user_id }) {
 
   if (!questions.length) {
     return (
-      <Text size="sm" className="text-slate-400 italic py-1">
-        No answers yet
-      </Text>
+      <Box className="rounded-lg border border-dashed border-gray-200 bg-slate-50/80 px-4 py-3">
+        <Text size="sm" className="text-slate-500">
+          No answers recorded for this section yet.
+        </Text>
+      </Box>
     );
   }
 
@@ -75,51 +77,50 @@ function QuestionsContainer({ aliment, user_id }) {
 
   return (
     <Box className="questions-container">
-      <Box className="divide-y divide-gray-100">
+      <Box className="rounded-xl border border-gray-200 overflow-hidden bg-white divide-y divide-gray-100">
         {questions.map((question, index) => {
           const answer = String(question.response ?? "").trim();
           const hasAnswer = answer !== "" && answer !== "-";
 
           return (
-            <div
+            <Flex
               key={question.id ?? index}
-              className={`d-flex items-start gap-3 py-3 first:pt-1 last:pb-1 ${
-                canEdit ? "cursor-pointer group" : ""
-              }`}
-              style={{ flexDirection: "row" }}
+              align="start"
+              justify="between"
+              gap={3}
+              className={`px-4 py-3.5 ${canEdit ? "hover:bg-slate-50/90 cursor-pointer" : ""} transition-colors`}
               onClick={() => canEdit && openModal(question)}
             >
-              <Text
-                size="sm"
-                className="text-slate-500 leading-snug"
-                style={{ width: "42%", flexShrink: 0 }}
-              >
-                {question.name}
-              </Text>
-
-              <div
-                className="d-flex items-start justify-between gap-2"
-                style={{ flex: 1, minWidth: 0 }}
-              >
+              <Box className="min-w-0 flex-1 space-y-1">
+                <Text
+                  size="xs"
+                  weight="semibold"
+                  className="text-accent uppercase tracking-wide"
+                >
+                  {question.name}
+                </Text>
                 <Text
                   size="sm"
-                  weight="semibold"
+                  weight={hasAnswer ? "semibold" : "regular"}
                   className={
                     hasAnswer
-                      ? "text-slate-900 leading-snug whitespace-pre-wrap break-words"
-                      : "text-slate-400 italic leading-snug"
+                      ? "text-slate-800 whitespace-pre-wrap break-words"
+                      : "text-slate-400 italic"
                   }
                 >
                   {hasAnswer ? answer : "Not answered"}
                 </Text>
-                {canEdit && (
-                  <BorderColorIcon
-                    className="text-primary opacity-40 group-hover:opacity-100"
-                    style={{ fontSize: 15, flexShrink: 0, marginTop: 2 }}
-                  />
-                )}
-              </div>
-            </div>
+              </Box>
+
+              {canEdit && (
+                <Box
+                  className="flex-shrink-0 mt-0.5 rounded-md p-1.5 text-primary hover:bg-primary/10"
+                  aria-label={`Edit ${question.name}`}
+                >
+                  <BorderColorIcon style={{ fontSize: 16 }} />
+                </Box>
+              )}
+            </Flex>
           );
         })}
       </Box>
