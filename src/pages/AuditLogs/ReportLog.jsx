@@ -6,17 +6,10 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 // Component Library
-import {
-  Box,
-  Flex,
-  Container,
-} from "../../component-library";
-import { Button } from "../../component-library/primitives/Button";
-import { Card, CardBody } from "../../component-library/primitives/Card";
+import { Box, Flex } from "../../component-library";
 
 // Components
 import PageHeader from "../../components/PageHeader";
@@ -27,6 +20,7 @@ import ThemeProvider from "../../components/ThemeProvider";
 // APIs and Helpers
 import { getDoctorReportLogs } from "../../ApiCalls/doctorApis";
 import { usePageCache, PAGE_CACHE } from "../../cache";
+import CsvDateRangeDownload from "./CsvDateRangeDownload";
 
 // Design System
 import "../../design-system/styles/index.css";
@@ -36,7 +30,6 @@ const ReportLogPage = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const role = useSelector((state) => state.permission);
   const { fetchWithCache, refreshKey } = usePageCache(PAGE_CACHE.AUDIT_LOGS);
 
   // Fetch logs from the backend
@@ -59,36 +52,6 @@ const ReportLogPage = () => {
   useEffect(() => {
     fetchLogs();
   }, [refreshKey]);
-
-  // Convert logs to CSV format
-  const convertToCSV = (data) => {
-    if (!data.length) return "";
-
-    const headers = Object.keys(data[0]).join(",");
-    const rows = data
-      .map((log) =>
-        Object.values(log)
-          .map((value) =>
-            typeof value === "string" ? `"${value.replace(/"/g, '""')}"` : value
-          )
-          .join(",")
-      )
-      .join("\n");
-
-    return `${headers}\n${rows}`;
-  };
-
-  // Trigger CSV download
-  const downloadCSV = () => {
-    const csvData = convertToCSV(logs);
-    const blob = new Blob([csvData], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "report_logs.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <ThemeProvider>
@@ -114,17 +77,16 @@ const ReportLogPage = () => {
           <Box className="flex-1 bg-[#fafafa]">
               <Box className="bg-white rounded-[15px] shadow-md p-4 md:p-8">
                 {/* Header Section */}
-                <Flex justify="between" align="center" className="pb-4 border-b border-gray-200 mb-6">
+                <Flex justify="between" align="start" gap={4} wrap="wrap" className="pb-4 border-b border-gray-200 mb-6">
                   <Box>
                     <h2 className="text-[18px] font-bold text-[#393939]">Report Logs</h2>
                     <p className="text-[14px] text-[#989898] mt-1">Track changes made to lab reports and prescriptions</p>
                   </Box>
-                  <Button
-                    onClick={downloadCSV}
-                    disabled={!logs.length}
-                  >
-                    Download CSV
-                  </Button>
+                  <CsvDateRangeDownload
+                    logs={logs}
+                    filename="report_logs.csv"
+                    disabled={loading || !!error}
+                  />
                 </Flex>
 
                 {/* Loading State */}
