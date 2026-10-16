@@ -228,10 +228,6 @@ export const ParameterDetailView = ({
             {graphNode}
           </div>
         </section>
-
-        <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Admins can edit chart ranges and enter readings directly from the graph controls.
-        </div>
       </div>
     );
   }

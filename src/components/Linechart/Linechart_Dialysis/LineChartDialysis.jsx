@@ -1111,7 +1111,7 @@ const LineChartDialysis = ({
             />
           )}
 
-          {/* {role?.canEditPatients && (
+          {role?.canEditPatients && (
             <Button
               variant="outline"
               size="md"
@@ -1123,7 +1123,17 @@ const LineChartDialysis = ({
             >
               Enter reading
             </Button>
-          )} */}
+          )}
+          {showModalEnterReadings && (
+            <EnterReadingsModelDialysis
+              closeModal={closeModalEnterReadings}
+              title={title}
+              question_id={questionId}
+              user_id={user_id}
+              onSuccess={handleEnterReadingsSuccess}
+              isUpdate={isUpdate}
+            />
+          )}
         </Flex>
       </Flex>
       {numberOfAbnormalReadings > 0 && (
