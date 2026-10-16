@@ -1,7 +1,7 @@
 /**
  * Questions Container Component
  * Displays questions and responses with edit functionality
- * 
+ *
  * @file src/components/questions/QuestionsContainer.jsx
  */
 
@@ -11,31 +11,32 @@ import BorderColorIcon from "@mui/icons-material/BorderColor";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import DynamicModal from "../modals/DynamicModal";
-import { Box, Flex, Text, Button, Spinner } from "../../component-library";
-import '../../design-system/styles/index.css';
+import { Box, Flex, Text, Spinner } from "../../component-library";
+import "../../design-system/styles/index.css";
 
 function QuestionsContainer({ aliment, user_id }) {
   const [questions, setQuestions] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState({});
-  const role = useSelector(state => state.permission);
+  const role = useSelector((state) => state.permission);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchQuestions(aliment, user_id);
-  }, [aliment]);
+  }, [aliment, user_id]);
 
-  const fetchQuestions = async (aliment, user_id) => {
+  const fetchQuestions = async (alimentName, patientId) => {
     setLoading(true);
     await axiosInstance
       .get(
-        `${server_url}/questions/generalParameter/fetchResponse/?ailment=${aliment}&user_id=${user_id}`
+        `${server_url}/questions/generalParameter/fetchResponse/?ailment=${alimentName}&user_id=${patientId}`
       )
       .then((response) => {
-        setQuestions(response.data.data);
+        setQuestions(response.data.data || []);
       })
       .catch((error) => {
         console.error("Error fetching data:", error);
+        setQuestions([]);
       })
       .finally(() => {
         setLoading(false);
@@ -53,57 +54,76 @@ function QuestionsContainer({ aliment, user_id }) {
 
   if (loading) {
     return (
-      <Flex align="center" justify="center" className="py-8">
-        <Spinner size="md" />
-        <Text className="ml-3 text-muted">Loading...</Text>
+      <Flex align="center" justify="center" className="py-6">
+        <Spinner size="sm" />
+        <Text size="sm" className="ml-2 text-accent">
+          Loading questions…
+        </Text>
       </Flex>
     );
   }
 
+  if (!questions.length) {
+    return (
+      <Box className="rounded-lg border border-dashed border-gray-200 bg-slate-50/80 px-4 py-3">
+        <Text size="sm" className="text-slate-500">
+          No answers recorded for this section yet.
+        </Text>
+      </Box>
+    );
+  }
+
+  const canEdit = Boolean(role?.canEditPatients);
+
   return (
-    <Box className="questions-container flex flex-col gap-5">
-      {questions.map((question, index) => (
-        <Flex
-          key={index}
-          direction="column"
-          gap={2}
-          className="w-full"
-        >
-          {/* Question Label */}
-          <Flex
-            className="items-center gap-2"
-            onClick={() => role?.canEditPatients && openModal(question)}
-            style={{ cursor: role?.canEditPatients ? 'pointer' : 'default' }}
-          >
-            <Text
-              size="sm"
-              weight="bold"
-              className="text-slate-400 uppercase"
-            >
-              {question.name}
-            </Text>
-            {role?.canEditPatients && (
-              <BorderColorIcon className="text-primary" style={{ fontSize: 16 }} />
-            )}
-          </Flex>
+    <Box className="questions-container">
+      <Box className="rounded-xl border border-gray-200 overflow-hidden bg-white divide-y divide-gray-100">
+        {questions.map((question, index) => {
+          const answer = String(question.response ?? "").trim();
+          const hasAnswer = answer !== "" && answer !== "-";
 
-          {/* Answer */}
-          <Box className="pl-2">
-            <Text
-              size="sm"
-              className="text-black whitespace-pre-wrap"
+          return (
+            <Flex
+              key={question.id ?? index}
+              align="start"
+              justify="between"
+              gap={3}
+              className={`px-4 py-3.5 ${canEdit ? "hover:bg-slate-50/90 cursor-pointer" : ""} transition-colors`}
+              onClick={() => canEdit && openModal(question)}
             >
-              {question.response || '-'}
-            </Text>
-          </Box>
-        </Flex>
-      ))}
+              <Box className="min-w-0 flex-1 space-y-1">
+                <Text
+                  size="xs"
+                  weight="semibold"
+                  className="text-accent uppercase tracking-wide"
+                >
+                  {question.name}
+                </Text>
+                <Text
+                  size="sm"
+                  weight={hasAnswer ? "semibold" : "regular"}
+                  className={
+                    hasAnswer
+                      ? "text-slate-800 whitespace-pre-wrap break-words"
+                      : "text-slate-400 italic"
+                  }
+                >
+                  {hasAnswer ? answer : "Not answered"}
+                </Text>
+              </Box>
 
-      {questions.length === 0 && (
-        <Box className="py-4">
-          <Text className="text-muted">No questions available.</Text>
-        </Box>
-      )}
+              {canEdit && (
+                <Box
+                  className="flex-shrink-0 mt-0.5 rounded-md p-1.5 text-primary hover:bg-primary/10"
+                  aria-label={`Edit ${question.name}`}
+                >
+                  <BorderColorIcon style={{ fontSize: 16 }} />
+                </Box>
+              )}
+            </Flex>
+          );
+        })}
+      </Box>
 
       {showModal && selectedQuestion && (
         <DynamicModal
