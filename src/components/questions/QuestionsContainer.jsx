@@ -54,7 +54,7 @@ function QuestionsContainer({ aliment, user_id }) {
 
   if (loading) {
     return (
-      <Flex align="center" className="py-3">
+      <Flex align="center" className="py-2">
         <Spinner size="sm" />
         <Text size="sm" className="ml-2 text-slate-500">
           Loading…
@@ -65,7 +65,7 @@ function QuestionsContainer({ aliment, user_id }) {
 
   if (!questions.length) {
     return (
-      <Text size="sm" className="text-slate-400 italic pl-0.5">
+      <Text size="sm" className="text-slate-400">
         No answers yet
       </Text>
     );
@@ -74,7 +74,7 @@ function QuestionsContainer({ aliment, user_id }) {
   const canEdit = Boolean(role?.canEditPatients);
 
   return (
-    <Box className="questions-container space-y-3">
+    <Box className="questions-container space-y-2.5">
       {questions.map((question, index) => {
         const answer = String(question.response ?? "").trim();
         const hasAnswer = answer !== "" && answer !== "-";
@@ -83,34 +83,36 @@ function QuestionsContainer({ aliment, user_id }) {
           <Flex
             key={question.id ?? index}
             align="start"
-            justify="between"
             gap={3}
-            className={`group ${canEdit ? "cursor-pointer" : ""}`}
+            className={`pl-3 border-l-2 border-primary/25 ${
+              canEdit ? "cursor-pointer hover:border-primary" : ""
+            } transition-colors`}
             onClick={() => canEdit && openModal(question)}
           >
             <Box className="min-w-0 flex-1">
-              <Text size="sm" className="text-slate-500">
-                {question.name}
-              </Text>
+              <Flex align="center" gap={2} className="mb-0.5">
+                <Text size="sm" className="text-slate-500 leading-snug">
+                  {question.name}
+                </Text>
+                {canEdit && (
+                  <BorderColorIcon
+                    className="text-primary opacity-40 hover:opacity-100 flex-shrink-0"
+                    style={{ fontSize: 14 }}
+                  />
+                )}
+              </Flex>
               <Text
                 size="sm"
-                weight="semibold"
+                weight="bold"
                 className={
                   hasAnswer
-                    ? "text-slate-800 mt-0.5 whitespace-pre-wrap break-words"
-                    : "text-slate-400 italic mt-0.5"
+                    ? "text-slate-900 leading-snug whitespace-pre-wrap break-words"
+                    : "text-slate-400 italic leading-snug"
                 }
               >
                 {hasAnswer ? answer : "Not answered"}
               </Text>
             </Box>
-
-            {canEdit && (
-              <BorderColorIcon
-                className="text-primary opacity-50 group-hover:opacity-100 flex-shrink-0 mt-0.5"
-                style={{ fontSize: 15 }}
-              />
-            )}
           </Flex>
         );
       })}
