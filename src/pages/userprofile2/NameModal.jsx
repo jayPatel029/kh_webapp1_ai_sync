@@ -73,8 +73,9 @@ const NameModal = ({
 
 
   const handleUpdate = async () => {
+    // Only send fields this endpoint updates — do not spread full patient object
+    // (extra keys like registered_date/ailments caused false audit log rows).
     const updatedUserData = {
-      ...initialData,
       id: user_id,
       name: name,
       number: number,
@@ -82,6 +83,7 @@ const NameModal = ({
       address: address,
       state: patientState,
       pincode: pincode,
+      changeBy: localStorage.getItem("email"),
     };
 
     // prepare selected ids and names
