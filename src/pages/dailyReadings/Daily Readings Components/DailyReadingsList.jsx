@@ -413,7 +413,7 @@ function DailyForm() {
             </FormControl>
         )}
         {["Int", "Decimal"].includes(newReading.type) &&
-          newReading.assign_range === "yes" ? (
+          newReading.assign_range === "yes" && (
           <>
             <FormControl>
               <FormLabel>Lower Range</FormLabel>
@@ -444,25 +444,26 @@ function DailyForm() {
                 }}
               />
             </FormControl>
-
-            <FormControl>
-              <FormLabel>Is Graph</FormLabel>
-              <Select
-                value={newReading.isGraph}
-                onChange={(event) => {
-                  // store numeric 0/1 for isGraph
-                  newReadingDsipatch({
-                    type: "isGraph",
-                    payload: Number(event.target.value),
-                  });
-                }}
-              >
-                <option value="0">No</option>
-                <option value="1">Yes</option>
-              </Select>
-            </FormControl>
           </>
-        ) : null}
+        )}
+
+        {["Int", "Decimal"].includes(newReading.type) && (
+          <FormControl>
+            <FormLabel>Is Graph</FormLabel>
+            <Select
+              value={String(newReading.isGraph ?? 0)}
+              onChange={(event) => {
+                newReadingDsipatch({
+                  type: "isGraph",
+                  payload: Number(event.target.value),
+                });
+              }}
+            >
+              <option value="0">No</option>
+              <option value="1">Yes</option>
+            </Select>
+          </FormControl>
+        )}
 
         <FormControl>
           <FormLabel>Condition</FormLabel>
