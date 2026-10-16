@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getPatients } from "../../ApiCalls/patientAPis";
+import { getPatients, getKfreDetails } from "../../ApiCalls/patientAPis";
 import { getLabreportGetLabReportsByid } from "../../ApiCalls/remainingApis";
 import CSVReader from "../../components/csvlab/CSVLab";
 import PdfDataExtractor from "../../components/pdfExtractor/PdfDataExtractor";
@@ -47,6 +47,8 @@ function KfreList() {
   const [success, setSuccess] = useState(false);
   const [reportimage, setReportimage] = useState("");
   const [kfre, setKfre] = useState();
+  const [lab_id, setLab_id] = useState(null);
+  const [saveError, setSaveError] = useState("");
 
   const id = useParams();
   const { isMobile } = useIsMobile();
@@ -113,6 +115,10 @@ function KfreList() {
     updatedData[index].gender = selectedOption.gender;
     console.log("updatedData", updatedData);
     setPatientData(updatedData);
+    setLab_id(null);
+    setViewPrescription(false);
+    setReportimage("");
+    setSaveError("");
 
     // Fetch lab report data for the selected patient
     try {
@@ -126,21 +132,35 @@ function KfreList() {
     }
   };
 
-  const calculate = () => {
-    // const result = 1 - Math.pow(0.929, Math.exp(
-    //   -0.49360 * ((30 / 5) - 7.22) +
-    //   0.16117 * (1 - 0.56) +
-    //   0.35066 * (Math.log(50) - 5.2775) -
-    //   0.19883 * ((50 / 10) - 7.04) -
-    //   0.33867 * (4 - 3.99) +
-    //   0.24197 * (3.8 - 3.93) -
-    //   0.07429 * (26 - 25.54) -
-    //   0.22129 * (9.8 - 9.35)
-    // ));
+  // Matches main KfreSingleList uploadData: persist to kfre_details + patients.kfre
+  const uploadData = async (result, data) => {
+    const response = await getKfreDetails({
+      patient_id: data.selectedPatient.value,
+      eGFR: data.Gfr,
+      Phosphorous: data.phosphorous,
+      Bicarbonate: data.bicarbonate,
+      Albumin: data.albumin,
+      Calcium: data.calcium,
+      Albumin_to_Creatinine_Ratio: data.acr,
+      lab_id: lab_id > 0 ? lab_id : null,
+      kfre: result,
+    });
 
-    // console.log("KFRE:",result)
+    if (response.success) {
+      console.log("KFRE details successfully updated");
+      return true;
+    }
 
-    patientData.forEach((data) => {
+    console.error("Error updating KFRE details", response.data);
+    return false;
+  };
+
+  const calculate = async () => {
+    setSaveError("");
+    let lastResult = null;
+    let saveFailed = false;
+
+    for (const data of patientData) {
       if (
         data.selectedPatient &&
         data.Gfr &&
@@ -157,7 +177,7 @@ function KfreList() {
         const bicarbonate = parseFloat(data.bicarbonate);
         const albumin = parseFloat(data.albumin);
         const age = data.selectedPatient.age;
-        const male = data.gender === "Male" ? 1 : 0;
+        const male = (data.gender || data.selectedPatient.gender) === "Male" ? 1 : 0;
         const result =
           1 -
           Math.pow(
@@ -173,12 +193,26 @@ function KfreList() {
               0.22129 * (calcium - 9.35)
             )
           );
+        lastResult = result;
         setKfre(result);
-        // console.log(`Patient ID: ${data.selectedPatient.label}, KFRE Result: ${result}`);
+
+        try {
+          const saved = await uploadData(result, data);
+          if (!saved) saveFailed = true;
+        } catch (error) {
+          console.error("Error while submitting KFRE details to backend:", error);
+          saveFailed = true;
+        }
       } else {
         console.error("All fields are required for calculation.");
       }
-    });
+    }
+
+    if (lastResult == null) {
+      setSaveError("All fields are required for calculation.");
+    } else if (saveFailed) {
+      setSaveError("KFRE calculated but failed to save to patient profile.");
+    }
   };
 
   const formatCSVData = (csvData, patientOptions) => {
@@ -198,13 +232,19 @@ function KfreList() {
       console.log(item.patientId, patientOptions[0].value);
 
       return {
-        selectedPatient: { value: item.patientId, label: patientName },
+        selectedPatient: {
+          value: item.patientId,
+          label: patientName,
+          age: patient?.age,
+          gender: patient?.gender,
+        },
         Gfr: item.gfr,
         calcium: item.calcium,
         acr: item.acr,
         phosphorous: item.phosphorous,
         bicarbonate: item.bicarbonate,
         albumin: item.albumin,
+        gender: patient?.gender || "",
       };
     });
 
@@ -417,7 +457,12 @@ function KfreList() {
                     const selected = labReportData[e.target.value];
                     if (selected) {
                       setViewPrescription(true);
+                      setLab_id(selected.id);
                       setReportimage(selected.Lab_Report);
+                    } else {
+                      setViewPrescription(false);
+                      setLab_id(null);
+                      setReportimage("");
                     }
                   }}
                 // className="border-accent"
@@ -555,6 +600,14 @@ function KfreList() {
               </Box>
             )
           }
+
+          {saveError && (
+            <Box className={`${isMobile ? "px-4" : ""} mt-3`}>
+              <Text size="sm" className="text-red-600">
+                {saveError}
+              </Text>
+            </Box>
+          )}
 
           {/* PDF Extractor (Desktop only) */}
           {/* {!isMobile && (
