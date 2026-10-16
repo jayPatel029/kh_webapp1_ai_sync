@@ -16,7 +16,6 @@ import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import { useSelector } from "react-redux";
 import { getAlertColor } from "./utils";
-import EditIcon from "@mui/icons-material/Edit";
 import { DateRangePicker } from "react-date-range";
 import {
   GraphShell,
