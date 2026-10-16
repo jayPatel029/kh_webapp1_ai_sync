@@ -1,6 +1,6 @@
 /**
  * Questions Container Component
- * Displays questions and responses with edit functionality
+ * Definition-list layout: question left, answer right (stacks on mobile)
  *
  * @file src/components/questions/QuestionsContainer.jsx
  */
@@ -65,7 +65,7 @@ function QuestionsContainer({ aliment, user_id }) {
 
   if (!questions.length) {
     return (
-      <Text size="sm" className="text-slate-400 italic pl-0.5">
+      <Text size="sm" className="text-slate-400 italic py-1">
         No answers yet
       </Text>
     );
@@ -74,46 +74,57 @@ function QuestionsContainer({ aliment, user_id }) {
   const canEdit = Boolean(role?.canEditPatients);
 
   return (
-    <Box className="questions-container space-y-3">
-      {questions.map((question, index) => {
-        const answer = String(question.response ?? "").trim();
-        const hasAnswer = answer !== "" && answer !== "-";
+    <Box className="questions-container">
+      <Box className="divide-y divide-gray-100">
+        {questions.map((question, index) => {
+          const answer = String(question.response ?? "").trim();
+          const hasAnswer = answer !== "" && answer !== "-";
 
-        return (
-          <Flex
-            key={question.id ?? index}
-            align="start"
-            justify="between"
-            gap={3}
-            className={`group ${canEdit ? "cursor-pointer" : ""}`}
-            onClick={() => canEdit && openModal(question)}
-          >
-            <Box className="min-w-0 flex-1">
-              <Text size="sm" className="text-slate-500">
-                {question.name}
-              </Text>
+          return (
+            <Flex
+              key={question.id ?? index}
+              align="start"
+              gap={3}
+              className={`py-3 first:pt-1 last:pb-1 flex-col sm:flex-row sm:items-start ${
+                canEdit ? "cursor-pointer group" : ""
+              }`}
+              onClick={() => canEdit && openModal(question)}
+            >
               <Text
                 size="sm"
-                weight="semibold"
-                className={
-                  hasAnswer
-                    ? "text-slate-800 mt-0.5 whitespace-pre-wrap break-words"
-                    : "text-slate-400 italic mt-0.5"
-                }
+                className="text-slate-500 sm:w-[42%] sm:flex-shrink-0 leading-snug"
               >
-                {hasAnswer ? answer : "Not answered"}
+                {question.name}
               </Text>
-            </Box>
 
-            {canEdit && (
-              <BorderColorIcon
-                className="text-primary opacity-50 group-hover:opacity-100 flex-shrink-0 mt-0.5"
-                style={{ fontSize: 15 }}
-              />
-            )}
-          </Flex>
-        );
-      })}
+              <Flex
+                align="start"
+                justify="between"
+                gap={2}
+                className="min-w-0 w-full sm:flex-1"
+              >
+                <Text
+                  size="sm"
+                  weight="semibold"
+                  className={
+                    hasAnswer
+                      ? "text-slate-900 leading-snug whitespace-pre-wrap break-words"
+                      : "text-slate-400 italic leading-snug"
+                  }
+                >
+                  {hasAnswer ? answer : "Not answered"}
+                </Text>
+                {canEdit && (
+                  <BorderColorIcon
+                    className="text-primary opacity-40 group-hover:opacity-100 flex-shrink-0 mt-0.5"
+                    style={{ fontSize: 15 }}
+                  />
+                )}
+              </Flex>
+            </Flex>
+          );
+        })}
+      </Box>
 
       {showModal && selectedQuestion && (
         <DynamicModal

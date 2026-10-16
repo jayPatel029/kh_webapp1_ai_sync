@@ -286,14 +286,14 @@ export const PatientProfileCard = ({
                   {isFetchingProfile && !hasPatientAilments ? (
                     <Text size="sm" className="text-slate-500">Loading profile details…</Text>
                   ) : (
-                    <Box className="space-y-6 max-h-[520px] overflow-y-auto pr-1">
+                    <Box className="space-y-7 max-h-[520px] overflow-y-auto pr-1">
                       {ailmentSections.map((ailment, idx) => (
                         <Box key={`${ailment}-${idx}`}>
                           <Heading
                             as="h5"
                             size="sm"
                             weight="bold"
-                            className="text-[#32617d] mb-3 pb-1.5 border-b border-gray-100"
+                            className="text-[#32617d] mb-1"
                           >
                             {ailment}
                           </Heading>
