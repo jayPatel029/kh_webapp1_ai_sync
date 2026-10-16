@@ -221,10 +221,10 @@ export const ParameterDetailView = ({
     return (
       <div className="space-y-5">
         <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="border-b border-gray-100 px-4 py-3 bg-slate-50">
-            <h3 className="text-sm font-semibold text-[#32617d]">Graph</h3>
+          <div className="border-b border-gray-100 px-4 py-3 bg-slate-50/90">
+            <h3 className="text-sm font-semibold text-accent tracking-wide uppercase">Graph</h3>
           </div>
-          <div className="p-4">
+          <div className="p-3 sm:p-4">
             {graphNode}
           </div>
         </section>
@@ -255,10 +255,10 @@ export const ParameterDetailView = ({
   return (
     <div className="space-y-5">
       <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-gray-100 px-4 py-3 bg-slate-50">
-          <h3 className="text-sm font-semibold text-[#32617d]">Readings</h3>
+        <div className="border-b border-gray-100 px-4 py-3 bg-slate-50/90">
+          <h3 className="text-sm font-semibold text-accent tracking-wide uppercase">Readings</h3>
         </div>
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           {tableNode}
         </div>
       </section>

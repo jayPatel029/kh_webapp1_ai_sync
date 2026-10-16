@@ -16,6 +16,13 @@ import UpdateRangeModel from "./UpdateRangeModel";
 import axiosInstance from "../../helpers/axios/axiosInstance";
 import { server_url } from "../../constants/constants";
 import { useSelector } from "react-redux";
+import {
+  GraphShell,
+  GraphToolbarGroup,
+  GraphActionButton,
+  GraphPeriodSelect,
+  GraphChartFrame,
+} from "../Linechart/GraphChrome";
 
 const LineChartComponent = ({
   aspect,
@@ -1555,103 +1562,91 @@ const LineChartComponent = ({
   };
 
   return (
-    <div className="line">
-      <div className="flex flex-row justify-evenly">
-        {role?.canEditPatients && (
-          <button
-            className="block rounded-lg text-primary border-2 border-primary w-40 py-2"
-            onClick={() => openModalEnterReadings()}
+    <GraphShell
+      toolbar={
+        <>
+          <GraphToolbarGroup>
+            <GraphPeriodSelect
+              value={selectedTimeRange}
+              onChange={(e) => setSelectedTimeRange(e.target.value)}
+            />
+          </GraphToolbarGroup>
+          <GraphToolbarGroup>
+            {role?.canEditPatients && (
+              <GraphActionButton onClick={() => openModalEnterReadings()}>
+                Enter Readings
+              </GraphActionButton>
+            )}
+            {userRole == "Admin" && (
+              <GraphActionButton onClick={() => openModalUpdateRange()}>
+                Update Range
+              </GraphActionButton>
+            )}
+          </GraphToolbarGroup>
+          {showModalEnterReadings && (
+            <EnterReadingsModel
+              closeModal={closeModalEnterReadings}
+              title={title}
+              question_id={questionId}
+              user_id={user_id}
+              onSuccess={handleEnterReadingsSuccess}
+            />
+          )}
+          {showModalUpdateRange && (
+            <UpdateRangeModel
+              closeModal={closeModalUpdateRange}
+              title={title}
+              question_id={questionId}
+              user_id={user_id}
+              onSuccess={handleUpdateRangeSuccess}
+              hr1={highRange}
+              hr2={highRange2}
+              lr1={lowRange}
+              lr2={lowRange2}
+              hrDia1={highRangeDia}
+              hrDia2={highRangeDia2}
+              lrDia1={lowRangeDia}
+              lrDia2={lowRangeDia2}
+            />
+          )}
+        </>
+      }
+    >
+      <GraphChartFrame>
+        <ResponsiveContainer width="100%" aspect={aspect}>
+          <LineChart
+            width={350}
+            height={250}
+            data={patientData}
+            margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
           >
-            Enter Readings
-          </button>
-        )}
-        {showModalEnterReadings && (
-          <EnterReadingsModel
-            closeModal={closeModalEnterReadings}
-            title={title}
-            question_id={questionId}
-            user_id={user_id}
-            onSuccess={handleEnterReadingsSuccess}
-          />
-        )}
-
-        {userRole == "Admin" && (
-          <button
-            className="block rounded-lg text-primary border-2 border-primary w-40 py-2"
-            onClick={() => openModalUpdateRange()}
-          >
-            Update Range
-          </button>
-        )}
-        {showModalUpdateRange && (
-          <UpdateRangeModel
-            closeModal={closeModalUpdateRange}
-            title={title}
-            question_id={questionId}
-            user_id={user_id}
-            onSuccess={handleUpdateRangeSuccess}
-            hr1={highRange}
-            hr2={highRange2}
-            lr1={lowRange}
-            lr2={lowRange2}
-            hrDia1={highRangeDia}
-            hrDia2={highRangeDia2}
-            lrDia1={lowRangeDia}
-            lrDia2={lowRangeDia2}
-          />
-        )}
-        <select
-          name="time"
-          id="time"
-          onChange={(e) => setSelectedTimeRange(e.target.value)}
-        >
-          <option value="week">Last Week</option>
-          <option value="month">Last Month</option>
-          <option value="6month">Last 6 month</option>
-        </select>
-      </div>
-
-      <ResponsiveContainer width="100%" aspect={aspect}>
-        <LineChart
-          width={350}
-          height={250}
-          data={patientData}
-          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey={"date"} />
-          <YAxis label={{ value: JSON.stringify(unit), angle: -90 }} />
-          <Tooltip />
-          {/* <Legend xlinkTitle={unit}/> */}
-          {/* {highRange2 != 0 && <ReferenceLine y={highRange2} label="high_range_2" stroke="red" />}
-          {lowRange != 0 && <ReferenceLine y={lowRange} label="low_range_1" stroke="orange" />}
-          {highRange != 0 && <ReferenceLine y={highRange} label="high_range_1" stroke="orange" />}
-          {lowRange2 != 0 && <ReferenceLine y={lowRange2} label="low_range_2" stroke="red" />}
-
-          {highRange2 != 0 && <ReferenceLine y={highRange2} label="high_range_2" stroke="red" />}
-          {lowRange != 0 && <ReferenceLine y={lowRange} label="low_range_1" stroke="orange" />}
-          {highRange != 0 && <ReferenceLine y={highRange} label="high_range_1" stroke="orange" />}
-          {lowRange2 != 0 && <ReferenceLine y={lowRange2} label="low_range_2" stroke="red" />} */}
-
-          <Line
-            type="monotone"
-            dataKey="systolic"
-            stroke="#85c1e9"
-            strokeWidth={4}
-            activeDot={{ r: 8 }}
-            dot={<CustomizedDotOld2 />}
-          />
-          <Line
-            type="monotone"
-            dataKey="diastolic"
-            stroke="#5b2c6f"
-            strokeWidth={4}
-            activeDot={{ r: 8 }}
-            dot={<CustomizedDotOld2sys />}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis dataKey={"date"} tick={{ fill: "#5886a5", fontSize: 12 }} />
+            <YAxis
+              label={{ value: JSON.stringify(unit), angle: -90, fill: "#5886a5" }}
+              tick={{ fill: "#5886a5", fontSize: 12 }}
+            />
+            <Tooltip />
+            <Line
+              type="monotone"
+              dataKey="systolic"
+              stroke="#4164df"
+              strokeWidth={3}
+              activeDot={{ r: 7 }}
+              dot={<CustomizedDotOld2 />}
+            />
+            <Line
+              type="monotone"
+              dataKey="diastolic"
+              stroke="#5886a5"
+              strokeWidth={3}
+              activeDot={{ r: 7 }}
+              dot={<CustomizedDotOld2sys />}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </GraphChartFrame>
+    </GraphShell>
   );
 };
 

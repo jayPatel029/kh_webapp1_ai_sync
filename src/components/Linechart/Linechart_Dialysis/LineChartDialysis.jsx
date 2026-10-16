@@ -17,13 +17,21 @@ import axiosInstance from "../../../helpers/axios/axiosInstance";
 import { server_url } from "../../../constants/constants";
 import { useSelector } from "react-redux";
 import { getAlertColor } from "../utils";
-import EditIcon from "@mui/icons-material/Edit";
 import { DateRangePicker } from "react-date-range";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import EnterReadingsModelDialysis from "./EnterReadingModelDialysis";
-
-// Design system primitives
-import { Button, IconButton, Link, Text, Flex, Box } from "../../../component-library";
+import {
+  GraphShell,
+  GraphToolbarGroup,
+  GraphActionButton,
+  GraphCalendarButton,
+  GraphColorPill,
+  GraphDatePickerPanel,
+  GraphDatePickerActions,
+  GraphClearButton,
+  GraphAbnormalBanner,
+  GraphEmptyState,
+  GraphChartFrame,
+} from "../GraphChrome";
 
 const LineChartDialysis = ({
   aspect,
@@ -991,116 +999,83 @@ const LineChartDialysis = ({
     setSelectionRange(ranges.selection);
   };
 
-  return (
-    <div className="line" ref={dateRangeRef}>
-      <Flex justify="between" align="center" className="w-full">
-        {/* Left group: calendar + color indicators + clear link */}
-        <Flex align="center" gap={3} className="items-center">
-          <Box className="relative">
-            <IconButton
-              icon={<CalendarMonthIcon style={{ color: "#4A90E2" }} />}
-              aria-label="Open date range"
-              onClick={() => setShowDateRangePicker(!showDateRangePicker)}
-            />
+  const clearAllFilters = () => {
+    setIsCheckedOrange(false);
+    setIsCheckedRed(false);
+    setIsDateFilterApplied(false);
+    setSelectionRange({
+      startDate: new Date(),
+      endDate: new Date(),
+      key: "selection",
+    });
+    setPatientData(originalData);
+  };
 
-            {showDateRangePicker && (
-              <div className="absolute z-50">
-                <DateRangePicker ranges={[selectionRange]} onChange={handleSelect} />
-                <div className="flex flex-row mt-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
+  return (
+    <GraphShell
+      shellRef={dateRangeRef}
+      toolbar={
+        <>
+          <GraphToolbarGroup>
+            <div className="relative">
+              <GraphCalendarButton
+                active={showDateRangePicker}
+                onClick={() => setShowDateRangePicker(!showDateRangePicker)}
+              />
+              {showDateRangePicker && (
+                <GraphDatePickerPanel>
+                  <DateRangePicker ranges={[selectionRange]} onChange={handleSelect} />
+                  <GraphDatePickerActions
+                    onApply={() => {
                       setShowDateRangePicker(false);
                       setIsDateFilterApplied(true);
                     }}
-                  >
-                    Apply Filter
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    className="ml-2"
-                    onClick={() => {
+                    onClear={() => {
                       setShowDateRangePicker(false);
-                      setIsCheckedOrange(false);
-                      setIsCheckedRed(false);
-                      setIsDateFilterApplied(false);
-                      setSelectionRange({
-                        startDate: new Date(),
-                        endDate: new Date(),
-                        key: "selection",
-                      });
-                      setPatientData(originalData);
+                      clearAllFilters();
                     }}
-                  >
-                    Clear Filter
-                  </Button>
-                </div>
-              </div>
-            )}
-          </Box>
-
-          {/* Small dot + label for Red */}
-          <Box
-            as="button"
-            type="button"
-            aria-pressed={isCheckedRed}
-            onClick={() => {
-              setIsCheckedRed(!isCheckedRed);
-              setTrigger(!trigger);
-            }}
-            className="flex items-center focus:outline-none"
-          >
-            <Box className={`w-3 h-3 rounded-full mr-2 ${isCheckedRed ? 'bg-red-700' : 'bg-gray-300'}`} />
-            <Text size="sm" className="mr-4">Red</Text>
-          </Box>
-
-          {/* Small dot + label for Orange */}
-          <Box
-            as="button"
-            type="button"
-            aria-pressed={isCheckedOrange}
-            onClick={() => {
-              setIsCheckedOrange(!isCheckedOrange);
-              setTrigger(!trigger);
-            }}
-            className={`flex items-center focus:outline-none ${isCheckedOrange ? '' : ''}`}
-          >
-            <Box className={`w-3 h-3 rounded-full mr-2 ${isCheckedOrange ? 'bg-orange-500 border-orange-500' : 'border-gray-300 bg-white border-2'}`} />
-            <Text size="sm" className="mr-4">Orange</Text>
-          </Box>
-
-          <Link
-            href="#"
-            className="text-red-600 underline font-semibold"
-            onClick={(e) => {
-              e.preventDefault();
-              setIsCheckedOrange(false);
-              setIsCheckedRed(false);
-              setIsDateFilterApplied(false);
-              setSelectionRange({ startDate: new Date(), endDate: new Date(), key: 'selection' });
-              setPatientData(originalData);
-            }}
-          >
-            Clear filters
-          </Link>
-        </Flex>
-
-        {/* Right group: update link and enter reading button */}
-        <Flex align="center" gap={3}>
-          {role?.canEditPatients && userRole == "Admin" && (
-            <Link
-              href="#"
-              className="text-blue-600 underline font-semibold mr-2"
-              onClick={(e) => {
-                e.preventDefault();
-                openModalUpdateRange();
+                  />
+                </GraphDatePickerPanel>
+              )}
+            </div>
+            <GraphColorPill
+              label="Red"
+              color="red"
+              active={isCheckedRed}
+              onClick={() => {
+                setIsCheckedRed(!isCheckedRed);
+                setTrigger(!trigger);
               }}
-            >
-              Update range
-            </Link>
-          )}
+            />
+            <GraphColorPill
+              label="Orange"
+              color="orange"
+              active={isCheckedOrange}
+              onClick={() => {
+                setIsCheckedOrange(!isCheckedOrange);
+                setTrigger(!trigger);
+              }}
+            />
+            <GraphClearButton onClick={clearAllFilters}>Clear filters</GraphClearButton>
+          </GraphToolbarGroup>
+
+          <GraphToolbarGroup>
+            {role?.canEditPatients && userRole == "Admin" && (
+              <GraphActionButton onClick={() => openModalUpdateRange()}>
+                Update Range
+              </GraphActionButton>
+            )}
+            {role?.canEditPatients && (
+              <GraphActionButton
+                onClick={() => {
+                  setIsUpdate(false);
+                  openModalEnterReadings();
+                }}
+              >
+                Enter Readings
+              </GraphActionButton>
+            )}
+          </GraphToolbarGroup>
 
           {showModalUpdateRange && (
             <UpdateRangeModelDialysis
@@ -1115,20 +1090,6 @@ const LineChartDialysis = ({
               lr2={lowRange2}
             />
           )}
-
-          {role?.canEditPatients && (
-            <Button
-              variant="outline"
-              size="md"
-              className="rounded-full px-6 py-2 "
-              onClick={() => {
-                setIsUpdate(false);
-                openModalEnterReadings();
-              }}
-            >
-              Enter reading
-            </Button>
-          )}
           {showModalEnterReadings && (
             <EnterReadingsModelDialysis
               closeModal={closeModalEnterReadings}
@@ -1139,78 +1100,68 @@ const LineChartDialysis = ({
               isUpdate={isUpdate}
             />
           )}
-        </Flex>
-      </Flex>
-      {numberOfAbnormalReadings > 0 && (
-        <div className="text-center mt-4">
-          <div className="inline-block bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-md">
-            <span className="font-bold text-xl animate-pulse">
-              {numberOfAbnormalReadings}
-            </span>
-            Abnormal Readings between
-            {selectionRange.startDate.toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-            and
-            {selectionRange.endDate.toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="flex justify-center">
-        {patientData.length === 0 && (
-          <div className="text-center mt-4 border border-gray-300 rounded-md p-4 bg-gray-100 inline-block">
-            No Readings Present
-          </div>
-        )}
-      </div>
-
-      <ResponsiveContainer width="100%" height="100%" aspect={aspect}>
-        <LineChart
-          width={350}
-          height={250}
-          data={patientData}
-          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            dataKey={"date"}
-            tickFormatter={(tick) => new Date(tick).toLocaleDateString()}
-          />
-          <YAxis
-            dataKey={"readings"}
-            label={{ value: JSON.stringify(unit), angle: -90 }}
-          />
-          <Tooltip />
-          {highRange2 != 0 && (
-            <ReferenceLine y={highRange2} label="high_range_2" stroke="red" />
-          )}
-          {lowRange != 0 && (
-            <ReferenceLine y={lowRange} label="low_range_1" stroke="orange" />
-          )}
-          {highRange != 0 && (
-            <ReferenceLine y={highRange} label="high_range_1" stroke="orange" />
-          )}
-          {lowRange2 != 0 && (
-            <ReferenceLine y={lowRange2} label="low_range_2" stroke="red" />
-          )}
-          <Line
-            type="monotone"
-            dataKey="readings"
-            stroke="#82ca9d"
-            strokeWidth={4}
-            activeDot={{ r: 8 }}
-            dot={<CustomizedDotOld2 />}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+        </>
+      }
+    >
+      <GraphAbnormalBanner count={numberOfAbnormalReadings}>
+        Abnormal Readings between{" "}
+        {selectionRange.startDate.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}{" "}
+        and{" "}
+        {selectionRange.endDate.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}
+      </GraphAbnormalBanner>
+      {patientData.length === 0 && <GraphEmptyState />}
+      <GraphChartFrame>
+        <ResponsiveContainer width="100%" height="100%" aspect={aspect}>
+          <LineChart
+            width={350}
+            height={250}
+            data={patientData}
+            margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis
+              dataKey={"date"}
+              tickFormatter={(tick) => new Date(tick).toLocaleDateString()}
+              tick={{ fill: "#5886a5", fontSize: 12 }}
+            />
+            <YAxis
+              dataKey={"readings"}
+              label={{ value: JSON.stringify(unit), angle: -90, fill: "#5886a5" }}
+              tick={{ fill: "#5886a5", fontSize: 12 }}
+            />
+            <Tooltip />
+            {highRange2 != 0 && (
+              <ReferenceLine y={highRange2} label="high_range_2" stroke="red" />
+            )}
+            {lowRange != 0 && (
+              <ReferenceLine y={lowRange} label="low_range_1" stroke="orange" />
+            )}
+            {highRange != 0 && (
+              <ReferenceLine y={highRange} label="high_range_1" stroke="orange" />
+            )}
+            {lowRange2 != 0 && (
+              <ReferenceLine y={lowRange2} label="low_range_2" stroke="red" />
+            )}
+            <Line
+              type="monotone"
+              dataKey="readings"
+              stroke="#4164df"
+              strokeWidth={3}
+              activeDot={{ r: 7 }}
+              dot={<CustomizedDotOld2 />}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </GraphChartFrame>
+    </GraphShell>
   );
 };
 
