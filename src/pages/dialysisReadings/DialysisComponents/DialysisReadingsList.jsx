@@ -253,7 +253,6 @@ function DialysisReadingsList() {
         errorMessage={errMsg}
         fieldErrors={fieldErrors}
         onFieldErrorClear={(field) => setFieldErrors((prev) => ({ ...prev, [field]: false }))}
-        bodyStyle={{ overflowY: "visible", overflowX: "visible" }}
       >
         {modelOpen && (
           <TranslationModal
@@ -373,6 +372,24 @@ function DialysisReadingsList() {
           </Select>
         </FormControl>
 
+        {["int", "decimal"].includes(String(newReading.type || "").toLowerCase()) && (
+          <FormControl>
+            <FormLabel>Is Graph</FormLabel>
+            <Select
+              value={String(newReading.isGraph ?? 0)}
+              onChange={(event) => {
+                newReadingDsipatch({
+                  type: "isGraph",
+                  payload: Number(event.target.value),
+                });
+              }}
+            >
+              <option value="0">No</option>
+              <option value="1">Yes</option>
+            </Select>
+          </FormControl>
+        )}
+
         <FormControl>
           <FormLabel>Unit</FormLabel>
           <Input
@@ -388,7 +405,7 @@ function DialysisReadingsList() {
           />
         </FormControl>
 
-        {["Int", "Decimal"].includes(newReading.type) && (
+        {["int", "decimal"].includes(String(newReading.type || "").toLowerCase()) && (
           <FormControl>
             <FormLabel>Has Range</FormLabel>
             <Select
@@ -406,7 +423,7 @@ function DialysisReadingsList() {
           </FormControl>
         )}
 
-        {["Int", "Decimal"].includes(newReading.type) &&
+        {["int", "decimal"].includes(String(newReading.type || "").toLowerCase()) &&
           newReading.assign_range === "yes" && (
           <>
             <FormControl>
@@ -439,24 +456,6 @@ function DialysisReadingsList() {
               />
             </FormControl>
           </>
-        )}
-
-        {["Int", "Decimal"].includes(newReading.type) && (
-          <FormControl>
-            <FormLabel>Is Graph</FormLabel>
-            <Select
-              value={String(newReading.isGraph ?? 0)}
-              onChange={(event) => {
-                newReadingDsipatch({
-                  type: "isGraph",
-                  payload: Number(event.target.value),
-                });
-              }}
-            >
-              <option value="0">No</option>
-              <option value="1">Yes</option>
-            </Select>
-          </FormControl>
         )}
 
         <FormControl>
