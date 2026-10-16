@@ -524,8 +524,11 @@ const navigate = useNavigate();
       const norm = normalizeQuestionTitle(t);
       const isSys = t.toLowerCase().includes('systolic');
       const isDia = t.toLowerCase().includes('diastolic');
-      const forceTable = norm === 'weightafter' || norm === 'weightbefore';
-      const forceGraph = norm === 'interdialyticweight';
+      const forceTable = norm === 'weightafter' || norm === 'weightbefore' || norm === 'weightbeforedialysis' || norm === 'weightafterdialysis';
+      const forceGraph =
+        norm === 'interdialyticweight' ||
+        norm === 'interdialysisweight' ||
+        (norm.includes('inter') && norm.includes('weight'));
       const defaultAsGraph = forceGraph || (!forceTable && q.isGraph === 1) || isSys || isDia;
       setDetailViewMode(defaultAsGraph ? 'graph' : 'table');
     }
