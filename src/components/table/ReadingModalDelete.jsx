@@ -15,6 +15,7 @@ export default function ReadingModalDelete({
   closeModal, 
   onSuccess, 
   date,
+  readings,
   type = 'regular', // 'regular' or 'dialysis'
 }) {
   const [errMessage, setErrMessage] = useState("");
@@ -58,7 +59,10 @@ export default function ReadingModalDelete({
       confirmVariant="danger"
       isLoading={isLoading}
     >
-      <Text>Do you want to delete {date} entry?</Text>
+      <Text>
+        Do you want to delete the {date} entry
+        {readings != null && readings !== "" ? ` (value: ${readings})` : ""}?
+      </Text>
       {errMessage && <Text className="text-error mt-2">{errMessage}</Text>}
     </ConfirmModal>
   );

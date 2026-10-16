@@ -23,9 +23,13 @@ export default function ReadingModalUpdate({
   id,
   onSuccess,
   type = 'regular', // 'regular' or 'dialysis'
+  initialValue,
+  readings,
 }) {
   const [errMessage, setErrMessage] = useState("");
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(
+    initialValue ?? readings ?? ""
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   const apiEndpoint = type === 'dialysis' ? 'dialysisReading' : 'readings';
@@ -76,7 +80,7 @@ export default function ReadingModalUpdate({
         <FormControl>
           <FormLabel>Value</FormLabel>
           <Input
-            type="number"
+            type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="Enter value"

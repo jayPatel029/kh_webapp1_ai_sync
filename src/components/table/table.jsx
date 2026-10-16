@@ -17,6 +17,8 @@ const Table = ({
   title,
   question,
   isPatientProfile = 0,
+  onDataChange,
+  hideEnterReading = false,
 }) => {
   return (
     <ReadingsTable
@@ -26,6 +28,8 @@ const Table = ({
       title={title}
       question={question}
       isPatientProfile={isPatientProfile}
+      onDataChange={onDataChange}
+      hideEnterReading={hideEnterReading}
       AddModal={TableModal}
       UpdateModal={TableModalUpdate}
       DeleteModal={TableModalDelete}

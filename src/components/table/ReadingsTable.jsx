@@ -45,6 +45,8 @@ const ReadingsTable = ({
     isPatientProfile = 0,
     highlightThreshold = null,
     highlightComparator = 'gt',
+    onDataChange,
+    hideEnterReading = false,
 }) => {
     const [showModal, setShowModal] = useState(false);
     const [showModalUpdate, setShowModalUpdate] = useState(false);
@@ -110,6 +112,10 @@ const ReadingsTable = ({
     const openFileModal = (file) => setUploadedFile({ closeFileModal, file });
     const closeFileModal = () => setUploadedFile(null);
 
+    const notifyDataChange = React.useCallback(() => {
+        if (typeof onDataChange === "function") onDataChange();
+    }, [onDataChange]);
+
     const fetchData = React.useCallback(async () => {
         const params = { question_id: questionId, user_id: user_id };
         axiosInstance
@@ -130,13 +136,18 @@ const ReadingsTable = ({
             .catch((error) => console.error("Error:", error));
     }, [questionId, user_id, apiEndpoint]);
 
+    const handleMutationSuccess = React.useCallback(() => {
+        fetchData();
+        notifyDataChange();
+    }, [fetchData, notifyDataChange]);
+
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
     return (
         <Box className={`${type}-table-container`}>
-            {role && (
+            {role && !hideEnterReading && (
                 <Flex justify="between" align="center" className="mb-4">
                     <Text size="sm" weight="semibold" className="text-muted">Enter Reading/ Data</Text>
                     <Button
@@ -152,11 +163,21 @@ const ReadingsTable = ({
                             title={title}
                             question_id={questionId}
                             user_id={user_id}
-                            onSuccess={fetchData}
+                            onSuccess={handleMutationSuccess}
                             question={question}
                         />
                     )}
                 </Flex>
+            )}
+            {role && hideEnterReading && showModal && AddModal && (
+                <AddModal
+                    closeModal={closeModal}
+                    title={title}
+                    question_id={questionId}
+                    user_id={user_id}
+                    onSuccess={handleMutationSuccess}
+                    question={question}
+                />
             )}
 
             {uploadedFile && <DocOpenModal closeModal={closeFileModal} file={uploadedFile.file} />}
@@ -240,24 +261,27 @@ const ReadingsTable = ({
                 )}
             </Box>
 
-            {showModalUpdate && UpdateModal && (
+            {showModalUpdate && UpdateModal && modalData && (
                 <UpdateModal
                     id={modalData.id}
                     date={modalData.date}
+                    readings={modalData.readings}
+                    initialValue={modalData.readings}
                     closeModal={closeModalUpdate}
                     onSuccess={() => {
-                        fetchData();
+                        handleMutationSuccess();
                         closeModalUpdate();
                     }}
                 />
             )}
-            {showModalDelete && DeleteModal && (
+            {showModalDelete && DeleteModal && deleteData && (
                 <DeleteModal
                     id={deleteData.id}
                     date={deleteData.date}
+                    readings={deleteData.readings}
                     closeModal={closeModalDelete}
                     onSuccess={() => {
-                        fetchData();
+                        handleMutationSuccess();
                         closeModalDelete();
                     }}
                 />
