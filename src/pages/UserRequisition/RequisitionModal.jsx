@@ -1,23 +1,24 @@
 /**
  * Requisition Upload Modal - Redesigned
  * Modal for uploading requisition reports
- * 
+ * Doctor selection mirrors PrescriptionModal (prescriptionGivenBy).
+ *
  * @file src/pages/UserRequisition/RequisitionModal.jsx
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { getFileRes } from "../../helpers/fileuploadHelper";
 import getCurrentDate from "../../helpers/formatDate";
-import { addRequisition } from "../../ApiCalls/remainingApis";
+import { addRequisition, getPatientGetMedicalTeamByid } from "../../ApiCalls/remainingApis";
 import { createNewRequisitionAlert } from "../../ApiCalls/alertsApis";
 
 // Component Library
 import { FormModal } from "../../component-library/modals/FormModal";
-import { Button } from "../../component-library/primitives/Button";
-import { Text } from "../../component-library/primitives/Typography";
 import { FormLabel } from "../../component-library/primitives/FormControl";
 import { Input } from "../../component-library/primitives/Input";
+import { Select } from "../../component-library/primitives/Select";
 import FormControl from "../../component-library/primitives/FormControl";
+import { Text } from "../../component-library/primitives/Typography";
 
 // shared component
 import FileUploadWithCamera, { buildMergedPdfFile } from "../../components/FileUploadWithCamera";
@@ -25,11 +26,36 @@ import FileUploadWithCamera, { buildMergedPdfFile } from "../../components/FileU
 
 const RequisitionModal = ({ closeModal, user_id, onSuccess, mutate }) => {
   const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDoctorId, setSelectedDoctorId] = useState("");
+  const [doctorOptions, setDoctorOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [images, setImages] = useState([]);
   const [msg, setMsg] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const email = localStorage.getItem("email");
+
+  const fetchMedicalTeam = async (uid) => {
+    setLoading(true);
+    try {
+      const response = await getPatientGetMedicalTeamByid(uid);
+      if (response.success) {
+        const doctors = response?.data?.data || [];
+        setDoctorOptions(doctors);
+        if (doctors.length > 0) {
+          setSelectedDoctorId(doctors[0].id);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching medical team:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMedicalTeam(user_id);
+  }, [user_id]);
 
   const handleImageChange = (next) => {
     setImages(next || []);
@@ -39,10 +65,12 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess, mutate }) => {
   const handleSubmit = () => {
     const nextFieldErrors = {};
     if (!selectedDate) nextFieldErrors.date = true;
+    if (!selectedDoctorId || selectedDoctorId === "0") nextFieldErrors.doctor = true;
     if (images.length === 0) nextFieldErrors.images = true;
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors);
       if (!selectedDate) setMsg("Please select a valid date");
+      else if (!selectedDoctorId || selectedDoctorId === "0") setMsg("Please select the doctor.");
       else setMsg("Please upload at least one document or image");
       return;
     }
@@ -64,6 +92,7 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess, mutate }) => {
           Patient_id: user_id,
           Date: selectedDate,
           Requisition: finalFileUrl,
+          requisitionGivenBy: selectedDoctorId,
         };
         const mutationRunner = () => UploadRequisition(data);
         const result = mutate
@@ -110,6 +139,14 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess, mutate }) => {
     await createNewRequisitionAlert(data);
   };
 
+  if (loading) {
+    return (
+      <FormModal isOpen={true} onClose={closeModal} onSubmit={() => {}} title="" isLoading={true} size="lg">
+        <Text>Loading form details...</Text>
+      </FormModal>
+    );
+  }
+
   return (
     <FormModal
       isOpen={true}
@@ -118,7 +155,7 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess, mutate }) => {
       title="Upload Requisition"
       submitText="Upload"
       isLoading={isSubmitting}
-      isSubmitDisabled={!selectedDate || images.length === 0}
+      isSubmitDisabled={!selectedDate || !selectedDoctorId || selectedDoctorId === "0" || images.length === 0}
       errorMessage={msg}
       size="lg"
       fieldErrors={fieldErrors}
@@ -135,6 +172,27 @@ const RequisitionModal = ({ closeModal, user_id, onSuccess, mutate }) => {
           onChange={(e) => { setSelectedDate(e.target.value); setFieldErrors((prev) => ({ ...prev, date: false })); }}
           size="md"
         />
+      </FormControl>
+
+      <FormControl isRequired isInvalid={Boolean(fieldErrors.doctor)}>
+        <FormLabel>Doctor:</FormLabel>
+        <Select
+          value={selectedDoctorId}
+          isInvalid={Boolean(fieldErrors.doctor)}
+          onChange={(e) => {
+            setSelectedDoctorId(e.target.value);
+            setMsg("");
+            setFieldErrors((prev) => ({ ...prev, doctor: false }));
+          }}
+          size="md"
+        >
+          <option value="0">Select Doctor</option>
+          {doctorOptions.map((doctor, index) => (
+            <option key={index} value={doctor.id}>
+              {doctor.name}
+            </option>
+          ))}
+        </Select>
       </FormControl>
 
       <FormControl isRequired>

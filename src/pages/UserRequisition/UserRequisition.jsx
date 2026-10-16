@@ -179,9 +179,10 @@ const UserRequisition = () => {
     return <PageSkeleton variant="table" rows={5} />;
   }
 
-  // Prepare columns for UnifiedListTable
+  // Prepare columns for UnifiedListTable (doctor column mirrors prescriptions list)
   const requisitionColumns = [
     { key: "date", label: "Date", type: "date", width: "150px" },
+    { key: "doctor", label: "Doctor", type: "text", width: "200px" },
     { key: "requisition", label: "Requisition", type: "custom", width: "150px", render: (row) => (
       <div className="flex justify-start"> {row.Requisition && row.Requisition.endsWith(".pdf") ? (
           <div
@@ -211,6 +212,7 @@ const UserRequisition = () => {
   const transformedRequisitionData = sortedRequisitionData.map((item) => ({
     id: item.id,
     date: item.Date,
+    doctor: item.requisitionGivenByName || "-",
     requisition: item.Requisition,
     Requisition: item.Requisition,
   }));
