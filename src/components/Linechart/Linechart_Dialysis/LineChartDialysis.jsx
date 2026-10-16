@@ -10,6 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
   ReferenceLine,
+  Scatter,
 } from "recharts";
 import EnterReadingsModel from "../EnterReadingsModel";
 import UpdateRangeModelDialysis from "./UpdateRangeModelDialysis";
@@ -46,12 +47,55 @@ const LineChartDialysis = ({
   onToggleEditPanel,
 }) => {
   const [patientData, setPatientData] = useState([]);
-  const [idwgStatusRows, setIdwgStatusRows] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showModalEnterReadings, setShowModalEnterReadings] = useState(false);
   const [showModalUpdateRange, setShowModalUpdateRange] = useState(false);
 
   const isInterDialyticTitle = /inter/i.test(String(title || ""));
+
+  /** Same as main: show IDWG value and/or status message on point hover. */
+  const DialysisReadingTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    const row = payload[0]?.payload || {};
+    const numeric =
+      typeof row.value === "number" && Number.isFinite(row.value)
+        ? row.value
+        : typeof row.readings === "number" && Number.isFinite(row.readings)
+          ? row.readings
+          : null;
+    const statusText =
+      row.message ||
+      (typeof row.readings === "string" ? row.readings : null);
+
+    const dateLabel = label
+      ? new Date(label).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "";
+
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-md max-w-xs">
+        <p className="text-xs font-semibold text-[#32617d] mb-1">{dateLabel}</p>
+        {numeric != null ? (
+          <p className="text-sm font-bold text-[#4164df]">
+            {isInterDialyticTitle ? "IDWG" : "Reading"}: {numeric}
+            {unit ? ` ${unit}` : ""}
+          </p>
+        ) : null}
+        {statusText ? (
+          <p
+            className={`text-sm leading-snug ${
+              numeric != null ? "text-amber-800 mt-1" : "text-amber-900 font-medium"
+            }`}
+          >
+            {statusText}
+          </p>
+        ) : null}
+      </div>
+    );
+  };
   const [highRange, setHighRange] = useState(0);
   const [lowRange, setLowRange] = useState(0);
   const [highRange2, setHighRange2] = useState(0);
@@ -86,8 +130,12 @@ const LineChartDialysis = ({
   useEffect(() => {
     const filterBasedOnColor = (data) =>
       data.filter((item) => {
+        // Keep status/message points visible unless a color filter is active
+        if (item.isStatusOnly || typeof item.plotValue !== "number") {
+          return !(isCheckedRed || isCheckedOrange);
+        }
         const color = getAlertColor(
-          item.readings,
+          item.plotValue,
           lowRange,
           highRange,
           lowRange2,
@@ -126,8 +174,26 @@ const LineChartDialysis = ({
     lowRange2,
     highRange2,
   ]);
+  const StatusDot = (props) => {
+    const { cx, cy } = props;
+    if (cx == null || cy == null || Number.isNaN(cy)) return null;
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={6}
+        fill="#f59e0b"
+        stroke="#b45309"
+        strokeWidth={2}
+      />
+    );
+  };
+
   const CustomizedDotOld2 = (props) => {
     const { cx, cy, value } = props;
+    if (typeof value === "string" || value == null || Number.isNaN(Number(value))) {
+      return null;
+    }
     // 16 combinations
     if (highRange != 0 && highRange2 != 0 && lowRange != 0 && lowRange2 != 0) {
       if (value >= highRange2 || value <= lowRange2) {
@@ -903,52 +969,70 @@ const LineChartDialysis = ({
       .then((response) => {
         console.log("Response data:", response.data.data);
 
+        // Match main hover behavior: status/missing messages available on point tooltip.
         const rows = Array.isArray(response.data.data) ? response.data.data : [];
-
-        const normalized = rows.map((item, key) => {
+        const parsed = rows.map((item, key) => {
           const rawDate = item.date;
           const formattedDate =
             typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(rawDate)
               ? rawDate.slice(0, 10)
               : new Date(rawDate).toISOString().split("T")[0];
+
           const numericFromValue = parseFloat(item.value);
           const numericFromReadings = parseFloat(item.readings);
-          const numericReading = Number.isFinite(numericFromValue)
+          const hasNumericValue = Number.isFinite(numericFromValue);
+          const hasNumericReading =
+            Number.isFinite(numericFromReadings) &&
+            item.readings !== "" &&
+            item.readings != null &&
+            typeof item.readings !== "string";
+
+          // strings like "First day..." must stay as messages (main behavior)
+          const numericReading = hasNumericValue
             ? numericFromValue
-            : numericFromReadings;
-          const message =
+            : typeof item.readings === "number" && Number.isFinite(item.readings)
+              ? item.readings
+              : hasNumericReading
+                ? numericFromReadings
+                : null;
+
+          const statusMessage =
             item.message ||
             item.error ||
-            (Number.isFinite(numericReading) ? null : item.readings);
+            (numericReading == null && typeof item.readings === "string"
+              ? item.readings
+              : null);
 
           return {
             date: formattedDate,
-            readings: Number.isFinite(numericReading) ? numericReading : null,
-            message: message || null,
+            readings: numericReading, // line series (null for message-only)
+            value: numericReading,
+            message: statusMessage,
+            // main stored message in readings; we expose it for tooltip the same way
+            statusText: statusMessage,
             status: item.status || null,
+            isStatusOnly: numericReading == null && Boolean(statusMessage),
             number: key,
           };
         });
 
-        // Status / missing-data messages for Inter-dialysis Weight (shown under chart)
-        if (isInterDialyticTitle) {
-          setIdwgStatusRows(
-            normalized
-              .filter((item) => item.message)
-              .map((item) => ({
-                date: item.date,
-                message: item.message,
-                status: item.status,
-                hasValue: Number.isFinite(item.readings),
-              }))
-          );
-        } else {
-          setIdwgStatusRows([]);
-        }
+        const numericVals = parsed
+          .map((p) => p.readings)
+          .filter((v) => typeof v === "number" && Number.isFinite(v));
+        const markerBaseline =
+          numericVals.length > 0
+            ? numericVals.reduce((a, b) => a + b, 0) / numericVals.length
+            : 0;
 
-        // Recharts can only plot numeric IDWG points
-        const sortedData = normalized
-          .filter((item) => Number.isFinite(item.readings))
+        const sortedData = parsed
+          .map((p) => ({
+            ...p,
+            // Hoverable marker Y for message-only points (amber dots on graph)
+            statusMarker: p.isStatusOnly ? markerBaseline : null,
+            // Keep main-compatible readings field for tooltip when message-only
+            readings: p.isStatusOnly ? p.message : p.readings,
+            plotValue: p.isStatusOnly ? null : p.value,
+          }))
           .sort((a, b) => new Date(a.date) - new Date(b.date));
 
         setPatientData(sortedData);
@@ -1174,7 +1258,7 @@ const LineChartDialysis = ({
               label={{ value: JSON.stringify(unit), angle: -90, fill: "#5886a5" }}
               tick={{ fill: "#5886a5", fontSize: 12 }}
             />
-            <Tooltip />
+            <Tooltip content={<DialysisReadingTooltip />} />
             {highRange2 != 0 && (
               <ReferenceLine y={highRange2} label="high_range_2" stroke="red" />
             )}
@@ -1189,39 +1273,25 @@ const LineChartDialysis = ({
             )}
             <Line
               type="monotone"
-              dataKey="readings"
+              dataKey="plotValue"
               stroke="#4164df"
               strokeWidth={3}
               activeDot={{ r: 7 }}
               dot={<CustomizedDotOld2 />}
+              connectNulls={false}
             />
+            {/* Amber markers for status/missing messages — hover shows note (main UX) */}
+            {isInterDialyticTitle && (
+              <Scatter
+                dataKey="statusMarker"
+                fill="#f59e0b"
+                shape={<StatusDot />}
+                isAnimationActive={false}
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       </GraphChartFrame>
-
-      {isInterDialyticTitle && idwgStatusRows.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
-          <p className="text-sm font-semibold text-amber-900 mb-2">
-            Inter-dialysis weight notes
-          </p>
-          <ul className="space-y-1.5 max-h-48 overflow-y-auto">
-            {idwgStatusRows.map((row, idx) => (
-              <li
-                key={`${row.date}-${idx}`}
-                className="text-sm text-amber-950 flex gap-2"
-              >
-                <span className="font-semibold whitespace-nowrap text-[#32617d]">
-                  {row.date}
-                </span>
-                <span className="text-slate-700">
-                  {row.message}
-                  {row.hasValue ? " (value still plotted)" : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </GraphShell>
   );
 };
