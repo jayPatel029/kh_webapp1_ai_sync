@@ -42,7 +42,8 @@ export default function ReadingModalAdd({
   };
 
   const handleSubmit = () => {
-    if (selectedType.toLowerCase() === "upload") {
+    const inputType = String(selectedType || "").toLowerCase().replace(/\s+/g, "");
+    if (inputType === "upload" || inputType === "file") {
       if (!theFile) {
         setErrMessage("Please select a file to upload");
         return;
@@ -89,7 +90,8 @@ export default function ReadingModalAdd({
   };
 
   const renderInputField = () => {
-    switch (selectedType.toLowerCase()) {
+    const inputType = String(selectedType || "text").toLowerCase().replace(/\s+/g, "");
+    switch (inputType) {
       case "time":
         return (
           <Input
@@ -107,6 +109,7 @@ export default function ReadingModalAdd({
           />
         );
       case "yes/no":
+      case "yesno":
         return (
           <Select
             value={reading}
@@ -119,6 +122,7 @@ export default function ReadingModalAdd({
       case "int":
       case "decimal":
       case "numeric":
+      case "number":
         return (
           <Input
             type="number"
@@ -127,6 +131,7 @@ export default function ReadingModalAdd({
           />
         );
       case "upload":
+      case "file":
         return (
           <Input
             type="file"
@@ -166,9 +171,11 @@ export default function ReadingModalAdd({
               onChange={handleTypeChange}
             >
               <option value="date">Date</option>
-              <option value="yesno">Yes/No</option>
+              <option value="yes/no">Yes/No</option>
               <option value="numeric">Numeric</option>
               <option value="text">Text</option>
+              <option value="upload">Upload</option>
+              <option value="time">Time</option>
             </Select>
           </FormControl>
         )}

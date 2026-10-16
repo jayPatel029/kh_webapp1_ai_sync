@@ -164,6 +164,16 @@ const SystolicDiastolicGraph = ({
   );
 };
 
+const isGraphQuestion = (question) =>
+  question?.isGraph === 1 || question?.isGraph === "1" || question?.isGraph === true;
+
+/** Match main: systolic tiles/headers show the combined systolic + diastolic label. */
+const getDisplayReadingTitle = (question) => {
+  const title = question?.title || "";
+  if (!title.toLowerCase().includes("systolic")) return title;
+  return buildCombinedTitle(title, "systolic", " and Diastolic");
+};
+
 export const ParameterDetailView = ({
   question,
   userId,
@@ -177,33 +187,54 @@ export const ParameterDetailView = ({
   const normalizedTitle = title.toLowerCase().replace(/\s+/g, "");
   const isSystolic = title.toLowerCase().includes("systolic");
   const isDiastolic = title.toLowerCase().includes("diastolic");
+  // Same branching as main: graph readings get a chart; all other types get the type-aware table only.
+  const showGraph = isGraphQuestion(question);
 
-  const graphNode = isSystolic || isDiastolic ? (
-    <SystolicDiastolicGraph
-      question={question}
-      userId={userId}
-      isDialysis={isDialysis}
-      aspect={aspect}
-    />
-  ) : isDialysis ? (
-    <LineChartDialysis
-      aspect={aspect}
-      questionId={question?.id}
-      user_id={userId}
-      title={title}
-      unit={question?.unit}
-      isPatientProfile={1}
-    />
-  ) : (
-    <LineChartComponent
-      aspect={aspect}
-      questionId={question?.id}
-      user_id={userId}
-      title={title}
-      unit={question?.unit}
-      isPatientProfile={1}
-    />
-  );
+  if (showGraph) {
+    const graphNode = isSystolic || isDiastolic ? (
+      <SystolicDiastolicGraph
+        question={question}
+        userId={userId}
+        isDialysis={isDialysis}
+        aspect={aspect}
+      />
+    ) : isDialysis ? (
+      <LineChartDialysis
+        aspect={aspect}
+        questionId={question?.id}
+        user_id={userId}
+        title={title}
+        unit={question?.unit}
+        isPatientProfile={1}
+      />
+    ) : (
+      <LineChartComponent
+        aspect={aspect}
+        questionId={question?.id}
+        user_id={userId}
+        title={title}
+        unit={question?.unit}
+        isPatientProfile={1}
+      />
+    );
+
+    return (
+      <div className="space-y-5">
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div className="border-b border-gray-100 px-4 py-3 bg-slate-50">
+            <h3 className="text-sm font-semibold text-[#32617d]">Graph</h3>
+          </div>
+          <div className="p-4">
+            {graphNode}
+          </div>
+        </section>
+
+        <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Admins can edit chart ranges and enter readings directly from the graph controls.
+        </div>
+      </div>
+    );
+  }
 
   const tableNode = isDialysis ? (
     <DialysisTable
@@ -227,29 +258,14 @@ export const ParameterDetailView = ({
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-5 lg:grid-cols-2">
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="border-b border-gray-100 px-4 py-3 bg-slate-50">
-            <h3 className="text-sm font-semibold text-[#32617d]">Graph</h3>
-          </div>
-          <div className="p-4">
-            {graphNode}
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="border-b border-gray-100 px-4 py-3 bg-slate-50">
-            <h3 className="text-sm font-semibold text-[#32617d]">Table</h3>
-          </div>
-          <div className="p-4">
-            {tableNode}
-          </div>
-        </section>
-      </div>
-
-      <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-        Admins can edit chart ranges and enter readings directly from the graph controls.
-      </div>
+      <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="border-b border-gray-100 px-4 py-3 bg-slate-50">
+          <h3 className="text-sm font-semibold text-[#32617d]">Readings</h3>
+        </div>
+        <div className="p-4">
+          {tableNode}
+        </div>
+      </section>
     </div>
   );
 };
@@ -851,7 +867,7 @@ function UserProfile() {
                         className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
                         onClick={() => setSelectedGeneralParam({ type: 'general', question })}
                       >
-                        {question.title}
+                        {getDisplayReadingTitle(question)}
                       </button>
                     );
                   })}
@@ -874,7 +890,7 @@ function UserProfile() {
                         className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
                         onClick={() => setSelectedDialysisParam({ question })}
                       >
-                        {question.title}
+                        {getDisplayReadingTitle(question)}
                       </button>
                     );
                   })}
@@ -889,7 +905,7 @@ function UserProfile() {
               <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '820px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                   <h2 style={{ fontWeight: '700', color: '#32617d', fontSize: '1.2rem', margin: 0 }}>
-                    {selectedGeneralParam.question?.title}
+                    {getDisplayReadingTitle(selectedGeneralParam.question)}
                   </h2>
                   <button onClick={() => setSelectedGeneralParam(null)} style={{ background: 'none', border: 'none', fontSize: '1.6rem', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
                 </div>
@@ -908,7 +924,7 @@ function UserProfile() {
             <div onClick={() => setSelectedDialysisParam(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
               <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '820px', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h2 style={{ fontWeight: '700', color: '#32617d', fontSize: '1.2rem', margin: 0 }}>{selectedDialysisParam.question?.title}</h2>
+                  <h2 style={{ fontWeight: '700', color: '#32617d', fontSize: '1.2rem', margin: 0 }}>{getDisplayReadingTitle(selectedDialysisParam.question)}</h2>
                   <button onClick={() => setSelectedDialysisParam(null)} style={{ background: 'none', border: 'none', fontSize: '1.6rem', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
                 </div>
                 {(() => {
