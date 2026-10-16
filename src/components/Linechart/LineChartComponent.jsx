@@ -22,6 +22,7 @@ import {
   GraphShell,
   GraphToolbarGroup,
   GraphActionButton,
+  GraphEditButton,
   GraphCalendarButton,
   GraphColorPill,
   GraphDatePickerPanel,
@@ -39,6 +40,9 @@ const LineChartComponent = ({
   user_id,
   unit,
   isPatientProfile = 0,
+  enableGraphEditPanel = false,
+  showEditPanel = false,
+  onToggleEditPanel,
 }) => {
   const [patientData, setPatientData] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1031,6 +1035,9 @@ const LineChartComponent = ({
               <GraphActionButton onClick={() => openModalUpdateRange()}>
                 Update Range
               </GraphActionButton>
+            )}
+            {enableGraphEditPanel && typeof onToggleEditPanel === "function" && (
+              <GraphEditButton active={showEditPanel} onClick={onToggleEditPanel} />
             )}
           </GraphToolbarGroup>
 

@@ -22,12 +22,23 @@ import {
   GraphShell,
   GraphToolbarGroup,
   GraphActionButton,
+  GraphEditButton,
   GraphPeriodSelect,
   GraphChartFrame,
 } from "../GraphChrome";
 
 
-const LineChartDialysisSys = ({ aspect, title, questionId, user_id, unit, isPatientProfile = 0 }) => {
+const LineChartDialysisSys = ({
+  aspect,
+  title,
+  questionId,
+  user_id,
+  unit,
+  isPatientProfile = 0,
+  enableGraphEditPanel = false,
+  showEditPanel = false,
+  onToggleEditPanel,
+}) => {
   const [patientData, setPatientData] = useState([]);
   const role = useSelector(state => state.permission);
   const [showModalEnterReadings, setShowModalEnterReadings] = useState(false);
@@ -1563,6 +1574,9 @@ const LineChartDialysisSys = ({ aspect, title, questionId, user_id, unit, isPati
               <GraphActionButton onClick={() => openModalUpdateRange()}>
                 Update Range
               </GraphActionButton>
+            )}
+            {enableGraphEditPanel && typeof onToggleEditPanel === "function" && (
+              <GraphEditButton active={showEditPanel} onClick={onToggleEditPanel} />
             )}
           </GraphToolbarGroup>
           {showModalEnterReadings && (

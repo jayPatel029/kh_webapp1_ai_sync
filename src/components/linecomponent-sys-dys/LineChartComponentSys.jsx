@@ -20,6 +20,7 @@ import {
   GraphShell,
   GraphToolbarGroup,
   GraphActionButton,
+  GraphEditButton,
   GraphPeriodSelect,
   GraphChartFrame,
 } from "../Linechart/GraphChrome";
@@ -31,6 +32,9 @@ const LineChartComponent = ({
   user_id,
   unit,
   isPatientProfile = 1,
+  enableGraphEditPanel = false,
+  showEditPanel = false,
+  onToggleEditPanel,
 }) => {
   // console.log(questionId)
 
@@ -1581,6 +1585,9 @@ const LineChartComponent = ({
               <GraphActionButton onClick={() => openModalUpdateRange()}>
                 Update Range
               </GraphActionButton>
+            )}
+            {enableGraphEditPanel && typeof onToggleEditPanel === "function" && (
+              <GraphEditButton active={showEditPanel} onClick={onToggleEditPanel} />
             )}
           </GraphToolbarGroup>
           {showModalEnterReadings && (

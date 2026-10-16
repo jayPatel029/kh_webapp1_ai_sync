@@ -23,6 +23,7 @@ import {
   GraphShell,
   GraphToolbarGroup,
   GraphActionButton,
+  GraphEditButton,
   GraphCalendarButton,
   GraphColorPill,
   GraphDatePickerPanel,
@@ -40,6 +41,9 @@ const LineChartDialysis = ({
   user_id,
   unit,
   isPatientProfile = 0,
+  enableGraphEditPanel = false,
+  showEditPanel = false,
+  onToggleEditPanel,
 }) => {
   const [patientData, setPatientData] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -1060,11 +1064,6 @@ const LineChartDialysis = ({
           </GraphToolbarGroup>
 
           <GraphToolbarGroup>
-            {role?.canEditPatients && userRole == "Admin" && (
-              <GraphActionButton onClick={() => openModalUpdateRange()}>
-                Update Range
-              </GraphActionButton>
-            )}
             {role?.canEditPatients && (
               <GraphActionButton
                 onClick={() => {
@@ -1074,6 +1073,14 @@ const LineChartDialysis = ({
               >
                 Enter Readings
               </GraphActionButton>
+            )}
+            {role?.canEditPatients && userRole == "Admin" && (
+              <GraphActionButton onClick={() => openModalUpdateRange()}>
+                Update Range
+              </GraphActionButton>
+            )}
+            {enableGraphEditPanel && typeof onToggleEditPanel === "function" && (
+              <GraphEditButton active={showEditPanel} onClick={onToggleEditPanel} />
             )}
           </GraphToolbarGroup>
 

@@ -27,16 +27,28 @@ export function GraphToolbarGroup({ children, className = "" }) {
   );
 }
 
-export function GraphActionButton({ children, onClick, type = "button", className = "", ...rest }) {
+export function GraphActionButton({ children, onClick, type = "button", className = "", active = false, ...rest }) {
   return (
     <button
       type={type}
       onClick={onClick}
-      className={`${graphActionBtnClass} ${className}`}
+      aria-pressed={active || undefined}
+      className={`${graphActionBtnClass} ${
+        active ? "!bg-primary !text-white hover:!bg-primary hover:!text-white" : ""
+      } ${className}`}
       {...rest}
     >
       {children}
     </button>
+  );
+}
+
+/** Patient-profile graph: toggles the side readings table. */
+export function GraphEditButton({ active, onClick }) {
+  return (
+    <GraphActionButton active={active} onClick={onClick}>
+      {active ? "Hide table" : "Edit"}
+    </GraphActionButton>
   );
 }
 
