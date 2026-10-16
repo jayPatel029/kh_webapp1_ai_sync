@@ -631,6 +631,8 @@ const BaseAlarmModal = ({
 
   const modalSize = showPrescriptionViewer && selectedAlarmType === "Prescription" ? "8xl" : "2xl";
   const gridColumns = showPrescriptionViewer && selectedAlarmType === "Prescription" ? "1fr 2fr" : "1fr";
+  // Main EditAlarmModal showed rejection note on the alarm form only (not on Doctor Alerts list)
+  const rejectionReason = (alarmData?.reason || "").trim();
 
   return (
     <>
@@ -651,6 +653,15 @@ const BaseAlarmModal = ({
           setFieldErrors((prev) => ({ ...prev, [field]: false }))
         }
       >
+        {isEdit && rejectionReason && (
+          <Box className="mb-4 p-3 rounded border border-red-200 bg-red-50">
+            <Text size="sm" className="text-red-700">
+              <span className="font-semibold">Rejection Reason: </span>
+              {rejectionReason}
+            </Text>
+          </Box>
+        )}
+
         <Grid gap={6} className="!min-w-full" templateColumns={gridColumns}>
           <GridItem colSpan={1} className="gap-8 min-w-0">
             {/* Alarm Type */}
