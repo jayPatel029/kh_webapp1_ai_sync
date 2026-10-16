@@ -1507,9 +1507,10 @@ const LineChartDialysisSys = ({ aspect, title, questionId, user_id, unit, isPati
   };
 
   useEffect(() => {
+    // Re-apply when readings load too; otherwise default "Last Week" only works after changing the dropdown.
     const filteredData = filterDataByTimeRange(originalData, selectedTimeRange);
     setPatientData(filteredData);
-  }, [selectedTimeRange]);
+  }, [selectedTimeRange, originalData]);
 
   const openModalEnterReadings = () => {
     setShowModalEnterReadings(true);

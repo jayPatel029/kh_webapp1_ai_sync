@@ -1026,6 +1026,11 @@ const LineChartDialysis = ({
                       setIsCheckedOrange(false);
                       setIsCheckedRed(false);
                       setIsDateFilterApplied(false);
+                      setSelectionRange({
+                        startDate: new Date(),
+                        endDate: new Date(),
+                        key: "selection",
+                      });
                       setPatientData(originalData);
                     }}
                   >
@@ -1045,9 +1050,9 @@ const LineChartDialysis = ({
               setIsCheckedRed(!isCheckedRed);
               setTrigger(!trigger);
             }}
-            className={`flex items-center focus:outline-none ${isCheckedRed ? '' : ''}`}
+            className="flex items-center focus:outline-none"
           >
-            <Box className={`w-3 h-3 rounded-full mr-2 ${isCheckedRed ? 'bg-blue-700' : 'bg-gray-300'}`} />
+            <Box className={`w-3 h-3 rounded-full mr-2 ${isCheckedRed ? 'bg-red-700' : 'bg-gray-300'}`} />
             <Text size="sm" className="mr-4">Red</Text>
           </Box>
 

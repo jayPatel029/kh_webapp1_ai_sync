@@ -1037,6 +1037,11 @@ const LineChartComponent = ({
                     setIsCheckedOrange(false);
                     setIsCheckedRed(false);
                     setIsDateFilterApplied(false);
+                    setSelectionRange({
+                      startDate: new Date(),
+                      endDate: new Date(),
+                      key: "selection",
+                    });
                     setPatientData(originalData);
                   }}
                 >
@@ -1074,6 +1079,11 @@ const LineChartComponent = ({
               setIsCheckedOrange(false);
               setIsCheckedRed(false);
               setIsDateFilterApplied(false);
+              setSelectionRange({
+                startDate: new Date(),
+                endDate: new Date(),
+                key: "selection",
+              });
               setPatientData(originalData);
             }}
           >
