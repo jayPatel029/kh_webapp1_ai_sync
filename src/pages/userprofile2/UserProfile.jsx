@@ -209,6 +209,7 @@ export const ParameterDetailView = ({
   };
 
   if (showGraph) {
+    const chartAspect = enableGraphEditPanel && showEditPanel ? 3 / 2 : aspect;
     const editPanelProps = {
       enableGraphEditPanel,
       showEditPanel,
@@ -221,13 +222,13 @@ export const ParameterDetailView = ({
         question={question}
         userId={userId}
         isDialysis={isDialysis}
-        aspect={aspect}
+        aspect={chartAspect}
         {...editPanelProps}
       />
     ) : isDialysis ? (
       <LineChartDialysis
         key={`dia-${graphRefreshKey}`}
-        aspect={aspect}
+        aspect={chartAspect}
         questionId={question?.id}
         user_id={userId}
         title={title}
@@ -238,7 +239,7 @@ export const ParameterDetailView = ({
     ) : (
       <LineChartComponent
         key={`gen-${graphRefreshKey}`}
-        aspect={aspect}
+        aspect={chartAspect}
         questionId={question?.id}
         user_id={userId}
         title={title}
@@ -270,36 +271,37 @@ export const ParameterDetailView = ({
       />
     );
 
-    // Expand the modal width for the side table; keep graph dominant (not a 50/50 shrink).
-    const panelOpen = enableGraphEditPanel && showEditPanel;
-
     return (
-      <div
-        className={`flex flex-col gap-4 items-stretch ${
-          panelOpen ? "xl:flex-row" : ""
-        }`}
-      >
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-w-0 flex-1">
-          <div className="border-b border-gray-100 px-4 py-3 bg-slate-50/90">
-            <h3 className="text-sm font-semibold text-accent tracking-wide uppercase">Graph</h3>
-          </div>
-          <div className="p-3 sm:p-4">
-            {graphNode}
-          </div>
-        </section>
-
-        {panelOpen && (
-          <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden w-full xl:w-[380px] xl:max-w-[380px] xl:flex-shrink-0">
+      <div className="space-y-3">
+        <div
+          className={
+            enableGraphEditPanel && showEditPanel
+              ? "grid gap-4 lg:grid-cols-2 items-start"
+              : undefined
+          }
+        >
+          <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-w-0">
             <div className="border-b border-gray-100 px-4 py-3 bg-slate-50/90">
-              <h3 className="text-sm font-semibold text-accent tracking-wide uppercase">
-                Readings
-              </h3>
+              <h3 className="text-sm font-semibold text-accent tracking-wide uppercase">Graph</h3>
             </div>
-            <div className="p-3 sm:p-4 max-h-[70vh] overflow-y-auto">
-              {editTable}
+            <div className="p-3 sm:p-4">
+              {graphNode}
             </div>
           </section>
-        )}
+
+          {enableGraphEditPanel && showEditPanel && (
+            <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-w-0 lg:sticky lg:top-0">
+              <div className="border-b border-gray-100 px-4 py-3 bg-slate-50/90">
+                <h3 className="text-sm font-semibold text-accent tracking-wide uppercase">
+                  Readings
+                </h3>
+              </div>
+              <div className="p-3 sm:p-4 max-h-[70vh] overflow-y-auto">
+                {editTable}
+              </div>
+            </section>
+          )}
+        </div>
       </div>
     );
   }
@@ -970,7 +972,7 @@ function UserProfile() {
           {/* Modal overlay: General Parameter chart */}
           {selectedGeneralParam && (
             <div onClick={() => setSelectedGeneralParam(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-              <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: 'min(1400px, 96vw)', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '1100px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                   <h2 style={{ fontWeight: '700', color: '#32617d', fontSize: '1.2rem', margin: 0 }}>
                     {getDisplayReadingTitle(selectedGeneralParam.question)}
@@ -991,7 +993,7 @@ function UserProfile() {
           {/* Modal overlay: Dialysis Parameter chart */}
           {selectedDialysisParam && (
             <div onClick={() => setSelectedDialysisParam(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-              <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: 'min(1400px, 96vw)', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '1100px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                   <h2 style={{ fontWeight: '700', color: '#32617d', fontSize: '1.2rem', margin: 0 }}>{getDisplayReadingTitle(selectedDialysisParam.question)}</h2>
                   <button onClick={() => setSelectedDialysisParam(null)} style={{ background: 'none', border: 'none', fontSize: '1.6rem', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
