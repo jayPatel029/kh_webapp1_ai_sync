@@ -7,7 +7,8 @@
  * @file src/component-library/primitives/Select.jsx
  */
 
-import React, { forwardRef, useState, useRef, useEffect, useCallback } from 'react';
+import React, { forwardRef, useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import clsx from 'clsx';
 import '../../design-system/styles/custom-select.css';
@@ -40,7 +41,10 @@ export const Select = forwardRef(({
 }, ref) => {
   // ─── Hooks called unconditionally at top level ───
   const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState(null);
   const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null);
   const hiddenRef = useRef(null);
 
   // Merge forwarded ref with local hidden ref
@@ -67,13 +71,50 @@ export const Select = forwardRef(({
     return match ? match.props.children : currentValue;
   };
 
-  // Close on outside click
+  // Position dropdown in a portal so modal overflow cannot clip options
+  const updateMenuPosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const maxHeight = 320;
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+    const openUpward = spaceBelow < Math.min(maxHeight, 200) && spaceAbove > spaceBelow;
+    const available = Math.max(120, openUpward ? spaceAbove : spaceBelow);
+    setMenuStyle({
+      position: 'fixed',
+      left: rect.left,
+      width: Math.max(rect.width, 160),
+      maxHeight: Math.min(maxHeight, available),
+      zIndex: 100000,
+      ...(openUpward
+        ? { bottom: window.innerHeight - rect.top + 8 }
+        : { top: rect.bottom + 8 }),
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setMenuStyle(null);
+      return undefined;
+    }
+    updateMenuPosition();
+    const onReposition = () => updateMenuPosition();
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [isOpen, updateMenuPosition]);
+
+  // Close on outside click (trigger + portaled menu)
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
+      const inTrigger = containerRef.current?.contains(e.target);
+      const inMenu = dropdownRef.current?.contains(e.target);
+      if (!inTrigger && !inMenu) setIsOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -139,6 +180,7 @@ export const Select = forwardRef(({
     <div ref={containerRef} className={containerClasses}>
       {/* Trigger */}
       <button
+        ref={triggerRef}
         type="button"
         className="custom-select__trigger"
         onClick={() => !isDisabled && setIsOpen(!isOpen)}
@@ -153,9 +195,14 @@ export const Select = forwardRef(({
         <span className="custom-select__chevron" />
       </button>
 
-      {/* Dropdown */}
-      {isOpen && !isDisabled && (
-        <ul className="custom-select__dropdown" role="listbox">
+      {/* Dropdown portaled to body — avoids modal/overflow clipping */}
+      {isOpen && !isDisabled && menuStyle && createPortal(
+        <ul
+          ref={dropdownRef}
+          className="custom-select__dropdown custom-select__dropdown--portal"
+          role="listbox"
+          style={menuStyle}
+        >
           {options.map((option) => {
             const isSelected = String(option.props.value) === String(currentValue);
             return (
@@ -173,7 +220,8 @@ export const Select = forwardRef(({
           {options.length === 0 && (
             <li className="custom-select__empty">No options</li>
           )}
-        </ul>
+        </ul>,
+        document.body,
       )}
 
       {/* Hidden native select for form submission & accessibility */}

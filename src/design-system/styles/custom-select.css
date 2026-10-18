@@ -141,6 +141,15 @@
   animation: customSelectSlideDown 0.2s ease-out;
 }
 
+/* Portaled menus use fixed coords from JS; clear absolute anchoring */
+.custom-select__dropdown--portal {
+  position: fixed;
+  top: auto;
+  left: auto;
+  right: auto;
+  min-width: 0;
+}
+
 @keyframes customSelectSlideDown {
   from {
     opacity: 0;

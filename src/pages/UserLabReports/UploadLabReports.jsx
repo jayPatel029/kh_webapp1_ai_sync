@@ -274,16 +274,16 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
           </Heading>
         </ModalHeader>
 
-        <ModalBody className="py-6 overflow-hidden">
+        <ModalBody className="py-6 overflow-visible">
           <Flex
             direction="row"
             gap={6}
             align="stretch"
-            className="flex-col md:flex-row"
+            className="flex-col md:flex-row overflow-visible"
           >
-            {/* Left: upload form */}
-            <Box className="flex-1 min-w-0">
-              <VStack spacing={6} align="stretch">
+            {/* Left: upload form — overflow visible so Report Type dropdown is not clipped */}
+            <Box className="flex-1 min-w-0 overflow-visible">
+              <VStack spacing={6} align="stretch" className="overflow-visible">
                 <FormControl isRequired isInvalid={!!errorMsg && !selectedDate}>
                   <FormLabel>Lab Report Date</FormLabel>
                   <Input
@@ -303,6 +303,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
                     !!errorMsg &&
                     (!selectedReportType || selectedReportType === "Select")
                   }
+                  className="relative z-20 overflow-visible"
                 >
                   <FormLabel>Report Type</FormLabel>
                   <Select
