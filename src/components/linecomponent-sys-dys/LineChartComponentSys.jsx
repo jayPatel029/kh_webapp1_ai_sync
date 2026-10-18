@@ -70,7 +70,8 @@ const LineChartComponent = ({
   const [highRangeDia2, setHighRangeDia2] = useState(0);
   const [lowRangeDia2, setLowRangeDia2] = useState(0);
   const userRole = localStorage.getItem("role");
-  const [selectedTimeRange, setSelectedTimeRange] = useState("week");
+  // Default All — Last Week hides older session BP (common empty-chart bug)
+  const [selectedTimeRange, setSelectedTimeRange] = useState("all");
   const [originalData, setOriginalData] = useState([]);
 
   const CustomizedDotOld2 = (props) => {
