@@ -34,7 +34,7 @@ import {
 } from "../../component-library/primitives/FormControl";
 import { Input } from "../../component-library/primitives/Input";
 import { Select } from "../../component-library/primitives/Select";
-import { VStack, HStack, Box } from "../../component-library/layout/Layout";
+import { VStack, HStack, Box, Flex } from "../../component-library/layout/Layout";
 import { Text, Heading } from "../../component-library/primitives/Typography";
 import { useAdminToast } from "../../components/AdminToast";
 
@@ -68,6 +68,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
     isPdfItem(selectedImages[0]);
   // Main: Lab + PDF always extracts. Never silently skip for Lab.
   const willExtract = isLabType && isSingleOriginalPdf;
+  const showValuesPanel = !!extractedValues || isExtracting;
 
   const handleImageChange = (imagesArray) => {
     setSelectedImages(imagesArray || []);
@@ -259,7 +260,12 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
   };
 
   return (
-    <Modal isOpen={true} onClose={closeModal} size="lg" isCentered>
+    <Modal
+      isOpen={true}
+      onClose={closeModal}
+      size={showValuesPanel ? "5xl" : "lg"}
+      isCentered
+    >
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>
@@ -268,128 +274,162 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
           </Heading>
         </ModalHeader>
 
-        <ModalBody className="py-6">
-          <VStack spacing={6} align="stretch">
-            <FormControl isRequired isInvalid={!!errorMsg && !selectedDate}>
-              <FormLabel>Lab Report Date</FormLabel>
-              <Input
-                type="date"
-                value={selectedDate}
-                max={getCurrentDate()}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setErrorMsg("");
-                }}
-              />
-            </FormControl>
+        <ModalBody className="py-6 overflow-hidden">
+          <Flex
+            direction="row"
+            gap={6}
+            align="stretch"
+            className="flex-col md:flex-row"
+          >
+            {/* Left: upload form */}
+            <Box className="flex-1 min-w-0">
+              <VStack spacing={6} align="stretch">
+                <FormControl isRequired isInvalid={!!errorMsg && !selectedDate}>
+                  <FormLabel>Lab Report Date</FormLabel>
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    max={getCurrentDate()}
+                    onChange={(e) => {
+                      setSelectedDate(e.target.value);
+                      setErrorMsg("");
+                    }}
+                  />
+                </FormControl>
 
-            <FormControl
-              isRequired
-              isInvalid={
-                !!errorMsg &&
-                (!selectedReportType || selectedReportType === "Select")
-              }
-            >
-              <FormLabel>Report Type</FormLabel>
-              <Select
-                value={selectedReportType}
-                placeholder="Select report type"
-                onChange={(e) => {
-                  setSelectedReportType(e.target.value);
-                  setExtractedValues(null);
-                  setUploadedReportUrl("");
-                  setErrorMsg("");
-                  setExtractHint("");
-                }}
-              >
-                {[
-                  "Lab",
-                  "Ultrasound",
-                  "X-Ray",
-                  "Echo",
-                  "MRI",
-                  "Angiography",
-                  "CT Scan",
-                ].map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl
-              isRequired
-              isInvalid={!!errorMsg && selectedImages.length === 0}
-            >
-              <FormLabel>
-                Upload File
-                {isLabType ? " (single PDF for auto-detect)" : ""}
-              </FormLabel>
-              <Box className="relative">
-                <FileUploadWithCamera
-                  images={selectedImages}
-                  onChange={handleImageChange}
-                  accept={isLabType ? ".pdf,application/pdf" : "image/*,.pdf"}
-                  multiple={!isLabType}
-                  showCamera={!isLabType}
-                />
-              </Box>
-              {errorMsg && <FormErrorMessage>{errorMsg}</FormErrorMessage>}
-            </FormControl>
-
-            {extractedValues && (
-              <Box className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <HStack justify="between" align="center" className="mb-3">
-                  <Heading size="sm" weight="bold">
-                    Extracted Values
-                  </Heading>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleAddField}
-                    className="text-primary font-bold"
+                <FormControl
+                  isRequired
+                  isInvalid={
+                    !!errorMsg &&
+                    (!selectedReportType || selectedReportType === "Select")
+                  }
+                >
+                  <FormLabel>Report Type</FormLabel>
+                  <Select
+                    value={selectedReportType}
+                    placeholder="Select report type"
+                    onChange={(e) => {
+                      setSelectedReportType(e.target.value);
+                      setExtractedValues(null);
+                      setUploadedReportUrl("");
+                      setErrorMsg("");
+                      setExtractHint("");
+                    }}
                   >
-                    + Add Field
-                  </Button>
-                </HStack>
+                    {[
+                      "Lab",
+                      "Ultrasound",
+                      "X-Ray",
+                      "Echo",
+                      "MRI",
+                      "Angiography",
+                      "CT Scan",
+                    ].map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </Select>
+                </FormControl>
 
-                {extractHint ? (
-                  <Text size="sm" className="text-amber-800 mb-3">
-                    {extractHint}
-                  </Text>
-                ) : null}
+                <FormControl
+                  isRequired
+                  isInvalid={!!errorMsg && selectedImages.length === 0}
+                >
+                  <FormLabel>
+                    Upload File
+                    {isLabType ? " (single PDF for auto-detect)" : ""}
+                  </FormLabel>
+                  <Box className="relative">
+                    <FileUploadWithCamera
+                      images={selectedImages}
+                      onChange={handleImageChange}
+                      accept={isLabType ? ".pdf,application/pdf" : "image/*,.pdf"}
+                      multiple={!isLabType}
+                      showCamera={!isLabType}
+                    />
+                  </Box>
+                  {errorMsg && <FormErrorMessage>{errorMsg}</FormErrorMessage>}
+                </FormControl>
+              </VStack>
+            </Box>
 
-                <Box className="max-h-[300px] overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.keys(extractedValues).map((key) => (
-                    <Box key={key}>
-                      <Text
-                        size="xs"
-                        weight="medium"
-                        className="mb-1 text-gray-500 uppercase"
-                      >
-                        {key}
-                      </Text>
-                      <Input
+            {/* Right: extracted values (expands dialog sideways) */}
+            {showValuesPanel && (
+              <Box className="flex-1 min-w-0 md:border-l md:border-gray-200 md:pl-6">
+                <Box className="h-full max-h-[55vh] flex flex-col p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <HStack justify="between" align="center" className="mb-3 shrink-0">
+                    <Heading size="sm" weight="bold">
+                      Extracted Values
+                    </Heading>
+                    {extractedValues && (
+                      <Button
                         size="sm"
-                        value={
-                          extractedValues[key] == null
-                            ? ""
-                            : String(extractedValues[key])
-                        }
-                        onChange={(e) => handleEditValue(key, e.target.value)}
-                        className="bg-white"
+                        variant="ghost"
+                        onClick={handleAddField}
+                        className="text-primary font-bold"
+                        isDisabled={isExtracting}
+                      >
+                        + Add Field
+                      </Button>
+                    )}
+                  </HStack>
+
+                  {isExtracting && !extractedValues ? (
+                    <Box className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
+                      <Text size="sm" className="text-gray-600">
+                        {willExtract
+                          ? "Uploading and extracting values…"
+                          : "Uploading report…"}
+                      </Text>
+                      <Box
+                        className="progress-bar-indeterminate"
+                        aria-label="Extracting"
                       />
                     </Box>
-                  ))}
+                  ) : (
+                    <>
+                      {extractHint ? (
+                        <Text size="sm" className="text-amber-800 mb-3 shrink-0">
+                          {extractHint}
+                        </Text>
+                      ) : null}
+
+                      <Box className="flex-1 min-h-0 overflow-y-auto pr-1 grid grid-cols-1 sm:grid-cols-2 gap-4 content-start">
+                        {Object.keys(extractedValues || {}).map((key) => (
+                          <Box key={key}>
+                            <Text
+                              size="xs"
+                              weight="medium"
+                              className="mb-1 text-gray-500 uppercase"
+                            >
+                              {key}
+                            </Text>
+                            <Input
+                              size="sm"
+                              value={
+                                extractedValues[key] == null
+                                  ? ""
+                                  : String(extractedValues[key])
+                              }
+                              onChange={(e) =>
+                                handleEditValue(key, e.target.value)
+                              }
+                              className="bg-white"
+                            />
+                          </Box>
+                        ))}
+                      </Box>
+                    </>
+                  )}
                 </Box>
               </Box>
             )}
-          </VStack>
+          </Flex>
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="outline" onClick={closeModal}>
+          <Button variant="outline" onClick={closeModal} isDisabled={isExtracting}>
             Cancel
           </Button>
           {!extractedValues && (
@@ -407,6 +447,7 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
               variant="solid"
               colorScheme="success"
               isLoading={isSaving}
+              loadingText="Saving..."
               onClick={handleSave}
             >
               Save Report

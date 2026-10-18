@@ -120,6 +120,8 @@ export const Button = forwardRef(({
           <Spinner size={size === 'lg' ? 'md' : 'sm'} />
         </span>
       )}
+
+      {isLoading && <span className="btn__progress" aria-hidden="true" />}
     </button>
   );
 });

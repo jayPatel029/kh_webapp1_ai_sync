@@ -94,9 +94,12 @@
 .btn--loading {
   position: relative;
   cursor: wait;
+  overflow: hidden;
 }
 
-.btn--loading .btn__content {
+/* Only hide label when using the absolute spinner (no loadingText).
+   With loadingText, spinner+label live inside .btn__content and must stay visible. */
+.btn--loading:has(.btn__spinner) .btn__content {
   opacity: 0;
 }
 
@@ -105,13 +108,62 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* ensure spinner appears left of center by default and scales with size */
-.btn__spinner {
   left: var(--space-4);
   top: 50%;
   transform: translateY(-50%);
+}
+
+/* Indeterminate progress strip along the button bottom while loading */
+.btn__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.btn__progress::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  background: rgba(255, 255, 255, 0.95);
+  animation: btn-progress-indeterminate 1.1s ease-in-out infinite;
+}
+
+@keyframes btn-progress-indeterminate {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Standalone indeterminate bar (e.g. extract panel placeholder) */
+.progress-bar-indeterminate {
+  position: relative;
+  width: 100%;
+  max-width: 20rem;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-gray-200, #e5e7eb);
+}
+
+.progress-bar-indeterminate::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  border-radius: 999px;
+  background: var(--color-primary, #2563eb);
+  animation: btn-progress-indeterminate 1.1s ease-in-out infinite;
 }
 
 /* Full width */
