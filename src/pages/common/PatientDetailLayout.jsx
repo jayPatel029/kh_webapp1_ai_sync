@@ -81,14 +81,17 @@ const  PatientDetailLayout = ({
     }
   };
 
-  if (loading) {
-    return <Box className="p-20 text-center">Loading...</Box>;
-  }
+  // Never replace the whole tree with a loading screen — that unmounts open
+  // modals (e.g. lab upload mid-extract) and loses in-progress form state.
+  const loadingBanner = loading ? (
+    <Box className="p-4 text-center text-sm text-gray-600">Loading...</Box>
+  ) : null;
 
   if (isInPatientProfileShell) {
     if (isMobile) {
       return (
         <Box className="flex-1 px-3 py-3">
+          {loadingBanner}
           <PatientSectionCard title={title} userName={resolvedUserData?.name} compact>
             {children}
           </PatientSectionCard>
@@ -98,6 +101,7 @@ const  PatientDetailLayout = ({
 
     return (
       <Box className="flex-1">
+        {loadingBanner}
         <PatientSectionCard title={title} userName={resolvedUserData?.name}>
           {children}
         </PatientSectionCard>
@@ -137,6 +141,7 @@ const  PatientDetailLayout = ({
 
           {/* Content without heavy shadow/padding */}
           <Box className="flex-1 px-3 py-3">
+            {loadingBanner}
             <PatientSectionCard title={title} userName={userData?.name} compact>
               {children}
             </PatientSectionCard>
@@ -184,6 +189,7 @@ const  PatientDetailLayout = ({
 
         {/* Main Content */}
         <Box className="flex-1 ">
+          {loadingBanner}
           <PatientSectionCard title={title} userName={userData?.name} noheaderline={!(showNavTabs | showHeader)}>
             {children}
           </PatientSectionCard>

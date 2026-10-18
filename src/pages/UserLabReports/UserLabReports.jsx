@@ -6,7 +6,7 @@
  * @file src/pages/UserLabReports/UserLabReports.jsx
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { ROUTES } from "../../routes/routeConstants";
@@ -86,6 +86,8 @@ const UserLabReports = ({ patientId: propPatientId }) => {
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
+  const showModalRef = useRef(false);
+  showModalRef.current = showModal;
 
   const openFileModal = (fileId, imageUrl) => {
     setUploadedFile({ id: fileId, imageUrl });
@@ -125,7 +127,10 @@ const UserLabReports = ({ patientId: propPatientId }) => {
   };
 
   const fetchData = async () => {
-    setLoading(true);
+    // Soft refresh while upload dialog is open — avoid full-page loading
+    // that used to unmount the modal before extracted values could render.
+    const soft = showModalRef.current;
+    if (!soft) setLoading(true);
     try {
       const response = await fetchWithCache(`labReports_${id}`, () => getLabreportGetLabReportsByid(id));
       if (response.success) {
@@ -136,7 +141,7 @@ const UserLabReports = ({ patientId: propPatientId }) => {
     } catch (error) {
       console.error("Error fetching lab report data:", error);
     } finally {
-      setLoading(false);
+      if (!soft) setLoading(false);
     }
   };
 

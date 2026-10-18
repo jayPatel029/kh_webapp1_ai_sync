@@ -38,7 +38,15 @@ export const MUTATION_CACHE_MAP = [
   { pattern: /\/appAlerts\//, pages: ['dashboard', 'doctorDashboard'] },
 
   // ── Lab Reports ────────────────────────────────────────────────────
-  { pattern: /\/labreport\//, pages: ['userLabReports', 'patientDetail'] },
+  // Do NOT match /labreport/extract — extract is a draft step; invalidating
+  // here remounts the upload dialog and wipes extracted values mid-flow.
+  {
+    pattern:
+      /\/labreport\/(confirm|addBulkIndividual|addLabReading|deleteLabReading|deleteLabReport|updateLabReadingTitle)(?:\/|$)/,
+    pages: ['userLabReports', 'patientDetail'],
+  },
+  // DELETE /labreport/:id (report delete by id)
+  { pattern: /\/labreport\/\d+(?:\?|$)/, pages: ['userLabReports', 'patientDetail'] },
 
   // ── Diet ───────────────────────────────────────────────────────────
   { pattern: /\/dietdetails\//, pages: ['userDiet', 'patientDetail'] },
@@ -90,6 +98,7 @@ const QUERY_POST_EXCLUSIONS = [
   /\/sort$/,               // Sorting endpoints
   /\/getPatients/,         // Fetching patients (POST-based query)
   /\/getMessagesSW/,       // Service worker message fetch
+  /\/labreport\/extract/,  // OCR draft — not a list mutation
 ];
 
 /**

@@ -135,24 +135,24 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
       const extractRes = await postLabreportExtract(data);
       const body = extractRes.data || {};
 
-      // Non-Lab / skip path: report already saved
-      if (
-        extractRes.success &&
-        (body.reportId != null ||
-          body.message === "Lab Report confirmed and saved successfully")
-      ) {
-        showToast("Lab report uploaded successfully.", "success");
-        onSuccess?.();
-        closeModal();
-        return;
-      }
-
       if (!extractRes.success) {
         const msg =
           (typeof body === "string" && body) ||
           body?.message ||
           "Failed to extract data.";
         setErrorMsg(msg);
+        return;
+      }
+
+      // Non-Lab / skip path only: report already saved. Lab extract must stay open.
+      if (
+        !willExtract &&
+        (body.reportId != null ||
+          body.message === "Lab Report confirmed and saved successfully")
+      ) {
+        showToast("Lab report uploaded successfully.", "success");
+        onSuccess?.();
+        closeModal();
         return;
       }
 
@@ -178,6 +178,12 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
 
       setUploadedReportUrl(pdfUrl);
       setExtractedValues(safeValues);
+      showToast(
+        Object.keys(safeValues).length > 0
+          ? "Values extracted. Review and save."
+          : "Upload ready. Add values manually if needed.",
+        "success"
+      );
     } catch (error) {
       console.error("Error during extraction:", error);
       const msg = error?.message || "Something went wrong while extracting data.";
