@@ -67,6 +67,7 @@ import SystolicDiastolicGraph, {
 } from "../../components/Linechart/SystolicDiastolicGraph";
 import Table from "../../components/table/table";
 import DialysisTable from "../../components/table/DialysisTable";
+import SysDiaReadingsTable from "../../components/table/SysDiaReadingsTable";
 import LineChartComponentLab from "../../components/linechartlab/LineChartComponentLab";
 import LabRedingUpdateModal from "../../components/modals/LabReadingModal";
 import { PatientProfileShellContext } from "../common/PatientProfileShellContext";
@@ -157,27 +158,35 @@ export const ParameterDetailView = ({
       />
     );
 
-    const editTable = isDialysis ? (
-      <DialysisTable
-        questionId={editQuestionId}
-        user_id={userId}
-        title={title}
-        question={question}
-        isPatientProfile={1}
-        highlightThreshold={normalizedTitle === "weightafter" ? dryWeight : null}
-        highlightComparator="gt"
-        onDataChange={handleReadingsChanged}
-      />
-    ) : (
-      <Table
-        questionId={editQuestionId}
-        user_id={userId}
-        title={title}
-        question={question}
-        isPatientProfile={1}
-        onDataChange={handleReadingsChanged}
-      />
-    );
+    const editTable =
+      isSystolic || isDiastolic ? (
+        <SysDiaReadingsTable
+          questionId={editQuestionId}
+          user_id={userId}
+          isDialysis={isDialysis}
+          onDataChange={handleReadingsChanged}
+        />
+      ) : isDialysis ? (
+        <DialysisTable
+          questionId={editQuestionId}
+          user_id={userId}
+          title={title}
+          question={question}
+          isPatientProfile={1}
+          highlightThreshold={normalizedTitle === "weightafter" ? dryWeight : null}
+          highlightComparator="gt"
+          onDataChange={handleReadingsChanged}
+        />
+      ) : (
+        <Table
+          questionId={editQuestionId}
+          user_id={userId}
+          title={title}
+          question={question}
+          isPatientProfile={1}
+          onDataChange={handleReadingsChanged}
+        />
+      );
 
     return (
       <div className="space-y-3">
