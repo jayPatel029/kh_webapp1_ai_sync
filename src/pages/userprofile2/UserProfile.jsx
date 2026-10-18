@@ -284,7 +284,10 @@ function UserProfile() {
   const [labReadings, setLabReadings] = useState([]);
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState({ ailments: [] });
-  const [selectedReading, setSelectedReading] = useState(null);
+  /** Chart overlay for a lab parameter (same pattern as Daily/Dialysis). */
+  const [selectedLabParam, setSelectedLabParam] = useState(null);
+  /** Admin rename modal for a lab parameter title. */
+  const [renamingLabParam, setRenamingLabParam] = useState(null);
   const [selectedGeneralParam, setSelectedGeneralParam] = useState(null);
   const [selectedDialysisParam, setSelectedDialysisParam] = useState(null);
 
@@ -301,8 +304,27 @@ function UserProfile() {
   const hasGeneralSystolic = generalParameters.some((q) => q.title?.toLowerCase().includes("systolic"));
   const hasDialysisSystolic = dialysisParameters.some((q) => q.title?.toLowerCase().includes("systolic"));
 
-  const openLabReadingModal = (title, id) => setSelectedReading({ title, id });
-  const closeLabReadingModal = () => setSelectedReading(null);
+  const openLabChart = (reading) =>
+    setSelectedLabParam({
+      id: reading.id,
+      title: reading.title,
+      unit: reading.unit,
+    });
+  const closeLabChart = () => setSelectedLabParam(null);
+  const openLabRenameModal = (reading) =>
+    setRenamingLabParam({ id: reading.id, title: reading.title });
+  const closeLabRenameModal = () => setRenamingLabParam(null);
+
+  const fetchLabReadings = async () => {
+    try {
+      const response = await getLabreportLabReadings();
+      if (response.success) {
+        setLabReadings(response?.data?.data || []);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
   const openEditalimentsModal = () => setEditalimentsModalOpen(true);
   const closeEditalimentsModal = () => setEditalimentsModalOpen(false);
   const openEditModal = async () => {
@@ -375,14 +397,34 @@ function UserProfile() {
   };
 
   const deleteLabReading = async (readingId) => {
-    if (!window.confirm("Are you sure you want to delete this reading?")) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this lab parameter and all of its readings?"
+      )
+    ) {
+      return;
+    }
     try {
-      await deleteLabreportDeleteLabReadingByid(readingId);
-
+      const result = await deleteLabreportDeleteLabReadingByid(readingId);
+      if (!result?.success) {
+        console.error("Failed to delete lab reading:", result?.data);
+        return;
+      }
+      if (selectedLabParam?.id === readingId) closeLabChart();
+      if (renamingLabParam?.id === readingId) closeLabRenameModal();
+      await fetchLabReadings();
     } catch (e) {
       console.error("Error deleting lab reading:", e);
     }
-    // window.location.reload();
+  };
+
+  const handleLabRenameSuccess = async (newTitle) => {
+    await fetchLabReadings();
+    if (selectedLabParam?.id === renamingLabParam?.id && newTitle) {
+      setSelectedLabParam((prev) =>
+        prev ? { ...prev, title: newTitle } : prev
+      );
+    }
   };
 
   async function fetchQuestionsForAilment(ailment) {
@@ -483,16 +525,6 @@ function UserProfile() {
   }, [userData.ailments]);
 
   useEffect(() => {
-    const fetchLabReadings = async () => {
-      try {
-        const response = await getLabreportLabReadings();
-        if (response.success) {
-          setLabReadings(response?.data?.data || []);
-        }
-      } catch (err) {
-        setError(err.message);
-      }
-    };
     fetchLabReadings();
   }, []);
 
@@ -932,7 +964,7 @@ function UserProfile() {
             </div>
           )}
           
-          {/* Lab Reports - tile grid */}
+          {/* Lab Reports - tile grid → chart modal (main workflow, new UI) */}
           {userData.program !== "Basic" && (
             <Box className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
               <Box as="h2" className={`${isSmall ? 'text-md' : 'text-xl'} font-bold text-[#32617d] mb-6 text-center`}>
@@ -945,32 +977,121 @@ function UserProfile() {
                   {labReadings.map((reading) => (
                     <Box key={reading.id} className="relative">
                       <button
-                        className={`w-full rounded-xl border border-gray-200 bg-gray-50 ${isSmall ? 'p-4' : 'p-5'} font-bold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 hover:text-[#32617d] transition-colors cursor-pointer ${isSmall ? 'text-sm' : 'text-base'}`}
-                        onClick={() => openLabReadingModal(reading.title, reading.id)}
+                        type="button"
+                        className={`w-full rounded-xl border border-gray-200 bg-gray-50 ${isSmall ? 'p-4 pr-14' : 'p-5 pr-16'} font-bold text-[#4164df] text-center hover:bg-blue-50 hover:border-blue-300 hover:text-[#32617d] transition-colors cursor-pointer ${isSmall ? 'text-sm' : 'text-base'}`}
+                        onClick={() => openLabChart(reading)}
                       >
                         {reading.title}
                       </button>
                       {isRole(role, 'Admin') && (
-                        <button
-                          onClick={() => deleteLabReading(reading.id)}
-                          title="Delete reading"
-                          className="absolute top-2 right-2 opacity-60 hover:opacity-100 transition-opacity bg-white rounded p-0.5"
-                        >
-                          <img src={Delete} alt="Delete" className="w-4 h-4" />
-                        </button>
+                        <Box className="absolute top-2 right-2 flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openLabRenameModal(reading);
+                            }}
+                            title="Rename parameter"
+                            className="opacity-60 hover:opacity-100 transition-opacity bg-white rounded p-0.5"
+                          >
+                            <img src={Edit} alt="Edit" className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteLabReading(reading.id);
+                            }}
+                            title="Delete parameter"
+                            className="opacity-60 hover:opacity-100 transition-opacity bg-white rounded p-0.5"
+                          >
+                            <img src={Delete} alt="Delete" className="w-4 h-4" />
+                          </button>
+                        </Box>
                       )}
                     </Box>
                   ))}
                 </Box>
               )}
 
-              {selectedReading && (
+              {selectedLabParam && userData?.id && (
+                <div
+                  onClick={closeLabChart}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.55)",
+                    zIndex: 1000,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "16px",
+                  }}
+                >
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      background: "white",
+                      borderRadius: "16px",
+                      padding: "24px",
+                      width: "100%",
+                      maxWidth: "1100px",
+                      maxHeight: "90vh",
+                      overflowY: "auto",
+                      boxShadow: "0 24px 64px rgba(0,0,0,0.25)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "20px",
+                      }}
+                    >
+                      <h2
+                        style={{
+                          fontWeight: 700,
+                          color: "#32617d",
+                          fontSize: "1.2rem",
+                          margin: 0,
+                        }}
+                      >
+                        {selectedLabParam.title}
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={closeLabChart}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          fontSize: "1.6rem",
+                          cursor: "pointer",
+                          color: "#666",
+                          lineHeight: 1,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <LineChartComponentLab
+                      key={selectedLabParam.id}
+                      aspect={2 / 1}
+                      questionId={selectedLabParam.id}
+                      user_id={userData.id}
+                      title={selectedLabParam.title}
+                      unit={selectedLabParam.unit}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {renamingLabParam && (
                 <LabRedingUpdateModal
-                  closeModal={closeLabReadingModal}
-                  question={selectedReading.title}
-                  question_id={selectedReading.id}
-                  user_id={userData.id}
-                  onSuccess={handleUpdateSuccess}
+                  closeModal={closeLabRenameModal}
+                  id={renamingLabParam.id}
+                  initialData={renamingLabParam.title}
+                  onSuccess={handleLabRenameSuccess}
                 />
               )}
             </Box>

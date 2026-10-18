@@ -299,15 +299,15 @@ const UserLabReports = ({ patientId: propPatientId }) => {
         )}
       </Flex>
 
-      {/* CSV Upload Component */}
-      {/* <Box className="mb-6">
+      {/* CSV Upload — same as main Lab Reports tab */}
+      <Box className="mb-6">
         <CSVLab2
           patientId={id}
           setData={setCsvData}
           setSuccess={setSuccess}
           success={success}
         />
-      </Box> */}
+      </Box>
 
       {/* Lab Data Columns Summary */}
       {/* {labColumns.length > 0 && !isMobile && (
