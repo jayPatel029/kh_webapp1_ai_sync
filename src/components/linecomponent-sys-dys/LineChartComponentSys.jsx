@@ -23,7 +23,24 @@ import {
   GraphEditButton,
   GraphPeriodSelect,
   GraphChartFrame,
+  GraphEmptyState,
 } from "../Linechart/GraphChrome";
+
+const coercePlotNumber = (raw) => {
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  const n = parseFloat(String(raw).trim());
+  return Number.isFinite(n) && !Number.isNaN(n) ? n : null;
+};
+
+const formatReadingDate = (rawDate) => {
+  if (typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
+    return rawDate.slice(0, 10);
+  }
+  const d = new Date(rawDate);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().split("T")[0];
+};
 
 const LineChartComponent = ({
   aspect,
@@ -1441,18 +1458,13 @@ const LineChartComponent = ({
     }
   };
 
-  useEffect(() => {
-    fetchRange();
-    fetchReadingsData();
-  }, []);
-
   const fetchRange = async () => {
+    if (questionId == null || user_id == null) return;
     try {
       const response = await axiosInstance.get(
         `${server_url}/range/getRange/sys?question_id=${questionId}&user_id=${user_id}`
       );
       if (response.data) {
-        // console.log("range",response.data)
         const hr1 = response?.data?.systolic?.high_range_1 ?? 0;
         const lr1 = response?.data?.systolic?.low_range_1 ?? 0;
 
@@ -1481,6 +1493,7 @@ const LineChartComponent = ({
   };
 
   const fetchReadingsData = async () => {
+    if (questionId == null || user_id == null) return;
     const params = {
       question_id: questionId,
       user_id: user_id,
@@ -1488,40 +1501,33 @@ const LineChartComponent = ({
     axiosInstance
       .get(`${server_url}/readings/get/sys`, { params })
       .then((response) => {
-        console.log("readings", response.data);
-        const formattedData = response.data.data.map((item, key) => {
-          const date = new Date(item.date);
-          const formattedDate = date.toISOString().split("T")[0];
-          // console.log(item)
+        const rows = Array.isArray(response.data?.data) ? response.data.data : [];
+        const formattedData = rows
+          .map((item) => {
+            const formattedDate = formatReadingDate(item.date);
+            if (!formattedDate) return null;
+            return {
+              date: formattedDate,
+              systolic: coercePlotNumber(item.systolic),
+              diastolic: coercePlotNumber(item.diastolic),
+            };
+          })
+          .filter(Boolean);
 
-          return {
-            date: formattedDate,
-            systolic: isNaN(parseFloat(item.systolic))
-              ? item.readings
-              : parseFloat(item.systolic),
-            diastolic: isNaN(parseFloat(item.diastolic))
-              ? item.readings
-              : parseFloat(item.diastolic),
-          };
-        });
+        const sortedData = formattedData.sort(
+          (a, b) => new Date(a.date) - new Date(b.date)
+        );
 
-        const sortedData = formattedData.sort((a, b) => {
-          const dateA = new Date(a.date);
-          const dateB = new Date(b.date);
-          return dateA - dateB;
-        });
-
-        // console.log("formatted data", sortedData)
-
-        setPatientData(sortedData);
         setOriginalData(sortedData);
       })
       .catch((error) => {
         console.error("Error:", error);
+        setOriginalData([]);
       });
   };
 
   const filterDataByTimeRange = (data, timeRange) => {
+    if (timeRange === "all") return data;
     const currentDate = new Date();
     const startDate = new Date();
 
@@ -1536,7 +1542,11 @@ const LineChartComponent = ({
   };
 
   useEffect(() => {
-    // Re-apply when readings load too; otherwise default "Last Week" only works after changing the dropdown.
+    fetchRange();
+    fetchReadingsData();
+  }, [questionId, user_id]);
+
+  useEffect(() => {
     const filteredData = filterDataByTimeRange(originalData, selectedTimeRange);
     setPatientData(filteredData);
   }, [selectedTimeRange, originalData]);
@@ -1619,6 +1629,7 @@ const LineChartComponent = ({
         </>
       }
     >
+      {patientData.length === 0 && <GraphEmptyState />}
       <GraphChartFrame>
         <ResponsiveContainer width="100%" aspect={aspect}>
           <LineChart
@@ -1634,20 +1645,25 @@ const LineChartComponent = ({
               tick={{ fill: "#5886a5", fontSize: 12 }}
             />
             <Tooltip />
+            <Legend />
             <Line
               type="monotone"
               dataKey="systolic"
+              name="Systolic"
               stroke="#4164df"
               strokeWidth={3}
               activeDot={{ r: 7 }}
+              connectNulls={false}
               dot={<CustomizedDotOld2 />}
             />
             <Line
               type="monotone"
               dataKey="diastolic"
+              name="Diastolic"
               stroke="#5886a5"
               strokeWidth={3}
               activeDot={{ r: 7 }}
+              connectNulls={false}
               dot={<CustomizedDotOld2sys />}
             />
           </LineChart>

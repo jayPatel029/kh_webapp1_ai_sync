@@ -58,120 +58,21 @@ import { getAdmins } from "../../ApiCalls/authapis";
 import { getAllChats, getAllChatsAdmin } from "../../ApiCalls/chatApis";
 import { getDoctorsChat } from "../../ApiCalls/doctorApis";
 import { getGeneralParameterQuestions, getDialysisParameterQuestions } from "../../ApiCalls/questionApis";
-import { getSystolicIdByTitle, getDialysisSystolicIdByTitle } from "../../ApiCalls/readingsApis";
 
 // Legacy components (to be replaced or kept if still needed)
 import LineChartComponent from "../../components/Linechart/LineChartComponent";
 import LineChartDialysis from "../../components/Linechart/Linechart_Dialysis/LineChartDialysis";
-import LineChartDialyisisSys from "../../components/Linechart/Linechart_Dialysis/LineChartDialyisisSys";
+import SystolicDiastolicGraph, {
+  buildCombinedTitle,
+} from "../../components/Linechart/SystolicDiastolicGraph";
 import Table from "../../components/table/table";
 import DialysisTable from "../../components/table/DialysisTable";
-import LineChartComponentSys from "../../components/linecomponent-sys-dys/LineChartComponentSys";
 import LineChartComponentLab from "../../components/linechartlab/LineChartComponentLab";
 import LabRedingUpdateModal from "../../components/modals/LabReadingModal";
 import { PatientProfileShellContext } from "../common/PatientProfileShellContext";
 import ImmunizationSection from "../../components/ImmunizationSection";
 import ImmunizationChart from "../../components/ImmunizationChart";
 import demoPatient from "../../data/dummyPatient";
-
-const buildCombinedTitle = (baseTitle, keyword, insertText) => {
-  if (!baseTitle) return baseTitle;
-  const lower = baseTitle.toLowerCase();
-  const index = lower.indexOf(keyword);
-  if (index === -1) return baseTitle;
-  const endIndex = index + keyword.length;
-  return baseTitle.slice(0, endIndex) + insertText + baseTitle.slice(endIndex);
-};
-
-const SystolicDiastolicGraph = ({
-  question,
-  userId,
-  isDialysis,
-  aspect,
-  enableGraphEditPanel = false,
-  showEditPanel = false,
-  onToggleEditPanel,
-}) => {
-  const [systolicId, setSystolicId] = useState(question?.id ?? null);
-  const [loading, setLoading] = useState(false);
-
-  const title = question?.title || "";
-  const titleLower = title.toLowerCase();
-  const isSystolic = titleLower.includes("systolic");
-  const isDiastolic = titleLower.includes("diastolic");
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchSystolicId = async () => {
-      if (!isDiastolic || isSystolic) {
-        setSystolicId(question?.id ?? null);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const response = isDialysis
-          ? await getDialysisSystolicIdByTitle(title)
-          : await getSystolicIdByTitle(title);
-
-        if (isMounted) {
-          setSystolicId(response?.data ?? null);
-        }
-      } catch (error) {
-        console.error("Error fetching systolic ID:", error);
-        if (isMounted) setSystolicId(null);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchSystolicId();
-    return () => {
-      isMounted = false;
-    };
-  }, [isDialysis, isDiastolic, isSystolic, question?.id, title]);
-
-  if (isDiastolic && loading) {
-    return <Box className="text-sm text-muted">Loading...</Box>;
-  }
-
-  if (isDiastolic && !systolicId) {
-    return <Box className="text-sm text-muted">No systolic ID found.</Box>;
-  }
-
-  const chartTitle = isSystolic
-    ? buildCombinedTitle(title, "systolic", " and Diastolic")
-    : buildCombinedTitle(title, "diastolic", " and Systolic");
-
-  if (isDialysis) {
-    return (
-      <LineChartDialyisisSys
-        aspect={aspect}
-        questionId={isSystolic ? question?.id : systolicId}
-        user_id={userId}
-        title={chartTitle}
-        unit={question?.unit}
-        enableGraphEditPanel={enableGraphEditPanel}
-        showEditPanel={showEditPanel}
-        onToggleEditPanel={onToggleEditPanel}
-      />
-    );
-  }
-
-  return (
-    <LineChartComponentSys
-      aspect={aspect}
-      questionId={isSystolic ? question?.id : systolicId}
-      user_id={userId}
-      title={chartTitle}
-      unit={question?.unit}
-      enableGraphEditPanel={enableGraphEditPanel}
-      showEditPanel={showEditPanel}
-      onToggleEditPanel={onToggleEditPanel}
-    />
-  );
-};
 
 const isGraphQuestion = (question) =>
   question?.isGraph === 1 || question?.isGraph === "1" || question?.isGraph === true;
@@ -194,6 +95,8 @@ export const ParameterDetailView = ({
 }) => {
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [graphRefreshKey, setGraphRefreshKey] = useState(0);
+  /** Systolic id for sys/dia edit table (aligned with combined graph). */
+  const [resolvedSystolicId, setResolvedSystolicId] = useState(null);
 
   if (!question) return null;
 
@@ -203,6 +106,10 @@ export const ParameterDetailView = ({
   const isDiastolic = title.toLowerCase().includes("diastolic");
   // Same branching as main: graph readings get a chart; all other types get the type-aware table only.
   const showGraph = isGraphQuestion(question);
+  const editQuestionId =
+    isSystolic || isDiastolic
+      ? resolvedSystolicId ?? question?.id
+      : question?.id;
 
   const handleReadingsChanged = () => {
     setGraphRefreshKey((key) => key + 1);
@@ -223,6 +130,7 @@ export const ParameterDetailView = ({
         userId={userId}
         isDialysis={isDialysis}
         aspect={chartAspect}
+        onSystolicIdResolved={setResolvedSystolicId}
         {...editPanelProps}
       />
     ) : isDialysis ? (
@@ -251,7 +159,7 @@ export const ParameterDetailView = ({
 
     const editTable = isDialysis ? (
       <DialysisTable
-        questionId={question?.id}
+        questionId={editQuestionId}
         user_id={userId}
         title={title}
         question={question}
@@ -262,7 +170,7 @@ export const ParameterDetailView = ({
       />
     ) : (
       <Table
-        questionId={question?.id}
+        questionId={editQuestionId}
         user_id={userId}
         title={title}
         question={question}

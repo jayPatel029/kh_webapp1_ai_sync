@@ -113,6 +113,7 @@ export function GraphPeriodSelect({ value, onChange }) {
       <option value="week">Last Week</option>
       <option value="month">Last Month</option>
       <option value="6month">Last 6 month</option>
+      <option value="all">All</option>
     </select>
   );
 }

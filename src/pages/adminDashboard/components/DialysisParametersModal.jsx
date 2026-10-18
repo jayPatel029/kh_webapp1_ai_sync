@@ -79,14 +79,13 @@ import {
   getDialysisParameterQuestions,
   saveDialysisParameterReading
 } from '../../../ApiCalls/questionApis';
-import { getSystolicIdByTitle, getDialysisSystolicIdByTitle } from '../../../ApiCalls/readingsApis';
 import { FaSave, FaChartLine, FaTable } from 'react-icons/fa';
 import PatientProfileCard from '../../../components/PatientProfileCard';
 import PaymentModal from '../../../components/PaymentModal';
 import ParameterSection from '../../../components/ParameterSection';
 import DialysisTable from '../../../components/table/DialysisTable';
 import LineChartDialysis from '../../../components/Linechart/Linechart_Dialysis/LineChartDialysis';
-import LineChartDialyisisSys from '../../../components/Linechart/Linechart_Dialysis/LineChartDialyisisSys';
+import SystolicDiastolicGraph from '../../../components/Linechart/SystolicDiastolicGraph';
 import GraphModal from './graphModal';
 import {
   getOrganizationById,
@@ -137,16 +136,7 @@ const isKnownBloodGroup = (value = '') => {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-const buildCombinedTitle = (baseTitle, keyword, insertText) => {
-  if (!baseTitle) return baseTitle;
-  const lower = baseTitle.toLowerCase();
-  const index = lower.indexOf(keyword);
-  if (index === -1) return baseTitle;
-  const endIndex = index + keyword.length;
-  return baseTitle.slice(0, endIndex) + insertText + baseTitle.slice(endIndex);
-};
-
-const normalizeQuestionTitle = (title = "") => title.toLowerCase().replace(/[\s_-]/g, "");
+const normalizeQuestionTitle = (title = "") => title.toLowerCase().replace(/[\s_-]+/g, "");
 
 const pickFirstNumeric = (...values) => {
   for (const value of values) {
@@ -201,75 +191,6 @@ const extractDoctorHeparinOrder = ({ patientData, appointmentData, initialData }
     perKg: null,
     source: 'doctor',
   };
-};
-
-const SystolicDiastolicGraph = ({
-  question,
-  userId,
-  isDialysis,
-  aspect,
-}) => {
-  const [systolicId, setSystolicId] = useState(question?.id ?? null);
-  const [loading, setLoading] = useState(false);
-
-  const title = question?.title || "";
-  const titleLower = title.toLowerCase();
-  const isSystolic = titleLower.includes("systolic");
-  const isDiastolic = titleLower.includes("diastolic");
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchSystolicId = async () => {
-      if (!isDiastolic || isSystolic) {
-        setSystolicId(question?.id ?? null);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const response = isDialysis
-          ? await getDialysisSystolicIdByTitle(title)
-          : await getSystolicIdByTitle(title);
-
-        if (isMounted) {
-          setSystolicId(response?.data ?? null);
-        }
-      } catch (error) {
-        console.error("Error fetching systolic ID:", error);
-        if (isMounted) setSystolicId(null);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    fetchSystolicId();
-    return () => {
-      isMounted = false;
-    };
-  }, [isDialysis, isDiastolic, isSystolic, question?.id, title]);
-
-  if (isDiastolic && loading) {
-    return <Box className="text-sm text-muted">Loading...</Box>;
-  }
-
-  if (isDiastolic && !systolicId) {
-    return <Box className="text-sm text-muted">No systolic ID found.</Box>;
-  }
-
-  const chartTitle = isSystolic
-    ? buildCombinedTitle(title, "systolic", " and Diastolic")
-    : buildCombinedTitle(title, "diastolic", " and Systolic");
-
-  return (
-    <LineChartDialyisisSys
-      aspect={aspect}
-      questionId={isSystolic ? question?.id : systolicId}
-      user_id={userId}
-      title={chartTitle}
-      unit={question?.unit}
-    />
-  );
 };
 
 const DemoDialysisParameterPreview = ({ question, patient, demoData, viewMode = 'graph' }) => {
