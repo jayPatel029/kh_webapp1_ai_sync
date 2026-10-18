@@ -998,6 +998,16 @@ const LineChartComponentLab = ({
               </GraphActionButton>
             )}
             {role?.canEditPatients && (
+              <GraphActionButton
+                onClick={() => {
+                  setIsUpdate(true);
+                  openModalEnterReadings();
+                }}
+              >
+                Update Readings
+              </GraphActionButton>
+            )}
+            {role?.canEditPatients && (
               <GraphActionButton onClick={() => openModalUpdateRange()}>
                 Update Range
               </GraphActionButton>
