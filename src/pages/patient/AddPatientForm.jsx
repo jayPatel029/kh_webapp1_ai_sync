@@ -243,6 +243,10 @@ const AddPatientForm = ({ isOpen = true, onSuccess, onCancel, onAddPatient, init
           formDataToSend.append(key, formData[key]);
         }
       }
+      const changeByEmail = localStorage.getItem("email");
+      if (changeByEmail) {
+        formDataToSend.append("changeBy", changeByEmail);
+      }
 
       const response = onAddPatient
         ? await onAddPatient(formDataToSend)

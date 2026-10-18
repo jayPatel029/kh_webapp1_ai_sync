@@ -129,6 +129,7 @@ const NameModal = ({
           id: user_id,
           eGFR: egfr,
           GFR: gfr,
+          changeBy: localStorage.getItem("email"),
         });
       }
 
@@ -136,6 +137,7 @@ const NameModal = ({
         await updateDryWeight({
           id: user_id,
           dry_weight: dryWeight,
+          changeBy: localStorage.getItem("email"),
         });
       }
 

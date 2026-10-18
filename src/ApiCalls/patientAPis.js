@@ -207,7 +207,10 @@ export async function getKfreDetails(payload) {
 
 export async function deletePatient(id) {
   try {
-    const response = await axiosInstance.delete(server_url + "/patient/deletePatient/" + id);
+    const response = await axiosInstance.delete(
+      server_url + "/patient/deletePatient/" + id,
+      { params: { changeBy: localStorage.getItem("email") } }
+    );
     return { success: true, data: response.data };
   } catch (error) {
     return { success: false, data: error.response?.data || error.message };

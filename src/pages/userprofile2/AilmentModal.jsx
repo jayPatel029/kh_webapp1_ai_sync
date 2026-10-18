@@ -96,13 +96,15 @@ const AilmentModal = ({
           id: user_id,
           eGFR: egfr,
           GFR: gfr,
-          KFRE: kfre
+          KFRE: kfre,
+          changeBy: localStorage.getItem("email"),
         });
       }
       if (dryWeight !== "") {
         await updateDryWeight({
           id: user_id,
           dry_weight: dryWeight,
+          changeBy: localStorage.getItem("email"),
         });
       }
       closeEditalimentsModal();
