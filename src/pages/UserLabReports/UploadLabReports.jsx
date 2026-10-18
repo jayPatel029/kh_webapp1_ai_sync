@@ -1,39 +1,52 @@
 /**
  * UploadLabReports Component
- * Modal for uploading and extracting lab reports
- * 
+ * Lab type: upload PDF → extract values → editable form → confirm (main flow).
+ * Other types: upload only (no extraction).
+ *
  * @file src/pages/UserLabReports/UploadLabReports.jsx
  */
 
 import React, { useState } from "react";
-import { postLabreportExtract, postLabreportConfirm } from "../../ApiCalls/remainingApis";
+import {
+  postLabreportExtract,
+  postLabreportConfirm,
+} from "../../ApiCalls/remainingApis";
 import { getFileRes } from "../../helpers/fileuploadHelper";
 import getCurrentDate from "../../helpers/formatDate";
 
-import FileUploadWithCamera, { buildMergedPdfFile } from "../../components/FileUploadWithCamera";
+import FileUploadWithCamera, {
+  buildMergedPdfFile,
+} from "../../components/FileUploadWithCamera";
 
-// Component Library
-import { 
-  Modal, 
-  ModalOverlay, 
-  ModalContent, 
-  ModalHeader, 
-  ModalBody, 
+import {
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
   ModalFooter,
-  ModalCloseButton
 } from "../../component-library/primitives/Modal";
 import { Button } from "../../component-library/primitives/Button";
-import { FormControl, FormLabel, FormErrorMessage } from "../../component-library/primitives/FormControl";
+import {
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+} from "../../component-library/primitives/FormControl";
 import { Input } from "../../component-library/primitives/Input";
 import { Select } from "../../component-library/primitives/Select";
-import { VStack, HStack, Box, Flex } from "../../component-library/layout/Layout";
+import { VStack, HStack, Box } from "../../component-library/layout/Layout";
 import { Text, Heading } from "../../component-library/primitives/Typography";
 import { useAdminToast } from "../../components/AdminToast";
 
 const isPdfItem = (item) =>
   item?.type === "pdf" ||
   item?.file?.type === "application/pdf" ||
-  item?.name?.toLowerCase?.().endsWith(".pdf");
+  /\.pdf$/i.test(item?.name || item?.file?.name || "");
+
+const isExtractErrorPayload = (values) =>
+  values &&
+  typeof values === "object" &&
+  (values.code === 1 || values.message === "Error processing PDF");
 
 const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
   const [selectedDate, setSelectedDate] = useState("");
@@ -45,32 +58,38 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [email] = useState(localStorage.getItem("email"));
   const [errorMsg, setErrorMsg] = useState("");
-  const { showToast, ToastContainer } = useAdminToast();
+  const [extractHint, setExtractHint] = useState("");
+  const { showToast } = useAdminToast();
 
-  // Values can only be read from an original text PDF; merged uploads are rendered as images.
+  const isLabType = selectedReportType === "Lab";
   const isSingleOriginalPdf =
-    selectedImages.length === 1 && !!selectedImages[0]?.file && isPdfItem(selectedImages[0]);
-  const willExtract = selectedReportType === "Lab" && isSingleOriginalPdf;
+    selectedImages.length === 1 &&
+    !!selectedImages[0]?.file &&
+    isPdfItem(selectedImages[0]);
+  // Main: Lab + PDF always extracts. Never silently skip for Lab.
+  const willExtract = isLabType && isSingleOriginalPdf;
 
   const handleImageChange = (imagesArray) => {
-    // FileUploadWithCamera passes an array of { data, name, file }
-    setSelectedImages(imagesArray);
+    setSelectedImages(imagesArray || []);
     setExtractedValues(null);
     setUploadedReportUrl("");
     setErrorMsg("");
+    setExtractHint("");
   };
 
   const uploadReportFile = async () => {
     if (willExtract) {
       const originalPdf = selectedImages[0].file;
-      // The extract API only parses URLs ending in lowercase ".pdf".
       const fileName = originalPdf.name.replace(/\.pdf$/i, "") + ".pdf";
       const uploadRes = await getFileRes(originalPdf, fileName);
-      return uploadRes.data.objectUrl;
+      return uploadRes?.data?.objectUrl || "";
     }
-    const mergedPdfFile = await buildMergedPdfFile(selectedImages, "LabReport.pdf");
+    const mergedPdfFile = await buildMergedPdfFile(
+      selectedImages,
+      "LabReport.pdf"
+    );
     const uploadRes = await getFileRes(mergedPdfFile, mergedPdfFile.name);
-    return uploadRes.data.objectUrl;
+    return uploadRes?.data?.objectUrl || "";
   };
 
   const handleExtract = async () => {
@@ -84,15 +103,22 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
       return;
     }
 
+    if (isLabType && !isSingleOriginalPdf) {
+      setErrorMsg(
+        "Lab type requires a single original PDF so values can be auto-detected (same as main)."
+      );
+      return;
+    }
+
     setIsExtracting(true);
     setErrorMsg("");
+    setExtractHint("");
 
     try {
       const pdfUrl = await uploadReportFile();
 
       if (!pdfUrl) {
         setErrorMsg("Failed to upload the document.");
-        setIsExtracting(false);
         return;
       }
 
@@ -102,33 +128,64 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
         Report_Type: selectedReportType,
         email,
         Lab_Report: pdfUrl,
+        // Only non-Lab uploads skip extraction (main: Lab always extracts)
         skipExtraction: !willExtract,
       };
 
       const extractRes = await postLabreportExtract(data);
+      const body = extractRes.data || {};
 
-      if (extractRes.success) {
-        const { reportId, extractedValues: values } = extractRes.data || {};
-        if (reportId != null) {
-          showToast("Lab report uploaded successfully.", "success");
-          onSuccess();
-          closeModal();
-        } else if (!values || values.code === 1) {
-          setErrorMsg("Could not read values from this PDF. Please check the file and try again.");
-        } else {
-          setUploadedReportUrl(pdfUrl);
-          setExtractedValues(values);
-        }
-      } else {
-        const msg = typeof extractRes.data === 'string' ? extractRes.data : extractRes.data?.message || "Failed to extract data.";
-        setErrorMsg(msg);
-        // showToast(msg, "error");
+      // Non-Lab / skip path: report already saved
+      if (
+        extractRes.success &&
+        (body.reportId != null ||
+          body.message === "Lab Report confirmed and saved successfully")
+      ) {
+        showToast("Lab report uploaded successfully.", "success");
+        onSuccess?.();
+        closeModal();
+        return;
       }
+
+      if (!extractRes.success) {
+        const msg =
+          (typeof body === "string" && body) ||
+          body?.message ||
+          "Failed to extract data.";
+        setErrorMsg(msg);
+        return;
+      }
+
+      const values = body.extractedValues;
+      if (isExtractErrorPayload(values)) {
+        setErrorMsg(
+          values.message ||
+            "Could not read values from this PDF. Please check the file and try again."
+        );
+        return;
+      }
+
+      // Mirror main: show form even if empty so user can Add Field + Save
+      const safeValues =
+        values && typeof values === "object" && !Array.isArray(values)
+          ? { ...values }
+          : {};
+      if (Object.keys(safeValues).length === 0) {
+        setExtractHint(
+          "No matching lab values were found in the PDF. Add fields manually or try another file."
+        );
+      }
+
+      setUploadedReportUrl(pdfUrl);
+      setExtractedValues(safeValues);
     } catch (error) {
       console.error("Error during extraction:", error);
       const msg = error?.message || "Something went wrong while extracting data.";
-      setErrorMsg(msg.includes("Network") ? "Network error. Please check your connection." : msg);
-      // showToast(msg, "error");
+      setErrorMsg(
+        msg.includes("Network")
+          ? "Network error. Please check your connection."
+          : msg
+      );
     } finally {
       setIsExtracting(false);
     }
@@ -155,17 +212,25 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
       const result = await postLabreportConfirm(finalData);
       if (result.success) {
         showToast("Data saved successfully.", "success");
-        onSuccess();
+        onSuccess?.();
         closeModal();
       } else {
-        const msg = typeof result.data === 'string' ? result.data : result.data?.message || "Failed to save data.";
+        const body = result.data || {};
+        const msg =
+          (typeof body === "string" && body) ||
+          body?.message ||
+          "Failed to save data.";
         setErrorMsg(msg);
         showToast(msg, "error");
       }
     } catch (error) {
       console.error("Error saving data:", error);
       const msg = error?.message || "Something went wrong while saving the data.";
-      setErrorMsg(msg.includes("Network") ? "Network error. Please check your connection." : msg);
+      setErrorMsg(
+        msg.includes("Network")
+          ? "Network error. Please check your connection."
+          : msg
+      );
       showToast(msg, "error");
     } finally {
       setIsSaving(false);
@@ -178,27 +243,27 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
 
   const handleAddField = () => {
     const fieldName = prompt("Enter the name of the new field:");
-    if (fieldName) {
-      setExtractedValues((prev) => ({ ...prev, [fieldName]: "" }));
+    if (fieldName && fieldName.trim()) {
+      setExtractedValues((prev) => ({
+        ...(prev || {}),
+        [fieldName.trim()]: "",
+      }));
+      setExtractHint("");
     }
   };
 
   return (
-    <>
-      <Modal isOpen={true} onClose={closeModal} size="lg" isCentered>
+    <Modal isOpen={true} onClose={closeModal} size="lg" isCentered>
       <ModalOverlay />
-      <ModalContent
-        // className="rounded-xl overflow-hidden border-t-4 border-primary"
-      >
-        
-        <ModalHeader >
-          <Heading size="md" weight="bold">Upload Lab Reports</Heading>
-          {/*   */}
+      <ModalContent>
+        <ModalHeader>
+          <Heading size="md" weight="bold">
+            Upload Lab Reports
+          </Heading>
         </ModalHeader>
 
         <ModalBody className="py-6">
           <VStack spacing={6} align="stretch">
-            {/* Form Fields */}
             <FormControl isRequired isInvalid={!!errorMsg && !selectedDate}>
               <FormLabel>Lab Report Date</FormLabel>
               <Input
@@ -212,7 +277,13 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
               />
             </FormControl>
 
-            <FormControl isRequired isInvalid={!!errorMsg && (!selectedReportType || selectedReportType === "Select")}>
+            <FormControl
+              isRequired
+              isInvalid={
+                !!errorMsg &&
+                (!selectedReportType || selectedReportType === "Select")
+              }
+            >
               <FormLabel>Report Type</FormLabel>
               <Select
                 value={selectedReportType}
@@ -222,9 +293,18 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
                   setExtractedValues(null);
                   setUploadedReportUrl("");
                   setErrorMsg("");
+                  setExtractHint("");
                 }}
               >
-                {["Lab", "Ultrasound", "X-Ray", "Echo", "MRI", "Angiography", "CT Scan"].map((type) => (
+                {[
+                  "Lab",
+                  "Ultrasound",
+                  "X-Ray",
+                  "Echo",
+                  "MRI",
+                  "Angiography",
+                  "CT Scan",
+                ].map((type) => (
                   <option key={type} value={type}>
                     {type}
                   </option>
@@ -232,42 +312,65 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
               </Select>
             </FormControl>
 
-            <FormControl isRequired isInvalid={!!errorMsg && selectedImages.length === 0}>
-              <FormLabel>Upload File</FormLabel>
+            <FormControl
+              isRequired
+              isInvalid={!!errorMsg && selectedImages.length === 0}
+            >
+              <FormLabel>
+                Upload File
+                {isLabType ? " (single PDF for auto-detect)" : ""}
+              </FormLabel>
               <Box className="relative">
                 <FileUploadWithCamera
                   images={selectedImages}
                   onChange={handleImageChange}
-                  accept="image/*,.pdf"
-                  multiple={true}
-                  showCamera={true}
+                  accept={isLabType ? ".pdf,application/pdf" : "image/*,.pdf"}
+                  multiple={!isLabType}
+                  showCamera={!isLabType}
                 />
               </Box>
               {errorMsg && <FormErrorMessage>{errorMsg}</FormErrorMessage>}
             </FormControl>
 
-            {/* Extracted Data Section */}
             {extractedValues && (
-              <Box className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <HStack justify="between" align="center" className="mb-4">
-                  <Heading size="sm" weight="bold">Extracted Values</Heading>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
+              <Box className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <HStack justify="between" align="center" className="mb-3">
+                  <Heading size="sm" weight="bold">
+                    Extracted Values
+                  </Heading>
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     onClick={handleAddField}
                     className="text-primary font-bold"
                   >
                     + Add Field
                   </Button>
                 </HStack>
-                
+
+                {extractHint ? (
+                  <Text size="sm" className="text-amber-800 mb-3">
+                    {extractHint}
+                  </Text>
+                ) : null}
+
                 <Box className="max-h-[300px] overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                   {Object.keys(extractedValues).map((key) => (
                     <Box key={key}>
-                      <Text size="xs" weight="medium" className="mb-1 text-gray-500 uppercase">{key}</Text>
+                      <Text
+                        size="xs"
+                        weight="medium"
+                        className="mb-1 text-gray-500 uppercase"
+                      >
+                        {key}
+                      </Text>
                       <Input
                         size="sm"
-                        value={extractedValues[key]}
+                        value={
+                          extractedValues[key] == null
+                            ? ""
+                            : String(extractedValues[key])
+                        }
                         onChange={(e) => handleEditValue(key, e.target.value)}
                         className="bg-white"
                       />
@@ -279,8 +382,8 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
           </VStack>
         </ModalBody>
 
-        <ModalFooter >
-          <Button variant="outline" onClick={closeModal} >
+        <ModalFooter>
+          <Button variant="outline" onClick={closeModal}>
             Cancel
           </Button>
           {!extractedValues && (
@@ -290,14 +393,13 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
               loadingText={willExtract ? "Extracting Data..." : "Uploading..."}
               onClick={handleExtract}
             >
-                { willExtract ? "Extract Data" : "Upload" }
+              {willExtract ? "Extract Data" : "Upload"}
             </Button>
           )}
           {extractedValues && (
-            <Button 
-              variant="solid" 
-              colorScheme="success" 
-              // className="flex-1 bg-green-600 hover:bg-green-700"
+            <Button
+              variant="solid"
+              colorScheme="success"
               isLoading={isSaving}
               onClick={handleSave}
             >
@@ -307,9 +409,6 @@ const UploadLabReports = ({ closeModal, user_id, onSuccess }) => {
         </ModalFooter>
       </ModalContent>
     </Modal>
-      {/* <ToastContainer ></ToastContainer> */}
-
-    </>
   );
 };
 
