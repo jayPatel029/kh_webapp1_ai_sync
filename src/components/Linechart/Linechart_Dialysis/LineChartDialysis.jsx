@@ -1040,19 +1040,11 @@ const LineChartDialysis = ({
           };
         });
 
-        const numericVals = parsed
-          .map((p) => p.readings)
-          .filter((v) => typeof v === "number" && Number.isFinite(v));
-        const markerBaseline =
-          numericVals.length > 0
-            ? numericVals.reduce((a, b) => a + b, 0) / numericVals.length
-            : 1;
-
         const sortedData = parsed
           .map((p) => ({
             ...p,
-            // Hoverable marker Y for message-only points (amber dots on graph)
-            statusMarker: p.isStatusOnly ? markerBaseline : null,
+            // Status-only notes sit on Y=0 (not mid-chart average)
+            statusMarker: p.isStatusOnly ? 0 : null,
             // Keep main-compatible readings field for tooltip when message-only
             readings: p.isStatusOnly ? p.message : p.readings,
             plotValue: p.isStatusOnly ? null : p.value,
