@@ -993,8 +993,16 @@ const LineChartDialysis = ({
       .then((response) => {
         console.log("Response data:", response.data.data);
 
-        // Match main hover behavior: status/missing messages available on point tooltip.
+        // Match main/new_layout: parseFloat string or number readings for the line.
+        // (MySQL often returns DECIMAL as strings — rejecting those emptied non-IDWG graphs.)
         const rows = Array.isArray(response.data.data) ? response.data.data : [];
+        const coercePlotNumber = (raw) => {
+          if (raw == null || raw === "") return null;
+          if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+          const n = parseFloat(String(raw).trim());
+          return Number.isFinite(n) && !Number.isNaN(n) ? n : null;
+        };
+
         const parsed = rows.map((item, key) => {
           const rawDate = item.date;
           const formattedDate =
@@ -1002,37 +1010,24 @@ const LineChartDialysis = ({
               ? rawDate.slice(0, 10)
               : new Date(rawDate).toISOString().split("T")[0];
 
-          const numericFromValue = parseFloat(item.value);
-          const numericFromReadings = parseFloat(item.readings);
-          const hasNumericValue = Number.isFinite(numericFromValue);
-          const hasNumericReading =
-            Number.isFinite(numericFromReadings) &&
-            item.readings !== "" &&
-            item.readings != null &&
-            typeof item.readings !== "string";
-
-          // strings like "First day..." must stay as messages (main behavior)
-          const numericReading = hasNumericValue
-            ? numericFromValue
-            : typeof item.readings === "number" && Number.isFinite(item.readings)
-              ? item.readings
-              : hasNumericReading
-                ? numericFromReadings
-                : null;
+          // Prefer explicit IDWG `value`, else same parseFloat(readings) rule as main
+          const numericReading =
+            coercePlotNumber(item.value) ?? coercePlotNumber(item.readings);
 
           const statusMessage =
             item.message ||
             item.error ||
-            (numericReading == null && typeof item.readings === "string"
+            (numericReading == null &&
+            typeof item.readings === "string" &&
+            Number.isNaN(parseFloat(item.readings))
               ? item.readings
               : null);
 
           return {
             date: formattedDate,
-            readings: numericReading, // line series (null for message-only)
+            readings: numericReading,
             value: numericReading,
             message: statusMessage,
-            // main stored message in readings; we expose it for tooltip the same way
             statusText: statusMessage,
             status: item.status || null,
             isStatusOnly: numericReading == null && Boolean(statusMessage),
