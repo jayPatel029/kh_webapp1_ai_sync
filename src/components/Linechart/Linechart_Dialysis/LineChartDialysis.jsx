@@ -1,13 +1,12 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import {
-  LineChart,
+  ComposedChart,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   ReferenceLine,
   Scatter,
@@ -35,6 +34,26 @@ import {
   GraphChartFrame,
 } from "../GraphChrome";
 
+/** Same smiley path used by range-colored dots on main. */
+const SMILEY_PATH =
+  "M512 1009.984c-274.912 0-497.76-222.848-497.76-497.76s222.848-497.76 497.76-497.76c274.912 0 497.76 222.848 497.76 497.76s-222.848 497.76-497.76 497.76zM340.768 295.936c-39.488 0-71.52 32.8-71.52 73.248s32.032 73.248 71.52 73.248c39.488 0 71.52-32.8 71.52-73.248s-32.032-73.248-71.52-73.248zM686.176 296.704c-39.488 0-71.52 32.8-71.52 73.248s32.032 73.248 71.52 73.248c39.488 0 71.52-32.8 71.52-73.248s-32.032-73.248-71.52-73.248zM772.928 555.392c-18.752-8.864-40.928-0.576-49.632 18.528-40.224 88.576-120.256 143.552-208.832 143.552-85.952 0-164.864-52.64-205.952-137.376-9.184-18.912-31.648-26.592-50.08-17.28-18.464 9.408-21.216 21.472-15.936 32.64 52.8 111.424 155.232 186.784 269.76 186.784 117.984 0 217.12-70.944 269.76-186.784 8.672-19.136 9.568-31.2-9.12-40.096z";
+
+const SmileyDot = ({ cx, cy, fill }) => {
+  if (cx == null || cy == null || Number.isNaN(Number(cy))) return null;
+  return (
+    <svg
+      x={cx - 10}
+      y={cy - 10}
+      width={20}
+      height={20}
+      fill={fill}
+      viewBox="0 0 1024 1024"
+    >
+      <path d={SMILEY_PATH} />
+    </svg>
+  );
+};
+
 const LineChartDialysis = ({
   aspect,
   title,
@@ -56,7 +75,18 @@ const LineChartDialysis = ({
   /** Same as main: show IDWG value and/or status message on point hover. */
   const DialysisReadingTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
-    const row = payload[0]?.payload || {};
+    // ComposedChart may put Line or Scatter first — pick the row with content
+    const row =
+      payload.find(
+        (p) =>
+          p?.payload &&
+          (p.payload.message ||
+            p.payload.value != null ||
+            typeof p.payload.readings === "string" ||
+            typeof p.payload.readings === "number")
+      )?.payload ||
+      payload[0]?.payload ||
+      {};
     const numeric =
       typeof row.value === "number" && Number.isFinite(row.value)
         ? row.value
@@ -174,27 +204,21 @@ const LineChartDialysis = ({
     lowRange2,
     highRange2,
   ]);
-  const StatusDot = (props) => {
-    const { cx, cy } = props;
-    if (cx == null || cy == null || Number.isNaN(cy)) return null;
-    return (
-      <circle
-        cx={cx}
-        cy={cy}
-        r={6}
-        fill="#f59e0b"
-        stroke="#b45309"
-        strokeWidth={2}
-      />
-    );
-  };
+  /** Status/missing notes — amber warning smiley (hover shows message). */
+  const StatusSmileyDot = (props) => (
+    <SmileyDot cx={props.cx} cy={props.cy} fill="#f59e0b" />
+  );
 
   const CustomizedDotOld2 = (props) => {
-    const { cx, cy, value } = props;
+    const { cx, cy, value, payload } = props;
     if (typeof value === "string" || value == null || Number.isNaN(Number(value))) {
       return null;
     }
-    // 16 combinations
+    // Numeric IDWG with a status note (e.g. missing after) — amber, like main warning UX
+    if (payload?.message) {
+      return <SmileyDot cx={cx} cy={cy} fill="#f59e0b" />;
+    }
+    // Same range→color smileys as main (green / orange / red)
     if (highRange != 0 && highRange2 != 0 && lowRange != 0 && lowRange2 != 0) {
       if (value >= highRange2 || value <= lowRange2) {
         return (
@@ -1022,7 +1046,7 @@ const LineChartDialysis = ({
         const markerBaseline =
           numericVals.length > 0
             ? numericVals.reduce((a, b) => a + b, 0) / numericVals.length
-            : 0;
+            : 1;
 
         const sortedData = parsed
           .map((p) => ({
@@ -1241,7 +1265,8 @@ const LineChartDialysis = ({
       {patientData.length === 0 && <GraphEmptyState />}
       <GraphChartFrame>
         <ResponsiveContainer width="100%" height="100%" aspect={aspect}>
-          <LineChart
+          {/* ComposedChart required so status smileys (Scatter) + IDWG line both render/hover */}
+          <ComposedChart
             width={350}
             height={250}
             data={patientData}
@@ -1254,7 +1279,6 @@ const LineChartDialysis = ({
               tick={{ fill: "#5886a5", fontSize: 12 }}
             />
             <YAxis
-              dataKey={"readings"}
               label={{ value: JSON.stringify(unit), angle: -90, fill: "#5886a5" }}
               tick={{ fill: "#5886a5", fontSize: 12 }}
             />
@@ -1279,17 +1303,19 @@ const LineChartDialysis = ({
               activeDot={{ r: 7 }}
               dot={<CustomizedDotOld2 />}
               connectNulls={false}
+              name={isInterDialyticTitle ? "IDWG" : "Reading"}
             />
-            {/* Amber markers for status/missing messages — hover shows note (main UX) */}
+            {/* Amber smileys = status/missing notes; hover shows message (main UX) */}
             {isInterDialyticTitle && (
               <Scatter
                 dataKey="statusMarker"
                 fill="#f59e0b"
-                shape={<StatusDot />}
+                shape={<StatusSmileyDot />}
                 isAnimationActive={false}
+                name="Note"
               />
             )}
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </GraphChartFrame>
     </GraphShell>
