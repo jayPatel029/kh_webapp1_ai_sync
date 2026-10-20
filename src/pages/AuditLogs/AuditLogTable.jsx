@@ -20,6 +20,11 @@ export function ChangedByCell({ log, options }) {
       {actor.sourceLabel ? (
         <Box className="text-[12px] text-[#989898] mt-0.5">{actor.sourceLabel}</Box>
       ) : null}
+      {actor.ipLabel ? (
+        <Box className="text-[12px] text-[#989898] mt-0.5 break-words whitespace-normal">
+          IP {actor.ipLabel}
+        </Box>
+      ) : null}
     </Box>
   );
 }

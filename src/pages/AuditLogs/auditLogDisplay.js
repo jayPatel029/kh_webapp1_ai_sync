@@ -131,6 +131,9 @@ export function formatChangedBy(log, options = {}) {
   const actor = parseActor(raw);
   const sourceLabel = formatSourceLabel(log?.source || actor.source);
 
+  const ip = displayValue(log?.ip);
+  const ipLabel = ip !== EMPTY ? ip : "";
+
   if (actor.kind === "patient" || log?.actor_kind === "patient") {
     const name = displayValue(
       options.patientName ||
@@ -143,7 +146,7 @@ export function formatChangedBy(log, options = {}) {
     );
     const primary = name !== EMPTY ? name : `Patient ${actor.id || log?.actor_id || ""}`.trim();
     const secondary = phone !== EMPTY ? phone : "";
-    return { primary, secondary, sourceLabel };
+    return { primary, secondary, sourceLabel, ipLabel };
   }
 
   const staffName = displayValue(log?.actor_name || log?.actorName);
@@ -153,16 +156,17 @@ export function formatChangedBy(log, options = {}) {
   const role = displayValue(log?.actor_role || log?.actorRole);
   const roleSuffix = role !== EMPTY ? ` · ${role}` : "";
   if (staffName !== EMPTY && staffEmail !== EMPTY && staffName !== staffEmail) {
-    return { primary: staffName, secondary: `${staffEmail}${roleSuffix}`, sourceLabel };
+    return { primary: staffName, secondary: `${staffEmail}${roleSuffix}`, sourceLabel, ipLabel };
   }
   if (staffEmail !== EMPTY) {
-    return { primary: staffEmail, secondary: role !== EMPTY ? role : "", sourceLabel };
+    return { primary: staffEmail, secondary: role !== EMPTY ? role : "", sourceLabel, ipLabel };
   }
 
   return {
     primary: actor.identity || EMPTY,
     secondary: "",
     sourceLabel,
+    ipLabel,
   };
 }
 
