@@ -1,29 +1,68 @@
 /**
  * Report Logs Page
- * Following component library and design system patterns
- * 
+ *
  * @file src/pages/AuditLogs/ReportLog.jsx
  */
 
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-// Component Library
 import { Box, Flex } from "../../component-library";
-
-// Components
 import PageHeader from "../../components/PageHeader";
 import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
-
-// APIs and Helpers
 import { getDoctorReportLogs } from "../../ApiCalls/doctorApis";
 import { usePageCache, PAGE_CACHE } from "../../cache";
 import CsvDateRangeDownload from "./CsvDateRangeDownload";
-
-// Design System
+import AuditLogTable, { ChangedByCell, IdentityCell } from "./AuditLogTable";
+import { displayValue, formatLogDate } from "./auditLogDisplay";
 import "../../design-system/styles/index.css";
+
+const REPORT_COLUMNS = [
+  {
+    key: "patient",
+    header: "Patient",
+    width: "14%",
+    render: (log) => (
+      <IdentityCell id={log.patient_id || log.patientId} />
+    ),
+  },
+  {
+    key: "type",
+    header: "Type",
+    width: "14%",
+    className: "text-[#4164df]",
+    render: (log) => displayValue(log.type),
+  },
+  {
+    key: "message",
+    header: "Message",
+    width: "22%",
+    className: "text-[#393939]",
+    render: (log) => displayValue(log.message),
+  },
+  {
+    key: "report",
+    header: "Report",
+    width: "20%",
+    className: "text-[#989898]",
+    render: (log) => displayValue(log.report),
+  },
+  {
+    key: "at",
+    header: "Changed At",
+    width: "16%",
+    className: "text-[#989898]",
+    render: (log) => formatLogDate(log.changed_at || log.changedAt),
+  },
+  {
+    key: "by",
+    header: "Changed By",
+    width: "14%",
+    render: (log) => <ChangedByCell log={log} />,
+  },
+];
 
 const ReportLogPage = () => {
   const navigate = useNavigate();
@@ -32,11 +71,12 @@ const ReportLogPage = () => {
   const [error, setError] = useState(null);
   const { fetchWithCache, refreshKey } = usePageCache(PAGE_CACHE.AUDIT_LOGS);
 
-  // Fetch logs from the backend
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const response = await fetchWithCache('reportLogs', () => getDoctorReportLogs());
+      const response = await fetchWithCache("reportLogs", () =>
+        getDoctorReportLogs()
+      );
       if (response.success) {
         setLogs(response.data?.logs || response.data || []);
       } else {
@@ -53,128 +93,75 @@ const ReportLogPage = () => {
     fetchLogs();
   }, [refreshKey]);
 
+  const visibleLogs = logs.slice(0, 10);
+
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
+        <Box className="sticky top-[56px] z-20 bg-white">
+          <PageHeader
+            title="Report Logs"
+            breadcrumbs={[
+              { label: "Dashboard", path: "/" },
+              { label: "Audit Logs", path: "/settings/logs" },
+              { label: "Report Logs", active: true },
+            ]}
+            rightAction={<RefreshButton pageName={PAGE_CACHE.AUDIT_LOGS.name} />}
+            onBack={() => navigate(ROUTES.SETTINGS_LOGS)}
+          />
+        </Box>
 
-          {/* Sticky Header Section */}
-          <Box className="sticky top-[56px] z-20 bg-white">
-             
-              <PageHeader
-                title="Report Logs"
-                breadcrumbs={[
-                  { label: "Dashboard", path: "/" },
-                  { label: "Audit Logs", path: "/settings/logs" },
-                  { label: "Report Logs", active: true }
-                ]}
-                rightAction={<RefreshButton pageName={PAGE_CACHE.AUDIT_LOGS.name} />}
-                onBack={() => navigate(ROUTES.SETTINGS_LOGS)}
-              />
-             
-          </Box>
-
-          {/* Main Content Area */}
-          <Box className="flex-1 bg-[#fafafa]">
-              <Box className="bg-white rounded-[15px] shadow-md p-4 md:p-8">
-                {/* Header Section */}
-                <Flex justify="between" align="start" gap={4} wrap="wrap" className="pb-4 border-b border-gray-200 mb-6">
-                  <Box>
-                    <h2 className="text-[18px] font-bold text-[#393939]">Report Logs</h2>
-                    <p className="text-[14px] text-[#989898] mt-1">Track changes made to lab reports and prescriptions</p>
-                  </Box>
-                  <CsvDateRangeDownload
-                    logs={logs}
-                    filename="report_logs.csv"
-                    disabled={loading || !!error}
-                  />
-                </Flex>
-
-                {/* Loading State */}
-                {loading && (
-                  <Box className="py-12 text-center">
-                    <Box className="animate-spin w-8 h-8 border-4 border-[#4164df] border-t-transparent rounded-full mx-auto mb-4" />
-                    <p className="text-[#989898]">Loading logs...</p>
-                  </Box>
-                )}
-
-                {/* Error State */}
-                {error && (
-                  <Box className="py-12 text-center">
-                    <Box className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-                      <span className="text-red-500 text-2xl">!</span>
-                    </Box>
-                    <p className="text-red-500 font-semibold">Error: {error}</p>
-                  </Box>
-                )}
-
-                {/* Table */}
-                {!loading && !error && (
-                  <Box className="overflow-x-auto">
-                    {/* Table Header */}
-                    <Box className="bg-[#5886a5] rounded-[5px] px-6 py-4 mb-0">
-                      <Flex justify="between" align="center" className="text-white text-[14px] font-semibold">
-                        <Box style={{ flex: "0 0 120px" }}>Report ID</Box>
-                        <Box style={{ flex: "0 0 120px" }}>Patient ID</Box>
-                        <Box style={{ flex: "1", minWidth: "120px" }}>Report</Box>
-                        <Box style={{ flex: "0 0 120px" }}>Type</Box>
-                        <Box style={{ flex: "1", minWidth: "150px" }}>Message</Box>
-                        <Box style={{ flex: "0 0 160px" }}>Changed At</Box>
-                        <Box style={{ flex: "0 0 120px" }}>Changed By</Box>
-                      </Flex>
-                    </Box>
-
-                    {/* Table Body */}
-                    <Box>
-                      {logs && logs.length > 0 ? (
-                        logs.slice(0, 10).map((log, index) => (
-                          <Box
-                            key={index}
-                            className="bg-white border-b border-gray-100 px-6 py-4 hover:bg-gray-50 transition-colors"
-                          >
-                            <Flex justify="between" align="center">
-                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898] truncate pr-2">
-                                {log.report_id || log.reportId || "-"}
-                              </Box>
-                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898] truncate pr-2">
-                                {log.patient_id || log.patientId || "-"}
-                              </Box>
-                              <Box style={{ flex: "1", minWidth: "120px" }} className="text-[14px] text-[#393939] truncate pr-2">
-                                {log.report || "-"}
-                              </Box>
-                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] text-[#4164df] truncate pr-2">
-                                {log.type || "-"}
-                              </Box>
-                              <Box style={{ flex: "1", minWidth: "150px" }} className="text-[14px] text-[#989898] truncate pr-2" title={log.message}>
-                                {log.message || "-"}
-                              </Box>
-                              <Box style={{ flex: "0 0 160px" }} className="text-[14px] text-[#989898]">
-                                {log.changed_at ? new Date(log.changed_at).toLocaleString() : (log.changedAt ? new Date(log.changedAt).toLocaleString() : "-")}
-                              </Box>
-                              <Box style={{ flex: "0 0 120px" }} className="text-[14px] font-semibold text-[#989898] truncate">
-                                {log.deletedBy || log.deleted_by || log.changed_by || log.changedBy || "-"}
-                              </Box>
-                            </Flex>
-                          </Box>
-                        ))
-                      ) : (
-                        <Box className="bg-white px-6 py-12 text-center">
-                          <p className="text-[#989898] text-[16px] italic">No logs found</p>
-                        </Box>
-                      )}
-                    </Box>
-
-                    {/* Show more indicator */}
-                    {logs.length > 10 && (
-                      <Box className="bg-gray-50 px-6 py-3 text-center">
-                        <p className="text-[14px] text-[#989898]">
-                          Showing 10 of {logs.length} logs. Download CSV for complete data.
-                        </p>
-                      </Box>
-                    )}
-                  </Box>
-                )}
+        <Box className="flex-1 bg-[#fafafa]">
+          <Box className="bg-white rounded-[15px] shadow-md p-4 md:p-8">
+            <Flex
+              justify="between"
+              align="start"
+              gap={4}
+              wrap="wrap"
+              className="pb-4 border-b border-gray-200 mb-6"
+            >
+              <Box>
+                <h2 className="text-[18px] font-bold text-[#393939]">Report Logs</h2>
+                <p className="text-[14px] text-[#989898] mt-1">
+                  Track changes made to lab reports and prescriptions
+                </p>
               </Box>
-             
+              <CsvDateRangeDownload
+                logs={logs}
+                filename="report_logs.csv"
+                disabled={loading || !!error}
+              />
+            </Flex>
+
+            {loading && (
+              <Box className="py-12 text-center">
+                <Box className="animate-spin w-8 h-8 border-4 border-[#4164df] border-t-transparent rounded-full mx-auto mb-4" />
+                <p className="text-[#989898]">Loading logs...</p>
+              </Box>
+            )}
+
+            {error && (
+              <Box className="py-12 text-center">
+                <Box className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                  <span className="text-red-500 text-2xl">!</span>
+                </Box>
+                <p className="text-red-500 font-semibold">Error: {error}</p>
+              </Box>
+            )}
+
+            {!loading && !error && (
+              <>
+                <AuditLogTable columns={REPORT_COLUMNS} rows={visibleLogs} />
+                {logs.length > 10 && (
+                  <Box className="bg-gray-50 px-6 py-3 text-center">
+                    <p className="text-[14px] text-[#989898]">
+                      Showing 10 of {logs.length} logs. Download CSV for complete data.
+                    </p>
+                  </Box>
+                )}
+              </>
+            )}
+          </Box>
         </Box>
       </Box>
     </ThemeProvider>
