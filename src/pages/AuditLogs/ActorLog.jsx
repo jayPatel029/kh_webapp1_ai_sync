@@ -78,7 +78,7 @@ const EVENT_COLUMNS = [
   },
 ];
 
-function ActorLog({ actorKind, title, subtitle, filename }) {
+function ActorLog({ actorKind, recordType, title, subtitle, filename }) {
   const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,8 +88,9 @@ function ActorLog({ actorKind, title, subtitle, filename }) {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const response = await fetchWithCache(`auditEvents:${actorKind}`, () =>
-        getAuditEvents(actorKind)
+      const cacheKey = `auditEvents:${actorKind || ""}:${recordType || ""}`;
+      const response = await fetchWithCache(cacheKey, () =>
+        getAuditEvents({ actorKind, recordType })
       );
       if (response.success) {
         setLogs(response.data?.logs || response.data || []);
@@ -110,7 +111,7 @@ function ActorLog({ actorKind, title, subtitle, filename }) {
 
   useEffect(() => {
     fetchLogs();
-  }, [refreshKey, actorKind]);
+  }, [refreshKey, actorKind, recordType]);
 
   const visibleLogs = logs.slice(0, 10);
 

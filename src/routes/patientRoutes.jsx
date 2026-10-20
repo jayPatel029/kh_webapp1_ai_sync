@@ -30,10 +30,10 @@ export const getPatientRoutes = ({ guard, ROUTE_NAMES }) => [
         path: "logs",
         element: guard(
           <ActorLogPage
-            actorKind="patient"
-            title="Patient Logs"
-            subtitle="Actions taken by patients"
-            filename="patient_logs.csv"
+            recordType="patient"
+            title="Patient records"
+            subtitle="Changes made to patient profiles, labs, and prescriptions"
+            filename="patient_record_logs.csv"
           />,
           ROUTE_NAMES.PATIENT_LOGS
         ),

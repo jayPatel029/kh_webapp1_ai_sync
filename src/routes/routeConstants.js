@@ -64,6 +64,8 @@ export const ROUTES = {
   SETTINGS_LOGS_DOCTOR: "/settings/logs/doctor",
   SETTINGS_LOGS_DT: "/settings/logs/dt",
   SETTINGS_LOGS_ADMIN: "/settings/logs/admin",
+  SETTINGS_LOGS_PATIENT_RECORDS: "/settings/logs/records/patient",
+  SETTINGS_LOGS_DOCTOR_RECORDS: "/settings/logs/records/doctor",
   SETTINGS_LOGS_REPORT: "/settings/logs/report",
   SETTINGS_AILMENTS: "/settings/ailments",
 

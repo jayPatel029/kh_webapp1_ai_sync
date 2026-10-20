@@ -150,11 +150,13 @@ export function formatChangedBy(log, options = {}) {
   const staffEmail = displayValue(
     log?.actor_contact || log?.actorEmail || actor.identity
   );
+  const role = displayValue(log?.actor_role || log?.actorRole);
+  const roleSuffix = role !== EMPTY ? ` · ${role}` : "";
   if (staffName !== EMPTY && staffEmail !== EMPTY && staffName !== staffEmail) {
-    return { primary: staffName, secondary: staffEmail, sourceLabel };
+    return { primary: staffName, secondary: `${staffEmail}${roleSuffix}`, sourceLabel };
   }
   if (staffEmail !== EMPTY) {
-    return { primary: staffEmail, secondary: "", sourceLabel };
+    return { primary: staffEmail, secondary: role !== EMPTY ? role : "", sourceLabel };
   }
 
   return {

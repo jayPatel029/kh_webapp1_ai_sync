@@ -23,9 +23,9 @@ export const getSettingsRoutes = ({ guard, ROUTE_NAMES }) => [
         element: guard(
           <ActorLogPage
             actorKind="patient"
-            title="Patient Logs"
-            subtitle="Actions taken by patients"
-            filename="patient_logs.csv"
+            title="Patient users"
+            subtitle="Actions made by patients"
+            filename="patient_user_logs.csv"
           />,
           ROUTE_NAMES.PATIENT_LOGS
         ),
@@ -35,9 +35,9 @@ export const getSettingsRoutes = ({ guard, ROUTE_NAMES }) => [
         element: guard(
           <ActorLogPage
             actorKind="doctor"
-            title="Doctor Logs"
-            subtitle="Actions by doctors and medical staff"
-            filename="doctor_logs.csv"
+            title="Doctor users"
+            subtitle="Actions made by doctors and medical staff"
+            filename="doctor_user_logs.csv"
           />,
           ROUTE_NAMES.SETTINGS_LOGS
         ),
@@ -47,9 +47,9 @@ export const getSettingsRoutes = ({ guard, ROUTE_NAMES }) => [
         element: guard(
           <ActorLogPage
             actorKind="dt"
-            title="DT Logs"
-            subtitle="Actions by dialysis technicians"
-            filename="dt_logs.csv"
+            title="Dialysis technicians"
+            subtitle="Actions made by dialysis technicians"
+            filename="dt_user_logs.csv"
           />,
           ROUTE_NAMES.SETTINGS_LOGS
         ),
@@ -59,9 +59,33 @@ export const getSettingsRoutes = ({ guard, ROUTE_NAMES }) => [
         element: guard(
           <ActorLogPage
             actorKind="admin"
-            title="Admin Logs"
-            subtitle="Actions by clinic admins"
-            filename="admin_logs.csv"
+            title="Admin users"
+            subtitle="Actions made by clinic admins"
+            filename="admin_user_logs.csv"
+          />,
+          ROUTE_NAMES.SETTINGS_LOGS
+        ),
+      },
+      {
+        path: "logs/records/patient",
+        element: guard(
+          <ActorLogPage
+            recordType="patient"
+            title="Patient records"
+            subtitle="Changes made to patient profiles, labs, and prescriptions"
+            filename="patient_record_logs.csv"
+          />,
+          ROUTE_NAMES.SETTINGS_LOGS
+        ),
+      },
+      {
+        path: "logs/records/doctor",
+        element: guard(
+          <ActorLogPage
+            recordType="doctor"
+            title="Doctor records"
+            subtitle="Changes made to doctor profiles"
+            filename="doctor_record_logs.csv"
           />,
           ROUTE_NAMES.SETTINGS_LOGS
         ),
