@@ -34,7 +34,7 @@ const EVENT_COLUMNS = [
   {
     key: "did",
     header: "Did",
-    width: "13%",
+    width: "16%",
     className: "font-semibold text-[#393939]",
     render: (log) => formatEventAction(log),
   },
@@ -77,7 +77,7 @@ const EVENT_COLUMNS = [
   {
     key: "at",
     header: "When",
-    width: "20%",
+    width: "17%",
     className: "text-[#989898]",
     render: (log) => formatLogDate(log.occurred_at || log.occurredAt),
   },

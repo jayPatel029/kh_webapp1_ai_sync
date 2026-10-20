@@ -9,6 +9,7 @@ const FIELD_LABELS = {
   _record: "Record",
   name: "Name",
   number: "Phone",
+  phoneno: "Phone",
   dob: "Date of birth",
   address: "Address",
   state: "State",
@@ -19,7 +20,39 @@ const FIELD_LABELS = {
   dry_weight: "Dry weight",
   account_deletion_request: "Account deletion",
   profile_photo: "Profile photo",
+  photo: "Photo",
+  role: "Role",
+  email: "Email",
+  license_no: "License no",
+  "license no": "License no",
+  practicing_at: "Practicing at",
+  "practicing at": "Practicing at",
+  experience: "Experience",
+  ref: "Referral",
+  resume: "Resume",
+  doctors_code: "Doctor code",
+  "doctors code": "Doctor code",
+  institute: "Institute",
+  description: "Description",
+  email_notification: "Email notification",
+  Dialysis_updates: "Dialysis updates",
+  daily_update: "Daily updates",
+  dailyReadingsAlerts: "Daily readings alerts",
+  can_export: "Export access",
+  clinic_id: "Clinic",
+  organization_id: "Organization",
+  lab_report: "Lab report",
+  prescription: "Prescription",
+  requisition: "Requisition",
 };
+
+function humanizeField(field) {
+  if (!field) return "";
+  if (FIELD_LABELS[field]) return FIELD_LABELS[field];
+  return String(field)
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 export function displayValue(value) {
   if (value == null) return EMPTY;
@@ -179,8 +212,30 @@ const SUBJECT_LABELS = {
 };
 
 export function formatEventAction(log) {
-  if (log?.summary) return displayValue(log.summary);
-  return formatFieldLabel(log);
+  const summary = displayValue(log?.summary);
+  if (summary !== EMPTY) return summary;
+
+  const field = getRawField(log);
+  const next = String(getRawNew(log) || "").trim().toUpperCase();
+  const action = String(log?.action || "").trim().toUpperCase();
+  const subject = SUBJECT_LABELS[log?.subject_type] || "Record";
+  const fieldLabel = humanizeField(field);
+
+  if (field === "_record" || !field) {
+    if (next === "CREATE" || action === "CREATE") return `${subject} created`;
+    if (next === "DELETE" || action === "DELETE") return `${subject} deleted`;
+  }
+  if (field === "account_deletion_request") {
+    if (next === "REQUESTED" || action === "REQUEST") {
+      return "Account deletion requested";
+    }
+    return "Account deletion cancelled";
+  }
+  if (action === "CREATE") return `${fieldLabel || subject} created`;
+  if (action === "DELETE") return `${fieldLabel || subject} deleted`;
+  if (fieldLabel) return `${fieldLabel} updated`;
+  if (action === "UPDATE") return `${subject} updated`;
+  return "Updated";
 }
 
 export function formatSubjectIdentity(log) {
