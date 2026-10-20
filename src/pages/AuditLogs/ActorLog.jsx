@@ -13,7 +13,6 @@ import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 import { getAuditEvents } from "../../ApiCalls/auditApis";
-import { usePageCache, PAGE_CACHE } from "../../cache";
 import CsvDateRangeDownload from "./CsvDateRangeDownload";
 import AuditLogTable, { ChangedByCell, IdentityCell } from "./AuditLogTable";
 import {
@@ -83,15 +82,11 @@ function ActorLog({ actorKind, recordType, title, subtitle, filename }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { fetchWithCache, refreshKey } = usePageCache(PAGE_CACHE.AUDIT_LOGS);
 
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const cacheKey = `auditEvents:${actorKind || ""}:${recordType || ""}`;
-      const response = await fetchWithCache(cacheKey, () =>
-        getAuditEvents({ actorKind, recordType })
-      );
+      const response = await getAuditEvents({ actorKind, recordType });
       if (response.success) {
         setLogs(response.data?.logs || response.data || []);
         setError(null);
@@ -111,7 +106,7 @@ function ActorLog({ actorKind, recordType, title, subtitle, filename }) {
 
   useEffect(() => {
     fetchLogs();
-  }, [refreshKey, actorKind, recordType]);
+  }, [actorKind, recordType]);
 
   const visibleLogs = logs.slice(0, 10);
 
@@ -126,7 +121,7 @@ function ActorLog({ actorKind, recordType, title, subtitle, filename }) {
               { label: "Audit Logs", path: "/settings/logs" },
               { label: title, active: true },
             ]}
-            rightAction={<RefreshButton pageName={PAGE_CACHE.AUDIT_LOGS.name} />}
+            rightAction={<RefreshButton onRefresh={fetchLogs} />}
             onBack={() => navigate(ROUTES.SETTINGS_LOGS)}
           />
         </Box>
