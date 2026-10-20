@@ -97,7 +97,12 @@ export function parseActor(changedBy) {
   const identity = (tagged ? tagged[2] : raw).trim();
   const patientMatch = identity.match(/^patient:(\d+)$/i);
   if (patientMatch) {
-    return { source, kind: "patient", id: patientMatch[1], identity };
+    return {
+      source: "app",
+      kind: "patient",
+      id: patientMatch[1],
+      identity,
+    };
   }
   return { source, kind: "staff", id: "", identity };
 }
