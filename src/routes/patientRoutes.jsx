@@ -14,7 +14,7 @@ const UserDietDetails = lazy(() => import("../pages/UserDietDetails/UserDietDeta
 const UserRequisition = lazy(() => import("../pages/UserRequisition/UserRequisition"));
 const AdminChat = lazy(() => import("../pages/adminchat/AdminChat"));
 const DoctorChat = lazy(() => import("../pages/doctorChat"));
-const LogsPage = lazy(() => import("../pages/AuditLogs/patientLog"));
+const ActorLogPage = lazy(() => import("../pages/AuditLogs/ActorLog"));
 const PatientProfileRouteLayout = lazy(() => import("../pages/common/PatientProfileRouteLayout"));
 
 
@@ -26,7 +26,18 @@ export const getPatientRoutes = ({ guard, ROUTE_NAMES }) => [
       // { path: "new", element: guard(<AddPatientForm />, ROUTE_NAMES.PATIENTS) },  // replaced by modal inside Patient page
       { path: "new", element: <Navigate to={ROUTES.PATIENTS} replace /> },
       { path: "deleted", element: guard(<DelPatient />, ROUTE_NAMES.PATIENTS) },
-      { path: "logs", element: guard(<LogsPage />, ROUTE_NAMES.PATIENT_LOGS) },
+      {
+        path: "logs",
+        element: guard(
+          <ActorLogPage
+            actorKind="patient"
+            title="Patient Logs"
+            subtitle="Actions taken by patients"
+            filename="patient_logs.csv"
+          />,
+          ROUTE_NAMES.PATIENT_LOGS
+        ),
+      },
       { path: ":id/delete", element: guard(<DeletePatient />, ROUTE_NAMES.PATIENTS) },
     ],
   },

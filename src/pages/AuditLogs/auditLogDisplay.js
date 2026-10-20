@@ -79,7 +79,9 @@ export function formatNewValue(log) {
   const field = getRawField(log);
   const next = String(getRawNew(log) || "").toUpperCase();
   if (field === "_record" && next === "CREATE") {
-    return displayValue(log.patientName || log.patient_name || "New patient");
+    return displayValue(
+      log.patientName || log.patient_name || log.subject_name || "New patient"
+    );
   }
   if (field === "_record" && next === "DELETE") return "Deleted";
   if (field === "account_deletion_request" && next === "REQUESTED") return "Requested";
@@ -124,22 +126,30 @@ export function formatChangedBy(log, options = {}) {
     log?.changedBy ||
     log?.deletedBy ||
     log?.deleted_by ||
+    log?.actor_label ||
     "";
   const actor = parseActor(raw);
-  const sourceLabel = formatSourceLabel(actor.source);
+  const sourceLabel = formatSourceLabel(log?.source || actor.source);
 
-  if (actor.kind === "patient") {
+  if (actor.kind === "patient" || log?.actor_kind === "patient") {
     const name = displayValue(
-      options.patientName || log?.patientName || log?.patient_name
+      options.patientName ||
+        log?.actor_name ||
+        log?.patientName ||
+        log?.patient_name
     );
-    const phone = displayValue(options.patientNumber || log?.number);
-    const primary = name !== EMPTY ? name : `Patient ${actor.id || ""}`.trim();
+    const phone = displayValue(
+      options.patientNumber || log?.actor_contact || log?.number
+    );
+    const primary = name !== EMPTY ? name : `Patient ${actor.id || log?.actor_id || ""}`.trim();
     const secondary = phone !== EMPTY ? phone : "";
     return { primary, secondary, sourceLabel };
   }
 
-  const staffName = displayValue(log?.actorName);
-  const staffEmail = displayValue(log?.actorEmail || actor.identity);
+  const staffName = displayValue(log?.actor_name || log?.actorName);
+  const staffEmail = displayValue(
+    log?.actor_contact || log?.actorEmail || actor.identity
+  );
   if (staffName !== EMPTY && staffEmail !== EMPTY && staffName !== staffEmail) {
     return { primary: staffName, secondary: staffEmail, sourceLabel };
   }
@@ -154,13 +164,28 @@ export function formatChangedBy(log, options = {}) {
   };
 }
 
-export function formatPatientIdentity(log) {
-  const name = displayValue(log?.patientName || log?.patient_name);
-  const phone = displayValue(log?.number);
-  const id = displayValue(log?.patient_id || log?.patientId);
+const SUBJECT_LABELS = {
+  patient: "Patient",
+  doctor: "Doctor",
+  lab_report: "Lab report",
+  prescription: "Prescription",
+  requisition: "Requisition",
+};
+
+export function formatEventAction(log) {
+  if (log?.summary) return displayValue(log.summary);
+  return formatFieldLabel(log);
+}
+
+export function formatSubjectIdentity(log) {
+  const name = displayValue(log?.subject_name);
+  const contact = displayValue(log?.subject_contact);
+  const id = displayValue(log?.subject_id);
+  const type = SUBJECT_LABELS[log?.subject_type] || displayValue(log?.subject_type);
   return {
     name: name === EMPTY ? "" : name,
-    phone: phone === EMPTY ? "" : phone,
+    contact: contact === EMPTY ? "" : contact,
     id: id === EMPTY ? "" : id,
+    type: type === EMPTY ? "" : type,
   };
 }

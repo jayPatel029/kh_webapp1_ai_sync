@@ -244,15 +244,6 @@ export async function getDeletedPatients() {
   }
 }
 
-export async function getPatientLog() {
-  try {
-    const response = await axiosInstance.get(server_url + "/patient/patientLog");
-    return { success: true, data: response.data };
-  } catch (error) {
-    return { success: false, data: error.response?.data || error.message };
-  }
-}
-
 export async function removeAdminFromPatient(id) {
   try {
     const response = await axiosInstance.delete(server_url + "/patient/removeAdmin/" + id);

@@ -1,7 +1,7 @@
 /**
- * Doctor Logs Page - Redesigned
+ * Actor-tab audit log page (Patient / Doctor / DT / Admin).
  *
- * @file src/pages/AuditLogs/DoctorLog.jsx
+ * @file src/pages/AuditLogs/ActorLog.jsx
  */
 
 import React, { useEffect, useState } from "react";
@@ -12,69 +12,73 @@ import PageHeader from "../../components/PageHeader";
 import RefreshButton from "../../components/RefreshButton/RefreshButton";
 import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
-import { getDoctorLogs } from "../../ApiCalls/doctorApis";
+import { getAuditEvents } from "../../ApiCalls/auditApis";
 import { usePageCache, PAGE_CACHE } from "../../cache";
 import CsvDateRangeDownload from "./CsvDateRangeDownload";
 import AuditLogTable, { ChangedByCell, IdentityCell } from "./AuditLogTable";
 import {
-  formatFieldLabel,
+  formatEventAction,
   formatOldValue,
   formatNewValue,
   formatLogDate,
-  displayValue,
+  formatSubjectIdentity,
 } from "./auditLogDisplay";
 import "../../design-system/styles/index.css";
 
-const DOCTOR_COLUMNS = [
+const EVENT_COLUMNS = [
   {
-    key: "doctor",
-    header: "Doctor",
-    width: "18%",
-    render: (log) => (
-      <IdentityCell
-        name={displayValue(log.doctorName) === "—" ? "" : log.doctorName}
-        phone={displayValue(log.doctorEmail) === "—" ? "" : log.doctorEmail}
-        id={log.doctor_id || log.doctorId}
-      />
-    ),
+    key: "actor",
+    header: "Actor",
+    width: "16%",
+    render: (log) => <ChangedByCell log={log} />,
   },
   {
-    key: "field",
-    header: "Field",
+    key: "did",
+    header: "Did",
     width: "14%",
     className: "font-semibold text-[#393939]",
-    render: (log) => formatFieldLabel(log),
+    render: (log) => formatEventAction(log),
+  },
+  {
+    key: "subject",
+    header: "To",
+    width: "18%",
+    render: (log) => {
+      const subject = formatSubjectIdentity(log);
+      return (
+        <IdentityCell
+          name={subject.name}
+          phone={subject.contact}
+          id={subject.id}
+          idLabel={subject.type || "ID"}
+        />
+      );
+    },
   },
   {
     key: "old",
     header: "Old Value",
-    width: "18%",
+    width: "16%",
     className: "text-[#989898]",
     render: (log) => formatOldValue(log),
   },
   {
     key: "new",
     header: "New Value",
-    width: "18%",
+    width: "16%",
     className: "text-[#4164df]",
     render: (log) => formatNewValue(log),
   },
   {
     key: "at",
-    header: "Changed At",
-    width: "16%",
+    header: "When",
+    width: "20%",
     className: "text-[#989898]",
-    render: (log) => formatLogDate(log.changed_at || log.changedAt),
-  },
-  {
-    key: "by",
-    header: "Changed By",
-    width: "16%",
-    render: (log) => <ChangedByCell log={log} />,
+    render: (log) => formatLogDate(log.occurred_at || log.occurredAt),
   },
 ];
 
-const DocLogPage = () => {
+function ActorLog({ actorKind, title, subtitle, filename }) {
   const navigate = useNavigate();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,11 +88,18 @@ const DocLogPage = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const response = await fetchWithCache("doctorLogs", () => getDoctorLogs());
+      const response = await fetchWithCache(`auditEvents:${actorKind}`, () =>
+        getAuditEvents(actorKind)
+      );
       if (response.success) {
         setLogs(response.data?.logs || response.data || []);
+        setError(null);
       } else {
-        throw new Error("Failed to fetch logs");
+        const message =
+          response.data?.error ||
+          response.data?.message ||
+          "Failed to fetch logs";
+        throw new Error(message);
       }
     } catch (err) {
       setError(err.message);
@@ -99,7 +110,7 @@ const DocLogPage = () => {
 
   useEffect(() => {
     fetchLogs();
-  }, [refreshKey]);
+  }, [refreshKey, actorKind]);
 
   const visibleLogs = logs.slice(0, 10);
 
@@ -108,11 +119,11 @@ const DocLogPage = () => {
       <Box className="flex-1 flex flex-col min-w-0">
         <Box className="sticky top-[56px] z-20 bg-white">
           <PageHeader
-            title="Doctor Logs"
+            title={title}
             breadcrumbs={[
               { label: "Dashboard", path: "/" },
               { label: "Audit Logs", path: "/settings/logs" },
-              { label: "Doctor Logs", active: true },
+              { label: title, active: true },
             ]}
             rightAction={<RefreshButton pageName={PAGE_CACHE.AUDIT_LOGS.name} />}
             onBack={() => navigate(ROUTES.SETTINGS_LOGS)}
@@ -129,14 +140,12 @@ const DocLogPage = () => {
               className="pb-4 border-b border-gray-200 mb-6"
             >
               <Box>
-                <h2 className="text-[18px] font-bold text-[#393939]">Doctor Logs</h2>
-                <p className="text-[14px] text-[#989898] mt-1">
-                  Track changes made to doctor records
-                </p>
+                <h2 className="text-[18px] font-bold text-[#393939]">{title}</h2>
+                <p className="text-[14px] text-[#989898] mt-1">{subtitle}</p>
               </Box>
               <CsvDateRangeDownload
                 logs={logs}
-                filename="doctor_logs.csv"
+                filename={filename}
                 disabled={loading || !!error}
               />
             </Flex>
@@ -159,7 +168,7 @@ const DocLogPage = () => {
 
             {!loading && !error && (
               <>
-                <AuditLogTable columns={DOCTOR_COLUMNS} rows={visibleLogs} />
+                <AuditLogTable columns={EVENT_COLUMNS} rows={visibleLogs} />
                 {logs.length > 10 && (
                   <Box className="bg-gray-50 px-6 py-3 text-center">
                     <p className="text-[14px] text-[#989898]">
@@ -174,6 +183,6 @@ const DocLogPage = () => {
       </Box>
     </ThemeProvider>
   );
-};
+}
 
-export default DocLogPage;
+export default ActorLog;

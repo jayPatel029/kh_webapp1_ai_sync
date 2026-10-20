@@ -28,7 +28,13 @@ const getDefaultRange = () => {
 };
 
 const getLogTimestamp = (log) =>
-  log?.changed_at || log?.changedAt || log?.created_at || log?.createdAt || null;
+  log?.occurred_at ||
+  log?.occurredAt ||
+  log?.changed_at ||
+  log?.changedAt ||
+  log?.created_at ||
+  log?.createdAt ||
+  null;
 
 const filterLogsByDateRange = (logs, from, to) => {
   if (!Array.isArray(logs) || !logs.length) return [];
