@@ -110,8 +110,8 @@ export function formatSourceLabel(source) {
 }
 
 /**
- * For patient-created logs, show name + phone instead of patient:<id>.
- * Staff logs keep email (without [web]/[app] prefix).
+ * Patient actors → name + phone.
+ * Doctor / admin actors → name + email (from API actorName / actorEmail).
  */
 export function formatChangedBy(log, options = {}) {
   const raw =
@@ -131,6 +131,15 @@ export function formatChangedBy(log, options = {}) {
     const primary = name !== EMPTY ? name : `Patient ${actor.id || ""}`.trim();
     const secondary = phone !== EMPTY ? phone : "";
     return { primary, secondary, sourceLabel };
+  }
+
+  const staffName = displayValue(log?.actorName);
+  const staffEmail = displayValue(log?.actorEmail || actor.identity);
+  if (staffName !== EMPTY && staffEmail !== EMPTY && staffName !== staffEmail) {
+    return { primary: staffName, secondary: staffEmail, sourceLabel };
+  }
+  if (staffEmail !== EMPTY) {
+    return { primary: staffEmail, secondary: "", sourceLabel };
   }
 
   return {
