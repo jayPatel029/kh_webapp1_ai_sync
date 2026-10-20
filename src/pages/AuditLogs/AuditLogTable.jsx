@@ -1,6 +1,6 @@
 import React from "react";
 import { Box } from "../../component-library";
-import { formatChangedBy } from "./auditLogDisplay";
+import { formatChangedBy, formatOutcome } from "./auditLogDisplay";
 
 const cellClass =
   "px-3 py-3 text-[14px] align-top break-words whitespace-normal";
@@ -25,6 +25,19 @@ export function ChangedByCell({ log, options }) {
           IP {actor.ipLabel}
         </Box>
       ) : null}
+    </Box>
+  );
+}
+
+export function OutcomeCell({ log }) {
+  const outcome = formatOutcome(log);
+  return (
+    <Box
+      className={`font-semibold ${
+        outcome.failed ? "text-[#c0392b]" : "text-[#1e8e3e]"
+      }`}
+    >
+      {outcome.label}
     </Box>
   );
 }

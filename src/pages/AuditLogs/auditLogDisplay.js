@@ -195,3 +195,11 @@ export function formatSubjectIdentity(log) {
     type: type === EMPTY ? "" : type,
   };
 }
+
+export function formatOutcome(log) {
+  const raw = String(log?.outcome || "success").trim().toLowerCase();
+  if (raw === "fail" || raw === "failed" || raw === "error" || raw === "failure") {
+    return { label: "Failed", failed: true };
+  }
+  return { label: "Success", failed: false };
+}

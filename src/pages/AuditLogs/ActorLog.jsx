@@ -14,7 +14,7 @@ import { ROUTES } from "../../routes/routeConstants";
 import ThemeProvider from "../../components/ThemeProvider";
 import { getAuditEvents } from "../../ApiCalls/auditApis";
 import CsvDateRangeDownload from "./CsvDateRangeDownload";
-import AuditLogTable, { ChangedByCell, IdentityCell } from "./AuditLogTable";
+import AuditLogTable, { ChangedByCell, IdentityCell, OutcomeCell } from "./AuditLogTable";
 import {
   formatEventAction,
   formatOldValue,
@@ -28,20 +28,20 @@ const EVENT_COLUMNS = [
   {
     key: "actor",
     header: "Actor",
-    width: "16%",
+    width: "15%",
     render: (log) => <ChangedByCell log={log} />,
   },
   {
     key: "did",
     header: "Did",
-    width: "14%",
+    width: "13%",
     className: "font-semibold text-[#393939]",
     render: (log) => formatEventAction(log),
   },
   {
     key: "subject",
     header: "To",
-    width: "18%",
+    width: "16%",
     render: (log) => {
       const subject = formatSubjectIdentity(log);
       return (
@@ -57,21 +57,27 @@ const EVENT_COLUMNS = [
   {
     key: "old",
     header: "Old Value",
-    width: "16%",
+    width: "13%",
     className: "text-[#989898]",
     render: (log) => formatOldValue(log),
   },
   {
     key: "new",
     header: "New Value",
-    width: "16%",
+    width: "13%",
     className: "text-[#4164df]",
     render: (log) => formatNewValue(log),
   },
   {
+    key: "status",
+    header: "Status",
+    width: "10%",
+    render: (log) => <OutcomeCell log={log} />,
+  },
+  {
     key: "at",
     header: "When",
-    width: "18%",
+    width: "20%",
     className: "text-[#989898]",
     render: (log) => formatLogDate(log.occurred_at || log.occurredAt),
   },
