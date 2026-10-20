@@ -51,17 +51,18 @@ export async function getPatientByIdad(patientId) {
 }
 
 export async function getPatientById(patientId, config = {}) {
+  const probeConfig = { requestDelayMs: 50, skipAuthRedirect: true, ...config };
   try {
     const response = await axiosInstance.get(
       `${server_url}/dt/patients/${patientId}`,
-      { requestDelayMs: 50, ...config }
+      probeConfig
     );
     return { success: true, data: response.data };
   } catch (error) {
     try {
       const response2 = await axiosInstance.get(
         `${server_url}/dt/patient/${patientId}`,
-        { requestDelayMs: 50, ...config }
+        probeConfig
       );
       return { success: true, data: response2.data };
     } catch (_) {

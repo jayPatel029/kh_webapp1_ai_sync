@@ -98,13 +98,22 @@ axiosInstance.interceptors.response.use(
   (error) => {
     const apiError = normalizeAxiosError(error);
 
-    // 401 → clear session and redirect (unless we are already on a login page)
-    if (apiError.status === 401) {
+    // 401 → clear session only for real auth failures.
+    // Several APIs incorrectly return 401 on server errors (e.g. patient profile
+    // update). Logging out on those kicks doctors out of the chart.
+    if (apiError.status === 401 && !error.config?.skipAuthRedirect) {
+      const message = String(apiError.message || "").toLowerCase();
+      const isAuthFailure =
+        message.includes("token") ||
+        message.includes("unauthorized") ||
+        message.includes("unauthorised") ||
+        message.includes("user not found") ||
+        message.includes("authorization");
       const onLoginPage =
         window.location.pathname.includes('/login') ||
         window.location.pathname.includes('/doctorLogin');
 
-      if (!onLoginPage) {
+      if (isAuthFailure && !onLoginPage) {
         clearAllCaches();
         localStorage.clear();
         window.location.href = '/doctorLogin';
