@@ -59,9 +59,10 @@ const axiosInstance = axios.create({
 // ── Request interceptor ─────────────────────────────────────────────
 axiosInstance.interceptors.request.use(
   async (config) => {
+    config.headers = config.headers || {};
+    config.headers["X-Kifayti-Client"] = "web";
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
 
