@@ -1219,18 +1219,22 @@ const LineChartDialysis = ({
               }}
             />
             <GraphClearButton onClick={clearAllFilters}>Clear filters</GraphClearButton>
-            {isInterDialyticTitle && (
-              <span className="h-10 inline-flex items-center px-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm font-semibold whitespace-nowrap">
-                Warnings:{" "}
-                {
-                  patientData.filter(
-                    (item) =>
-                      item.isStatusOnly ||
-                      (item.message && typeof item.plotValue !== "number")
-                  ).length
-                }
-              </span>
-            )}
+            {isInterDialyticTitle && (() => {
+              const errorCount = patientData.filter(
+                (item) =>
+                  item.isStatusOnly ||
+                  (item.message && typeof item.plotValue !== "number")
+              ).length;
+              const dayCount = patientData.length;
+              return (
+                <span className="min-h-10 inline-flex items-center px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-800 text-sm font-semibold max-w-md leading-snug">
+                  Errors: {errorCount}. Out of {dayCount} day
+                  {dayCount === 1 ? "" : "s"} on this graph, {errorCount}{" "}
+                  {errorCount === 1 ? "is an error" : "are errors"}. Please
+                  check with your DT.
+                </span>
+              );
+            })()}
           </GraphToolbarGroup>
 
           <GraphToolbarGroup>
