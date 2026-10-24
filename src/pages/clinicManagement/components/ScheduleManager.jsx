@@ -464,7 +464,7 @@ export function ScheduleManager({
         {!isManagementMode && (
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-              {clinicId ? 'Booking Frequency' : 'Schedule Pattern'}
+              {clinicId ? 'Dialysis Freq' : 'Schedule Pattern'}
             </label>
             <div className="flex gap-6">
               {['weekly', 'bi-weekly', 'monthly'].map(freq => (
