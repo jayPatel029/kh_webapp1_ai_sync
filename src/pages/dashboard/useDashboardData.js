@@ -71,9 +71,9 @@ export function useAdminDashboardData() {
       return;
     }
 
-    const role = localStorage.getItem('role');
-    if (role === 'Dialysis Technician') {
-      navigate('/patients');
+    const role = (localStorage.getItem('role') || '').toLowerCase();
+    if (role.includes('dialysis')) {
+      navigate('/dialysis/dashboard');
       return;
     }
 

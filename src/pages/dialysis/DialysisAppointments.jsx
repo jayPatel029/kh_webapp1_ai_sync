@@ -16,6 +16,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   Input,
@@ -23,7 +24,6 @@ import {
   FormControl,
   FormLabel,
   Textarea,
-  Select,
   Flex
 } from '../../component-library';
 import { FormModal } from '../../component-library/modals/FormModal';
@@ -65,7 +65,8 @@ import {
   createBill
 } from '../../ApiCalls/clinicApis';
 import { uploadFile } from '../../ApiCalls/dataUpload';
-import { getPatients, getPatientAilments, getPatientById, getGeneralParameterResponse } from '../../ApiCalls/patientAPis';
+import { getPatientAilments, getPatientById, getGeneralParameterResponse } from '../../ApiCalls/patientAPis';
+import { listDtPatients } from '../../ApiCalls/dtPatientApis';
 import { getDoctors } from '../../ApiCalls/doctorApis';
 import { jsPDF } from 'jspdf';
 import ClinicSelector from '../../components/ClinicSelector';
@@ -436,6 +437,8 @@ const ActionIconBtn = ({ icon, onClick, disabled = false, style = {} }) => (
 const DialysisAppointments = () => {
   const { isMobile } = useIsMobile();
   const { showToast, ToastContainer } = useAdminToast();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // ─── Data state ───────────────────────────────────────
   const [appointments, setAppointments] = useState([]);
@@ -467,8 +470,10 @@ const DialysisAppointments = () => {
   const [availableSlots, setAvailableSlots] = useState([]);
 
   const defaultForm = {
-    patient_id: '1',
-    clinic_id: '',
+    patient_id: '',
+    lock_patient: false,
+    org_id: storedOrgId,
+    clinic_id: storedClinicId,
     clinic_name: '',
     appointment_date: today,
     booking_mode: 'continuous',
@@ -537,16 +542,6 @@ const DialysisAppointments = () => {
     ? Math.max(createForm.slotTemplates.length, 1)
     : plannedSessions.length;
 
-  // ─── Filtered Patients for Dialysis ───────────────────
-  const dialysisPatients = useMemo(() => {
-    return patients.filter((p) => {
-      const rawAilments = p.ailments || p.patient_ailments || p.aliments || p.medical_history || '';
-      const ailmentsStr = Array.isArray(rawAilments) ? rawAilments.join(', ') : String(rawAilments);
-      const ailments = ailmentsStr.toLowerCase();
-      return ailments.includes('dialysis') || ailments.includes('hemodialysis') || ailments.includes('hemo dialysis');
-    });
-  }, [patients]);
-
   const handleOpenSession = useCallback((app) => {
     setSessionModal({
       isOpen: true,
@@ -566,9 +561,9 @@ const DialysisAppointments = () => {
   // --- Fetch Patients & Doctors ---
   useEffect(() => {
     const loadData = async () => {
-      const [pts, docs] = await Promise.all([getPatients(), getDoctors()]);
+      const [pts, docs] = await Promise.all([listDtPatients(), getDoctors()]);
       if (pts.success) {
-        const allPatients = pts.data?.data || pts.data || [];
+        const allPatients = pts.data?.items || pts.data?.data || pts.data || [];
         setPatients(Array.isArray(allPatients) ? allPatients : []);
       }
       if (docs.success) {
@@ -579,36 +574,10 @@ const DialysisAppointments = () => {
     loadData();
   }, []);
 
-  const handleBookFromDashboard = useCallback((slot) => {
+  const handleBookFromDashboard = useCallback(() => {
     setIsDashboardOpen(false);
-    resetCreateModal();
-
-    const dateStr = slot.start.toISOString().split('T')[0];
-    const startTimeStr = slot.start.toISOString().split('T')[1].slice(0, 5);
-    const endTimeStr = slot.end.toISOString().split('T')[1].slice(0, 5);
-
-    const chosenClinic = clinics.find(c => String(c.id) === String(slot.clinicId));
-
-    setCreateForm(prev => ({
-      ...prev,
-      clinic_id: slot.clinicId,
-      clinic_name: chosenClinic ? (chosenClinic.name || chosenClinic.clinic_name) : '',
-      appointment_date: dateStr,
-      custom_start_date: dateStr,
-      custom_end_date: '',
-      booking_mode: 'continuous',
-      slotTemplates: [{
-        daysOfWeek: [new Date(dateStr).toLocaleString('default', { weekday: 'long' })],
-        startTime: startTimeStr,
-        endTime: endTimeStr,
-        frequency: 'one-time',
-        slot_id: slot.slotId
-      }],
-      duration: calculateDuration(startTimeStr, endTimeStr).replace('h', '').replace('m', '').trim() || '4'
-    }));
-
-    setIsCreateOpen(true);
-  }, [clinics]);
+    showToast('Book an appointment from the Patients tab.', 'info');
+  }, [showToast]);
 
   // --- Fetch Clinic Services when clinic changes ---
   useEffect(() => {
@@ -654,14 +623,46 @@ const DialysisAppointments = () => {
   // --- Fetch Patient details when patient changes ---
   useEffect(() => {
     if (!createForm.patient_id) {
-      setSelectedPatientData(null);
+      if (!createForm.lock_patient) setSelectedPatientData(null);
       return;
     }
+    if (createForm.lock_patient) {
+      setSelectedPatientData((prev) => {
+        if (prev) return prev;
+        const locked = patients.find((p) => String(p.id) === String(createForm.patient_id));
+        if (!locked) return prev;
+        return {
+          id: locked.id,
+          name: locked.name,
+          gender: locked.gender,
+          age: locked.age,
+          phoneno: locked.phone_no,
+          phone: locked.phone_no,
+          m1_patient_id: locked.m1_patient_id,
+        };
+      });
+      return;
+    }
+
+    const fromRoster = patients.find((p) => String(p.id) === String(createForm.patient_id));
+    if (fromRoster) {
+      setSelectedPatientData({
+        id: fromRoster.id,
+        name: fromRoster.name,
+        gender: fromRoster.gender,
+        age: fromRoster.age,
+        phoneno: fromRoster.phone_no,
+        phone: fromRoster.phone_no,
+        m1_patient_id: fromRoster.m1_patient_id,
+      });
+    }
+
+    const lookupId = fromRoster?.m1_patient_id || createForm.patient_id;
     (async () => {
       // 1. Fetch Patient profile and ailments list first
       const [pRes, aRes] = await Promise.all([
-        getPatientById(createForm.patient_id),
-        getPatientAilments(createForm.patient_id),
+        fromRoster ? Promise.resolve({ success: false }) : getPatientById(lookupId),
+        getPatientAilments(lookupId),
       ]);
 
       let patientData = null;
@@ -707,7 +708,7 @@ const DialysisAppointments = () => {
         doctor_id: prev.doctor_id || patientData?.primary_doctor_id || ''
       }));
     })();
-  }, [createForm.patient_id]);
+  }, [createForm.patient_id, createForm.lock_patient, patients]);
 
   // --- Auto-select first available slot when date/clinic changes ---
   useEffect(() => {
@@ -812,10 +813,9 @@ const DialysisAppointments = () => {
   const fetchInitialData = useCallback(async () => {
     setClinicsLoading(true);
     try {
-      const [orgsResult, clinicsResult, patientsResult] = await Promise.all([
+      const [orgsResult, clinicsResult] = await Promise.all([
         getOrganizations(),
         getClinics(),
-        getPatients(),
       ]);
 
       if (orgsResult.success) {
@@ -1122,11 +1122,64 @@ const DialysisAppointments = () => {
       preClinic = { clinic_id: String(clinics[0].id), clinic_name: clinics[0].name || 'Clinic' };
     }
 
-    setCreateForm({ ...defaultForm, appointment_date: today, ...preClinic });
+    setSelectedPatientData(null);
+    setCreateForm({
+      ...defaultForm,
+      lock_patient: false,
+      org_id: selectedOrgId || storedOrgId,
+      appointment_date: today,
+      ...preClinic,
+    });
     setReceiptItems([]);
     setAddedServices([]);
     setCurrentService({ name: '', price: 0, discount: 0 });
-  }, [clinics, today, defaultForm, selectedClinicId]);
+  }, [clinics, today, defaultForm, selectedClinicId, selectedOrgId, storedOrgId]);
+
+  const bookFromPatientKey = useRef(null);
+  useEffect(() => {
+    const dt = location.state?.dtPatient;
+    if (!location.state?.bookFromPatient || !dt?.id) {
+      bookFromPatientKey.current = null;
+      return;
+    }
+    if (bookFromPatientKey.current === dt.id) return;
+    bookFromPatientKey.current = dt.id;
+
+    const orgId = String(dt.organization_id || storedOrgId || selectedOrgId || '');
+    const clinicId = String(dt.clinic_id || storedClinicId || selectedClinicId || '');
+    const chosen = clinics.find((c) => String(c.id) === String(clinicId));
+
+    setCreateStep(1);
+    setSavedAppointment(null);
+    setCreateFieldErrors({});
+    setCreateErrorMessage('');
+    setIsEditOpen(false);
+    setReceiptItems([]);
+    setAddedServices([]);
+    setCurrentService({ name: '', price: 0, discount: 0 });
+    setSelectedPatientData({
+      id: dt.id,
+      name: dt.name,
+      gender: dt.gender,
+      age: dt.age,
+      phoneno: dt.phone_no,
+      phone: dt.phone_no,
+      m1_patient_id: dt.m1_patient_id,
+      primary_doctor_id: dt.primary_doctor_id,
+    });
+    setCreateForm({
+      ...defaultForm,
+      patient_id: String(dt.id),
+      lock_patient: true,
+      org_id: orgId,
+      clinic_id: clinicId,
+      clinic_name: chosen ? (chosen.name || chosen.clinic_name || 'Clinic') : '',
+      patient_ailments: dt.patient_ailments || '',
+      appointment_date: today,
+    });
+    setIsCreateOpen(true);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, location.pathname, navigate, clinics, selectedOrgId, selectedClinicId, storedOrgId, storedClinicId, today]);
 
   // ─── Edit Open ────────────────────────────────────────
   const handleEditOpen = useCallback(async (apt) => {
@@ -1166,10 +1219,22 @@ const DialysisAppointments = () => {
     setCreateErrorMessage('');
     setSavedAppointment(null);
 
+    const fromRoster = patients.find((p) => String(p.id) === String(raw.patient_id));
+    setSelectedPatientData({
+      id: raw.patient_id,
+      name: raw.patient_name || raw.patientName || apt.name || fromRoster?.name,
+      gender: raw.gender || apt.gender || fromRoster?.gender,
+      age: raw.age || apt.age || fromRoster?.age,
+      phoneno: raw.phone || apt.phoneNumber || fromRoster?.phone_no,
+      phone: raw.phone || apt.phoneNumber || fromRoster?.phone_no,
+      m1_patient_id: fromRoster?.m1_patient_id,
+    });
+
     setReceiptItems([]);
     setCreateForm({
       ...defaultForm,
       id: raw.id,
+      lock_patient: true,
       patient_id: String(raw.patient_id || ''),
       org_id: String(raw.organization_id || raw.org_id || ''),
       clinic_id: String(raw.clinic_id || ''),
@@ -1207,7 +1272,7 @@ const DialysisAppointments = () => {
     setCreateStep(1);
     setIsEditOpen(true);
     setIsCreateOpen(true);
-  }, [today, defaultForm, showToast]);
+  }, [today, defaultForm, showToast, patients, clinics]);
 
   // ─── Step 1 → Step 2 ─────────────────────────────────
   const handleNextStep1 = () => {
@@ -1667,16 +1732,6 @@ const DialysisAppointments = () => {
                 >
                   Booking Dashboard
                 </Button>
-                <Button
-                  variant="brand"
-                  size="sm"
-                  onClick={() => {
-                    resetCreateModal();
-                    setIsCreateOpen(true);
-                  }}
-                >
-                  + New Appointment
-                </Button>
               </Flex>
             }
           />
@@ -1741,16 +1796,6 @@ const DialysisAppointments = () => {
               >
                 Dashboard
               </Button>
-              <Button
-                variant="primary"
-                style={{ height: '40px', display: 'flex', alignItems: 'center', margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}
-                onClick={() => {
-                  resetCreateModal();
-                  setIsCreateOpen(true);
-                }}
-              >
-                + New Appointment
-              </Button>
             </div>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <div style={{ padding: '8px 16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
@@ -1802,7 +1847,7 @@ const DialysisAppointments = () => {
               <UnifiedListTable
                 columns={columns}
                 data={filtered}
-                emptyMessage="No dialysis appointments found"
+                emptyMessage="No dialysis appointments. Book one from the Patients tab."
                 displayMode="table"
                 rowsPerPage={10}
               />
@@ -1928,29 +1973,26 @@ const DialysisAppointments = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div className="grid grid-cols-1 md:grid-cols-1 gap-5">
                         <FormControl isRequired isInvalid={getFieldProps('patient_id').isInvalid}>
-                          <FormLabel >Patient</FormLabel>
-                          <Select
-                            value={createForm.patient_id}
-                            onChange={(e) => {
-                              setCreateForm((p) => ({ ...p, patient_id: e.target.value }));
-                              clearFieldError('patient_id');
-                            }}
-                            style={{
-                              width: '100%', padding: '10px 12px',
-                              borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '14px',
-                              outline: 'none', background: '#ffffff', height: '40px'
-                            }}
-                          >
-                            <option value="">Select Patient</option>
-                            {dialysisPatients.map((p) => {
-                              const ailmentsList = String(p.patient_ailments || p.ailments || p.medical_history || '');
-                              return (
-                                <option key={p.id} value={p.id}>
-                                  {p.name} {ailmentsList ? `— ${ailmentsList}` : ''}
-                                </option>
-                              );
-                            })}
-                          </Select>
+                          <FormLabel>Patient</FormLabel>
+                          {createForm.lock_patient || isEditOpen ? (
+                            <div
+                              style={{
+                                width: '100%', padding: '10px 12px',
+                                borderRadius: '8px', border: '1px solid #E5E7EB', fontSize: '14px',
+                                background: '#f8fafc', height: '40px',
+                                display: 'flex', alignItems: 'center', color: '#0f172a',
+                              }}
+                            >
+                              {selectedPatientData?.name || `DT #${createForm.patient_id || '—'}`}
+                              <span style={{ marginLeft: '8px', color: '#64748b', fontSize: '12px' }}>
+                                locked
+                              </span>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '13px', color: '#b91c1c', padding: '10px 0' }}>
+                              Book this appointment from the Patients tab.
+                            </div>
+                          )}
                         </FormControl>
                       </div>
 

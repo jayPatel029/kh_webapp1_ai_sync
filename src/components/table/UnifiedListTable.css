@@ -71,10 +71,9 @@
 
 .list-table__header-row {
   background-color: var(--color-accent, #5886a5);
-  color: var(--color-text-inverse, #ffffff);
+  color: #ffffff;
   font-weight: 600;
   text-align: left;
-  /* border: var(--color-accent) solid 1px; */
   overflow: hidden;
   padding: 30px 10px 20px 20px;
 }
@@ -90,13 +89,15 @@
   border-bottom-right-radius: 5px;
 }
 
+.list-table thead th,
 .list-table__header-cell {
   padding: 15px 20px;
   margin: 10px 10px;
   font-size: 16px;
   font-weight: 600;
   font-family: 'Sora', sans-serif;
-  color: var(--color-text-inverse, #ffffff);
+  background-color: var(--color-accent, #5886a5);
+  color: #ffffff;
   text-align: left;
   vertical-align: middle;
   white-space: nowrap;
@@ -110,8 +111,11 @@
   transition: background-color 0.2s ease;
 }
 
-.list-table__header-cell--sortable:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+.list-table__header-cell--sortable:hover,
+.list-table__header-cell--sortable:focus,
+.list-table__header-cell--sortable:active {
+  background-color: #4a7390;
+  color: #ffffff;
 }
 
 /* border-bottom: 2px solid rgba(0, 0, 0, 0.1); */
@@ -563,8 +567,11 @@
   user-select: none;
 }
 
-.list-table__header-cell--sortable:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+.list-table__header-cell--sortable:hover,
+.list-table__header-cell--sortable:focus,
+.list-table__header-cell--sortable:active {
+  background-color: #4a7390;
+  color: #ffffff;
 }
 
 /* ===================== MOBILE CARD MODE ===================== */

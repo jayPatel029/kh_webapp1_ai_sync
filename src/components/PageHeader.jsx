@@ -185,7 +185,7 @@ export const PageHeader = ({
     if ((isDoctor || isDialysisMember) && !isMobile) {
       const tabItems = isDoctor ? doctorNavItems : dialysisNavItems;
       return (
-        <Box className="w-full border-b-2 -mt-8 border-info bg-white relative">
+        <Box className={`w-full border-b-2 border-info bg-white relative ${pathname.startsWith('/dialysis') ? '' : '-mt-8'}`}>
           <div className="flex flex-col items-start justify-start py-4">
             {/* Navigation tabs */}
             <nav className="mt-3 flex gap-3 items-center">

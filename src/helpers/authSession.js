@@ -67,6 +67,6 @@ export function resetLocalSession() {
 export function getHomePathForRole(roleName) {
   const name = String(roleName || "").trim().toLowerCase();
   if (name === "doctor") return "/dashboard/doctor";
-  if (name === "dialysis technician") return "/patients";
+  if (name.includes("dialysis technician") || name === "dt") return "/dialysis/dashboard";
   return "/dashboard";
 }

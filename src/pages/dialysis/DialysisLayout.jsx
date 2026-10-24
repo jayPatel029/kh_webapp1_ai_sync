@@ -1,12 +1,21 @@
 import React, { Suspense } from 'react';
 import { Box } from '@mui/material';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import DialysisStageTabs from './DialysisStageTabs';
 
-export default function DialysisLayout() {
+function shouldShowStageTabs(pathname = '') {
   return (
-    <Box sx={{ width: '100%' }}>
-      <DialysisStageTabs />
+    pathname.startsWith('/dialysis/during') ||
+    pathname.startsWith('/dialysis/post')
+  );
+}
+
+export default function DialysisLayout() {
+  const { pathname } = useLocation();
+
+  return (
+    <Box sx={{ width: '100%', overflow: 'visible' }}>
+      {shouldShowStageTabs(pathname) && <DialysisStageTabs />}
       <Suspense fallback={<Box sx={{ p: 4 }}>Loading...</Box>}>
         <Outlet />
       </Suspense>

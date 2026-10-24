@@ -1,6 +1,76 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Box } from '../../../component-library';
 import { getAvailableSlots } from '../../../ApiCalls/clinicApis';
+
+function normalizeDays(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map((day) => String(day));
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.map((day) => String(day));
+    } catch (_) {}
+    return trimmed.split(',').map((part) => part.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function weekdayFromYmd(ymd) {
+  if (!ymd) return '';
+  const [year, month, day] = String(ymd).split('-').map(Number);
+  if (!year || !month || !day) return '';
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'long' });
+}
+
+function weekdayFromIso(iso) {
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return '';
+  return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dt.getUTCDay()];
+}
+
+function hhmmFromIso(iso) {
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return '';
+  return `${String(dt.getUTCHours()).padStart(2, '0')}:${String(dt.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+function ymdFromIso(iso) {
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return '';
+  return dt.toISOString().slice(0, 10);
+}
+
+function sessionCounts(booked, instCap, clinicBeds) {
+  const taken = Number(booked) || 0;
+  const slotLimit = Number(instCap) || 0;
+  const beds = Number(clinicBeds) || 0;
+  const total = beds > 0 ? beds : slotLimit;
+  const hardLimit = slotLimit > 0 ? slotLimit : total;
+  return {
+    remaining: Math.max(0, total - taken),
+    total,
+    isFull: hardLimit > 0 && taken >= hardLimit,
+  };
+}
+
+function extractSlotPayload(res) {
+  const body = res?.data;
+  if (!body) return { instances: [], appointments: [] };
+  if (Array.isArray(body)) return { instances: body, appointments: [] };
+  const inner = body.data;
+  if (Array.isArray(inner)) {
+    return { instances: inner, appointments: body.appointments || [] };
+  }
+  if (inner && Array.isArray(inner.data)) {
+    return {
+      instances: inner.data,
+      appointments: inner.appointments || body.appointments || [],
+    };
+  }
+  return { instances: [], appointments: body.appointments || [] };
+}
 
 export function ScheduleManager({ 
   slotTemplates = [], 
@@ -35,16 +105,7 @@ export function ScheduleManager({
   const [activeAppointments, setActiveAppointments] = useState([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [pendingSlots, setPendingSlots] = useState([]); // Slots selected but not yet "Added"
-
-  // Pre-select the day of the week if a specific date is provided
-  useEffect(() => {
-    if (date && !isManagementMode) {
-      const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
-      if (!selectedDays.includes(dayName)) {
-        setSelectedDays(prev => Array.from(new Set([...prev, dayName])));
-      }
-    }
-  }, [date, isManagementMode]);
+  const prefilledForDate = useRef('');
 
   // Helper to add minutes to time
   const addMinutes = (timeStr, minutes) => {
@@ -63,10 +124,9 @@ export function ScheduleManager({
         return;
       }
 
-      // Use a fixed 14-day window to check for overall day availability
       const start = date || new Date().toISOString().split('T')[0];
-      const endD = new Date(start);
-      endD.setDate(endD.getDate() + 14);
+      const endD = new Date(`${start}T00:00:00Z`);
+      endD.setUTCDate(endD.getUTCDate() + 21);
       const end = endD.toISOString().split('T')[0];
 
       setIsLoadingSlots(true);
@@ -74,9 +134,10 @@ export function ScheduleManager({
         const from = `${start}T00:00:00Z`;
         const to = `${end}T23:59:59Z`;
         const res = await getAvailableSlots(clinicId, from, to);
-        if (res.success && res.data) {
-          setAvailableInstances(res.data.data || []);
-          setActiveAppointments(res.data.appointments || []);
+        if (res.success) {
+          const payload = extractSlotPayload(res);
+          setAvailableInstances(payload.instances);
+          setActiveAppointments(payload.appointments);
         }
       } catch (err) {
         console.error("Failed to fetch slots in ScheduleManager:", err);
@@ -87,31 +148,70 @@ export function ScheduleManager({
     fetchInstances();
   }, [clinicId, date]);
 
-  // Determine which days of the week have any availability
-  const dayAvailability = useMemo(() => {
-    const availability = {};
-    DAYS.forEach(d => { availability[d.value] = false; });
+  const dayStats = useMemo(() => {
+    const stats = {};
+    DAYS.forEach((d) => {
+      stats[d.value] = { remaining: 0, total: 0, isFull: false, hasSlots: false };
+    });
 
-    const templatesToUse = availableClinicTemplates.length > 0 ? availableClinicTemplates : slotTemplates;
+    const byDayDate = {};
+    (availableInstances || []).forEach((inst) => {
+      const start = inst.instance?.startUTC || inst.startUTC || inst.start_utc;
+      if (!start) return;
+      const dayName = weekdayFromIso(start);
+      if (!stats[dayName]) return;
+      const dateKey = ymdFromIso(start);
+      const counts = sessionCounts(
+        inst.instance?.bookedCount ?? inst.booked_count,
+        inst.instance?.capacity ?? inst.capacity,
+        capacity,
+      );
+      if (!byDayDate[dayName]) byDayDate[dayName] = {};
+      if (!byDayDate[dayName][dateKey]) {
+        byDayDate[dayName][dateKey] = { remaining: counts.remaining, total: counts.total, isFull: counts.isFull, hasSlots: true };
+      } else {
+        const current = byDayDate[dayName][dateKey];
+        current.remaining = Math.min(current.remaining, counts.remaining);
+        current.total = counts.total;
+        current.isFull = current.isFull && counts.isFull;
+        current.hasSlots = true;
+      }
+    });
 
-    if (templatesToUse.length > 0) {
-      templatesToUse.forEach(template => {
-        if (template.status !== 'inactive' && template.daysOfWeek) {
-          template.daysOfWeek.forEach(day => {
-            availability[day] = true;
-          });
-        }
-      });
-    } else if (availableInstances.length > 0 && isManagementMode) {
-      availableInstances.forEach(instance => {
-        const dayName = new Date(instance.instance.startUTC).toLocaleDateString('en-US', { weekday: 'long' });
-        if (instance.instance.bookedCount < instance.instance.capacity) {
-          availability[dayName] = true;
-        }
+    Object.keys(byDayDate).forEach((day) => {
+      const nextDate = Object.keys(byDayDate[day]).sort()[0];
+      stats[day] = byDayDate[day][nextDate];
+    });
+
+    if ((availableInstances || []).length === 0) {
+      const templatesToUse = availableClinicTemplates.length > 0 ? availableClinicTemplates : slotTemplates;
+      templatesToUse.forEach((template) => {
+        if (template.status === 'inactive') return;
+        normalizeDays(template.daysOfWeek || template.days_of_week).forEach((day) => {
+          if (!stats[day]) return;
+          stats[day].hasSlots = true;
+          if (!stats[day].total) {
+            const counts = sessionCounts(0, template.maxPatientsPerSlot, capacity);
+            stats[day].total = counts.total;
+            stats[day].remaining = counts.remaining;
+            stats[day].isFull = counts.isFull;
+          }
+        });
       });
     }
-    return availability;
-  }, [availableInstances, slotTemplates, availableClinicTemplates, isManagementMode]);
+
+    return stats;
+  }, [availableInstances, slotTemplates, availableClinicTemplates, capacity]);
+
+  useEffect(() => {
+    if (!date || isManagementMode) return;
+    if (prefilledForDate.current === date) return;
+    if (clinicId && isLoadingSlots) return;
+    const dayName = weekdayFromYmd(date);
+    prefilledForDate.current = date;
+    if (clinicId && dayStats[dayName] && !dayStats[dayName].hasSlots) return;
+    setSelectedDays((prev) => (prev.includes(dayName) ? prev : [...prev, dayName]));
+  }, [date, isManagementMode, clinicId, isLoadingSlots, dayStats]);
 
 
   // Materialize specific slots from slotTemplates or wide instance ranges
@@ -121,6 +221,46 @@ export function ScheduleManager({
 
     const slots = [];
     const allRelevantAppts = [...existingAppointments, ...activeAppointments];
+
+    if (!isManagementMode && (availableInstances || []).length > 0) {
+      const sorted = [...availableInstances].sort((a, b) => {
+        const aStart = a.instance?.startUTC || a.startUTC || a.start_utc || '';
+        const bStart = b.instance?.startUTC || b.startUTC || b.start_utc || '';
+        return String(aStart).localeCompare(String(bStart));
+      });
+      const seen = new Set();
+      sorted.forEach((inst) => {
+        const start = inst.instance?.startUTC || inst.startUTC || inst.start_utc;
+        const end = inst.instance?.endUTC || inst.endUTC || inst.end_utc;
+        if (!start) return;
+        const dayName = weekdayFromIso(start);
+        if (frequency !== 'monthly' && selectedDays.length > 0 && !selectedDays.includes(dayName)) return;
+        const startTime = String(inst.slotPattern?.startTime || hhmmFromIso(start)).slice(0, 5);
+        const endTime = String(inst.slotPattern?.endTime || hhmmFromIso(end)).slice(0, 5);
+        const key = `${dayName}|${startTime}|${endTime}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const counts = sessionCounts(
+          inst.instance?.bookedCount ?? inst.booked_count,
+          inst.instance?.capacity ?? inst.capacity,
+          capacity,
+        );
+        slots.push({
+          id: `inst-${inst.id || start}-${dayName}`,
+          dayName,
+          date: ymdFromIso(start),
+          startTime,
+          endTime,
+          remainingCapacity: counts.remaining,
+          totalCapacity: counts.total,
+          isFull: counts.isFull,
+          templateId: inst.slotId || inst.slot_id,
+          originalSlotId: inst.id,
+          price: inst.pricing?.sessionCost || 0,
+        });
+      });
+      return slots;
+    }
 
     const templatesToUse = (!isManagementMode && availableClinicTemplates.length > 0)
       ? availableClinicTemplates
@@ -133,7 +273,7 @@ export function ScheduleManager({
 
       relevantDays.forEach(dayName => {
         const matchingTemplates = templatesToUse.filter(t => 
-          (t.daysOfWeek?.includes(dayName) || (t.frequency === 'monthly' && frequency === 'monthly')) && 
+          (normalizeDays(t.daysOfWeek || t.days_of_week).includes(dayName) || (t.frequency === 'monthly' && frequency === 'monthly')) && 
           t.status !== 'inactive'
         );
 
@@ -143,7 +283,7 @@ export function ScheduleManager({
             : [{ startTime: template.startTime, endTime: template.endTime }];
           
           const buffer = Number(template.bufferMinutes || bufferMinutes);
-          const slotCap = Number(template.maxPatientsPerSlot || capacity);
+          const slotCap = Number(capacity || template.maxPatientsPerSlot || 0);
 
           timings.forEach(timing => {
             if (!timing.startTime || !timing.endTime) return;
@@ -213,28 +353,14 @@ export function ScheduleManager({
     return { times: timeRanges, grid };
   }, [materializedSlots, selectedDays]);
 
-  const isBundledBookingMode = !isManagementMode && frequency !== 'monthly' && selectedDays.length > 1;
-
-  const getBundledSlotsForCell = (slot) => {
-    if (!isBundledBookingMode) return [slot];
-
-    return materializedSlots.filter(s =>
-      s.startTime === slot.startTime &&
-      s.endTime === slot.endTime &&
-      selectedDays.includes(s.dayName)
-    );
-  };
-
-
   const handleDayToggle = (day) => {
-    // Block selection of unavailable days ONLY if NOT in management mode and clinicId is present
-    if (!isManagementMode && clinicId && !dayAvailability[day]) return; 
-    
     if (selectedDays.includes(day)) {
       setSelectedDays(selectedDays.filter((d) => d !== day));
-    } else {
-      setSelectedDays([...selectedDays, day]);
+      return;
     }
+    const stats = dayStats[day];
+    if (!isManagementMode && clinicId && stats && (!stats.hasSlots || stats.isFull)) return;
+    setSelectedDays([...selectedDays, day]);
   };
 
   const handleAdd = (slot) => {
@@ -321,20 +447,11 @@ export function ScheduleManager({
   };
 
   const togglePendingSlot = (slot) => {
-    const bundledSlots = getBundledSlotsForCell(slot);
-
-    const selectedIds = new Set(pendingSlots.map(s => s.id));
-    const bundleIsAlreadySelected = bundledSlots.length > 0 && bundledSlots.every(s => selectedIds.has(s.id));
-
-    if (bundleIsAlreadySelected) {
-      setPendingSlots(pendingSlots.filter(s => !bundledSlots.some(bs => bs.id === s.id)));
+    if (pendingSlots.some((s) => s.id === slot.id)) {
+      setPendingSlots(pendingSlots.filter((s) => s.id !== slot.id));
       return;
     }
-
-    setPendingSlots([
-      ...pendingSlots,
-      ...bundledSlots.filter(s => !selectedIds.has(s.id)),
-    ]);
+    setPendingSlots([...pendingSlots, slot]);
   };
 
   const removeSlot = (id) => {
@@ -374,24 +491,31 @@ export function ScheduleManager({
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Select days</label>
             <div className="flex flex-wrap gap-2">
               {DAYS.map((day) => {
+                const stats = dayStats[day.value] || {};
                 const isSelected = selectedDays.includes(day.value);
-                const isAvailable = isManagementMode ? true : (clinicId ? dayAvailability[day.value] : true);
+                const isFull = !!stats.isFull;
+                const hasSlots = isManagementMode || !clinicId || !!stats.hasSlots;
+                const canSelect = hasSlots && !isFull;
                 return (
                   <button
                     key={day.value}
                     type="button"
                     onClick={() => handleDayToggle(day.value)}
-                    disabled={!isAvailable}
+                    disabled={!isSelected && !canSelect}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
                       isSelected 
                         ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
-                        : isAvailable 
+                        : canSelect
                           ? 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
                           : 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed opacity-60'
                     }`}
                   >
                     {day.label}
-                    {clinicId && !isAvailable && <span className="ml-1 text-[8px]">(Full)</span>}
+                    {isFull ? (
+                      <span className="ml-1 text-[8px]">(Full)</span>
+                    ) : stats.total > 0 ? (
+                      <span className="ml-1 text-[8px]">{stats.remaining}/{stats.total}</span>
+                    ) : null}
                   </button>
                 );
               })}
@@ -454,8 +578,11 @@ export function ScheduleManager({
               {clinicId ? 'Available Sessions' : 'Session Timings'}
             </h4>
             <div className="flex items-center gap-3">
-              <span className="text-[10px] font-bold px-2 py-1 bg-gray-50 text-gray-500 rounded border border-gray-100 uppercase">
-                Buffer: {bufferMinutes}m
+              <span
+                className="text-[10px] font-bold px-2 py-1 bg-gray-50 text-gray-500 rounded border border-gray-100 uppercase"
+                title="Cleaning / turnover time between two sessions on the same bed"
+              >
+                Buffer: {bufferMinutes}m cleaning
               </span>
               <span className="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-600 rounded border border-blue-100 uppercase">
                 Capacity: {capacity} Bed(s)
@@ -542,7 +669,7 @@ export function ScheduleManager({
                             const slot = slotGrid.grid[range][day];
                             if (!slot) return <td key={day} className="p-2 border-b border-gray-50 text-center text-gray-200">--</td>;
 
-                            const isFull = slot.remainingCapacity <= 0;
+                            const isFull = slot.isFull || slot.remainingCapacity <= 0;
                             const isAlreadyAdded = (isManagementMode && !!slot.templateId) || slotTemplates.some(t => 
                               t.daysOfWeek?.includes(day) &&
                               t.frequency === frequency &&

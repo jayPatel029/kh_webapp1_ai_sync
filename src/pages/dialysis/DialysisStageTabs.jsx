@@ -1,6 +1,5 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Button } from '../../component-library';
 import { ROUTES } from '../../routes/routeConstants';
 
 export default function DialysisStageTabs() {
@@ -38,12 +37,63 @@ export default function DialysisStageTabs() {
     navigate(`/dialysis/post/${sessionId}/P4-01`, { state: { patientId, sessionId } });
   };
 
+  const tabStyle = (active, disabled) => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '40px',
+    padding: '8px 14px',
+    borderRadius: '9999px',
+    border: active ? '1px solid #0f766e' : '1px solid #cbd5e1',
+    background: active ? '#0f766e' : '#fff',
+    color: active ? '#fff' : disabled ? '#94a3b8' : '#0f172a',
+    fontSize: '14px',
+    fontWeight: 600,
+    lineHeight: 1.3,
+    whiteSpace: 'nowrap',
+    overflow: 'visible',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+  });
+
   return (
-    <div style={{ display: 'flex', gap: '8px', padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 10 }}>
-      <Button variant={isPre ? 'primary' : 'outline'} size="sm" onClick={goPre}>Pre-Dialysis</Button>
-      <Button variant={isDuring ? 'primary' : 'outline'} size="sm" onClick={goDuring} disabled={!sessionId} title={!sessionId ? 'Start dialysis to enable' : ''}>During Dialysis</Button>
-      <Button variant={isPost ? 'primary' : 'outline'} size="sm" onClick={goPost} disabled={!sessionId} title={!sessionId ? 'Complete during to enable' : ''}>Post-Dialysis</Button>
-      {patientId && <span style={{ marginLeft: '12px', fontSize: '12px', color: '#64748b', alignSelf: 'center' }}>Patient #{patientId} {sessionId ? `· Session ${sessionId}` : ''}</span>}
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '12px 16px',
+        background: '#f8fafc',
+        borderBottom: '1px solid #e2e8f0',
+        overflow: 'visible',
+      }}
+    >
+      <button type="button" style={tabStyle(isPre, false)} onClick={goPre}>
+        Pre-Dialysis
+      </button>
+      <button
+        type="button"
+        style={tabStyle(isDuring, !sessionId)}
+        onClick={goDuring}
+        disabled={!sessionId}
+        title={!sessionId ? 'Start dialysis to enable' : ''}
+      >
+        During Dialysis
+      </button>
+      <button
+        type="button"
+        style={tabStyle(isPost, !sessionId)}
+        onClick={goPost}
+        disabled={!sessionId}
+        title={!sessionId ? 'Complete during to enable' : ''}
+      >
+        Post-Dialysis
+      </button>
+      {patientId && (
+        <span style={{ marginLeft: '4px', fontSize: '12px', color: '#64748b' }}>
+          Patient #{patientId}{sessionId ? ` · Session ${sessionId}` : ''}
+        </span>
+      )}
     </div>
   );
 }

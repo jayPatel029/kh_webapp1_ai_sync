@@ -27,6 +27,7 @@ import InfectionControlView from './InfectionControlView';
 import SafetyValidationView from './SafetyValidationView';
 import StartDialysisConfirmationView from './StartDialysisConfirmationView';
 import { ROUTES } from '../../routes/routeConstants';
+import DialysisPatientRoster from './DialysisPatientRoster';
 import {
   EMERGENCY_ACTION_ROLES,
   SHIFT_LABELS,
@@ -315,8 +316,8 @@ const DialysisPatients = () => {
     );
   }
 
-  // Otherwise render the Queue view (P2-01)
-  return <QueueView isMobile={isMobile} navigate={navigate} roleName={roleName} />;
+  // Patients tab is the DT roster for this slice. P2-01 QueueView stays below unused.
+  return <DialysisPatientRoster />;
 };
 
 // ---------------------------------------------------------------------------
