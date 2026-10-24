@@ -6,7 +6,8 @@
  * @file src/component-library/primitives/MultiSelect.jsx
  */
 
-import React, { forwardRef, useState, useRef, useEffect } from 'react';
+import React, { forwardRef, useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import clsx from 'clsx';
 // import './multiselect.css';
@@ -36,7 +37,9 @@ export const MultiSelect = forwardRef(({
     ...props
 }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [menuStyle, setMenuStyle] = useState(null);
     const containerRef = useRef(null);
+    const triggerRef = useRef(null);
     const dropdownRef = useRef(null);
 
     // Parse children to extract options
@@ -44,18 +47,52 @@ export const MultiSelect = forwardRef(({
         child => child.type === 'option'
     );
 
-    // Handle outside click
-    useEffect(() => {
-        const handleOutsideClick = (event) => {
-            if (containerRef.current && !containerRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        };
+    const updateMenuPosition = useCallback(() => {
+        const trigger = triggerRef.current;
+        if (!trigger) return;
+        const rect = trigger.getBoundingClientRect();
+        const maxHeight = 320;
+        const spaceBelow = window.innerHeight - rect.bottom - 12;
+        const spaceAbove = rect.top - 12;
+        const openUpward = spaceBelow < Math.min(maxHeight, 200) && spaceAbove > spaceBelow;
+        const available = Math.max(160, openUpward ? spaceAbove : spaceBelow);
+        setMenuStyle({
+            position: 'fixed',
+            left: rect.left,
+            width: Math.max(rect.width, 200),
+            maxHeight: Math.min(maxHeight, available),
+            zIndex: 100000,
+            ...(openUpward
+                ? { bottom: window.innerHeight - rect.top + 8 }
+                : { top: rect.bottom + 8 }),
+        });
+    }, []);
 
-        if (isOpen) {
-            document.addEventListener('mousedown', handleOutsideClick);
-            return () => document.removeEventListener('mousedown', handleOutsideClick);
+    useLayoutEffect(() => {
+        if (!isOpen) {
+            setMenuStyle(null);
+            return undefined;
         }
+        updateMenuPosition();
+        const onReposition = () => updateMenuPosition();
+        window.addEventListener('resize', onReposition);
+        window.addEventListener('scroll', onReposition, true);
+        return () => {
+            window.removeEventListener('resize', onReposition);
+            window.removeEventListener('scroll', onReposition, true);
+        };
+    }, [isOpen, updateMenuPosition]);
+
+    // Close on outside click (trigger + portaled menu)
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleOutsideClick = (event) => {
+            const inTrigger = containerRef.current?.contains(event.target);
+            const inMenu = dropdownRef.current?.contains(event.target);
+            if (!inTrigger && !inMenu) setIsOpen(false);
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
     }, [isOpen]);
 
     // Handle option toggle
@@ -123,6 +160,7 @@ export const MultiSelect = forwardRef(({
         >
             {/* Trigger Button */}
             <button
+                ref={triggerRef}
                 type="button"
                 className="multi-select__trigger"
                 onClick={() => !isDisabled && setIsOpen(!isOpen)}
@@ -140,14 +178,15 @@ export const MultiSelect = forwardRef(({
                 <div className="multi-select__chevron" />
             </button>
 
-            {/* Dropdown Menu */}
-            {isOpen && !isDisabled && (
+            {/* Dropdown portaled to body — avoids modal overflow clipping */}
+            {isOpen && !isDisabled && menuStyle && createPortal(
                 <div
                     ref={dropdownRef}
-                    className="multi-select__dropdown"
+                    className="multi-select__dropdown multi-select__dropdown--portal"
                     id="multiselect-listbox"
                     role="listbox"
                     aria-label="Multi-select options"
+                    style={menuStyle}
                 >
                     {options.length > 0 ? (
                         <>
@@ -196,7 +235,8 @@ export const MultiSelect = forwardRef(({
                     ) : (
                         <div className="multi-select__empty">No options available</div>
                     )}
-                </div>
+                </div>,
+                document.body,
             )}
 
             {/* Hidden select for accessibility and form submission */}

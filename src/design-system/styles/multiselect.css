@@ -159,6 +159,14 @@
     /* overflow: hidden; */
 }
 
+.multi-select__dropdown--portal {
+    position: fixed;
+    top: auto;
+    left: auto;
+    right: auto;
+    min-width: 0;
+}
+
 @keyframes slideDown {
     from {
         opacity: 0;

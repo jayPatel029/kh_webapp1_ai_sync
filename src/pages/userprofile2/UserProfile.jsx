@@ -492,7 +492,7 @@ function UserProfile() {
 
   useEffect(() => {
     const fetchGeneralParameters = async () => {
-      if (!userData.ailments?.length) {
+      if (!id) {
         setGeneralParameters([]);
         return;
       }
@@ -519,15 +519,15 @@ function UserProfile() {
 
   useEffect(() => {
     const fetchDialysis = async () => {
-      if (userData.ailments?.includes("Hemo dialysis") || userData.ailments?.includes("Hemo Dialysis")) {
-        const questions = await fetchQuestionsForAilmentDialysis("Hemo dialysis");
-        setDialysisParameters(questions);
-      } else {
+      if (!id) {
         setDialysisParameters([]);
+        return;
       }
+      const questions = await fetchQuestionsForAilmentDialysis("Hemo dialysis");
+      setDialysisParameters(questions);
     };
     fetchDialysis();
-  }, [userData.ailments]);
+  }, [id, userData.ailments]);
 
   useEffect(() => {
     fetchLabReadings();
