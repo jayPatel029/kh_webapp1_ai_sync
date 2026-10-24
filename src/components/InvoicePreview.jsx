@@ -15,7 +15,6 @@ import { jsPDF } from 'jspdf';
 import { BaseModal } from '../component-library/modals/BaseModal';
 import { getClinicById, getOrganizationById, getAppointmentById, getBillDetails } from '../ApiCalls/clinicApis';
 import { getDtPatientById } from '../ApiCalls/dtPatientApis';
-import { getPaymentStatus } from '../utils/refundCalculator';
 
 const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appointmentId: appointmentIdProp, billId: billIdProp, clinic: initialClinic }) => {
   const [downloading, setDownloading] = useState(false);
@@ -197,25 +196,6 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
   };
   const totalDueKeysInvoice = ['total_amt','total_amount','totalAmount'];
   const totalDue = pickNumeric(invoice, totalDueKeysInvoice) ?? 0;
-  const getAmountPaid = () => {
-    if (fetchedPayments.length) {
-      return fetchedPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
-    }
-    const rawPaid = invoice?.paid_amt ?? invoice?.paid_amount ?? invoice?.paidAmount;
-    if (rawPaid !== undefined && rawPaid !== null && rawPaid !== '') {
-      const n = Number(rawPaid);
-      if (!Number.isNaN(n)) return n;
-    }
-    return 0;
-  };
-  const amountPaid = getAmountPaid();
-  const outstanding = Math.max(0, totalDue - amountPaid);
-
-  let payStatus = invoice
-    ? (invoice.payment_status || (amountPaid >= totalDue && totalDue > 0 ? 'PAID' : amountPaid > 0 ? 'PARTIAL' : 'PENDING'))
-    : getPaymentStatus(totalDue, amountPaid);
-    
-  if (String(appointment?.status).toUpperCase() === 'CANCELLED' || String(appointment?.status).toUpperCase() === 'MISSED') payStatus = 'CANCELLED';
 
   const invoiceId = invoice?.id ? `INV-${invoice.id}` : null;
 
@@ -338,6 +318,31 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
     ? fetchedBillAppointments
     : (appointment ? [appointment] : []);
   const grossAmount = servicesList.reduce((acc, s) => acc + (s.price - (s.price * s.discount / 100)), 0);
+
+  const isSessionPaid = (appt) => {
+    const action = String(appt?.payment_action || appt?.paymentAction || '').toUpperCase();
+    if (action === 'PAID') return true;
+    const services = Array.isArray(appt?.services) ? appt.services : [];
+    return services.length > 0 && services.every((s) => String(s.status || '').toUpperCase() === 'PAID');
+  };
+  const paidSessionCount = appointmentsToDisplay.filter(isSessionPaid).length;
+  const unpaidSessionCount = Math.max(0, appointmentsToDisplay.length - paidSessionCount);
+  const perSessionAmount = appointmentsToDisplay.length > 0
+    ? (grossAmount > 0 ? grossAmount : totalDue / appointmentsToDisplay.length)
+    : 0;
+  const sessionPaidAmount = Number((paidSessionCount * perSessionAmount).toFixed(2));
+  const receiptPaidAmount = fetchedPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const amountPaid = receiptPaidAmount > 0 ? receiptPaidAmount : sessionPaidAmount;
+  const outstanding = Math.max(0, Number((totalDue - amountPaid).toFixed(2)));
+
+  let payStatus = amountPaid >= totalDue && totalDue > 0
+    ? 'PAID'
+    : amountPaid > 0
+      ? 'PARTIAL'
+      : 'PENDING';
+  if (String(appointment?.status).toUpperCase() === 'CANCELLED' || String(appointment?.status).toUpperCase() === 'MISSED') {
+    payStatus = 'CANCELLED';
+  }
 
   function calculateDurationHours(start, end) {
     if (!start || !end) return '—';
@@ -594,9 +599,10 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                   <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0', width: '60px' }}>SR No.</th>
                   <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0', textAlign: 'left' }}>Appointment Date</th>
                   <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0' }}>Day</th>
-                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: showDuration ? '1px solid #E2E8F0' : 'none' }}>Start Time</th>
+                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0' }}>Start Time</th>
                   {showDuration && <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0' }}>End Time</th>}
-                  {showDuration && <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700 }}>Duration</th>}
+                  {showDuration && <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700, borderRight: '1px solid #E2E8F0' }}>Duration</th>}
+                  <th style={{ padding: '10px 12px', color: '#475569', fontWeight: 700 }}>Payment</th>
                 </tr>
               </thead>
               <tbody>
@@ -610,20 +616,24 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                     const dayStr = (dateObj && !isNaN(dateObj.getTime())) ? days[dateObj.getDay()] : '—';
                     const startTime = appt.start_time || appt.booking_time || appt.appointment_time || '—';
+                    const sessionPaid = isSessionPaid(appt);
                     
                     return (
                       <tr key={appt.id || idx} style={{ borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
                         <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#64748B', fontWeight: 500 }}>{idx + 1}</td>
                         <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'left', color: '#0F172A', fontWeight: 600 }}>{dateStr}</td>
                         <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#2563EB', fontWeight: 700 }}>{dayStr}</td>
-                        <td style={{ padding: '9px 12px', borderRight: showDuration ? '1px solid #E2E8F0' : 'none', color: '#334155' }}>{to12Hour(startTime)}</td>
+                        <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#334155' }}>{to12Hour(startTime)}</td>
                         {showDuration && <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#334155' }}>{to12Hour(appt.end_time)}</td>}
-                        {showDuration && <td style={{ padding: '9px 12px', fontWeight: 800, fontSize: '13px', color: '#0F172A' }}>{calculateDurationHours(appt.start_time, appt.end_time)} hrs</td>}
+                        {showDuration && <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 800, fontSize: '13px', color: '#0F172A' }}>{calculateDurationHours(appt.start_time, appt.end_time)} hrs</td>}
+                        <td style={{ padding: '9px 12px', fontWeight: 700, color: sessionPaid ? '#16A34A' : '#DC2626' }}>
+                          {sessionPaid ? 'Paid' : 'Pending'}
+                        </td>
                       </tr>
                     );
                   })
                 ) : (
-                  <tr><td colSpan={showDuration ? 6 : 4} style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No appointments linked to this bill.</td></tr>
+                  <tr><td colSpan={showDuration ? 7 : 5} style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>No appointments linked to this bill.</td></tr>
                 )}
               </tbody>
             </table>
@@ -681,19 +691,29 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                 <span style={{ fontSize: '18px', borderBottom: '2px solid #1E40AF', paddingBottom: '2px', color: '#1E40AF' }}>₹{totalDue.toFixed(2)}</span>
               </div>
               {appointmentsToDisplay.length > 0 && (
-                <div style={{ display: 'flex', gap: '16px', marginTop: '10px', fontSize: '12px', padding: '8px 12px', background: '#FFF', borderRadius: '6px', border: '1px solid #E2E8F0', width: 'fit-content' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A' }}></span>
-                    <span style={{ color: '#475569', fontWeight: 500 }}>Paid Sessions:</span>
-                    <span style={{ color: '#16A34A', fontWeight: 700 }}>{appointmentsToDisplay.filter(a => String(a.payment_action).toUpperCase() === 'PAID').length}</span>
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', marginTop: '8px' }}>
+                    <span style={{ color: '#64748B', fontWeight: 500 }}>Paid now ({paidSessionCount} session{paidSessionCount !== 1 ? 's' : ''})</span>
+                    <strong style={{ color: '#16A34A' }}>₹{amountPaid.toFixed(2)}</strong>
                   </div>
-                  <div style={{ width: '1px', backgroundColor: '#E2E8F0', height: '12px' }}></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#DC2626' }}></span>
-                    <span style={{ color: '#475569', fontWeight: 500 }}>Unpaid Sessions:</span>
-                    <span style={{ color: '#DC2626', fontWeight: 700 }}>{appointmentsToDisplay.filter(a => String(a.payment_action).toUpperCase() !== 'PAID').length}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
+                    <span style={{ color: '#64748B', fontWeight: 500 }}>Pending ({unpaidSessionCount} session{unpaidSessionCount !== 1 ? 's' : ''})</span>
+                    <strong style={{ color: '#DC2626' }}>₹{outstanding.toFixed(2)}</strong>
                   </div>
-                </div>
+                  <div style={{ display: 'flex', gap: '16px', marginTop: '10px', fontSize: '12px', padding: '8px 12px', background: '#FFF', borderRadius: '6px', border: '1px solid #E2E8F0', width: 'fit-content' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16A34A' }}></span>
+                      <span style={{ color: '#475569', fontWeight: 500 }}>Paid Sessions:</span>
+                      <span style={{ color: '#16A34A', fontWeight: 700 }}>{paidSessionCount}</span>
+                    </div>
+                    <div style={{ width: '1px', backgroundColor: '#E2E8F0', height: '12px' }}></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#DC2626' }}></span>
+                      <span style={{ color: '#475569', fontWeight: 500 }}>Unpaid Sessions:</span>
+                      <span style={{ color: '#DC2626', fontWeight: 700 }}>{unpaidSessionCount}</span>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
