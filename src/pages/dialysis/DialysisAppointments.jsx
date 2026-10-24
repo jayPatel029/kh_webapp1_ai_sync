@@ -500,6 +500,7 @@ const DialysisAppointments = () => {
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [timelinePatientId, setTimelinePatientId] = useState(null);
+  const [timelinePatientName, setTimelinePatientName] = useState('');
 
   const [sessionModal, setSessionModal] = useState({
     isOpen: false,
@@ -1691,6 +1692,7 @@ const DialysisAppointments = () => {
               colorScheme="teal"
               onClick={() => {
                 setTimelinePatientId(row.patient_id);
+                setTimelinePatientName(row.name || row.patient_name || '');
                 setIsTimelineOpen(true);
               }}
               style={{ padding: '0 4px', fontSize: '10px' }}
@@ -2543,8 +2545,12 @@ const DialysisAppointments = () => {
         {/* Timeline Modal */}
         <BaseModal
           isOpen={isTimelineOpen}
-          onClose={() => setIsTimelineOpen(false)}
-          title="Patient Appointment Timeline"
+          onClose={() => {
+            setIsTimelineOpen(false);
+            setTimelinePatientId(null);
+            setTimelinePatientName('');
+          }}
+          title={timelinePatientName ? `Patient Appointment Timeline — ${timelinePatientName}` : 'Patient Appointment Timeline'}
           size="xl"
         >
           {timelinePatientId && (

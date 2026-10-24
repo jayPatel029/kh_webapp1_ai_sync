@@ -13,10 +13,35 @@ const STATUS_META = {
 };
 
 const getAppointmentDate = (appointment) => {
-  const raw = appointment?.appointment_date || appointment?.appointmentDate || appointment?.date || appointment?.start || appointment?.startUTC || appointment?.createdAt;
-  if (!raw) return null;
-  const date = new Date(raw);
+  const rawDate = appointment?.appointment_date || appointment?.appointmentDate || appointment?.date || appointment?.start || appointment?.startUTC || appointment?.createdAt;
+  if (!rawDate) return null;
+  const time = appointment?.start_time || appointment?.appointment_time || appointment?.booking_time || '';
+  const dateOnly = String(rawDate).slice(0, 10);
+  const timePart = String(time).slice(0, 8);
+  const combined = timePart && !String(rawDate).includes('T')
+    ? `${dateOnly}T${timePart.length === 5 ? `${timePart}:00` : timePart}`
+    : rawDate;
+  const date = new Date(combined);
   return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getDurationLabel = (appointment) => {
+  const start = appointment?.start_time || appointment?.appointment_time;
+  const end = appointment?.end_time;
+  if (start && end && String(start).includes(':') && String(end).includes(':')) {
+    const [sh, sm] = String(start).split(':').map(Number);
+    const [eh, em] = String(end).split(':').map(Number);
+    const mins = (eh * 60 + (em || 0)) - (sh * 60 + (sm || 0));
+    if (Number.isFinite(mins) && mins > 0) {
+      const hours = Math.round((mins / 60) * 10) / 10;
+      return hours === 1 ? '1 hr' : `${hours} hrs`;
+    }
+  }
+  const raw = appointment?.duration_minutes || appointment?.duration || appointment?.metadata?.dialysisDuration;
+  if (!raw || raw === '—') return '—';
+  const asNum = Number(raw);
+  if (Number.isFinite(asNum) && asNum > 0 && asNum <= 12) return `${asNum} hrs`;
+  return String(raw);
 };
 
 const formatParts = (date) => {
@@ -39,7 +64,7 @@ const AppointmentCell = memo(function AppointmentCell({ appointment, onClick }) 
   const status = normalizeStatus(appointment?.status || appointment?.statusName || appointment?.state);
   const meta = getStatusMeta(status);
 
-  const duration = appointment?.duration_minutes || appointment?.duration || appointment?.session_duration || appointment?.metadata?.dialysisDuration || '—';
+  const duration = getDurationLabel(appointment);
   const doctor = appointment?.doctor_name || appointment?.doctor || appointment?.doctorName || (appointment?.primary_doctor_id ? `Dr #${appointment.primary_doctor_id}` : null);
   const service = appointment?.service_name || appointment?.service || appointment?.dialysis_type || appointment?.appointment_type;
   const notes = appointment?.notes || appointment?.remarks || appointment?.comment || appointment?.reason || appointment?.metadata?.notes_brief;
@@ -83,7 +108,7 @@ const AppointmentCell = memo(function AppointmentCell({ appointment, onClick }) 
         </div>
 
         <div style={{ fontSize: '11px', color: '#4B5563', lineHeight: '1.4' }}>
-           <div><span style={{ fontWeight: '600', color: '#9CA3AF' }}>Duration:</span> {duration} mins</div>
+           <div><span style={{ fontWeight: '600', color: '#9CA3AF' }}>Duration:</span> {duration}</div>
            {doctor && <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ fontWeight: '600', color: '#9CA3AF' }}>Doctor:</span> {doctor}</div>}
            {service && <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><span style={{ fontWeight: '600', color: '#9CA3AF' }}>Service:</span> {service}</div>}
         </div>
@@ -106,9 +131,17 @@ export default function PatientAppointmentTimeline({ patientId, appointments: in
     if (!patientId) return;
     setLoading(true);
     try {
-      const result = await getAppointments({ patientId });
+      const result = await getAppointments({
+        patientId,
+        patient_id: patientId,
+        limit: 200,
+      });
       if (result.success) {
-        setFetchedAppointments(result.data?.data || result.data || []);
+        const body = result.data?.data !== undefined ? result.data.data : result.data;
+        const rows = Array.isArray(body) ? body : (body?.items || body?.appointments || []);
+        setFetchedAppointments(
+          rows.filter((row) => String(row.patient_id || row.patientId) === String(patientId)),
+        );
       }
     } catch (err) {
       console.error('Failed to fetch patient timeline:', err);
