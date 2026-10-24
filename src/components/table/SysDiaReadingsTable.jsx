@@ -103,6 +103,7 @@ const SysDiaReadingsTable = ({
           )}
         </Flex>
 
+        <Box className="max-h-[320px] overflow-y-auto">
         {rows.length > 0 ? (
           rows.map((row) => (
             <Flex
@@ -161,6 +162,7 @@ const SysDiaReadingsTable = ({
             <Text className="text-muted">No Data Found</Text>
           </Box>
         )}
+        </Box>
       </Box>
 
       {editRow && (

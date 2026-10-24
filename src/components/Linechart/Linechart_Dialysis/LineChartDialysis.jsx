@@ -54,6 +54,34 @@ const SmileyDot = ({ cx, cy, fill }) => {
   );
 };
 
+/** Warning marker for missing/no-data notes — white dot with red "!". */
+const WarningDot = ({ cx, cy }) => {
+  if (cx == null || cy == null || Number.isNaN(Number(cy))) return null;
+  return (
+    <g>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={9}
+        fill="#ffffff"
+        stroke="#dc2626"
+        strokeWidth={1.5}
+      />
+      <text
+        x={cx}
+        y={cy + 4.5}
+        textAnchor="middle"
+        fontSize="12"
+        fontWeight="700"
+        fill="#dc2626"
+        style={{ pointerEvents: "none", userSelect: "none" }}
+      >
+        !
+      </text>
+    </g>
+  );
+};
+
 const LineChartDialysis = ({
   aspect,
   title,
@@ -204,20 +232,18 @@ const LineChartDialysis = ({
     lowRange2,
     highRange2,
   ]);
-  /** Status/missing notes — amber warning smiley (hover shows message). */
-  const StatusSmileyDot = (props) => (
-    <SmileyDot cx={props.cx} cy={props.cy} fill="#f59e0b" />
+  /** Status/missing notes — white warning dot with red "!" (hover shows message). */
+  const StatusWarningDot = (props) => (
+    <WarningDot cx={props.cx} cy={props.cy} />
   );
 
   const CustomizedDotOld2 = (props) => {
-    const { cx, cy, value, payload } = props;
+    const { cx, cy, value } = props;
     if (typeof value === "string" || value == null || Number.isNaN(Number(value))) {
       return null;
     }
-    // Numeric IDWG with a status note (e.g. missing after) — amber, like main warning UX
-    if (payload?.message) {
-      return <SmileyDot cx={cx} cy={cy} fill="#f59e0b" />;
-    }
+    // Numeric IDWG (even if a note is attached) uses range-colored smileys.
+    // Status-only / missing-value points use WarningDot via Scatter.
     // Same range→color smileys as main (green / orange / red)
     if (highRange != 0 && highRange2 != 0 && lowRange != 0 && lowRange2 != 0) {
       if (value >= highRange2 || value <= lowRange2) {
@@ -1186,10 +1212,22 @@ const LineChartDialysis = ({
               }}
             />
             <GraphClearButton onClick={clearAllFilters}>Clear filters</GraphClearButton>
+            {isInterDialyticTitle && (
+              <span className="h-10 inline-flex items-center px-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 text-sm font-semibold whitespace-nowrap">
+                Warnings:{" "}
+                {
+                  patientData.filter(
+                    (item) =>
+                      item.isStatusOnly ||
+                      (item.message && typeof item.plotValue !== "number")
+                  ).length
+                }
+              </span>
+            )}
           </GraphToolbarGroup>
 
           <GraphToolbarGroup>
-            {role?.canEditPatients && (
+            {role?.canEditPatients && !isInterDialyticTitle && (
               <GraphActionButton
                 onClick={() => {
                   setIsUpdate(false);
@@ -1204,7 +1242,9 @@ const LineChartDialysis = ({
                 Update Range
               </GraphActionButton>
             )}
-            {enableGraphEditPanel && typeof onToggleEditPanel === "function" && (
+            {enableGraphEditPanel &&
+              !isInterDialyticTitle &&
+              typeof onToggleEditPanel === "function" && (
               <GraphEditButton active={showEditPanel} onClick={onToggleEditPanel} />
             )}
           </GraphToolbarGroup>
@@ -1252,7 +1292,7 @@ const LineChartDialysis = ({
       {patientData.length === 0 && <GraphEmptyState />}
       <GraphChartFrame>
         <ResponsiveContainer width="100%" height="100%" aspect={aspect}>
-          {/* ComposedChart required so status smileys (Scatter) + IDWG line both render/hover */}
+          {/* ComposedChart required so status warning dots (Scatter) + IDWG line both render/hover */}
           <ComposedChart
             width={350}
             height={250}
@@ -1292,12 +1332,12 @@ const LineChartDialysis = ({
               connectNulls={false}
               name={isInterDialyticTitle ? "IDWG" : "Reading"}
             />
-            {/* Amber smileys = status/missing notes; hover shows message (main UX) */}
+            {/* White/red warning dots = status/missing notes; hover shows message */}
             {isInterDialyticTitle && (
               <Scatter
                 dataKey="statusMarker"
-                fill="#f59e0b"
-                shape={<StatusSmileyDot />}
+                fill="#ffffff"
+                shape={<StatusWarningDot />}
                 isAnimationActive={false}
                 name="Note"
               />

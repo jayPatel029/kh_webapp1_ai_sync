@@ -47,6 +47,7 @@ const ReadingsTable = ({
     highlightComparator = 'gt',
     onDataChange,
     hideEnterReading = false,
+    hideRowActions = false,
 }) => {
     const [showModal, setShowModal] = useState(false);
     const [showModalUpdate, setShowModalUpdate] = useState(false);
@@ -57,7 +58,12 @@ const ReadingsTable = ({
     const [deleteData, setDeleteData] = useState(null);
     const role = useSelector((state) => state.permission);
 
-    const hasActions = hasEditPermission(role, 'dailyReadings') || hasDeletePermission(role, 'dailyReadings') || hasEditPermission(role, 'dialysisReadings') || hasDeletePermission(role, 'dialysisReadings');
+    const hasActions =
+        !hideRowActions &&
+        (hasEditPermission(role, 'dailyReadings') ||
+            hasDeletePermission(role, 'dailyReadings') ||
+            hasEditPermission(role, 'dialysisReadings') ||
+            hasDeletePermission(role, 'dialysisReadings'));
 
     const normalizedThreshold = Number.isFinite(Number(highlightThreshold))
         ? Number(highlightThreshold)
@@ -121,15 +127,36 @@ const ReadingsTable = ({
         axiosInstance
             .get(`${server_url}/${apiEndpoint}/get`, { params })
             .then((response) => {
-                const formattedData = response.data.data.map((item, key) => {
-                    const date = new Date(item.date);
-                    return {
-                        id: item.id,
-                        date: date.toISOString().split("T")[0],
-                        readings: item.readings,
-                        number: key,
-                    };
-                });
+                const raw = response?.data?.data;
+                const rows = Array.isArray(raw) ? raw : [];
+                const seenIds = new Set();
+                const formattedData = rows
+                    .filter((item) => item && item.id != null)
+                    .filter((item) => {
+                        const id = String(item.id);
+                        if (seenIds.has(id)) return false;
+                        seenIds.add(id);
+                        return true;
+                    })
+                    .map((item, key) => {
+                        const rawDate = item.date;
+                        const formattedDate =
+                            typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDate.trim())
+                                ? rawDate.trim().slice(0, 10)
+                                : (() => {
+                                    const d = new Date(rawDate);
+                                    if (Number.isNaN(d.getTime())) return "";
+                                    const pad = (n) => String(n).padStart(2, "0");
+                                    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                                })();
+                        return {
+                            id: item.id,
+                            date: formattedDate,
+                            readings: item.readings,
+                            number: key,
+                        };
+                    })
+                    .filter((row) => row.date);
                 const sortedData = formattedData.sort((a, b) => new Date(a.date) - new Date(b.date));
                 setPatientData(sortedData);
             })
@@ -182,7 +209,7 @@ const ReadingsTable = ({
 
             {uploadedFile && <DocOpenModal closeModal={closeFileModal} file={uploadedFile.file} />}
 
-            <Box className="w-full overflow-hidden rounded-md border border-border">
+            <Box className="w-full rounded-md border border-border overflow-hidden">
                 {/* Table Header */}
                 <Flex className="bg-surface px-4 py-3 border-b-2 border-dark">
                     <Box className="flex-1">
@@ -198,13 +225,14 @@ const ReadingsTable = ({
                     )}
                 </Flex>
 
-                {/* Table Body */}
+                {/* Table Body — scroll after ~8 rows */}
+                <Box className="max-h-[320px] overflow-y-auto">
                 {patientData.length > 0 ? (
-                    patientData.map((data, index) => {
+                    patientData.map((data) => {
                         const isHighlighted = shouldHighlightReading(data.readings);
                         return (
                             <Flex
-                                key={index}
+                                key={data.id}
                                 className={`px-4 py-3 border-b border-border last:border-b-0 bg-white hover:bg-surface/50 transition-colors ${isHighlighted ? 'bg-red-50' : ''}`}
                                 align="center"
                             >
@@ -212,7 +240,7 @@ const ReadingsTable = ({
                                 <Text size="sm" className="text-dark">{data.date}</Text>
                             </Box>
                             <Box className="flex-1">
-                                {data.readings && data.readings.endsWith(".pdf") ? (
+                                {typeof data.readings === "string" && data.readings.endsWith(".pdf") ? (
                                     <FaFilePdf
                                         className="w-8 h-8 cursor-pointer text-error hover:text-error-dark transition-colors"
                                         onClick={() => openFileModal(data.readings)}
@@ -259,6 +287,7 @@ const ReadingsTable = ({
                         <Text className="text-muted">No Data Found</Text>
                     </Box>
                 )}
+                </Box>
             </Box>
 
             {showModalUpdate && UpdateModal && modalData && (
