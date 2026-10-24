@@ -105,8 +105,11 @@ export const ParameterDetailView = ({
   const normalizedTitle = title.toLowerCase().replace(/\s+/g, "");
   const isSystolic = title.toLowerCase().includes("systolic");
   const isDiastolic = title.toLowerCase().includes("diastolic");
+  // IDWG is derived from weight before/after — not a stored reading that can be created/edited.
+  const isInterDialytic = /inter/i.test(title);
   // Same branching as main: graph readings get a chart; all other types get the type-aware table only.
   const showGraph = isGraphQuestion(question);
+  const canEditGraphReadings = enableGraphEditPanel && !isInterDialytic;
   const editQuestionId =
     isSystolic || isDiastolic
       ? resolvedSystolicId ?? question?.id
@@ -117,11 +120,13 @@ export const ParameterDetailView = ({
   };
 
   if (showGraph) {
-    const chartAspect = enableGraphEditPanel && showEditPanel ? 3 / 2 : aspect;
+    const chartAspect = canEditGraphReadings && showEditPanel ? 3 / 2 : aspect;
     const editPanelProps = {
-      enableGraphEditPanel,
-      showEditPanel,
-      onToggleEditPanel: () => setShowEditPanel((open) => !open),
+      enableGraphEditPanel: canEditGraphReadings,
+      showEditPanel: canEditGraphReadings && showEditPanel,
+      onToggleEditPanel: canEditGraphReadings
+        ? () => setShowEditPanel((open) => !open)
+        : undefined,
     };
 
     const graphNode = isSystolic || isDiastolic ? (
@@ -192,7 +197,7 @@ export const ParameterDetailView = ({
       <div className="space-y-3">
         <div
           className={
-            enableGraphEditPanel && showEditPanel
+            canEditGraphReadings && showEditPanel
               ? "grid gap-4 lg:grid-cols-2 items-start"
               : undefined
           }
@@ -206,7 +211,7 @@ export const ParameterDetailView = ({
             </div>
           </section>
 
-          {enableGraphEditPanel && showEditPanel && (
+          {canEditGraphReadings && showEditPanel && (
             <section className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden min-w-0 lg:sticky lg:top-0">
               <div className="border-b border-gray-100 px-4 py-3 bg-slate-50/90">
                 <h3 className="text-sm font-semibold text-accent tracking-wide uppercase">

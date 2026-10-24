@@ -22,6 +22,8 @@ const DialysisTable = ({
   onDataChange,
   hideEnterReading = false,
 }) => {
+  const isInterDialytic = /inter/i.test(String(title || question?.title || ""));
+  const hideDerivedEdits = hideEnterReading || isInterDialytic;
   return (
     <ReadingsTable
       type="dialysis"
@@ -33,7 +35,8 @@ const DialysisTable = ({
       highlightThreshold={highlightThreshold}
       highlightComparator={highlightComparator}
       onDataChange={onDataChange}
-      hideEnterReading={hideEnterReading}
+      hideEnterReading={hideDerivedEdits}
+      hideRowActions={isInterDialytic}
       AddModal={DialysisTableModal}
       UpdateModal={DialysisTableModalUpdate}
       DeleteModal={DialysisTableModalDelete}
