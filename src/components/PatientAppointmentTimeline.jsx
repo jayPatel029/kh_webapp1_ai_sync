@@ -15,14 +15,24 @@ const STATUS_META = {
 const getAppointmentDate = (appointment) => {
   const rawDate = appointment?.appointment_date || appointment?.appointmentDate || appointment?.date || appointment?.start || appointment?.startUTC || appointment?.createdAt;
   if (!rawDate) return null;
-  const time = appointment?.start_time || appointment?.appointment_time || appointment?.booking_time || '';
   const dateOnly = String(rawDate).slice(0, 10);
-  const timePart = String(time).slice(0, 8);
-  const combined = timePart && !String(rawDate).includes('T')
-    ? `${dateOnly}T${timePart.length === 5 ? `${timePart}:00` : timePart}`
-    : rawDate;
-  const date = new Date(combined);
+  const match = dateOnly.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  }
+  const date = new Date(rawDate);
   return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatTime12Hour = (timeStr) => {
+  if (!timeStr) return '—';
+  const parts = String(timeStr).split(':');
+  const hour = parseInt(parts[0], 10);
+  const minute = parts[1] || '00';
+  if (!Number.isFinite(hour)) return String(timeStr);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${String(minute).padStart(2, '0')} ${ampm}`;
 };
 
 const getDurationLabel = (appointment) => {
@@ -44,13 +54,13 @@ const getDurationLabel = (appointment) => {
   return String(raw);
 };
 
-const formatParts = (date) => {
-  if (!date) return { day: '-', month: '-', year: '-', time: '-' };
+const formatParts = (date, timeStr) => {
+  if (!date) return { day: '-', month: '-', year: '-', time: formatTime12Hour(timeStr) };
   return {
     day: String(date.getDate()).padStart(2, '0'),
     month: date.toLocaleString('default', { month: 'short' }),
     year: String(date.getFullYear()),
-    time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    time: formatTime12Hour(timeStr),
   };
 };
 
@@ -60,7 +70,10 @@ const getStatusMeta = (status) => STATUS_META[status] || { color: '#9CA3AF', lab
 
 const AppointmentCell = memo(function AppointmentCell({ appointment, onClick }) {
   const date = getAppointmentDate(appointment);
-  const parts = formatParts(date);
+  const parts = formatParts(
+    date,
+    appointment?.start_time || appointment?.appointment_time || appointment?.booking_time,
+  );
   const status = normalizeStatus(appointment?.status || appointment?.statusName || appointment?.state);
   const meta = getStatusMeta(status);
 
