@@ -1439,6 +1439,13 @@ const DialysisAppointments = () => {
             metadata: payload.metadata,
             totalAmount: createdData.totalAmount ?? createForm.total_amount,
             amountPaid: createdData.amountPaid ?? 0,
+            patient_name: selectedPatientData?.name,
+            name: selectedPatientData?.name,
+            age: selectedPatientData?.age,
+            gender: selectedPatientData?.gender,
+            phone: selectedPatientData?.phone || selectedPatientData?.phoneno,
+            patient_phone: selectedPatientData?.phone || selectedPatientData?.phoneno,
+            patient_code: selectedPatientData?.patient_code,
           };
           setSavedAppointment(normalizeAppointment(saved, patients));
           setCreateStep(3);

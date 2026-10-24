@@ -22,6 +22,18 @@ function handleError(error) {
   };
 }
 
+export async function getDtPatientById(patientId, config = {}) {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/dt/patients/${patientId}`,
+      config,
+    );
+    return handleResponse(response);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 export async function listDtPatients(config = {}) {
   try {
     const response = await axiosInstance.get(`${server_url}/dt/patients`, config);

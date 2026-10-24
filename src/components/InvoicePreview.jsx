@@ -14,7 +14,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { BaseModal } from '../component-library/modals/BaseModal';
 import { getClinicById, getOrganizationById, getAppointmentById, getBillDetails } from '../ApiCalls/clinicApis';
-import { getPatientById } from '../ApiCalls/patientAPis';
+import { getDtPatientById } from '../ApiCalls/dtPatientApis';
 import { getPaymentStatus } from '../utils/refundCalculator';
 
 const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appointmentId: appointmentIdProp, billId: billIdProp, clinic: initialClinic }) => {
@@ -78,6 +78,7 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
       setFetchedPayments([]);
       setFetchedRefunds([]);
       setFetchedAppointment(null);
+      setFetchedPatient(null);
       setFetchError(null);
       setLoadedFor(null);
       setLoadingAppt(true);
@@ -132,9 +133,9 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
 
       if (isOpen && patientIdVal) {
         try {
-          const res = await getPatientById(patientIdVal);
+          const res = await getDtPatientById(patientIdVal);
           if (res.success && res.data) {
-             const patientData = res.data.patient || res.data.data || res.data;
+             const patientData = res.data.patient || res.data.dt_patient || res.data.data || res.data;
              setFetchedPatient(patientData);
           }
         } catch (err) {
@@ -220,10 +221,10 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
 
   // Use fetched patient data with fallbacks to appointment data
   const pName = fetchedPatient?.name || fetchedPatient?.patient_name || appointment?.patient_name || appointment?.name;
-  const patientName = pName && pName !== '—' ? pName : 'Patient';
+  const patientName = pName && pName !== '—' && pName !== 'Patient' ? pName : '-';
   const patientAge = fetchedPatient?.age || fetchedPatient?.patient_age || appointment?.age || appointment?.patient_age || '-';
   const patientGender = fetchedPatient?.gender || fetchedPatient?.sex || fetchedPatient?.patient_gender || appointment?.gender || appointment?.sex || appointment?.patient_gender || '-';
-  const patientPhone = fetchedPatient?.phoneNumber || fetchedPatient?.phone || fetchedPatient?.phone_number || appointment?.phoneNumber || appointment?.phone || appointment?.patient_phone || '-';
+  const patientPhone = fetchedPatient?.phone_no || fetchedPatient?.phoneno || fetchedPatient?.phoneNumber || fetchedPatient?.phone || fetchedPatient?.phone_number || appointment?.phoneNumber || appointment?.phone || appointment?.patient_phone || appointment?.mobile_no || '-';
 
   const activeClinic = fetchedClinic || initialClinic || {};
   const activeOrg = fetchedOrg || {};
