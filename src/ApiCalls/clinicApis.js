@@ -454,7 +454,9 @@ export async function createAppointment(payload, config = {}) {
     if (payload.recurrence) formattedPayload.recurrence = payload.recurrence;
     if (payload.metadata) formattedPayload.metadata = payload.metadata;
     if (payload.automation) formattedPayload.automation = payload.automation;
-    if (payload.paySessions) formattedPayload.paySessions = payload.paySessions;
+    if (payload.paySessions !== undefined && payload.paySessions !== null) {
+      formattedPayload.paySessions = payload.paySessions;
+    }
 
     const response = await axiosInstance.post(`${server_url}/dt/appointments`, formattedPayload, finalConfig);
     return { success: true, data: response.data };

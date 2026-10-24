@@ -13,9 +13,9 @@ import React, { useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { BaseModal } from '../component-library/modals/BaseModal';
-import { getClinicById, getOrganizationById, getAppointmentById, getBillDetails, getBillingBillById } from '../ApiCalls/clinicApis';
+import { getClinicById, getOrganizationById, getAppointmentById, getBillDetails } from '../ApiCalls/clinicApis';
 import { getPatientById } from '../ApiCalls/patientAPis';
-import { getPaymentStatus, getOutstandingBalance } from '../utils/refundCalculator';
+import { getPaymentStatus } from '../utils/refundCalculator';
 
 const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appointmentId: appointmentIdProp, billId: billIdProp, clinic: initialClinic }) => {
   const [downloading, setDownloading] = useState(false);
@@ -29,66 +29,96 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
   const [fetchedRefunds, setFetchedRefunds] = useState([]);
   const [fetchedBill, setFetchedBill] = useState(null);
   const [fetchedBillAppointments, setFetchedBillAppointments] = useState([]);
-  const [loadingAppt, setLoadingAppt] = useState(false);
+  const [loadingAppt, setLoadingAppt] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const [loadedFor, setLoadedFor] = useState(null);
 
   // Determine the effective appointmentId — prefer explicit prop, fallback to appointment.id
   const effectiveApptId = appointmentIdProp || appointmentProp?.id;
   const effectiveBillId = billIdProp || appointmentProp?.bill_id || appointmentProp?.invoice_id || appointmentProp?.billId || appointmentProp?.invoiceId;
 
-  // ── Fetch data (consolidated bill OR single appointment) ──
+  const applyBillPayload = (body) => {
+    const bill = body.bill || body;
+    if (!bill?.id) {
+      throw new Error('Invoice not found for this booking');
+    }
+    setFetchedBill(bill);
+    setFetchedInvoice(bill);
+    setFetchedBillAppointments(Array.isArray(body.appointments) ? body.appointments : []);
+
+    const ledger = body.ledger || body.receipts || [];
+    const parsedReceipts = ledger.map(r => {
+      try {
+        const p = typeof r.payment_receipt === 'string'
+          ? JSON.parse(r.payment_receipt)
+          : r.payment_receipt || r;
+        return { ...p, createdAt: p.createdAt || r.created_at || r.createdAt };
+      } catch (e) {
+        return r;
+      }
+    });
+
+    setFetchedPayments(parsedReceipts.filter(r => r.type === 'PAYMENT' || Number(r.amount) > 0));
+    setFetchedRefunds(parsedReceipts.filter(r => r.type === 'REFUND' || Number(r.amount) < 0));
+
+    if (body.appointments?.length > 0) {
+      setFetchedAppointment(body.appointments[0]);
+    }
+  };
+
+  // ── Fetch the real booking bill — never invent a local invoice ──
   useEffect(() => {
     if (!isOpen) return;
+    let cancelled = false;
 
     const fetchData = async () => {
+      setFetchedBill(null);
+      setFetchedInvoice(null);
+      setFetchedBillAppointments([]);
+      setFetchedPayments([]);
+      setFetchedRefunds([]);
+      setFetchedAppointment(null);
+      setFetchError(null);
+      setLoadedFor(null);
       setLoadingAppt(true);
+
       try {
-        if (effectiveBillId) {
-          // Fetch Consolidated Bill from the specialized dialysis billing API
-          const res = await getBillDetails(effectiveBillId);
-          if (res.success && res.data) {
-            const body = res.data.data || res.data;
-            setFetchedBill(body.bill || body);
-            setFetchedBillAppointments(body.appointments || []);
+        let billIdToLoad = effectiveBillId;
 
-            // Parse receipts/ledger entries
-            const ledger = body.ledger || body.receipts || [];
-            const parsedReceipts = ledger.map(r => {
-              try {
-                const p = typeof r.payment_receipt === 'string'
-                  ? JSON.parse(r.payment_receipt)
-                  : r.payment_receipt || r;
-                return { ...p, createdAt: p.createdAt || r.created_at || r.createdAt };
-              } catch (e) {
-                return r;
-              }
-            });
-
-            setFetchedPayments(parsedReceipts.filter(r => r.type === 'PAYMENT' || r.amount > 0));
-            setFetchedRefunds(parsedReceipts.filter(r => r.type === 'REFUND' || r.amount < 0));
-            
-            if (body.appointments?.length > 0) {
-              setFetchedAppointment(body.appointments[0]);
-            }
+        if (!billIdToLoad && effectiveApptId) {
+          const apptRes = await getAppointmentById(effectiveApptId);
+          if (!apptRes.success || !apptRes.data) {
+            throw new Error(apptRes.data?.message || 'Could not load this booking');
           }
-        } else if (effectiveApptId) {
-          // Fetch Single Appointment
-          const res = await getAppointmentById(effectiveApptId);
-          if (res.success && res.data) {
-            const body = res.data.data || res.data;
-            const appt = body.appointment || body;
-            setFetchedAppointment(appt);
-            setFetchedInvoice(body.invoice || null);
-            setFetchedPayments(Array.isArray(body.payments) ? body.payments : []);
-            setFetchedRefunds(Array.isArray(body.refunds) ? body.refunds : []);
-          }
+          const apptBody = apptRes.data.data || apptRes.data;
+          const appt = apptBody.appointment || apptBody;
+          billIdToLoad = apptBody.invoice?.id || appt?.bill_id || appt?.invoice_id;
+          if (!cancelled && appt) setFetchedAppointment(appt);
         }
+
+        if (!billIdToLoad) {
+          throw new Error('Invoice not found for this booking');
+        }
+
+        const res = await getBillDetails(billIdToLoad);
+        if (!res.success || !res.data) {
+          throw new Error(res.data?.message || 'Could not load this invoice');
+        }
+        if (cancelled) return;
+        applyBillPayload(res.data.data || res.data);
+        setLoadedFor(`${billIdToLoad}:${effectiveApptId || ''}`);
       } catch (err) {
         console.error('[InvoicePreview] Failed to fetch bill/appointment detail:', err);
+        if (!cancelled) {
+          setFetchError(err.message || 'Could not load this invoice from the booking');
+        }
       } finally {
-        setLoadingAppt(false);
+        if (!cancelled) setLoadingAppt(false);
       }
     };
+
     fetchData();
+    return () => { cancelled = true; };
   }, [isOpen, effectiveApptId, effectiveBillId]);
 
   // The "working" appointment — fetched detail takes priority, then the prop
@@ -147,9 +177,7 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
     appointment?._raw?.patientId
   ]);
 
-  if (!appointment && !loadingAppt) return null;
-
-  // ── Derive billing amounts from fetched invoice or appointment fields ──
+  // ── Derive billing amounts from the fetched invoice only ──
   const invoice = fetchedInvoice || fetchedBill;
   const pickNumeric = (obj, keys) => {
     if (!obj) return undefined;
@@ -166,34 +194,29 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
     }
     return zeroVal;
   };
-  const totalDueKeysInvoice = ['total_amt','total_amount','totalAmount','amountDue','amount_due','unit_price','unitPrice','amount','price','bill_amount'];
-  const totalDueKeysAppt = ['totalAmount','total_amount','total_amt','amountDue','amount_due','unit_price','unitPrice','amount','price'];
-  const totalDue = pickNumeric(invoice, totalDueKeysInvoice) ?? pickNumeric(appointment, totalDueKeysAppt) ?? pickNumeric(appointment?._raw, totalDueKeysAppt) ?? 0;
+  const totalDueKeysInvoice = ['total_amt','total_amount','totalAmount'];
+  const totalDue = pickNumeric(invoice, totalDueKeysInvoice) ?? 0;
   const getAmountPaid = () => {
-    if (fetchedBill) {
-      const billPaidKeys = ['paid_amt','paid_amount','paidAmount','amount_paid','amountPaid','received_amt','receivedAmount','paid'];
-      const v = pickNumeric(fetchedBill, billPaidKeys);
-      if (v !== undefined) return v;
-      if (fetchedBill.payment_receipt) {
-        const t = pickNumeric(fetchedBill, totalDueKeysInvoice);
-        if (t !== undefined) return t;
-      }
-      if (fetchedPayments.length) return fetchedPayments.reduce((s,p)=> s+Number(p.amount||0),0);
-      return 0;
+    if (fetchedPayments.length) {
+      return fetchedPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
     }
-    const apptPaidKeys = ['amount_paid','amountPaid','received_amt','receivedAmount','paid_amt','paid_amount','paidAmount','amount','paid'];
-    return pickNumeric(appointment, apptPaidKeys) ?? pickNumeric(appointment?._raw, apptPaidKeys) ?? 0;
+    const rawPaid = invoice?.paid_amt ?? invoice?.paid_amount ?? invoice?.paidAmount;
+    if (rawPaid !== undefined && rawPaid !== null && rawPaid !== '') {
+      const n = Number(rawPaid);
+      if (!Number.isNaN(n)) return n;
+    }
+    return 0;
   };
   const amountPaid = getAmountPaid();
   const outstanding = Math.max(0, totalDue - amountPaid);
 
-  let payStatus = fetchedBill 
-    ? (fetchedBill.payment_status || (amountPaid >= totalDue ? 'PAID' : 'PARTIAL')) 
+  let payStatus = invoice
+    ? (invoice.payment_status || (amountPaid >= totalDue && totalDue > 0 ? 'PAID' : amountPaid > 0 ? 'PARTIAL' : 'PENDING'))
     : getPaymentStatus(totalDue, amountPaid);
     
   if (String(appointment?.status).toUpperCase() === 'CANCELLED' || String(appointment?.status).toUpperCase() === 'MISSED') payStatus = 'CANCELLED';
 
-  const invoiceId = invoice?.id ? `INV-${invoice.id}` : `INV-${appointment?.id || Date.now()}`;
+  const invoiceId = invoice?.id ? `INV-${invoice.id}` : null;
 
   // Use fetched patient data with fallbacks to appointment data
   const pName = fetchedPatient?.name || fetchedPatient?.patient_name || appointment?.patient_name || appointment?.name;
@@ -283,10 +306,9 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
     warning: "#c2410c"
   };
 
-  // ── Build services list from invoice or appointment metadata ──
+  // ── Build services list from saved booking service rows only ──
   const buildServicesList = () => {
-    if (fetchedBill && fetchedBillAppointments.length > 0) {
-      // Find the first appointment that actually has services
+    if (fetchedBillAppointments.length > 0) {
       const apptWithServices = fetchedBillAppointments.find(a => a.services && a.services.length > 0);
       const apptServices = apptWithServices ? apptWithServices.services : (fetchedBillAppointments[0].services || []);
 
@@ -299,7 +321,7 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
       }
     }
 
-    if (appointment?.services && appointment.services.length > 0) {
+    if (appointment?.services && appointment.services.length > 0 && invoice) {
       return appointment.services.map(s => ({
         name: (s.service_name || s.name || 'Service').trim(),
         price: Number(s.amount || s.price || 0),
@@ -307,14 +329,6 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
       }));
     }
 
-    if (invoice) {
-      const svcName = invoice.service || invoice.bill_description || 'Dialysis Session';
-      const unitPrice = pickNumeric(invoice, totalDueKeysInvoice) ?? 0;
-      const discount = Number(invoice.discount || 0);
-      const count = fetchedBillAppointments.length || 1;
-      // If it's a single price for the whole bill, but multiple appts, we might need to divide
-      return [{ name: svcName, price: unitPrice / count, discount }];
-    }
     return [];
   };
 
@@ -450,9 +464,34 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
       size="4xl"
       footer={null}
     >
-      {loadingAppt ? (
+      {loadingAppt || (!fetchError && !invoiceId) ? (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
           <p style={{ color: '#64748B', fontSize: '14px', fontWeight: 500 }}>Loading invoice data…</p>
+        </div>
+      ) : fetchError || !loadedFor || !invoiceId ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '220px', gap: '12px', padding: '24px' }}>
+          <p style={{ color: '#B91C1C', fontSize: '15px', fontWeight: 600, textAlign: 'center' }}>
+            {fetchError || 'Invoice not found for this booking'}
+          </p>
+          <p style={{ color: '#64748B', fontSize: '13px', textAlign: 'center' }}>
+            Close and try again from the appointments list.
+          </p>
+          <button
+            onClick={onClose}
+            style={{
+              marginTop: '8px',
+              padding: '10px 24px',
+              fontSize: '12px',
+              fontWeight: 700,
+              border: '1px solid #D1D5DB',
+              borderRadius: '6px',
+              background: '#F9FAFB',
+              color: '#374151',
+              cursor: 'pointer'
+            }}
+          >
+            Close
+          </button>
         </div>
       ) : (
       <>
@@ -614,12 +653,10 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                     </tr>
                   );
                 }) : (
-                  <tr style={{ borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
-                    <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#64748B', fontWeight: 500 }}>1</td>
-                    <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', textAlign: 'left', color: '#2563EB', fontWeight: 700 }}>Dialysis Session</td>
-                    <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#334155', fontWeight: 600 }}>₹{(totalDue / (appointmentsToDisplay.length || 1)).toFixed(2)}</td>
-                    {showDiscount && <td style={{ padding: '9px 12px', borderRight: '1px solid #E2E8F0', color: '#D97706', fontWeight: 700 }}>0%</td>}
-                    <td style={{ padding: '9px 12px', fontWeight: 800, fontSize: '13px', color: '#1E3A8A' }}>₹{(totalDue / (appointmentsToDisplay.length || 1)).toFixed(2)}</td>
+                  <tr>
+                    <td colSpan={showDiscount ? 5 : 4} style={{ padding: '20px', textAlign: 'center', color: '#94A3B8' }}>
+                      No services linked to this bill.
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -630,11 +667,17 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
             <div style={{ fontSize: '12px', color: '#1E40AF', marginBottom: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Calculation</div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '14px', color: '#334155' }}>
-              <div>
-                <span style={{ fontWeight: 500, color: '#64748B' }}>Gross Amount (Per Session):</span> <strong style={{ color: '#0F172A' }}>₹{grossAmount.toFixed(2)}</strong>
-              </div>
+              {servicesList.length > 0 && (
+                <div>
+                  <span style={{ fontWeight: 500, color: '#64748B' }}>Gross Amount (Per Session):</span> <strong style={{ color: '#0F172A' }}>₹{grossAmount.toFixed(2)}</strong>
+                </div>
+              )}
               <div style={{ fontSize: '15px', fontWeight: 700, color: '#1E3A8A', marginTop: '6px', borderTop: '1px solid #E2E8F0', paddingTop: '8px' }}>
-                Total Invoice Amount: <span style={{ color: '#64748B', fontWeight: 500 }}>₹{grossAmount.toFixed(2)} x {appointmentsToDisplay.length} (sessions) =</span> <span style={{ fontSize: '18px', borderBottom: '2px solid #1E40AF', paddingBottom: '2px', color: '#1E40AF' }}>₹{totalDue.toFixed(2)}</span>
+                Total Invoice Amount:{' '}
+                {servicesList.length > 0 && appointmentsToDisplay.length > 0 ? (
+                  <span style={{ color: '#64748B', fontWeight: 500 }}>₹{grossAmount.toFixed(2)} x {appointmentsToDisplay.length} (sessions) =</span>
+                ) : null}{' '}
+                <span style={{ fontSize: '18px', borderBottom: '2px solid #1E40AF', paddingBottom: '2px', color: '#1E40AF' }}>₹{totalDue.toFixed(2)}</span>
               </div>
               {appointmentsToDisplay.length > 0 && (
                 <div style={{ display: 'flex', gap: '16px', marginTop: '10px', fontSize: '12px', padding: '8px 12px', background: '#FFF', borderRadius: '6px', border: '1px solid #E2E8F0', width: 'fit-content' }}>
@@ -664,7 +707,7 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                 {fetchedPayments.length > 0 ? fetchedPayments.map((p, idx) => (
                   <div key={idx} style={{ fontSize: '12px', color: '#16A34A', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16A34A' }}></span>
-                    {new Date(p.createdAt || Date.now()).toLocaleDateString()} - <span style={{ textTransform: 'uppercase', color: '#475569' }}>{p.method || 'cash'}</span> - ₹{p.amount} RECEIVED
+                    {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'} - <span style={{ textTransform: 'uppercase', color: '#475569' }}>{p.method || '—'}</span> - ₹{p.amount} RECEIVED
                   </div>
                 )) : (
                   <div style={{ fontSize: '12px', color: '#64748B', fontStyle: 'italic' }}>No payment receipts recorded yet.</div>
@@ -681,7 +724,7 @@ const InvoicePreview = ({ isOpen, onClose, appointment: appointmentProp, appoint
                     return (
                       <div key={idx} style={{ fontSize: '12px', color: '#DC2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#DC2626' }}></span>
-                        {new Date(r.createdAt || Date.now()).toLocaleDateString()} - <span style={{ textTransform: 'uppercase', color: '#475569' }}>{r.method || 'refund'}</span> - ₹{amt} REFUNDED
+                        {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'} - <span style={{ textTransform: 'uppercase', color: '#475569' }}>{r.method || 'refund'}</span> - ₹{amt} REFUNDED
                       </div>
                     );
                   })}

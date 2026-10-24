@@ -44,7 +44,6 @@ import InvoicePreview from '../../components/InvoicePreview';
 import FileUploadWithCamera from '../../components/FileUploadWithCamera';
 import usePaymentFlow from '../../hooks/usePaymentFlow';
 import { getPaymentStatus, getOutstandingBalance } from '../../utils/refundCalculator';
-import { generateBillPDF } from '../../utils/billGenerator';
 import DownloadIcon from '../../assets/Download.svg';
 import EditIcon from '../../assets/Edit.svg';
 import DeleteIcon from '../../assets/Delete.svg';
@@ -61,10 +60,8 @@ import {
   getOrganizationById,
   getOrganizations,
   getAvailableSlots,
-  consumeAppointmentServices,
-  createBill
+  consumeAppointmentServices
 } from '../../ApiCalls/clinicApis';
-import { uploadFile } from '../../ApiCalls/dataUpload';
 import { getPatientAilments, getPatientById, getGeneralParameterResponse } from '../../ApiCalls/patientAPis';
 import { listDtPatients } from '../../ApiCalls/dtPatientApis';
 import { getDoctors } from '../../ApiCalls/doctorApis';
@@ -72,7 +69,6 @@ import { jsPDF } from 'jspdf';
 import ClinicSelector from '../../components/ClinicSelector';
 import OrganizationSelector from '../../components/OrganizationSelector';
 // import QuestionsContainer from '../../components/questions/QuestionsContainer';
-import { createBillForAppointment } from '../../utils/appointmentBilling';
 
 
 // ─── Status colors ──────────────────────────────────────────
@@ -1309,7 +1305,6 @@ const DialysisAppointments = () => {
       setCreateErrorMessage('');
 
       const servicesSummary = addedServices.map(s => `${s.name} (₹${s.price - (s.price * s.discount / 100)})`).join(', ');
-      const finalPaid = Number(createForm.amount_paid) || 0;
 
       const sessionsSource = isEditOpen
         ? createForm.slotTemplates
@@ -1410,28 +1405,20 @@ const DialysisAppointments = () => {
       }
 
       if (result.success) {
-        const createdData = result.data?.data || result.data;
-        const createdAppts = Array.isArray(createdData) ? createdData : (createdData.appointments || [createdData]);
-        const primaryApptId = isEditOpen ? createForm.id : (createdAppts[0]?.id || createdAppts[0]);
+        const createdData = result.data?.data || result.data || {};
+        const invoiceId = createdData.invoiceId || createdData.invoice_id || createdData.bill_id;
+        const appointmentId = isEditOpen
+          ? createForm.id
+          : (createdData.id || createdData.appointmentIds?.[0]);
 
-        // ---- Step 2: Generate Bill linked to the primary appointment ----
-        if (primaryApptId) {
-          const { billId } = await createBillForAppointment({
-            appointmentId: primaryApptId,
-            appointmentIds: createdAppts.map(a => a.id || a),
-            sessions,
-            services: addedServices,
-            form: createForm,
-            patientData: selectedPatientData,
-          });
-
-          showToast(
-            isEditOpen ? 'Appointment updated!' : `Successfully booked ${sessions.length} sessions. Bill ID: ${billId}`, 
-            'success'
-          );
-        } else {
-          showToast(isEditOpen ? 'Appointment updated!' : 'Appointments booked successfully!', 'success');
-        }
+        showToast(
+          isEditOpen
+            ? 'Appointment updated!'
+            : invoiceId
+              ? `Successfully booked ${sessions.length} sessions. Bill ID: ${invoiceId}`
+              : `Successfully booked ${sessions.length} sessions.`,
+          'success'
+        );
 
         fetchAppointments();
 
@@ -1439,15 +1426,19 @@ const DialysisAppointments = () => {
           setIsCreateOpen(false);
           resetCreateModal();
         } else {
-          const firstAppt = createdAppts[0] || {};
           const saved = {
-            ...firstAppt,
+            id: appointmentId,
+            invoiceId,
+            invoice_id: invoiceId,
+            bill_id: invoiceId,
             patient_id: createForm.patient_id,
             clinic_id: createForm.clinic_id,
             appointment_date: createForm.appointment_date,
             start_time: createForm.slotTemplates[0]?.startTime || '00:00',
             duration: createForm.duration,
             metadata: payload.metadata,
+            totalAmount: createdData.totalAmount ?? createForm.total_amount,
+            amountPaid: createdData.amountPaid ?? 0,
           };
           setSavedAppointment(normalizeAppointment(saved, patients));
           setCreateStep(3);
