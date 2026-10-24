@@ -1088,6 +1088,7 @@ const DialysisAppointments = () => {
       if (!reason || !reason.trim()) return;
       const result = await cancelAppointment(apt.id, {
         reason: reason.trim(),
+        refund: false,
         refundAmount: 0,
       });
       if (result.success) {
