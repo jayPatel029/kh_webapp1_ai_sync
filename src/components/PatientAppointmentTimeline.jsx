@@ -227,7 +227,7 @@ export default function PatientAppointmentTimeline({ patientId, appointments: in
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: '80vh', overflowY: 'auto', paddingRight: '8px', textAlign: 'left' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', textAlign: 'left' }}>
       {/* Header & Legend */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -259,7 +259,7 @@ export default function PatientAppointmentTimeline({ patientId, appointments: in
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
               gap: '16px',
             }}
           >

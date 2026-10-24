@@ -2552,6 +2552,7 @@ const DialysisAppointments = () => {
           }}
           title={timelinePatientName ? `Patient Appointment Timeline — ${timelinePatientName}` : 'Patient Appointment Timeline'}
           size="xl"
+          contentStyle={{ width: '92vw', maxWidth: '1100px' }}
         >
           {timelinePatientId && (
             <PatientAppointmentTimeline patientId={timelinePatientId} />
