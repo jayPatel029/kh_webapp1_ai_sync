@@ -1029,12 +1029,19 @@ const LineChartDialysis = ({
           return Number.isFinite(n) && !Number.isNaN(n) ? n : null;
         };
 
-        const parsed = rows.map((item, key) => {
+        const parsed = rows.filter((item) => item && (item.date || item.id)).map((item, key) => {
           const rawDate = item.date;
-          const formattedDate =
-            typeof rawDate === "string" && /^\d{4}-\d{2}-\d{2}/.test(rawDate)
-              ? rawDate.slice(0, 10)
-              : new Date(rawDate).toISOString().split("T")[0];
+          const formattedDate = (() => {
+            if (typeof rawDate === "string") {
+              const trimmed = rawDate.trim();
+              if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+              if (/^\d{4}-\d{2}-\d{2}[ T]/.test(trimmed)) return trimmed.slice(0, 10);
+            }
+            const d = new Date(rawDate);
+            if (Number.isNaN(d.getTime())) return "";
+            const pad = (n) => String(n).padStart(2, "0");
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+          })();
 
           // Prefer explicit IDWG `value`, else same parseFloat(readings) rule as main
           const numericReading =
