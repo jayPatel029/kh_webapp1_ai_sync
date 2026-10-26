@@ -19,6 +19,7 @@ import ClinicSelector from '../../components/ClinicSelector';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { ROUTES } from '../../routes/routeConstants';
 import { getClinics, getOrganizations } from '../../ApiCalls/clinicApis';
+import DeleteIcon from '../../assets/Delete.svg';
 import {
   listDtPatients,
   ensureDtPatientsFromM1Batch,
@@ -59,6 +60,33 @@ function emptyForm(orgId, clinicId) {
     primary_diagnosis: '',
     registered_date: todayIso(),
   };
+}
+
+function ActionIconBtn({ title, onClick, disabled, children, src }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        width: '32px',
+        height: '32px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: 'none',
+        borderRadius: '6px',
+        background: 'transparent',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.35 : 1,
+        padding: 0,
+      }}
+    >
+      {src ? <img src={src} alt="" style={{ width: '18px', height: '18px' }} /> : children}
+    </button>
+  );
 }
 
 function StatusBadge({ status, reason }) {
@@ -104,7 +132,6 @@ export default function DialysisPatientRoster() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState(null);
   const [discontinueRow, setDiscontinueRow] = useState(null);
   const [discontinueReason, setDiscontinueReason] = useState('');
   const [actionError, setActionError] = useState('');
@@ -173,13 +200,6 @@ export default function DialysisPatientRoster() {
   useEffect(() => {
     loadRoster();
   }, [loadRoster]);
-
-  useEffect(() => {
-    if (!openMenuId) return undefined;
-    const close = () => setOpenMenuId(null);
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, [openMenuId]);
 
   useEffect(() => {
     if (!selectedOrgId) {
@@ -282,7 +302,6 @@ export default function DialysisPatientRoster() {
   };
 
   const handleAnonymize = async (row) => {
-    setOpenMenuId(null);
     if (!window.confirm('Remove name, phone, email, and address for this patient? Appointments stay. This cannot be undone.')) {
       return;
     }
@@ -297,7 +316,6 @@ export default function DialysisPatientRoster() {
   };
 
   const handleReactivate = async (row) => {
-    setOpenMenuId(null);
     setActionBusy(true);
     const result = await reactivateDtPatient(row.id);
     setActionBusy(false);
@@ -391,74 +409,52 @@ export default function DialysisPatientRoster() {
         type: 'custom',
         render: (row) => {
           if (row.anonymized) {
-            return <span style={{ fontSize: '12px', color: '#94a3b8' }}>No actions</span>;
+            return <span style={{ fontSize: '12px', color: '#94a3b8' }}>—</span>;
           }
           const canBook = BOOKABLE_STATUSES.includes(row.patient_status);
           const canReactivate = row.patient_status === 'Discontinued' && row.discontinue_reason === 'Left';
           const canDiscontinue = row.patient_status !== 'Discontinued';
           return (
-            <div style={{ position: 'relative', display: 'inline-block' }} onClick={(e) => e.stopPropagation()}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setOpenMenuId((id) => (id === row.id ? null : row.id))}
-                isDisabled={actionBusy}
-              >
-                Actions
-              </Button>
-              {openMenuId === row.id && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    top: '110%',
-                    zIndex: 30,
-                    minWidth: '180px',
-                    background: '#fff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '10px',
-                    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.12)',
-                    padding: '6px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
+            <div style={{ display: 'flex', gap: '2px', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              {canBook && (
+                <ActionIconBtn title="Book appointment" disabled={actionBusy} onClick={() => goBook(row)}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <path d="M16 2v4M8 2v4M3 10h18" />
+                  </svg>
+                </ActionIconBtn>
+              )}
+              {canReactivate && (
+                <ActionIconBtn title="Reactivate" disabled={actionBusy} onClick={() => handleReactivate(row)}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 3-6.7" />
+                    <path d="M3 4v5h5" />
+                  </svg>
+                </ActionIconBtn>
+              )}
+              <ActionIconBtn title="Delete" disabled={actionBusy} src={DeleteIcon} onClick={() => handleAnonymize(row)} />
+              {canDiscontinue && (
+                <ActionIconBtn
+                  title="Discontinued"
+                  disabled={actionBusy}
+                  onClick={() => {
+                    setActionError('');
+                    setDiscontinueReason('');
+                    setDiscontinueRow(row);
                   }}
                 >
-                  {canBook && (
-                    <Button variant="ghost" size="sm" onClick={() => { setOpenMenuId(null); goBook(row); }}>
-                      Book appointment
-                    </Button>
-                  )}
-                  {canReactivate && (
-                    <Button variant="ghost" size="sm" onClick={() => handleReactivate(row)}>
-                      Reactivate
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => handleAnonymize(row)}>
-                    Delete
-                  </Button>
-                  {canDiscontinue && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setOpenMenuId(null);
-                        setActionError('');
-                        setDiscontinueReason('');
-                        setDiscontinueRow(row);
-                      }}
-                    >
-                      Discontinued
-                    </Button>
-                  )}
-                </div>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B91C1C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M8 12h8" />
+                  </svg>
+                </ActionIconBtn>
               )}
             </div>
           );
         },
       },
     ],
-    [orgNameById, clinicNameById, goBook, openMenuId, actionBusy],
+    [orgNameById, clinicNameById, goBook, actionBusy],
   );
 
   const gridCols = isMobile ? '1fr' : '1fr 1fr';
