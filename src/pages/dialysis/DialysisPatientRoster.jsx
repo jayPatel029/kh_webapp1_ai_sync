@@ -477,8 +477,8 @@ export default function DialysisPatientRoster() {
         </Box>
         <div className={isMobile ? 'px-3 pb-20' : ''} style={{ background: '#f8fafc' }}>
           <div style={{ maxWidth: '1320px', margin: '0 auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'nowrap', alignItems: 'center', overflowX: 'auto', paddingBottom: '4px' }}>
+              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                 <OrganizationSelector
                   orgId={selectedOrgId}
                   setOrgId={(val) => {
@@ -487,18 +487,18 @@ export default function DialysisPatientRoster() {
                   }}
                   organizations={organizations}
                   label=""
-                  minW="180px"
+                  minW="160px"
                   placeholder="All organizations"
                 />
               </div>
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center' }}>
+              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                 <ClinicSelector
                   orgId={selectedOrgId}
                   clinicId={selectedClinicId}
                   setClinicId={setSelectedClinicId}
                   clinics={clinics}
                   label=""
-                  minW="180px"
+                  minW="160px"
                   placeholder="All clinics"
                 />
               </div>
@@ -507,23 +507,24 @@ export default function DialysisPatientRoster() {
                 placeholder="Search name, phone, or id…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ height: '40px', width: '280px' }}
+                style={{ height: '40px', width: '220px', margin: 0, flexShrink: 0 }}
               />
-              <Select
-                size="sm"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={{ width: '170px' }}
-              >
-                <option value="ALL">All statuses</option>
-                {ROSTER_STATUSES.map((status) => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </Select>
-              <Button variant="outline" size="sm" onClick={loadRoster}>
+              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0, minWidth: '150px' }}>
+                <Select
+                  size="sm"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="ALL">All statuses</option>
+                  {ROSTER_STATUSES.map((status) => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </Select>
+              </div>
+              <Button variant="outline" size="sm" onClick={loadRoster} style={{ height: '40px', margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 Refresh
               </Button>
-              <Button variant="brand" size="sm" onClick={openAdd}>
+              <Button variant="brand" size="sm" onClick={openAdd} style={{ height: '40px', margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
                 Add Patient
               </Button>
             </div>
