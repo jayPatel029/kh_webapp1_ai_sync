@@ -402,6 +402,10 @@ const ClinicManagement = () => {
   };
 
   const handleClinicSubmit = async (clinicPayloadFromModal) => {
+    const clinicBedCap =
+      Number(clinicPayloadFromModal.normalBeds || 0) + Number(clinicPayloadFromModal.isolatedBeds || 0) ||
+      Number(clinicPayloadFromModal.capacity) ||
+      1;
     const finalPayload = {
       clinicName: clinicPayloadFromModal.clinicName,
       organizationId: Number(clinicPayloadFromModal.organizationId) || null,
@@ -447,7 +451,7 @@ const ClinicManagement = () => {
               startTime: formatTime(st.startTime),
               endTime: formatTime(st.endTime)
             }],
-          maxPatientsPerSlot: Number(st.maxPatientsPerSlot) || 1,
+          maxPatientsPerSlot: Number(st.maxPatientsPerSlot) > 1 ? Number(st.maxPatientsPerSlot) : clinicBedCap,
           bufferMinutes: Number(st.bufferMinutes) || 30,
           price: Number(st.price) || 0,
           status: st.status || 'active'

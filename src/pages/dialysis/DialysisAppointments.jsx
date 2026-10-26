@@ -273,7 +273,7 @@ function buildSlotTemplates(raw) {
     dayOfMonth: null,
     startTime,
     endTime: endTime || '00:00',
-    maxPatientsPerSlot: 1,
+    maxPatientsPerSlot: Number(raw.clinic_capacity || raw.capacity || 0) || 1,
     bufferMinutes: 30,
     price: 0,
   }];
@@ -733,7 +733,7 @@ const DialysisAppointments = () => {
                   dayOfMonth: null,
                   startTime: firstSlot.start_time || firstSlot.startTime,
                   endTime: addMinutesToTime(firstSlot.start_time || firstSlot.startTime, Number(createForm.duration || 4) * 60),
-                  maxPatientsPerSlot: firstSlot.maxPatientsPerSlot || 1,
+                  maxPatientsPerSlot: Number(firstSlot.maxPatientsPerSlot) || Number(selectedClinicData?.capacity) || 1,
                   bufferMinutes: 30,
                   price: firstSlot.price || 0,
                   slot_id: firstSlot.id
@@ -989,22 +989,10 @@ const DialysisAppointments = () => {
 
   // ─── Stats ─────────────────────────────────────────────
   const total = filtered.length;
-  const pending = filtered.filter((a) => ['BOOKED', 'ARRIVED', 'SCHEDULED'].includes(a.status)).length;
-  const completed = filtered.filter((a) => a.status === 'COMPLETED').length;
-  const unpaidCount = filtered.filter((a) => {
-    let payStatus = String(a._raw?.payment_action || a._raw?.paymentAction || '').toUpperCase();
-    if (!payStatus || payStatus === 'UNDEFINED') {
-      payStatus = getPaymentStatus(a.totalAmount, a.amountPaid);
-    }
-    return payStatus !== 'PAID';
-  }).length;
-  const paidCount = filtered.filter((a) => {
-    let payStatus = String(a._raw?.payment_action || a._raw?.paymentAction || '').toUpperCase();
-    if (!payStatus || payStatus === 'UNDEFINED') {
-      payStatus = getPaymentStatus(a.totalAmount, a.amountPaid);
-    }
-    return payStatus === 'PAID';
-  }).length;
+  const pending = filtered.filter((a) => ['BOOKED', 'ARRIVED', 'SCHEDULED'].includes(String(a.status || '').toUpperCase())).length;
+  const completed = filtered.filter((a) => String(a.status || '').toUpperCase() === 'COMPLETED').length;
+  const cancelled = filtered.filter((a) => String(a.status || '').toUpperCase() === 'CANCELLED').length;
+  const missed = filtered.filter((a) => String(a.status || '').toUpperCase() === 'MISSED').length;
 
   // ─── Status update ────────────────────────────────────
   const handleStatusUpdate = useCallback(
@@ -1084,6 +1072,11 @@ const DialysisAppointments = () => {
   // ─── Simple cancel (no refund) ────────────────────────
   const handleSimpleCancel = useCallback(
     async (apt) => {
+      const status = String(apt.status || '').toUpperCase();
+      if (status === 'CANCELLED') {
+        showToast('This appointment is already cancelled', 'error');
+        return;
+      }
       const reason = window.prompt('Cancellation reason (required):');
       if (!reason || !reason.trim()) return;
       const result = await cancelAppointment(apt.id, {
@@ -1700,10 +1693,12 @@ const DialysisAppointments = () => {
             >
               Timeline
             </Button>
-            <ActionIconBtn
-              icon={DeleteIcon}
-              onClick={() => handleSimpleCancel(row)}
-            />
+            {String(row.status || '').toUpperCase() !== 'CANCELLED' && (
+              <ActionIconBtn
+                icon={DeleteIcon}
+                onClick={() => handleSimpleCancel(row)}
+              />
+            )}
           </div>
         );
       },
@@ -1811,16 +1806,14 @@ const DialysisAppointments = () => {
                 <span style={{ fontSize: '10px', color: '#15803d', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Completed</span>
                 <strong style={{ fontSize: '20px', color: '#16a34a', lineHeight: '1.2' }}>{completed}</strong>
               </div>
-              <div style={{ padding: '8px 16px', background: '#ecfdf5', borderRadius: '12px', border: '1px solid #a7f3d0', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(16,185,129,0.05)' }}>
-                <span style={{ fontSize: '10px', color: '#047857', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Paid</span>
-                <strong style={{ fontSize: '20px', color: '#10b981', lineHeight: '1.2' }}>{paidCount}</strong>
+              <div style={{ padding: '8px 16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <span style={{ fontSize: '10px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cancelled</span>
+                <strong style={{ fontSize: '20px', color: '#64748b', lineHeight: '1.2' }}>{cancelled}</strong>
               </div>
-              {unpaidCount > 0 && (
-                <div style={{ padding: '8px 16px', background: '#fef2f2', borderRadius: '12px', border: '1px solid #fee2e2', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(220,38,38,0.05)', animation: 'pulse 2s infinite' }}>
-                  <span style={{ fontSize: '10px', color: '#b91c1c', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unpaid</span>
-                  <strong style={{ fontSize: '20px', color: '#dc2626', lineHeight: '1.2' }}>{unpaidCount}</strong>
-                </div>
-              )}
+              <div style={{ padding: '8px 16px', background: '#fef2f2', borderRadius: '12px', border: '1px solid #fee2e2', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '85px', boxShadow: '0 2px 4px rgba(220,38,38,0.05)' }}>
+                <span style={{ fontSize: '10px', color: '#b91c1c', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Missed</span>
+                <strong style={{ fontSize: '20px', color: '#dc2626', lineHeight: '1.2' }}>{missed}</strong>
+              </div>
             </div>
           </div>
 
