@@ -23,21 +23,21 @@ import {
   listDtPatients,
   ensureDtPatientsFromM1Batch,
   createDtPatient,
-  updateDtPatientStatus,
+  discontinueDtPatient,
+  reactivateDtPatient,
+  anonymizeDtPatient,
 } from '../../ApiCalls/dtPatientApis';
 
-const ROSTER_STATUSES = ['Temp', 'Waitlist', 'Confirmed', 'Pending', 'Deceased', 'Cancelled'];
-const BOOKABLE_STATUSES = ['Temp', 'Waitlist', 'Confirmed', 'Pending'];
+const ROSTER_STATUSES = ['Waiting', 'Temp', 'Active', 'Discontinued'];
+const BOOKABLE_STATUSES = ['Waiting', 'Temp', 'Active'];
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 const LAB_OPTIONS = ['Pending', 'Positive', 'Negative'];
 
 const STATUS_COLORS = {
+  Waiting: { bg: '#DBEAFE', text: '#1E40AF' },
   Temp: { bg: '#FFEDD5', text: '#9A3412' },
-  Waitlist: { bg: '#DBEAFE', text: '#1E40AF' },
-  Confirmed: { bg: '#DCFCE7', text: '#166534' },
-  Pending: { bg: '#FEF9C3', text: '#854D0E' },
-  Deceased: { bg: '#F3F4F6', text: '#374151' },
-  Cancelled: { bg: '#FEE2E2', text: '#991B1B' },
+  Active: { bg: '#DCFCE7', text: '#166534' },
+  Discontinued: { bg: '#F3F4F6', text: '#374151' },
 };
 
 function todayIso() {
@@ -53,7 +53,6 @@ function emptyForm(orgId, clinicId) {
     age: '',
     organization_id: orgId || '',
     clinic_id: clinicId || '',
-    patient_status: '',
     is_infectious: false,
     hiv_status: 'Pending',
     hepatitis_status: 'Pending',
@@ -62,8 +61,11 @@ function emptyForm(orgId, clinicId) {
   };
 }
 
-function StatusBadge({ status }) {
+function StatusBadge({ status, reason }) {
   const colors = STATUS_COLORS[status] || { bg: '#F3F4F6', text: '#374151' };
+  const label = status === 'Discontinued' && reason
+    ? `Discontinued · ${reason === 'Left' ? 'Left' : reason}`
+    : (status || 'Waiting');
   return (
     <span
       style={{
@@ -78,7 +80,7 @@ function StatusBadge({ status }) {
         whiteSpace: 'nowrap',
       }}
     >
-      {status || 'Pending'}
+      {label}
     </span>
   );
 }
@@ -102,7 +104,11 @@ export default function DialysisPatientRoster() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [discontinueRow, setDiscontinueRow] = useState(null);
+  const [discontinueReason, setDiscontinueReason] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
 
   const setFormField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -167,6 +173,13 @@ export default function DialysisPatientRoster() {
   useEffect(() => {
     loadRoster();
   }, [loadRoster]);
+
+  useEffect(() => {
+    if (!openMenuId) return undefined;
+    const close = () => setOpenMenuId(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [openMenuId]);
 
   useEffect(() => {
     if (!selectedOrgId) {
@@ -245,7 +258,6 @@ export default function DialysisPatientRoster() {
       age: form.age === '' ? null : Number(form.age),
       organization_id: form.organization_id ? Number(form.organization_id) : null,
       clinic_id: form.clinic_id ? Number(form.clinic_id) : null,
-      patient_status: form.patient_status,
       is_infectious: form.is_infectious ? 1 : 0,
       hiv_status: form.hiv_status,
       hepatitis_status: form.hepatitis_status,
@@ -264,20 +276,55 @@ export default function DialysisPatientRoster() {
     await loadRoster();
   };
 
-  const handleStatusChange = useCallback(async (row, nextStatus) => {
-    if (!nextStatus || nextStatus === row.patient_status) return;
-    setUpdatingStatusId(row.id);
-    const result = await updateDtPatientStatus(row.id, nextStatus);
-    setUpdatingStatusId(null);
-    if (!result.success) {
-      setError(result.message || 'Could not update status');
+  const replaceRow = (updated) => {
+    if (!updated?.id) return;
+    setRows((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+  };
+
+  const handleAnonymize = async (row) => {
+    setOpenMenuId(null);
+    if (!window.confirm('Remove name, phone, email, and address for this patient? Appointments stay. This cannot be undone.')) {
       return;
     }
-    const updated = result.data || {};
-    setRows((prev) =>
-      prev.map((item) => (item.id === row.id ? { ...item, ...updated, patient_status: nextStatus } : item)),
-    );
-  }, []);
+    setActionBusy(true);
+    const result = await anonymizeDtPatient(row.id);
+    setActionBusy(false);
+    if (!result.success) {
+      setError(result.message || 'Could not delete personal data');
+      return;
+    }
+    replaceRow(result.data);
+  };
+
+  const handleReactivate = async (row) => {
+    setOpenMenuId(null);
+    setActionBusy(true);
+    const result = await reactivateDtPatient(row.id);
+    setActionBusy(false);
+    if (!result.success) {
+      setError(result.message || 'Could not reactivate patient');
+      return;
+    }
+    replaceRow(result.data);
+  };
+
+  const handleDiscontinue = async () => {
+    if (!discontinueRow || !discontinueReason) {
+      setActionError('Select a reason');
+      return;
+    }
+    setActionBusy(true);
+    setActionError('');
+    const result = await discontinueDtPatient(discontinueRow.id, discontinueReason);
+    setActionBusy(false);
+    if (!result.success) {
+      setActionError(result.message || 'Could not discontinue patient');
+      return;
+    }
+    replaceRow(result.data);
+    setDiscontinueRow(null);
+    setDiscontinueReason('');
+  };
 
   const columns = useMemo(
     () => [
@@ -287,10 +334,12 @@ export default function DialysisPatientRoster() {
         type: 'custom',
         render: (row) => (
           <div>
-            <div style={{ fontWeight: 700, color: '#0f172a' }}>{row.name || '—'}</div>
+            <div style={{ fontWeight: 700, color: '#0f172a' }}>
+              {row.anonymized ? 'Anonymized' : (row.name || '—')}
+            </div>
             <div style={{ fontSize: '12px', color: '#64748b' }}>
               DT #{row.id}
-              {row.m1_patient_id ? ` · M1 #${row.m1_patient_id}` : ' · DT only'}
+              {row.anonymized ? '' : (row.m1_patient_id ? ` · M1 #${row.m1_patient_id}` : ' · DT only')}
             </div>
           </div>
         ),
@@ -317,19 +366,7 @@ export default function DialysisPatientRoster() {
         label: 'STATUS',
         type: 'custom',
         render: (row) => (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '150px' }}>
-            <StatusBadge status={row.patient_status} />
-            <Select
-              size="sm"
-              value={row.patient_status || ''}
-              isDisabled={updatingStatusId === row.id}
-              onChange={(e) => handleStatusChange(row, e.target.value)}
-            >
-              {ROSTER_STATUSES.map((status) => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </Select>
-          </div>
+          <StatusBadge status={row.patient_status} reason={row.discontinue_reason} />
         ),
       },
       {
@@ -352,18 +389,76 @@ export default function DialysisPatientRoster() {
         key: 'actions',
         label: 'ACTIONS',
         type: 'custom',
-        render: (row) => (
-          BOOKABLE_STATUSES.includes(row.patient_status) ? (
-            <Button variant="brand" size="sm" onClick={() => goBook(row)}>
-              Book Appointment
-            </Button>
-          ) : (
-            <span style={{ fontSize: '12px', color: '#94a3b8' }}>Not bookable</span>
-          )
-        ),
+        render: (row) => {
+          if (row.anonymized) {
+            return <span style={{ fontSize: '12px', color: '#94a3b8' }}>No actions</span>;
+          }
+          const canBook = BOOKABLE_STATUSES.includes(row.patient_status);
+          const canReactivate = row.patient_status === 'Discontinued' && row.discontinue_reason === 'Left';
+          const canDiscontinue = row.patient_status !== 'Discontinued';
+          return (
+            <div style={{ position: 'relative', display: 'inline-block' }} onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenMenuId((id) => (id === row.id ? null : row.id))}
+                isDisabled={actionBusy}
+              >
+                Actions
+              </Button>
+              {openMenuId === row.id && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: '110%',
+                    zIndex: 30,
+                    minWidth: '180px',
+                    background: '#fff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.12)',
+                    padding: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}
+                >
+                  {canBook && (
+                    <Button variant="ghost" size="sm" onClick={() => { setOpenMenuId(null); goBook(row); }}>
+                      Book appointment
+                    </Button>
+                  )}
+                  {canReactivate && (
+                    <Button variant="ghost" size="sm" onClick={() => handleReactivate(row)}>
+                      Reactivate
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => handleAnonymize(row)}>
+                    Delete
+                  </Button>
+                  {canDiscontinue && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setOpenMenuId(null);
+                        setActionError('');
+                        setDiscontinueReason('');
+                        setDiscontinueRow(row);
+                      }}
+                    >
+                      Discontinued
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        },
       },
     ],
-    [orgNameById, clinicNameById, goBook, updatingStatusId, handleStatusChange],
+    [orgNameById, clinicNameById, goBook, openMenuId, actionBusy],
   );
 
   const gridCols = isMobile ? '1fr' : '1fr 1fr';
@@ -543,19 +638,6 @@ export default function DialysisPatientRoster() {
               />
               <FormErrorMessage>{fieldErrors.clinic_id}</FormErrorMessage>
             </FormControl>
-            <FormControl isRequired isInvalid={Boolean(fieldErrors.patient_status)}>
-              <FormLabel>Status</FormLabel>
-              <Select
-                value={form.patient_status}
-                onChange={(e) => setFormField('patient_status', e.target.value)}
-                placeholder="Select status"
-              >
-                {ROSTER_STATUSES.map((status) => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </Select>
-              <FormErrorMessage>{fieldErrors.patient_status}</FormErrorMessage>
-            </FormControl>
             <FormControl>
               <FormLabel>Registered date</FormLabel>
               <Input
@@ -604,6 +686,30 @@ export default function DialysisPatientRoster() {
               </Checkbox>
             </FormControl>
           </div>
+        </FormModal>
+
+        <FormModal
+          isOpen={Boolean(discontinueRow)}
+          onClose={() => { setDiscontinueRow(null); setDiscontinueReason(''); setActionError(''); }}
+          onSubmit={handleDiscontinue}
+          title="Discontinue patient"
+          submitText={actionBusy ? 'Saving…' : 'Discontinue'}
+          submitVariant="brand"
+          isLoading={actionBusy}
+          isSubmitDisabled={actionBusy || !discontinueReason}
+          errorMessage={actionError}
+        >
+          <FormControl isRequired>
+            <FormLabel>Reason</FormLabel>
+            <Select
+              value={discontinueReason}
+              onChange={(e) => setDiscontinueReason(e.target.value)}
+              placeholder="Select reason"
+            >
+              <option value="Death">Death</option>
+              <option value="Left">Left / cancelled with us</option>
+            </Select>
+          </FormControl>
         </FormModal>
       </Box>
     </ThemeProvider>

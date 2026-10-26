@@ -56,11 +56,37 @@ export async function createDtPatient(payload, config = {}) {
   }
 }
 
-export async function updateDtPatientStatus(patientId, patientStatus, config = {}) {
+export async function discontinueDtPatient(patientId, reason, config = {}) {
   try {
-    const response = await axiosInstance.patch(
-      `${server_url}/dt/patients/${patientId}/status`,
-      { patient_status: patientStatus },
+    const response = await axiosInstance.post(
+      `${server_url}/dt/patients/${patientId}/discontinue`,
+      { reason },
+      config,
+    );
+    return handleResponse(response);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function reactivateDtPatient(patientId, config = {}) {
+  try {
+    const response = await axiosInstance.post(
+      `${server_url}/dt/patients/${patientId}/reactivate`,
+      {},
+      config,
+    );
+    return handleResponse(response);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function anonymizeDtPatient(patientId, config = {}) {
+  try {
+    const response = await axiosInstance.post(
+      `${server_url}/dt/patients/${patientId}/anonymize`,
+      {},
       config,
     );
     return handleResponse(response);
