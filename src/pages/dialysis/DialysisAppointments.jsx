@@ -571,11 +571,6 @@ const DialysisAppointments = () => {
     loadData();
   }, []);
 
-  const handleBookFromDashboard = useCallback(() => {
-    setIsDashboardOpen(false);
-    showToast('Book an appointment from the Patients tab.', 'info');
-  }, [showToast]);
-
   // --- Fetch Clinic Services when clinic changes ---
   useEffect(() => {
     if (!createForm.clinic_id) {
@@ -1726,7 +1721,7 @@ const DialysisAppointments = () => {
                   size="sm"
                   style={{ borderRadius: '8px', fontWeight: 700, borderColor: '#3b82f6', color: '#1e40af' }}
                 >
-                  Booking Dashboard
+                  Scheduler
                 </Button>
               </Flex>
             }
@@ -2510,16 +2505,15 @@ const DialysisAppointments = () => {
           clinic={clinics?.find(c => String(c.id) === String(invoiceTarget?.clinic_id))}
         />
 
-        {/* Dashboard Modal */}
         <BaseModal
           isOpen={isDashboardOpen}
           onClose={() => setIsDashboardOpen(false)}
-          // title="Dialysis Booking Dashboard"
+          title="Scheduler"
           size="full"
         >
           <DialysisAppointmentsDashboard
-            clinicId={Number(selectedClinicId || 1)}
-            onSelectSlot={handleBookFromDashboard}
+            orgId={selectedOrgId}
+            clinicId={selectedClinicId}
             onSelectAppointment={handleOpenSession}
           />
         </BaseModal>
