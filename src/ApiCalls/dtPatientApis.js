@@ -56,6 +56,19 @@ export async function createDtPatient(payload, config = {}) {
   }
 }
 
+export async function updateDtPatient(patientId, payload, config = {}) {
+  try {
+    const response = await axiosInstance.put(
+      `${server_url}/dt/patients/${patientId}`,
+      payload,
+      config,
+    );
+    return handleResponse(response);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 export async function discontinueDtPatient(patientId, reason, config = {}) {
   try {
     const response = await axiosInstance.post(

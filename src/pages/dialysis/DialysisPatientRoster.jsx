@@ -20,10 +20,12 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { ROUTES } from '../../routes/routeConstants';
 import { getClinics, getOrganizations } from '../../ApiCalls/clinicApis';
 import DeleteIcon from '../../assets/Delete.svg';
+import EditIcon from '../../assets/Edit.svg';
 import {
   listDtPatients,
   ensureDtPatientsFromM1Batch,
   createDtPatient,
+  updateDtPatient,
   discontinueDtPatient,
   reactivateDtPatient,
   anonymizeDtPatient,
@@ -60,6 +62,34 @@ function emptyForm(orgId, clinicId) {
     primary_diagnosis: '',
     registered_date: todayIso(),
   };
+}
+
+function formFromRow(row) {
+  return {
+    name: row.name || '',
+    phone_no: row.phone_no || '',
+    gender: row.gender || '',
+    age: row.age == null ? '' : row.age,
+    organization_id: row.organization_id ? String(row.organization_id) : '',
+    clinic_id: row.clinic_id ? String(row.clinic_id) : '',
+    is_infectious: Number(row.is_infectious) === 1,
+    hiv_status: row.hiv_status || 'Pending',
+    hepatitis_status: row.hepatitis_status || 'Pending',
+    primary_diagnosis: row.primary_diagnosis || '',
+    registered_date: String(row.registered_date || todayIso()).slice(0, 10),
+  };
+}
+
+function HandStopIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="10.5" fill="#FEE2E2" stroke="#B91C1C" strokeWidth="1.6" />
+      <path
+        fill="#B91C1C"
+        d="M8.15 13.15V10.2a.95.95 0 0 1 1.9 0v2.35h.2V8.15a.95.95 0 1 1 1.9 0v4.4h.18V7.45a.95.95 0 1 1 1.9 0v5.1h.18V8.7a.95.95 0 1 1 1.9 0v5.55c0 2.1-1.5 3.75-3.8 3.75h-.7c-1.9 0-3.5-1.1-4.1-2.8l-.9-2.45a.95.95 0 0 1 1.74-.65l.4 1.05z"
+      />
+    </svg>
+  );
 }
 
 function ActionIconBtn({ title, onClick, disabled, children, src }) {
@@ -128,6 +158,7 @@ export default function DialysisPatientRoster() {
   const [selectedOrgId, setSelectedOrgId] = useState(storedOrgId);
   const [selectedClinicId, setSelectedClinicId] = useState(storedClinicId);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(() => emptyForm(storedOrgId, storedClinicId));
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState('');
@@ -262,37 +293,51 @@ export default function DialysisPatientRoster() {
   }, [navigate]);
 
   const openAdd = () => {
+    setEditingId(null);
     setForm(emptyForm(selectedOrgId || storedOrgId, selectedClinicId || storedClinicId));
     setFieldErrors({});
     setFormError('');
     setIsAddOpen(true);
   };
 
-  const handleCreate = async () => {
+  const openEdit = (row) => {
+    setEditingId(row.id);
+    setForm(formFromRow(row));
+    setFieldErrors({});
+    setFormError('');
+    setIsAddOpen(true);
+  };
+
+  const formPayload = () => ({
+    name: form.name,
+    phone_no: form.phone_no,
+    gender: form.gender,
+    age: form.age === '' ? null : Number(form.age),
+    organization_id: form.organization_id ? Number(form.organization_id) : null,
+    clinic_id: form.clinic_id ? Number(form.clinic_id) : null,
+    is_infectious: form.is_infectious ? 1 : 0,
+    hiv_status: form.hiv_status,
+    hepatitis_status: form.hepatitis_status,
+    primary_diagnosis: form.primary_diagnosis,
+    registered_date: form.registered_date,
+  });
+
+  const handleSavePatient = async () => {
     setSubmitting(true);
     setFormError('');
-    const result = await createDtPatient({
-      name: form.name,
-      phone_no: form.phone_no,
-      gender: form.gender,
-      age: form.age === '' ? null : Number(form.age),
-      organization_id: form.organization_id ? Number(form.organization_id) : null,
-      clinic_id: form.clinic_id ? Number(form.clinic_id) : null,
-      is_infectious: form.is_infectious ? 1 : 0,
-      hiv_status: form.hiv_status,
-      hepatitis_status: form.hepatitis_status,
-      primary_diagnosis: form.primary_diagnosis,
-      registered_date: form.registered_date,
-    });
+    const result = editingId
+      ? await updateDtPatient(editingId, formPayload())
+      : await createDtPatient(formPayload());
     setSubmitting(false);
     if (!result.success) {
-      setFormError(result.message || 'Could not add patient');
+      setFormError(result.message || (editingId ? 'Could not update patient' : 'Could not add patient'));
       if (result.details && typeof result.details === 'object') {
         setFieldErrors(result.details);
       }
       return;
     }
     setIsAddOpen(false);
+    setEditingId(null);
     await loadRoster();
   };
 
@@ -411,27 +456,11 @@ export default function DialysisPatientRoster() {
           if (row.anonymized) {
             return <span style={{ fontSize: '12px', color: '#94a3b8' }}>—</span>;
           }
-          const canBook = BOOKABLE_STATUSES.includes(row.patient_status);
           const canReactivate = row.patient_status === 'Discontinued' && row.discontinue_reason === 'Left';
           const canDiscontinue = row.patient_status !== 'Discontinued';
           return (
             <div style={{ display: 'flex', gap: '2px', alignItems: 'center', whiteSpace: 'nowrap' }}>
-              {canBook && (
-                <ActionIconBtn title="Book appointment" disabled={actionBusy} onClick={() => goBook(row)}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                    <path d="M16 2v4M8 2v4M3 10h18" />
-                  </svg>
-                </ActionIconBtn>
-              )}
-              {canReactivate && (
-                <ActionIconBtn title="Reactivate" disabled={actionBusy} onClick={() => handleReactivate(row)}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 12a9 9 0 1 0 3-6.7" />
-                    <path d="M3 4v5h5" />
-                  </svg>
-                </ActionIconBtn>
-              )}
+              <ActionIconBtn title="Edit" disabled={actionBusy} src={EditIcon} onClick={() => openEdit(row)} />
               <ActionIconBtn title="Delete" disabled={actionBusy} src={DeleteIcon} onClick={() => handleAnonymize(row)} />
               {canDiscontinue && (
                 <ActionIconBtn
@@ -443,15 +472,54 @@ export default function DialysisPatientRoster() {
                     setDiscontinueRow(row);
                   }}
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B91C1C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M8 12h8" />
+                  <HandStopIcon />
+                </ActionIconBtn>
+              )}
+              {canReactivate && (
+                <ActionIconBtn title="Reactivate" disabled={actionBusy} onClick={() => handleReactivate(row)}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 12a9 9 0 1 0 3-6.7" />
+                    <path d="M3 4v5h5" />
                   </svg>
                 </ActionIconBtn>
               )}
             </div>
           );
         },
+      },
+      {
+        key: 'book',
+        label: 'BOOK APPOINTMENT',
+        type: 'custom',
+        render: (row) => (
+          BOOKABLE_STATUSES.includes(row.patient_status) && !row.anonymized ? (
+            <Button variant="brand" size="sm" onClick={() => goBook(row)}>
+              Book Appointment
+            </Button>
+          ) : (
+            <span style={{ fontSize: '12px', color: '#94a3b8' }}>—</span>
+          )
+        ),
+      },
+      {
+        key: 'lab_report',
+        label: 'LAB REPORT',
+        type: 'custom',
+        render: () => (
+          <button type="button" onClick={() => {}} style={{ background: 'none', border: 'none', padding: 0, color: '#94a3b8', fontSize: '12px', fontWeight: 600, cursor: 'default' }}>
+            —
+          </button>
+        ),
+      },
+      {
+        key: 'prescription',
+        label: 'PRESCRIPTION',
+        type: 'custom',
+        render: () => (
+          <button type="button" onClick={() => {}} style={{ background: 'none', border: 'none', padding: 0, color: '#94a3b8', fontSize: '12px', fontWeight: 600, cursor: 'default' }}>
+            —
+          </button>
+        ),
       },
     ],
     [orgNameById, clinicNameById, goBook, actionBusy],
@@ -551,10 +619,10 @@ export default function DialysisPatientRoster() {
 
         <FormModal
           isOpen={isAddOpen}
-          onClose={() => setIsAddOpen(false)}
-          onSubmit={handleCreate}
-          title="Add Patient"
-          submitText={submitting ? 'Saving…' : 'Save Patient'}
+          onClose={() => { setIsAddOpen(false); setEditingId(null); }}
+          onSubmit={handleSavePatient}
+          title={editingId ? 'Edit Patient' : 'Add Patient'}
+          submitText={submitting ? 'Saving…' : (editingId ? 'Save Changes' : 'Save Patient')}
           submitVariant="brand"
           isLoading={submitting}
           isSubmitDisabled={submitting}
