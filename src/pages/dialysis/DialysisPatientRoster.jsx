@@ -82,23 +82,21 @@ function formFromRow(row) {
 
 function HandStopIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="#E11D48" d="M8 2h8l6 6v8l-6 6H8l-6-6V8z" />
-      <path
-        fill="none"
-        stroke="#fff"
-        strokeWidth="1.45"
-        strokeLinejoin="miter"
-        d="M8.4 3.5h7.2L20.5 8.4v7.2L15.6 20.5H8.4L3.5 15.6V8.4z"
-      />
-      <g fill="#fff">
-        <rect x="8.85" y="6.2" width="1.7" height="5.7" rx="0.85" />
-        <rect x="11.05" y="5.4" width="1.75" height="6.5" rx="0.87" />
-        <rect x="13.25" y="5.75" width="1.7" height="6.15" rx="0.85" />
-        <rect x="15.4" y="6.6" width="1.55" height="5.3" rx="0.77" />
-        <rect x="6.2" y="9.4" width="3.25" height="1.7" rx="0.85" transform="rotate(-28 7.8 10.25)" />
-        <path d="M8.5 11.2h8.2a.7.7 0 0 1 .7.7v2.4c0 1.85-1.45 3.25-3.55 3.25h-2.4c-1.95 0-3.65-1.25-3.65-3.2v-3.15z" />
-      </g>
+    <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+      <polygon fill="#E11D48" points="12,1.2 21.7,6.6 21.7,17.4 12,22.8 2.3,17.4 2.3,6.6" />
+      <text
+        x="12"
+        y="13.15"
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill="#fff"
+        fontSize="5.8"
+        fontWeight="800"
+        fontFamily="Arial, Helvetica, sans-serif"
+        letterSpacing="0.35"
+      >
+        STOP
+      </text>
     </svg>
   );
 }
