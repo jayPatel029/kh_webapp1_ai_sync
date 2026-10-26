@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Box, Flex, Heading, Input, Text } from '../../../component-library';
 import { getOrganizations, getClinics, getAvailableSlots } from '../../../ApiCalls/clinicApis';
 
-const MAX_DAYS = 7;
+const MAX_DAYS = 31;
 const INACTIVE_STATUSES = new Set(['CANCELLED', 'MISSED']);
 
 const STATUS_STYLE = {
@@ -238,19 +238,14 @@ const DialysisAppointmentsDashboard = ({
   }, [instances, appointments]);
 
   const handleFromChange = useCallback((value) => {
+    if (!value) return;
     setFromDate(value);
-    const nextEnd = toDate < value ? addDays(value, 6) : toDate;
-    const span = daysInclusive(value, nextEnd);
-    setToDate(span.length ? toYmd(span[span.length - 1]) : value);
+    if (!toDate || toDate < value) setToDate(value);
   }, [toDate]);
 
   const handleToChange = useCallback((value) => {
-    if (value < fromDate) {
-      setToDate(fromDate);
-      return;
-    }
-    const span = daysInclusive(fromDate, value);
-    setToDate(span.length ? toYmd(span[span.length - 1]) : fromDate);
+    if (!value) return;
+    setToDate(value < fromDate ? fromDate : value);
   }, [fromDate]);
 
   const handleOrgChange = useCallback((value) => {
@@ -375,33 +370,43 @@ const DialysisAppointmentsDashboard = ({
                         const date = toYmd(day);
                         const cell = grid.cells[`${date}|${timeKey}`];
                         const patients = (cell?.patients || []).filter((p) => !INACTIVE_STATUSES.has(p.status));
-                        const inactive = (cell?.patients || []).filter((p) => INACTIVE_STATUSES.has(p.status));
                         const remaining = cell ? cell.remaining : null;
                         const capacity = cell?.capacity || 0;
+                        const bookedCount = patients.length;
                         const isFull = capacity > 0 && remaining === 0;
+                        const hasBookings = bookedCount > 0;
                         return (
-                          <td key={`${date}|${timeKey}`} style={{ padding: 10, borderBottom: '1px solid #F1F5F9', borderLeft: '1px solid #F1F5F9', verticalAlign: 'top' }}>
+                          <td key={`${date}|${timeKey}`} style={{ padding: 8, borderBottom: '1px solid #F1F5F9', borderLeft: '1px solid #F1F5F9', verticalAlign: 'top' }}>
                             {!cell ? (
-                              <div style={{ color: '#CBD5E1', fontSize: 12, textAlign: 'center', padding: 12 }}>—</div>
+                              <div style={{ color: '#E2E8F0', fontSize: 12, textAlign: 'center', padding: 16 }}>—</div>
                             ) : (
                               <div style={{
-                                border: `1px solid ${isFull ? '#FECACA' : '#DBEAFE'}`,
-                                background: isFull ? '#FEF2F2' : '#F8FBFF',
+                                border: hasBookings
+                                  ? '1px solid #93C5FD'
+                                  : isFull
+                                    ? '1px solid #FECACA'
+                                    : '1px solid #EDF2F7',
+                                background: hasBookings ? '#FFFFFF' : isFull ? '#FEF2F2' : '#F8FAFC',
+                                boxShadow: hasBookings ? '0 0 0 2px #DBEAFE' : 'none',
                                 borderRadius: 10,
-                                padding: 10,
-                                minHeight: 88,
+                                padding: hasBookings ? 10 : 8,
+                                minHeight: 72,
+                                opacity: hasBookings || isFull ? 1 : 0.55,
                               }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-                                  <span style={{ fontSize: 11, fontWeight: 800, color: isFull ? '#B91C1C' : '#1D4ED8', textTransform: 'uppercase' }}>
-                                    {isFull ? 'Full' : 'Open'}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: hasBookings ? 8 : 0 }}>
+                                  <span style={{
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    color: isFull ? '#B91C1C' : hasBookings ? '#1D4ED8' : '#94A3B8',
+                                    textTransform: 'uppercase',
+                                  }}>
+                                    {isFull ? 'Full' : hasBookings ? `${bookedCount} booked` : 'Empty'}
                                   </span>
-                                  <span style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: hasBookings ? '#0F172A' : '#94A3B8' }}>
                                     {remaining}/{capacity}
                                   </span>
                                 </div>
-                                {patients.length === 0 && inactive.length === 0 ? (
-                                  <div style={{ fontSize: 12, color: '#64748B' }}>No bookings</div>
-                                ) : (
+                                {hasBookings && (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                     {patients.slice(0, 4).map((patient) => {
                                       const tone = statusStyle(patient.status);
@@ -446,8 +451,9 @@ const DialysisAppointmentsDashboard = ({
       </Box>
 
       <Flex align="center" style={{ gap: 16, padding: '0 4px' }}>
-        <Text style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>Open = remaining beds for that session</Text>
-        <Text style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>Full = no beds left</Text>
+        <Text style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8' }}>Empty = no patients</Text>
+        <Text style={{ fontSize: 11, fontWeight: 700, color: '#1D4ED8' }}>Highlighted = has bookings</Text>
+        <Text style={{ fontSize: 11, fontWeight: 700, color: '#B91C1C' }}>Full = no beds left</Text>
         <Text style={{ fontSize: 11, color: '#94A3B8', marginLeft: 'auto' }}>
           {dayList.length} day{dayList.length === 1 ? '' : 's'}
         </Text>
