@@ -852,39 +852,21 @@ const DialysisAppointments = () => {
     setLoading(true);
     setError(null);
     try {
-      let result;
-      if (selectedClinicId) {
-        result = await getClinicAppointments(selectedClinicId);
-      } else {
-        result = await getAppointments({
-          from: `${fromDate}T00:00:00Z`,
-          to: `${toDate}T23:59:59Z`,
-          orgid: selectedOrgId || undefined,
-        });
-      }
+      const result = await getAppointments({
+        from: fromDate,
+        to: toDate,
+        clinicId: selectedClinicId || undefined,
+        orgId: selectedOrgId || undefined,
+        limit: 500,
+      });
 
       if (result.success) {
-        let rows = Array.isArray(result.data?.data)
+        const rows = Array.isArray(result.data?.data)
           ? result.data.data
           : Array.isArray(result.data)
             ? result.data
             : [];
-            
-        // Filter by date for getClinicAppointments which returns all appointments
-        if (selectedClinicId && fromDate && toDate) {
-          const fromTime = new Date(`${fromDate}T00:00:00`).getTime();
-          const toTime = new Date(`${toDate}T23:59:59`).getTime();
-          
-          rows = rows.filter(apt => {
-            const dateStr = apt.appointment_date || apt._raw?.appointment_date || apt.startUTC?.split('T')[0] || apt._raw?.startUTC?.split('T')[0];
-            if (!dateStr) return true; // Keep if we can't determine the date
-            
-            const aptTime = new Date(`${dateStr}T00:00:00`).getTime();
-            return aptTime >= fromTime && aptTime <= toTime;
-          });
-        }
-
-        setAppointments(rows.map(apt => normalizeAppointment(apt, patients)));
+        setAppointments(rows.map((apt) => normalizeAppointment(apt, patients)));
       } else {
         const msg = result.data?.message || 'Failed to load appointments';
         setError(msg);
