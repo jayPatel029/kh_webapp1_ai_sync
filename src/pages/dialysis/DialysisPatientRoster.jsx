@@ -83,20 +83,25 @@ function formFromRow(row) {
 function HandStopIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
-      <polygon fill="#E11D48" points="12,1.2 21.7,6.6 21.7,17.4 12,22.8 2.3,17.4 2.3,6.6" />
-      <text
-        x="12"
-        y="13.15"
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill="#fff"
-        fontSize="5.8"
-        fontWeight="800"
-        fontFamily="Arial, Helvetica, sans-serif"
-        letterSpacing="0.35"
-      >
-        STOP
-      </text>
+      <circle cx="12" cy="12" r="11" fill="#fff" />
+      <circle cx="12" cy="12" r="10.2" fill="none" stroke="#E11D48" strokeWidth="2.4" />
+      <g fill="#111">
+        <rect x="9.05" y="5.55" width="1.55" height="6.1" rx="0.77" />
+        <rect x="11.1" y="4.85" width="1.65" height="6.8" rx="0.82" />
+        <rect x="13.2" y="5.2" width="1.55" height="6.45" rx="0.77" />
+        <rect x="15.2" y="5.95" width="1.45" height="5.7" rx="0.72" />
+        <rect x="6.35" y="9.05" width="3.35" height="1.6" rx="0.8" transform="rotate(-32 8.05 9.85)" />
+        <path d="M8.35 10.85h8.05c.5 0 .9.4.9.9v2.55c0 1.95-1.5 3.4-3.65 3.4h-2.5c-2.05 0-3.7-1.3-3.7-3.35v-3.5z" />
+      </g>
+      <line
+        x1="5.2"
+        y1="5.2"
+        x2="18.8"
+        y2="18.8"
+        stroke="#E11D48"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
