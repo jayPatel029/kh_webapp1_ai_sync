@@ -2514,7 +2514,8 @@ const DialysisAppointments = () => {
           <DialysisAppointmentsDashboard
             orgId={selectedOrgId}
             clinicId={selectedClinicId}
-            onSelectAppointment={handleOpenSession}
+            // NOTE: tapping a patient name must not open pre/during/post dialysis session details yet.
+            // onSelectAppointment={handleOpenSession}
           />
         </BaseModal>
 

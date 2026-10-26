@@ -411,12 +411,11 @@ const DialysisAppointmentsDashboard = ({
                                     {patients.slice(0, 4).map((patient) => {
                                       const tone = statusStyle(patient.status);
                                       return (
-                                        <button
+                                        // NOTE: do not open dialysis session details (pre/during/post) when a name is tapped.
+                                        // onClick={() => onSelectAppointment?.(patient.raw)}
+                                        <div
                                           key={patient.id}
-                                          type="button"
-                                          onClick={() => onSelectAppointment?.(patient.raw)}
                                           style={{
-                                            border: 'none',
                                             background: tone.bg,
                                             color: tone.color,
                                             borderRadius: 6,
@@ -424,11 +423,11 @@ const DialysisAppointmentsDashboard = ({
                                             fontSize: 11,
                                             fontWeight: 700,
                                             textAlign: 'left',
-                                            cursor: onSelectAppointment ? 'pointer' : 'default',
+                                            cursor: 'default',
                                           }}
                                         >
                                           {patient.name}
-                                        </button>
+                                        </div>
                                       );
                                     })}
                                     {patients.length > 4 && (
