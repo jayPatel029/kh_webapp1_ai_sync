@@ -43,6 +43,32 @@ export async function listDtPatients(config = {}) {
   }
 }
 
+export async function createDtPatient(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(
+      `${server_url}/dt/patients`,
+      payload,
+      config,
+    );
+    return handleResponse(response);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function updateDtPatientStatus(patientId, patientStatus, config = {}) {
+  try {
+    const response = await axiosInstance.patch(
+      `${server_url}/dt/patients/${patientId}/status`,
+      { patient_status: patientStatus },
+      config,
+    );
+    return handleResponse(response);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
 export async function ensureDtPatientFromM1(m1PatientId, extras = {}, config = {}) {
   try {
     const response = await axiosInstance.post(
