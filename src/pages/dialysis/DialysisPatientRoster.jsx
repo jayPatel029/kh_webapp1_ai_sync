@@ -82,12 +82,23 @@ function formFromRow(row) {
 
 function HandStopIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="10.5" fill="#FEE2E2" stroke="#B91C1C" strokeWidth="1.6" />
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#E11D48" d="M8 2h8l6 6v8l-6 6H8l-6-6V8z" />
       <path
-        fill="#B91C1C"
-        d="M8.15 13.15V10.2a.95.95 0 0 1 1.9 0v2.35h.2V8.15a.95.95 0 1 1 1.9 0v4.4h.18V7.45a.95.95 0 1 1 1.9 0v5.1h.18V8.7a.95.95 0 1 1 1.9 0v5.55c0 2.1-1.5 3.75-3.8 3.75h-.7c-1.9 0-3.5-1.1-4.1-2.8l-.9-2.45a.95.95 0 0 1 1.74-.65l.4 1.05z"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="1.45"
+        strokeLinejoin="miter"
+        d="M8.4 3.5h7.2L20.5 8.4v7.2L15.6 20.5H8.4L3.5 15.6V8.4z"
       />
+      <g fill="#fff">
+        <rect x="8.85" y="6.2" width="1.7" height="5.7" rx="0.85" />
+        <rect x="11.05" y="5.4" width="1.75" height="6.5" rx="0.87" />
+        <rect x="13.25" y="5.75" width="1.7" height="6.15" rx="0.85" />
+        <rect x="15.4" y="6.6" width="1.55" height="5.3" rx="0.77" />
+        <rect x="6.2" y="9.4" width="3.25" height="1.7" rx="0.85" transform="rotate(-28 7.8 10.25)" />
+        <path d="M8.5 11.2h8.2a.7.7 0 0 1 .7.7v2.4c0 1.85-1.45 3.25-3.55 3.25h-2.4c-1.95 0-3.65-1.25-3.65-3.2v-3.15z" />
+      </g>
     </svg>
   );
 }
@@ -101,8 +112,8 @@ function ActionIconBtn({ title, onClick, disabled, children, src }) {
       onClick={onClick}
       disabled={disabled}
       style={{
-        width: '32px',
-        height: '32px',
+        width: '36px',
+        height: '36px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -114,7 +125,7 @@ function ActionIconBtn({ title, onClick, disabled, children, src }) {
         padding: 0,
       }}
     >
-      {src ? <img src={src} alt="" style={{ width: '18px', height: '18px' }} /> : children}
+      {src ? <img src={src} alt="" style={{ width: '22px', height: '22px' }} /> : children}
     </button>
   );
 }
@@ -511,7 +522,7 @@ export default function DialysisPatientRoster() {
               )}
               {canReactivate && (
                 <ActionIconBtn title="Reactivate" disabled={actionBusy} onClick={() => handleReactivate(row)}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#15803D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 12a9 9 0 1 0 3-6.7" />
                     <path d="M3 4v5h5" />
                   </svg>
