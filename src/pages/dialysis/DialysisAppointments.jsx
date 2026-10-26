@@ -1790,7 +1790,7 @@ const DialysisAppointments = () => {
                 onClick={() => setIsDashboardOpen(true)}
                 leftIcon={<span>📅</span>}
               >
-                Dashboard
+                Scheduler
               </Button>
             </div>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
