@@ -449,6 +449,40 @@ export default function DialysisPatientRoster() {
         ),
       },
       {
+        key: 'book',
+        label: 'BOOK APPOINTMENT',
+        type: 'custom',
+        render: (row) => (
+          BOOKABLE_STATUSES.includes(row.patient_status) && !row.anonymized ? (
+            <Button variant="brand" size="sm" onClick={() => goBook(row)}>
+              Book Appointment
+            </Button>
+          ) : (
+            <span style={{ fontSize: '12px', color: '#94a3b8' }}>—</span>
+          )
+        ),
+      },
+      {
+        key: 'lab_report',
+        label: 'LAB REPORT',
+        type: 'custom',
+        render: () => (
+          <button type="button" onClick={() => {}} style={{ background: 'none', border: 'none', padding: 0, color: '#94a3b8', fontSize: '12px', fontWeight: 600, cursor: 'default' }}>
+            —
+          </button>
+        ),
+      },
+      {
+        key: 'prescription',
+        label: 'PRESCRIPTION',
+        type: 'custom',
+        render: () => (
+          <button type="button" onClick={() => {}} style={{ background: 'none', border: 'none', padding: 0, color: '#94a3b8', fontSize: '12px', fontWeight: 600, cursor: 'default' }}>
+            —
+          </button>
+        ),
+      },
+      {
         key: 'actions',
         label: 'ACTIONS',
         type: 'custom',
@@ -486,40 +520,6 @@ export default function DialysisPatientRoster() {
             </div>
           );
         },
-      },
-      {
-        key: 'book',
-        label: 'BOOK APPOINTMENT',
-        type: 'custom',
-        render: (row) => (
-          BOOKABLE_STATUSES.includes(row.patient_status) && !row.anonymized ? (
-            <Button variant="brand" size="sm" onClick={() => goBook(row)}>
-              Book Appointment
-            </Button>
-          ) : (
-            <span style={{ fontSize: '12px', color: '#94a3b8' }}>—</span>
-          )
-        ),
-      },
-      {
-        key: 'lab_report',
-        label: 'LAB REPORT',
-        type: 'custom',
-        render: () => (
-          <button type="button" onClick={() => {}} style={{ background: 'none', border: 'none', padding: 0, color: '#94a3b8', fontSize: '12px', fontWeight: 600, cursor: 'default' }}>
-            —
-          </button>
-        ),
-      },
-      {
-        key: 'prescription',
-        label: 'PRESCRIPTION',
-        type: 'custom',
-        render: () => (
-          <button type="button" onClick={() => {}} style={{ background: 'none', border: 'none', padding: 0, color: '#94a3b8', fontSize: '12px', fontWeight: 600, cursor: 'default' }}>
-            —
-          </button>
-        ),
       },
     ],
     [orgNameById, clinicNameById, goBook, actionBusy],
