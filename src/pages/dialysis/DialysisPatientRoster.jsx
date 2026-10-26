@@ -83,24 +83,23 @@ function formFromRow(row) {
 function HandStopIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="11" fill="#fff" />
-      <circle cx="12" cy="12" r="10.2" fill="none" stroke="#E11D48" strokeWidth="2.4" />
-      <g fill="#111">
-        <rect x="9.05" y="5.55" width="1.55" height="6.1" rx="0.77" />
-        <rect x="11.1" y="4.85" width="1.65" height="6.8" rx="0.82" />
-        <rect x="13.2" y="5.2" width="1.55" height="6.45" rx="0.77" />
-        <rect x="15.2" y="5.95" width="1.45" height="5.7" rx="0.72" />
-        <rect x="6.35" y="9.05" width="3.35" height="1.6" rx="0.8" transform="rotate(-32 8.05 9.85)" />
-        <path d="M8.35 10.85h8.05c.5 0 .9.4.9.9v2.55c0 1.95-1.5 3.4-3.65 3.4h-2.5c-2.05 0-3.7-1.3-3.7-3.35v-3.5z" />
-      </g>
-      <line
-        x1="5.2"
-        y1="5.2"
-        x2="18.8"
-        y2="18.8"
-        stroke="#E11D48"
-        strokeWidth="2.4"
+      <rect
+        x="1.2"
+        y="1.2"
+        width="21.6"
+        height="21.6"
+        rx="3.5"
+        fill="#E6E6E6"
+        stroke="#9F1239"
+        strokeWidth="1.7"
+      />
+      <path
+        fill="none"
+        stroke="#9F1239"
+        strokeWidth="1.35"
         strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M7.05 12.85V7.85a1.05 1.05 0 0 1 2.1 0v4.55M9.55 12.4V6.5a1.1 1.1 0 0 1 2.2 0v5.9M12.15 12.4V6a1.1 1.1 0 0 1 2.2 0v6.4M14.75 12.5V7.15a1.05 1.05 0 0 1 2.1 0v5.7c.55-.35 1.55-.25 2.05.7.55 1.05.1 2.3-1.15 2.65M6.95 12.85c-.55.1-.95.7-.95 1.85 0 3.15 2.35 5.55 5.95 5.55 3.4 0 5.85-2.2 6.05-5.15"
       />
     </svg>
   );
