@@ -619,13 +619,13 @@ export default function DialysisPatientRoster() {
                     placeholder="Search patient"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ height: TOOLBAR_CONTROL_H, width: '220px', margin: 0 }}
+                    style={{ height: TOOLBAR_CONTROL_H, width: '220px', margin: 0, borderRadius: '9999px', paddingLeft: '16px', paddingRight: '16px' }}
                   />
                   <Button
                     variant="brand"
                     size="md"
                     onClick={openAdd}
-                    style={{ height: TOOLBAR_CONTROL_H, margin: 0, padding: '0 16px', whiteSpace: 'nowrap' }}
+                    style={{ height: TOOLBAR_CONTROL_H, margin: 0, padding: '0 18px', whiteSpace: 'nowrap', borderRadius: '9999px' }}
                   >
                     Add Patient
                   </Button>
@@ -678,6 +678,9 @@ export default function DialysisPatientRoster() {
                       flex: '1 1 100%',
                       minWidth: '100%',
                       boxSizing: 'border-box',
+                      borderRadius: '9999px',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
                     }}
                   />
                 )}
@@ -732,6 +735,7 @@ export default function DialysisPatientRoster() {
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
                     width: '100%',
+                    borderRadius: '9999px',
                   }}
                 >
                   Add Patient
