@@ -69,6 +69,7 @@ const UnifiedListTable = ({
     mobileCardRender, // optional custom card render fn(row, columns, renderCell)
     rowProps, // optional fn(row) => object of props to spread on <tr>
     className = '',
+    onRowsPerPageChange = null,
 }) => {
     const { isMobile } = useIsMobile();
     const [currentPage, setCurrentPage] = useState(1);
@@ -505,8 +506,10 @@ const UnifiedListTable = ({
                             className="list-table__rows-per-page-select"
                             value={rowsPerPage}
                             onChange={(e) => {
-                                setRowsPerPage(Number(e.target.value));
+                                const next = Number(e.target.value);
+                                setRowsPerPage(next);
                                 setCurrentPage(1);
+                                onRowsPerPageChange?.(next);
                             }}
                         >
                             {rowsPerPageOptions.map((option) => (

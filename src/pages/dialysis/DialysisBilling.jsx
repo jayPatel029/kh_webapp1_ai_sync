@@ -29,12 +29,6 @@ function localIsoDate(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
-function daysAgoIso(days) {
-  const date = new Date();
-  date.setDate(date.getDate() - Number(days || 0));
-  return localIsoDate(date);
-}
-
 function toIsoDate(value) {
   if (!value) return '';
   const raw = String(value).trim();
@@ -142,8 +136,9 @@ const DialysisBilling = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [invoiceTarget, setInvoiceTarget] = useState(null);
   const [paymentFilter, setPaymentFilter] = useState('ALL');
-  const [fromDate, setFromDate] = useState(() => daysAgoIso(15));
-  const [toDate, setToDate] = useState(() => localIsoDate());
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const fetchBills = useCallback(async () => {
     setLoading(true);
@@ -152,8 +147,7 @@ const DialysisBilling = () => {
       const result = await getAppointments({
         clinicId: selectedClinicId || undefined,
         orgId: selectedOrgId || undefined,
-        from: fromDate || undefined,
-        to: toDate || undefined,
+        limit: 500,
       });
       if (result.success) {
         const list = Array.isArray(result.data?.data)
@@ -174,7 +168,7 @@ const DialysisBilling = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedClinicId, selectedOrgId, fromDate, toDate, patients, showToast]);
+  }, [selectedClinicId, selectedOrgId, patients, showToast]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -245,8 +239,7 @@ const DialysisBilling = () => {
     return ps;
   };
 
-  const filteredBills = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+  const scopedBills = useMemo(() => {
     return bills.filter((b) => {
       if (selectedOrgId) {
         const clinic = clinics.find((c) => String(c.id) === String(b.clinic_id || b.clinicId));
@@ -256,23 +249,44 @@ const DialysisBilling = () => {
       if (selectedClinicId && String(b.clinic_id || b.clinicId || '') !== String(selectedClinicId)) {
         return false;
       }
+      if (paymentFilter !== 'ALL') {
+        const ps = getDerivedPayStatus(b);
+        if (paymentFilter === 'PAID' && ps !== 'PAID') return false;
+        if (paymentFilter === 'PENDING' && !(ps === 'UNPAID' || ps === 'PENDING' || ps === 'PARTIAL')) return false;
+      }
+      return true;
+    });
+  }, [bills, selectedOrgId, selectedClinicId, paymentFilter, clinics]);
+
+  useEffect(() => {
+    const dated = [...scopedBills]
+      .filter((b) => b.appointment_date_iso)
+      .sort((a, b) => (a.appointment_date_iso < b.appointment_date_iso ? 1 : -1));
+    const slice = dated.slice(0, rowsPerPage);
+    if (!slice.length) {
+      setFromDate('');
+      setToDate('');
+      return;
+    }
+    setToDate(slice[0].appointment_date_iso);
+    setFromDate(slice[slice.length - 1].appointment_date_iso);
+  }, [scopedBills, rowsPerPage]);
+
+  const filteredBills = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return scopedBills.filter((b) => {
       if (fromDate || toDate) {
         const rowDate = b.appointment_date_iso;
         if (!rowDate) return false;
         if (fromDate && rowDate < fromDate) return false;
         if (toDate && rowDate > toDate) return false;
       }
-      if (paymentFilter !== 'ALL') {
-        const ps = getDerivedPayStatus(b);
-        if (paymentFilter === 'PAID' && ps !== 'PAID') return false;
-        if (paymentFilter === 'PENDING' && !(ps === 'UNPAID' || ps === 'PENDING' || ps === 'PARTIAL')) return false;
-      }
       if (!q) return true;
       return [b.name, b.service, b.mobile_no, b.patient_id, b.id]
         .filter((value) => value != null && value !== '')
         .some((value) => String(value).toLowerCase().includes(q));
     });
-  }, [bills, searchQuery, selectedOrgId, selectedClinicId, paymentFilter, fromDate, toDate, clinics]);
+  }, [scopedBills, searchQuery, fromDate, toDate]);
 
   // ─── Stats ─────────────────────────────────────────────
   const totalRevenue  = filteredBills.reduce((s, b) => s + Number(b.amountPaid || 0), 0);
@@ -292,7 +306,14 @@ const DialysisBilling = () => {
 
   // ─── Columns ──────────────────────────────────────────
   const columns = [
-    { key: 'appointment_date', label: 'DATE', type: 'text', width: '120px', minWidth: '120px' },
+    {
+      key: 'appointment_date_iso',
+      label: 'DATE',
+      type: 'custom',
+      width: '120px',
+      minWidth: '120px',
+      render: (row) => row.appointment_date || '—',
+    },
     { 
       key: 'patient_details', 
       label: 'PATIENT DETAILS', 
@@ -691,7 +712,8 @@ const DialysisBilling = () => {
                   data={filteredBills}
                   emptyMessage="No billing records found"
                   displayMode="table"
-                  rowsPerPage={10}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={setRowsPerPage}
                 />
               </>
             )}
