@@ -659,7 +659,7 @@ export default function DialysisPatientRoster() {
                 .dt-roster-toolbar .custom-select,
                 .dt-roster-toolbar .custom-select__trigger { width: 100%; height: ${TOOLBAR_CONTROL_H}px; }
                 .dt-roster-filter--off .custom-select__trigger {
-                  opacity: 0.7;
+                  opacity: 0.9;
                   background: #f8fafc;
                   border-color: #cbd5e1;
                 }
