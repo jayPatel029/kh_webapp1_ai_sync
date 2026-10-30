@@ -18,10 +18,9 @@ import PaymentModal from '../../components/PaymentModal';
 import InvoicePreview from '../../components/InvoicePreview';
 import usePaymentFlow from '../../hooks/usePaymentFlow';
 import { getPaymentStatus } from '../../utils/refundCalculator';
-import { getAppointments, addAppointmentPayment, getClinics, getOrganizations, getAppointmentById, updateAppointment, consumeAppointmentServices } from '../../ApiCalls/clinicApis';
+import { getAppointments, addAppointmentPayment, getAppointmentById, updateAppointment, consumeAppointmentServices } from '../../ApiCalls/clinicApis';
 import { getPatients } from '../../ApiCalls/patientAPis';
-import ClinicSelector from '../../components/ClinicSelector';
-import OrganizationSelector from '../../components/OrganizationSelector';
+import { useDialysisScope } from './DialysisScope';
 
 const normalizeBillingRow = (apt, patients) => {
   const patientData = patients.find(p => String(p.patient_id || p.id) === String(apt.patient_id));
@@ -88,6 +87,7 @@ const ActionBtn = ({ label, bg, color, onClick }) => (
 const DialysisBilling = () => {
   const { isMobile } = useIsMobile();
   const { showToast, ToastContainer } = useAdminToast();
+  const { selectedOrgId, selectedClinicId, clinics } = useDialysisScope();
 
   const [bills, setBills]             = useState([]);
   const [patients, setPatients]       = useState([]);
@@ -95,12 +95,6 @@ const DialysisBilling = () => {
   const [error, setError]             = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [invoiceTarget, setInvoiceTarget] = useState(null);
-  const storedOrgId = localStorage.getItem('organization_id') || '';
-  const storedClinicId = localStorage.getItem('clinic_id') || '';
-  const [selectedClinicId, setSelectedClinicId] = useState(storedClinicId);
-  const [clinics, setClinics] = useState([]);
-  const [organizations, setOrganizations] = useState([]);
-  const [selectedOrgId, setSelectedOrgId] = useState(storedOrgId);
   const [paymentFilter, setPaymentFilter] = useState('ALL');
 
   const fetchBills = useCallback(async () => {
@@ -135,22 +129,7 @@ const DialysisBilling = () => {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [clinicsResult, orgsResult, patientsResult] = await Promise.all([
-          getClinics(),
-          getOrganizations(),
-          getPatients()
-        ]);
-
-        if (orgsResult.success) {
-          const orgList = Array.isArray(orgsResult.data?.data) ? orgsResult.data.data : (orgsResult.data || []);
-          setOrganizations(orgList);
-        }
-
-        if (clinicsResult.success) {
-          const list = Array.isArray(clinicsResult.data?.data) ? clinicsResult.data.data : (clinicsResult.data || []);
-          setClinics(list);
-        }
-
+        const patientsResult = await getPatients();
         if (patientsResult.success) {
           const pList = Array.isArray(patientsResult.data?.data) ? patientsResult.data.data : (patientsResult.data || []);
           setPatients(pList);
@@ -161,16 +140,6 @@ const DialysisBilling = () => {
     };
     fetchInitialData();
   }, []);
-
-  useEffect(() => {
-    if (!selectedOrgId) {
-      setSelectedClinicId('');
-      return;
-    }
-    const orgClinics = clinics.filter((c) => String(c.organization_id || c.org_id) === String(selectedOrgId));
-    const clinicStillValid = orgClinics.some((c) => String(c.id) === String(selectedClinicId));
-    if (!clinicStillValid) setSelectedClinicId('');
-  }, [selectedOrgId, clinics, selectedClinicId]);
 
   useEffect(() => {
     fetchBills();
@@ -442,7 +411,7 @@ const DialysisBilling = () => {
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
-        <Box className="sticky top-[56px] z-20 bg-white">
+        <Box className="sticky z-20 bg-white" style={{ top: 'var(--dt-menu-top, 56px)' }}>
           <PageHeader
             title="Dialysis Billing"
             breadcrumbs={[
@@ -567,32 +536,6 @@ const DialysisBilling = () => {
                     }}
                   />
                 )}
-                <div className={filterWrapClass(Boolean(selectedOrgId))} style={toolbarSelectWrap}>
-                  <OrganizationSelector
-                    orgId={selectedOrgId}
-                    setOrgId={(val) => {
-                      setSelectedOrgId(val);
-                      setSelectedClinicId('');
-                    }}
-                    organizations={organizations}
-                    label=""
-                    size="md"
-                    minW="100%"
-                    placeholder="All organizations"
-                  />
-                </div>
-                <div className={filterWrapClass(Boolean(selectedClinicId))} style={toolbarSelectWrap}>
-                  <ClinicSelector
-                    clinicId={selectedClinicId}
-                    setClinicId={setSelectedClinicId}
-                    orgId={selectedOrgId}
-                    clinics={clinics}
-                    label=""
-                    size="md"
-                    minW="100%"
-                    placeholder="All clinics"
-                  />
-                </div>
                 <div className={filterWrapClass(paymentFilter !== 'ALL')} style={toolbarSelectWrap}>
                   <Select
                     size="md"

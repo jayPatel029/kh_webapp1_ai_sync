@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { Box } from '@mui/material';
 import { Outlet, useLocation } from 'react-router-dom';
 import DialysisStageTabs from './DialysisStageTabs';
+import { DialysisScopeBar, DialysisScopeProvider } from './DialysisScope';
 
 function shouldShowStageTabs(pathname = '') {
   return (
@@ -12,13 +13,17 @@ function shouldShowStageTabs(pathname = '') {
 
 export default function DialysisLayout() {
   const { pathname } = useLocation();
+  const hideScopeBar = shouldShowStageTabs(pathname);
 
   return (
-    <Box sx={{ width: '100%', overflow: 'visible' }}>
-      {shouldShowStageTabs(pathname) && <DialysisStageTabs />}
-      <Suspense fallback={<Box sx={{ p: 4 }}>Loading...</Box>}>
-        <Outlet />
-      </Suspense>
-    </Box>
+    <DialysisScopeProvider hideBar={hideScopeBar}>
+      <Box sx={{ width: '100%', overflow: 'visible' }}>
+        {!hideScopeBar && <DialysisScopeBar />}
+        {hideScopeBar && <DialysisStageTabs />}
+        <Suspense fallback={<Box sx={{ p: 4 }}>Loading...</Box>}>
+          <Outlet />
+        </Suspense>
+      </Box>
+    </DialysisScopeProvider>
   );
 }

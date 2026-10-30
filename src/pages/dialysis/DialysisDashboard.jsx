@@ -12,22 +12,20 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Box, Flex, Heading, Text, Button } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { useAdminToast } from '../../components/AdminToast';
-import { getAppointments, getClinics, getOrganizations, getClinicBeds } from '../../ApiCalls/clinicApis';
+import { getAppointments, getClinicBeds } from '../../ApiCalls/clinicApis';
 import { getAllBeds } from '../../ApiCalls/bedManagementApis';
 import {
   getInventoryAlerts,
   getInventoryStock,
   getInventoryDialyzers,
 } from '../../ApiCalls/inventoryApis';
-import ClinicSelector from '../../components/ClinicSelector';
-import OrganizationSelector from '../../components/OrganizationSelector';
+import { useDialysisScope } from './DialysisScope';
 import axiosInstance from '../../helpers/axios/axiosInstance';
 import { server_url } from '../../constants/constants';
 import { groupAlertsByPatient } from '../../helpers/alertGrouping';
@@ -223,16 +221,7 @@ const DialysisDashboard = () => {
   const userRole = localStorage.getItem('role');
   const isTechnician = userRole === 'Dialysis Technician';
 
-  const [organizations, setOrganizations] = useState([]);
-  const [clinics, setClinics] = useState([]);
-  const [selectedOrgId, setSelectedOrgId] = useState(() => localStorage.getItem('organization_id') || '');
-  const [selectedClinicId, setSelectedClinicId] = useState(() => localStorage.getItem('clinic_id') || '');
-  const [clinicsLoading, setClinicsLoading] = useState(false);
-  const storedOrgId = localStorage.getItem('organization_id') || '';
-  const storedClinicId = localStorage.getItem('clinic_id') || '';
-  const isStaticSelection = !!storedOrgId;
-
-  const user = useSelector((state) => state.auth?.user || {});
+  const { selectedOrgId, selectedClinicId } = useDialysisScope();
 
   // ─── Alerts Data ───────────────────────────────────────
   const [inventoryAlerts, setInventoryAlerts] = useState([]);
@@ -370,49 +359,6 @@ const DialysisDashboard = () => {
     }
   }, [showToast, selectedClinicId, selectedOrgId]);
 
-  const userOrgId = String(user?.organization_id || user?.org_id || user?.organizationId || user?.organization || '').trim();
-  const userClinicId = String(user?.clinic_id || user?.clinicId || user?.clinic || '').trim();
-
-  useEffect(() => {
-    let cancelled = false;
-    const fetchSelectionData = async () => {
-      setClinicsLoading(true);
-      try {
-        const [orgsRes, clinicsRes] = await Promise.all([getOrganizations(), getClinics()]);
-        if (cancelled) return;
-        if (orgsRes.success) {
-          const orgList = Array.isArray(orgsRes.data?.data) ? orgsRes.data.data : (orgsRes.data || []);
-          setOrganizations(orgList);
-        }
-        if (clinicsRes.success) {
-          const clinicList = Array.isArray(clinicsRes.data?.data) ? clinicsRes.data.data : (clinicsRes.data || []);
-          setClinics(clinicList);
-        }
-        if (userOrgId) setSelectedOrgId(prev => prev || String(userOrgId));
-        if (userClinicId) setSelectedClinicId(prev => prev || String(userClinicId));
-      } catch (err) {
-        console.warn('Error loading organizations or clinics:', err);
-      } finally {
-        if (!cancelled) setClinicsLoading(false);
-      }
-    };
-    fetchSelectionData();
-    return () => { cancelled = true; };
-  }, [userOrgId, userClinicId]);
-
-  useEffect(() => {
-    if (!selectedOrgId || clinics.length === 0) return;
-    const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
-    if (orgClinics.length === 0) {
-      setSelectedClinicId(prev => prev ? '' : prev);
-      return;
-    }
-    const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(selectedClinicId));
-    if (!isCurrentInOrg) {
-      setSelectedClinicId(String(orgClinics[0].id));
-    }
-  }, [selectedOrgId, clinics]);
-
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
@@ -420,7 +366,7 @@ const DialysisDashboard = () => {
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
-        <Box className="sticky top-[56px] z-20 bg-white">
+        <Box className="sticky z-20 bg-white" style={{ top: 'var(--dt-menu-top, 56px)' }}>
           <PageHeader
             title={isTechnician ? "Dialysis Technician Dashboard" : "Dialysis Manager Dashboard"}
             breadcrumbs={[
@@ -428,43 +374,6 @@ const DialysisDashboard = () => {
               { label: isTechnician ? "Dialysis Technician Dashboard" : "Dialysis Manager Dashboard", active: true },
             ]}
           />
-          <Box
-            className="border-b border-gray-200"
-            style={{ padding: '14px 16px' }}
-          >
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <OrganizationSelector
-                  orgId={selectedOrgId}
-                  setOrgId={setSelectedOrgId}
-                  organizations={organizations}
-                  label=""
-                  minW="180px"
-                  size="sm"
-                  disabled={isStaticSelection}
-                />
-              </div>
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <ClinicSelector
-                  clinicId={selectedClinicId}
-                  setClinicId={setSelectedClinicId}
-                  orgId={selectedOrgId}
-                  clinics={clinics}
-                  label=""
-                  minW="180px"
-                  size="sm"
-                  disabled={isStaticSelection || !selectedOrgId}
-                />
-              </div>
-              {(selectedOrgId || selectedClinicId) && (
-                <Text size="sm" style={{ color: '#6B7280', marginTop: '2px' }}>
-                  {selectedOrgId ? `Organization: ${organizations.find(o => String(o.id) === String(selectedOrgId))?.name || selectedOrgId}` : ''}
-                  {selectedOrgId && selectedClinicId ? ' · ' : ''}
-                  {selectedClinicId ? `Clinic: ${clinics.find(c => String(c.id) === String(selectedClinicId))?.clinic_name || clinics.find(c => String(c.id) === String(selectedClinicId))?.name || selectedClinicId}` : ''}
-                </Text>
-              )}
-            </div>
-          </Box>
         </Box>
 
         <div className={`admin-page-content items-start${isMobile ? 'px-3 pb-20' : ''}`}>

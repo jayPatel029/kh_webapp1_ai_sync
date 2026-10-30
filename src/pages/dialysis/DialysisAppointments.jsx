@@ -54,11 +54,9 @@ import {
   getAppointmentById,
   addAppointmentPayment,
   cancelAppointment,
-  getClinics,
   getClinicById,
   getClinicAppointments,
   getOrganizationById,
-  getOrganizations,
   getAvailableSlots,
   consumeAppointmentServices
 } from '../../ApiCalls/clinicApis';
@@ -68,6 +66,7 @@ import { getDoctors } from '../../ApiCalls/doctorApis';
 import { jsPDF } from 'jspdf';
 import ClinicSelector from '../../components/ClinicSelector';
 import OrganizationSelector from '../../components/OrganizationSelector';
+import { useDialysisScope } from './DialysisScope';
 // import QuestionsContainer from '../../components/questions/QuestionsContainer';
 
 
@@ -435,28 +434,27 @@ const DialysisAppointments = () => {
   const { showToast, ToastContainer } = useAdminToast();
   const location = useLocation();
   const navigate = useNavigate();
+  const {
+    selectedOrgId,
+    selectedClinicId,
+    organizations,
+    clinics,
+  } = useDialysisScope();
 
   // ─── Data state ───────────────────────────────────────
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ─── Clinic state ─────────────────────────────────────
-  const [clinics, setClinics] = useState([]);
   const [patients, setPatients] = useState([]);
-  const [clinicsLoading, setClinicsLoading] = useState(false);
   const storedOrgId = localStorage.getItem('organization_id') || '';
   const storedClinicId = localStorage.getItem('clinic_id') || '';
-  const isStaticSelection = !!storedOrgId;
 
   // ─── Filter state ─────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const today = new Date().toISOString().split('T')[0];
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
-  const [selectedClinicId, setSelectedClinicId] = useState('');
-  const [organizations, setOrganizations] = useState([]);
-  const [selectedOrgId, setSelectedOrgId] = useState('');
 
   // ─── Create modal state (3 steps) ─────────────────────
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -801,51 +799,6 @@ const DialysisAppointments = () => {
 
   // ─── Standalone invoice preview state ─────────────────
   const [invoiceTarget, setInvoiceTarget] = useState(null);
-
-  const fetchInitialData = useCallback(async () => {
-    setClinicsLoading(true);
-    try {
-      const [orgsResult, clinicsResult] = await Promise.all([
-        getOrganizations(),
-        getClinics(),
-      ]);
-
-      if (orgsResult.success) {
-        const orgList = Array.isArray(orgsResult.data?.data) ? orgsResult.data.data : (orgsResult.data || []);
-        setOrganizations(orgList);
-      }
-
-      if (clinicsResult.success) {
-        const list = Array.isArray(clinicsResult.data?.data) ? clinicsResult.data.data : (clinicsResult.data || []);
-        setClinics(list);
-      }
-    } catch (err) {
-      console.warn('Could not fetch initial data:', err);
-    } finally {
-      setClinicsLoading(false);
-    }
-  }, [selectedOrgId, selectedClinicId]);
-
-  useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
-
-  // Handle clinic reset when organization changes
-  useEffect(() => {
-    if (selectedOrgId && clinics.length > 0) {
-      const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
-      if (orgClinics.length > 0) {
-        const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(selectedClinicId));
-        if (!isCurrentInOrg) {
-          setSelectedClinicId(String(orgClinics[0].id));
-        }
-      } else {
-        setSelectedClinicId('');
-      }
-    } else {
-      setSelectedClinicId('');
-    }
-  }, [selectedOrgId, clinics, selectedClinicId]);
 
   // ─── Fetch appointments ───────────────────────────────
   const fetchAppointments = useCallback(async () => {
@@ -1686,7 +1639,7 @@ const DialysisAppointments = () => {
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
-        <Box className="sticky top-[56px] bg-white">
+        <Box className="sticky bg-white" style={{ top: 'var(--dt-menu-top, 56px)' }}>
           <PageHeader
             title="Dialysis Appointments"
             breadcrumbs={[
@@ -1723,25 +1676,6 @@ const DialysisAppointments = () => {
             }}
           >
             <div style={{ display: 'flex', gap: '12px', flexDirection: 'row', alignItems: 'center', zIndex: 999, flexWrap: 'nowrap', paddingBottom: '4px' }}>
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <OrganizationSelector
-                  orgId={selectedOrgId}
-                  setOrgId={setSelectedOrgId}
-                  organizations={organizations}
-                  label=""
-                  minW="180px"
-                />
-              </div>
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <ClinicSelector
-                  orgId={selectedOrgId}
-                  clinicId={selectedClinicId}
-                  setClinicId={setSelectedClinicId}
-                  clinics={clinics}
-                  label=""
-                  minW="180px"
-                />
-              </div>
               <Input
                 type="text"
                 placeholder="Search patient…"
@@ -1917,7 +1851,7 @@ const DialysisAppointments = () => {
 
                       <FormControl isRequired>
                         <FormLabel style={{ fontSize: '13px', color: '#374151', fontWeight: 600 }}>Clinic</FormLabel>
-                        {clinicsLoading ? (
+                        {clinics.length === 0 ? (
                           <div style={{ fontSize: '13px', color: '#6B7280', padding: '10px 12px' }}>Loading clinics...</div>
                         ) : (
                           <ClinicSelector

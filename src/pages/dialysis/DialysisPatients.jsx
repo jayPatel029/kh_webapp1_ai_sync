@@ -556,7 +556,7 @@ const QueueView = ({ isMobile, navigate, roleName }) => {
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
-        <Box className="sticky top-[56px] z-20 bg-white">
+        <Box className="sticky z-20 bg-white" style={{ top: 'var(--dt-menu-top, 56px)' }}>
           <PageHeader
             title="Today's Patient Queue"
             breadcrumbs={[

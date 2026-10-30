@@ -65,9 +65,7 @@ import {
   getRestockRequests,
   createRestockRequest,
 } from '../../ApiCalls/inventoryApis';
-import { getClinics, getOrganizations } from '../../ApiCalls/clinicApis';
-import ClinicSelector from '../../components/ClinicSelector';
-import OrganizationSelector from '../../components/OrganizationSelector';
+import { useDialysisScope } from './DialysisScope';
 
 // ─── Tabs ──────────────────────────────────────────────────
 const TABS = [
@@ -108,15 +106,8 @@ const DialysisInventory = () => {
   const [activeTab, setActiveTab] = useState('items');
   const [procurementSubTab, setProcurementSubTab] = useState('orders'); // 'orders' | 'deliveries'
 
-  const [organizations, setOrganizations] = useState([]);
-  const [clinics, setClinics] = useState([]);
-  const [selectedOrgId, setSelectedOrgId] = useState(() => localStorage.getItem('organization_id') || '');
-  const [selectedClinicId, setSelectedClinicId] = useState(() => localStorage.getItem('clinic_id') || '');
+  const { selectedOrgId, selectedClinicId } = useDialysisScope();
   const [filterDate, setFilterDate] = useState('');
-  const [clinicsLoading, setClinicsLoading] = useState(false);
-  const storedOrgId = localStorage.getItem('organization_id') || '';
-  const storedClinicId = localStorage.getItem('clinic_id') || '';
-  const isStaticSelection = !!storedOrgId;
 
   const selectionParams = useMemo(() => ({
     params: {
@@ -124,44 +115,6 @@ const DialysisInventory = () => {
       organization_id: selectedOrgId || undefined,
     },
   }), [selectedClinicId, selectedOrgId]);
-
-  useEffect(() => {
-    const fetchSelectionData = async () => {
-      setClinicsLoading(true);
-      try {
-        const [orgsRes, clinicsRes] = await Promise.all([getOrganizations(), getClinics()]);
-        if (orgsRes.success) {
-          const orgList = Array.isArray(orgsRes.data?.data) ? orgsRes.data.data : (orgsRes.data || []);
-          setOrganizations(orgList);
-        }
-        if (clinicsRes.success) {
-          const clinicList = Array.isArray(clinicsRes.data?.data) ? clinicsRes.data.data : (clinicsRes.data || []);
-          setClinics(clinicList);
-        }
-      } catch (err) {
-        console.warn('Error loading organizations or clinics:', err);
-      } finally {
-        setClinicsLoading(false);
-      }
-    };
-    fetchSelectionData();
-  }, []);
-
-  useEffect(() => {
-    if (selectedOrgId && clinics.length > 0) {
-      const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
-      if (orgClinics.length > 0) {
-        const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(selectedClinicId));
-        if (!isCurrentInOrg) {
-          setSelectedClinicId(String(orgClinics[0].id));
-        }
-      } else {
-        setSelectedClinicId('');
-      }
-    } else {
-      setSelectedClinicId('');
-    }
-  }, [selectedOrgId, clinics, selectedClinicId]);
 
   // ═══════════════════════════════════════════════════════
   //  ITEMS TAB
@@ -965,7 +918,7 @@ const DialysisInventory = () => {
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
-        <Box className="sticky top-[56px] z-20 bg-white">
+        <Box className="sticky z-20 bg-white" style={{ top: 'var(--dt-menu-top, 56px)' }}>
           <PageHeader
             title="Dialysis Inventory"
             breadcrumbs={[
@@ -975,20 +928,7 @@ const DialysisInventory = () => {
           />
           <Box className="border-b border-gray-200" style={{ padding: '14px 16px' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <OrganizationSelector orgId={selectedOrgId} setOrgId={setSelectedOrgId} organizations={organizations} label="" minW="180px" size="sm" disabled={isStaticSelection} />
-              </div>
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <ClinicSelector clinicId={selectedClinicId} setClinicId={setSelectedClinicId} orgId={selectedOrgId} clinics={clinics} label="" minW="180px" size="sm" disabled={isStaticSelection || !selectedOrgId} />
-              </div>
               <Input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} style={{ height: '40px', margin: 0, width: '180px', flexShrink: 0 }} />
-              {(selectedOrgId || selectedClinicId) && (
-                <div style={{ color: '#6B7280', fontSize: '13px', marginLeft: '4px' }}>
-                  {selectedOrgId ? `Organization: ${organizations.find(o => String(o.id) === String(selectedOrgId))?.name || selectedOrgId}` : ''}
-                  {selectedOrgId && selectedClinicId ? ' · ' : ''}
-                  {selectedClinicId ? `Clinic: ${clinics.find(c => String(c.id) === String(selectedClinicId))?.clinic_name || clinics.find(c => String(c.id) === String(selectedClinicId))?.name || selectedClinicId}` : ''}
-                </div>
-              )}
             </div>
           </Box>
         </Box>

@@ -19,7 +19,7 @@ import OrganizationSelector from '../../components/OrganizationSelector';
 import ClinicSelector from '../../components/ClinicSelector';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { ROUTES } from '../../routes/routeConstants';
-import { getClinics, getOrganizations } from '../../ApiCalls/clinicApis';
+import { useDialysisScope } from './DialysisScope';
 import DeleteIcon from '../../assets/Delete.svg';
 import EditIcon from '../../assets/Edit.svg';
 import {
@@ -189,6 +189,12 @@ function StatusBadge({ status, reason }) {
 export default function DialysisPatientRoster() {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
+  const {
+    selectedOrgId,
+    selectedClinicId,
+    organizations,
+    clinics,
+  } = useDialysisScope();
   const storedOrgId = localStorage.getItem('organization_id') || '';
   const storedClinicId = localStorage.getItem('clinic_id') || '';
   const [rows, setRows] = useState([]);
@@ -196,10 +202,6 @@ export default function DialysisPatientRoster() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [organizations, setOrganizations] = useState([]);
-  const [clinics, setClinics] = useState([]);
-  const [selectedOrgId, setSelectedOrgId] = useState(storedOrgId);
-  const [selectedClinicId, setSelectedClinicId] = useState(storedClinicId);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(() => emptyForm(storedOrgId, storedClinicId));
@@ -216,29 +218,6 @@ export default function DialysisPatientRoster() {
     setForm((prev) => ({ ...prev, [field]: value }));
     setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
   };
-
-  const loadLookups = useCallback(async () => {
-    try {
-      const [orgsResult, clinicsResult] = await Promise.all([
-        getOrganizations(),
-        getClinics(),
-      ]);
-      if (orgsResult.success) {
-        const orgList = Array.isArray(orgsResult.data?.data)
-          ? orgsResult.data.data
-          : (orgsResult.data || []);
-        setOrganizations(Array.isArray(orgList) ? orgList : []);
-      }
-      if (clinicsResult.success) {
-        const clinicList = Array.isArray(clinicsResult.data?.data)
-          ? clinicsResult.data.data
-          : (clinicsResult.data || []);
-        setClinics(Array.isArray(clinicList) ? clinicList : []);
-      }
-    } catch (err) {
-      console.warn('Could not load org/clinic filters:', err);
-    }
-  }, []);
 
   const loadRoster = useCallback(async () => {
     setLoading(true);
@@ -269,28 +248,8 @@ export default function DialysisPatientRoster() {
   }, [storedOrgId, storedClinicId]);
 
   useEffect(() => {
-    loadLookups();
-  }, [loadLookups]);
-
-  useEffect(() => {
     loadRoster();
   }, [loadRoster]);
-
-  useEffect(() => {
-    if (!selectedOrgId) {
-      setSelectedClinicId('');
-      return;
-    }
-    const orgClinics = clinics.filter(
-      (c) => String(c.organization_id || c.org_id) === String(selectedOrgId),
-    );
-    if (!orgClinics.length) {
-      setSelectedClinicId('');
-      return;
-    }
-    const clinicStillValid = orgClinics.some((c) => String(c.id) === String(selectedClinicId));
-    if (!clinicStillValid) setSelectedClinicId('');
-  }, [selectedOrgId, clinics, selectedClinicId]);
 
   const orgNameById = useMemo(() => {
     const map = {};
@@ -607,7 +566,7 @@ export default function DialysisPatientRoster() {
   return (
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0">
-        <Box className="sticky top-[56px] z-20 bg-white">
+        <Box className="sticky z-20 bg-white" style={{ top: 'var(--dt-menu-top, 56px)' }}>
           <PageHeader
             title="Dialysis Patients"
             breadcrumbs={[
@@ -710,32 +669,6 @@ export default function DialysisPatientRoster() {
                     }}
                   />
                 )}
-                <div className={filterWrapClass(Boolean(selectedOrgId))} style={toolbarSelectWrap}>
-                  <OrganizationSelector
-                    orgId={selectedOrgId}
-                    setOrgId={(val) => {
-                      setSelectedOrgId(val);
-                      setSelectedClinicId('');
-                    }}
-                    organizations={organizations}
-                    label=""
-                    size="md"
-                    minW="100%"
-                    placeholder="All organizations"
-                  />
-                </div>
-                <div className={filterWrapClass(Boolean(selectedClinicId))} style={toolbarSelectWrap}>
-                  <ClinicSelector
-                    orgId={selectedOrgId}
-                    clinicId={selectedClinicId}
-                    setClinicId={setSelectedClinicId}
-                    clinics={clinics}
-                    label=""
-                    size="md"
-                    minW="100%"
-                    placeholder="All clinics"
-                  />
-                </div>
                 <div className={filterWrapClass(statusFilter !== 'ALL')} style={toolbarSelectWrap}>
                   <Select
                     size="md"

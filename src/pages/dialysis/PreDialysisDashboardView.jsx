@@ -267,7 +267,7 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0 bg-[#F9FAFB]">
         {/* Sticky Header */}
-        <Box className="sticky top-[56px] z-20 bg-white shadow-sm">
+        <Box className="sticky z-20 bg-white shadow-sm" style={{ top: 'var(--dt-menu-top, 56px)' }}>
           {/* <PageHeader
             title="P2-03 – Pre-Dialysis Dashboard"
             subtitle="Ensure all safety checks and assessments are completed before starting dialysis"

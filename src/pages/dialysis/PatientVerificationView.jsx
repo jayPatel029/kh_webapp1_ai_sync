@@ -254,7 +254,7 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
     <ThemeProvider>
       <Box className="flex-1 flex flex-col min-w-0 bg-[#F9FAFB]">
         {/* Sticky Header */}
-        <Box className="sticky top-[56px] z-20 bg-white shadow-sm">
+        <Box className="sticky z-20 bg-white shadow-sm" style={{ top: 'var(--dt-menu-top, 56px)' }}>
           {/* <PageHeader
             title="P2-04 – Patient Verification"
             subtitle="Verify patient identity and prescription before proceeding."
