@@ -217,6 +217,32 @@ export const PageHeader = ({
       );
     }
 
+    if (pathname.startsWith('/dialysis') && !isMobile) {
+      return (
+        <Box className="w-full border-b border-slate-200 bg-white">
+          <div className="flex items-center justify-between gap-3 py-3 pr-2">
+            <Heading
+              as="h1"
+              size="lg"
+              style={{
+                color: 'var(--color-heading)',
+                fontFamily: 'Sora, sans-serif',
+                fontWeight: 'bold',
+                margin: 0,
+              }}
+            >
+              {title}
+            </Heading>
+            {rightAction ? (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {rightAction}
+              </div>
+            ) : null}
+          </div>
+        </Box>
+      );
+    }
+
     // default non-doctor header
     return (
       <Box

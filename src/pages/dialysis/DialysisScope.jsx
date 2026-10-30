@@ -6,7 +6,7 @@ import { getClinics, getOrganizations } from '../../ApiCalls/clinicApis';
 
 const FILTER_ORG_KEY = 'dt_filter_org_id';
 const FILTER_CLINIC_KEY = 'dt_filter_clinic_id';
-export const DT_NAVBAR_H = 56;
+export const DT_NAVBAR_H = 72;
 export const DT_SCOPE_BAR_H = 52;
 
 const DialysisScopeContext = createContext(null);
@@ -179,54 +179,66 @@ export function DialysisScopeBar() {
 
   return (
     <div
-      className="dt-roster-toolbar sticky z-30 bg-white border-b border-slate-200"
+      className="dt-scope-bar sticky z-30 bg-white border-b border-slate-200 px-4 md:pl-6 md:pr-8"
       style={{
         top: DT_NAVBAR_H,
-        height: DT_SCOPE_BAR_H,
+        minHeight: DT_SCOPE_BAR_H,
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
-        padding: '0 16px',
+        overflow: 'visible',
+        paddingTop: 6,
+        paddingBottom: 6,
+        boxSizing: 'border-box',
       }}
     >
       <style>{`
-        .dt-roster-toolbar .form-control { width: 100%; height: 40px; margin: 0; }
-        .dt-roster-toolbar .custom-select,
-        .dt-roster-toolbar .custom-select__trigger { width: 100%; height: 40px; }
-        .dt-roster-filter--off .custom-select__trigger {
+        .dt-scope-bar .form-control {
+          width: 100%;
+          min-width: 0;
+          height: 40px;
+          margin: 0;
+          position: relative;
+        }
+        .dt-scope-bar .custom-select,
+        .dt-scope-bar .custom-select__trigger {
+          width: 100%;
+          height: 40px;
+        }
+        .dt-scope-bar .dt-roster-filter--off .custom-select__trigger {
           opacity: 0.9;
           background: #f8fafc;
           border-color: #cbd5e1;
         }
-        .dt-roster-filter--off .custom-select__label,
-        .dt-roster-filter--off .custom-select__label--placeholder {
+        .dt-scope-bar .dt-roster-filter--off .custom-select__label,
+        .dt-scope-bar .dt-roster-filter--off .custom-select__label--placeholder {
           color: #64748b;
           font-weight: 400;
         }
-        .dt-roster-filter--on .custom-select__trigger {
+        .dt-scope-bar .dt-roster-filter--on .custom-select__trigger {
           opacity: 1;
           background: #fff;
           border-color: #0f766e;
         }
-        .dt-roster-filter--on .custom-select__label {
+        .dt-scope-bar .dt-roster-filter--on .custom-select__label {
           color: #0f172a;
           font-weight: 600;
         }
       `}</style>
       {canSwitch ? (
         <>
-          <div className={filterWrapClass(Boolean(selectedOrgId))} style={{ width: 180, minWidth: 180, height: 40 }}>
+          <div className={filterWrapClass(Boolean(selectedOrgId))} style={{ width: 180, minWidth: 180, maxWidth: 180, height: 40, flex: '0 0 180px' }}>
             <OrganizationSelector
               orgId={selectedOrgId}
               setOrgId={setSelectedOrgId}
               organizations={organizations}
               label=""
               size="md"
-              minW="100%"
+              className="dt-scope-select"
               placeholder="All organizations"
             />
           </div>
-          <div className={filterWrapClass(Boolean(selectedClinicId))} style={{ width: 180, minWidth: 180, height: 40 }}>
+          <div className={filterWrapClass(Boolean(selectedClinicId))} style={{ width: 180, minWidth: 180, maxWidth: 180, height: 40, flex: '0 0 180px' }}>
             <ClinicSelector
               orgId={selectedOrgId}
               clinicId={selectedClinicId}
@@ -234,7 +246,7 @@ export function DialysisScopeBar() {
               clinics={clinics}
               label=""
               size="md"
-              minW="100%"
+              className="dt-scope-select"
               placeholder="All clinics"
             />
           </div>

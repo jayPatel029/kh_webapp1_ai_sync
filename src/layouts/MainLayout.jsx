@@ -74,6 +74,7 @@ const MainLayout = () => {
   // Routes without sidebar: login pages, public pages
   const noSidebarRoutes = ['/login', '/doctorLogin', '/forgotpassword'];
   const showSidebar = !noSidebarRoutes.includes(location.pathname);
+  const isDialysisSection = location.pathname.startsWith('/dialysis');
   const isDuringDialysisRoute = location.pathname.startsWith('/dialysis/during/');
 
   const role = useSelector((state) => state.permission);
@@ -145,7 +146,7 @@ const MainLayout = () => {
             showSidebar
               ? isMobile
                 ? 'p-0 pt-0 pb-20'
-                : isDuringDialysisRoute
+                : isDialysisSection
                   ? 'p-0'
                   : `md:p-6 ${isCompactRole ? 'md:pr-4' : 'md:pr-8'}`
               : 'p-0'
