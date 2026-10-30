@@ -634,8 +634,8 @@ export default function DialysisPatientRoster() {
             }
           />
         </Box>
-        <div className={isMobile ? 'px-3 pb-20' : ''} style={{ background: '#f8fafc' }}>
-          <div style={{ maxWidth: '1320px', margin: '0 auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className={isMobile ? 'px-3 pb-20' : ''} style={{ background: '#f8fafc', width: '100%' }}>
+          <div style={{ width: '100%', padding: isMobile ? '12px 0' : '16px 0', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div
               className="dt-roster-toolbar"
               style={{
