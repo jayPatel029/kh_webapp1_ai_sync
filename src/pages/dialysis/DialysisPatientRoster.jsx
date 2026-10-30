@@ -610,6 +610,28 @@ export default function DialysisPatientRoster() {
               { label: 'Dashboard', path: ROUTES.DIALYSIS_DASHBOARD },
               { label: 'Patients', active: true },
             ]}
+            rightAction={
+              !isMobile ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Input
+                    type="text"
+                    size="md"
+                    placeholder="Search patient"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ height: TOOLBAR_CONTROL_H, width: '220px', margin: 0 }}
+                  />
+                  <Button
+                    variant="brand"
+                    size="md"
+                    onClick={openAdd}
+                    style={{ height: TOOLBAR_CONTROL_H, margin: 0, padding: '0 16px', whiteSpace: 'nowrap' }}
+                  >
+                    Add Patient
+                  </Button>
+                </div>
+              ) : null
+            }
           />
         </Box>
         <div className={isMobile ? 'px-3 pb-20' : ''} style={{ background: '#f8fafc' }}>
@@ -643,21 +665,22 @@ export default function DialysisPatientRoster() {
                   flexWrap: 'wrap',
                 }}
               >
-                <Input
-                  type="text"
-                  size="md"
-                  placeholder="Search name, phone, or ID"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    height: TOOLBAR_CONTROL_H,
-                    margin: 0,
-                    flex: isMobile ? '1 1 100%' : '1 1 240px',
-                    minWidth: isMobile ? '100%' : '200px',
-                    maxWidth: isMobile ? '100%' : '320px',
-                    boxSizing: 'border-box',
-                  }}
-                />
+                {isMobile && (
+                  <Input
+                    type="text"
+                    size="md"
+                    placeholder="Search patient"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      height: TOOLBAR_CONTROL_H,
+                      margin: 0,
+                      flex: '1 1 100%',
+                      minWidth: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                )}
                 <div style={toolbarSelectWrap}>
                   <OrganizationSelector
                     orgId={selectedOrgId}
@@ -697,21 +720,23 @@ export default function DialysisPatientRoster() {
                   </Select>
                 </div>
               </div>
-              <Button
-                variant="brand"
-                size="md"
-                onClick={openAdd}
-                style={{
-                  height: TOOLBAR_CONTROL_H,
-                  margin: 0,
-                  padding: '0 18px',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  width: isMobile ? '100%' : 'auto',
-                }}
-              >
-                Add Patient
-              </Button>
+              {isMobile && (
+                <Button
+                  variant="brand"
+                  size="md"
+                  onClick={openAdd}
+                  style={{
+                    height: TOOLBAR_CONTROL_H,
+                    margin: 0,
+                    padding: '0 18px',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    width: '100%',
+                  }}
+                >
+                  Add Patient
+                </Button>
+              )}
             </div>
             {loading ? (
               <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading patients…</div>

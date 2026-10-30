@@ -186,9 +186,9 @@ export const PageHeader = ({
       const tabItems = isDoctor ? doctorNavItems : dialysisNavItems;
       return (
         <Box className={`w-full border-b-2 border-info bg-white relative ${pathname.startsWith('/dialysis') ? '' : '-mt-8'}`}>
-          <div className="flex flex-col items-start justify-start py-4">
+          <div className="flex items-center justify-between gap-3 py-4 pr-2">
             {/* Navigation tabs */}
-            <nav className="mt-3 flex gap-3 items-center">
+            <nav className="flex gap-3 items-center flex-wrap min-w-0">
               {tabItems.map((item) => {
                 const isActive = activeId === item.id;
                 return (
@@ -207,6 +207,11 @@ export const PageHeader = ({
                 );
               })}
             </nav>
+            {rightAction ? (
+              <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+                {rightAction}
+              </div>
+            ) : null}
           </div>
         </Box>
       );
