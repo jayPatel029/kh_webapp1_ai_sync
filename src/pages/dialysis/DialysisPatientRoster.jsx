@@ -38,6 +38,14 @@ const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 const LAB_OPTIONS = ['Pending', 'Positive', 'Negative'];
 const DISCONTINUE_NOTE_MAX_CHARS = 200;
 const DISCONTINUE_NOTE_MAX_WORDS = 40;
+const TOOLBAR_CONTROL_H = 40;
+const TOOLBAR_FILTER_W = 180;
+const toolbarSelectWrap = {
+  width: TOOLBAR_FILTER_W,
+  minWidth: TOOLBAR_FILTER_W,
+  height: TOOLBAR_CONTROL_H,
+  flex: `0 0 ${TOOLBAR_FILTER_W}px`,
+};
 
 const STATUS_COLORS = {
   Waiting: { bg: '#DBEAFE', text: '#1E40AF' },
@@ -606,54 +614,102 @@ export default function DialysisPatientRoster() {
         </Box>
         <div className={isMobile ? 'px-3 pb-20' : ''} style={{ background: '#f8fafc' }}>
           <div style={{ maxWidth: '1320px', margin: '0 auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'nowrap', alignItems: 'center', overflowX: 'auto', paddingBottom: '4px' }}>
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <OrganizationSelector
-                  orgId={selectedOrgId}
-                  setOrgId={(val) => {
-                    setSelectedOrgId(val);
-                    setSelectedClinicId('');
+            <div
+              className="dt-roster-toolbar"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexWrap: 'wrap',
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px 14px',
+              }}
+            >
+              <style>{`
+                .dt-roster-toolbar .form-control { width: 100%; height: ${TOOLBAR_CONTROL_H}px; margin: 0; }
+                .dt-roster-toolbar .custom-select,
+                .dt-roster-toolbar .custom-select__trigger { width: 100%; height: ${TOOLBAR_CONTROL_H}px; }
+              `}</style>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  flex: '1 1 auto',
+                  minWidth: 0,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Input
+                  type="text"
+                  size="md"
+                  placeholder="Search name, phone, or ID"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    height: TOOLBAR_CONTROL_H,
+                    margin: 0,
+                    flex: isMobile ? '1 1 100%' : '1 1 240px',
+                    minWidth: isMobile ? '100%' : '200px',
+                    maxWidth: isMobile ? '100%' : '320px',
+                    boxSizing: 'border-box',
                   }}
-                  organizations={organizations}
-                  label=""
-                  minW="160px"
-                  placeholder="All organizations"
                 />
+                <div style={toolbarSelectWrap}>
+                  <OrganizationSelector
+                    orgId={selectedOrgId}
+                    setOrgId={(val) => {
+                      setSelectedOrgId(val);
+                      setSelectedClinicId('');
+                    }}
+                    organizations={organizations}
+                    label=""
+                    size="md"
+                    minW="100%"
+                    placeholder="All organizations"
+                  />
+                </div>
+                <div style={toolbarSelectWrap}>
+                  <ClinicSelector
+                    orgId={selectedOrgId}
+                    clinicId={selectedClinicId}
+                    setClinicId={setSelectedClinicId}
+                    clinics={clinics}
+                    label=""
+                    size="md"
+                    minW="100%"
+                    placeholder="All clinics"
+                  />
+                </div>
+                <div style={toolbarSelectWrap}>
+                  <Select
+                    size="md"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="ALL">All statuses</option>
+                    {ROSTER_STATUSES.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </Select>
+                </div>
               </div>
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <ClinicSelector
-                  orgId={selectedOrgId}
-                  clinicId={selectedClinicId}
-                  setClinicId={setSelectedClinicId}
-                  clinics={clinics}
-                  label=""
-                  minW="160px"
-                  placeholder="All clinics"
-                />
-              </div>
-              <Input
-                type="text"
-                placeholder="Search name, phone, or id…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ height: '40px', width: '220px', margin: 0, flexShrink: 0 }}
-              />
-              <div style={{ height: '40px', display: 'flex', alignItems: 'center', flexShrink: 0, minWidth: '150px' }}>
-                <Select
-                  size="sm"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="ALL">All statuses</option>
-                  {ROSTER_STATUSES.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </Select>
-              </div>
-              <Button variant="outline" size="sm" onClick={loadRoster} style={{ height: '40px', margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                Refresh
-              </Button>
-              <Button variant="brand" size="sm" onClick={openAdd} style={{ height: '40px', margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <Button
+                variant="brand"
+                size="md"
+                onClick={openAdd}
+                style={{
+                  height: TOOLBAR_CONTROL_H,
+                  margin: 0,
+                  padding: '0 18px',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  width: isMobile ? '100%' : 'auto',
+                }}
+              >
                 Add Patient
               </Button>
             </div>
