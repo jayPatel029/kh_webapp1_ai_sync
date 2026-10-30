@@ -68,6 +68,7 @@ const UnifiedListTable = ({
     cardStatusKey, // key for status badge
     mobileCardRender, // optional custom card render fn(row, columns, renderCell)
     rowProps, // optional fn(row) => object of props to spread on <tr>
+    className = '',
 }) => {
     const { isMobile } = useIsMobile();
     const [currentPage, setCurrentPage] = useState(1);
@@ -269,7 +270,7 @@ const UnifiedListTable = ({
     }, [columns, hasAnyAction]);
 
     return (
-        <div className="list-table__container">
+        <div className={`list-table__container${className ? ` ${className}` : ''}`}>
             {/* Search Bar - Only render if renderSearchUI is true */}
             {enableSearch && renderSearchUI && (
                 <div className="list-table__search-bar">

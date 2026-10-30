@@ -240,32 +240,41 @@ const DialysisBilling = () => {
   }).length;
   const outstanding   = bills.reduce((s, b) => s + Math.max(0, Number(b.totalAmount || 0) - Number(b.amountPaid || 0)), 0);
 
+  const cellNowrap = {
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  };
+
   // ─── Columns ──────────────────────────────────────────
   const columns = [
-    { key: 'appointment_date', label: 'DATE',    type: 'text', width: '110px' },
+    { key: 'appointment_date', label: 'DATE', type: 'text', width: '120px', minWidth: '120px' },
     { 
       key: 'patient_details', 
       label: 'PATIENT DETAILS', 
       type: 'custom', 
-      width: '300px',
+      width: '240px',
+      minWidth: '220px',
       render: (row) => {
         const code = row._raw?.patient_code || row.patient_code || row.patientCode || row.patient_id || '-';
         const name = row.name || '-';
         const age = row.age || '-';
         const gender = row.sex || row.gender || '-';
         const phone = row.mobile_no || row.phone || '-';
-        return <div style={{ fontSize: '13px', fontWeight: 600 }}>{`${code} / ${name} / ${age} / ${gender} / ${phone}`}</div>;
+        const text = `${code} / ${name} / ${age} / ${gender} / ${phone}`;
+        return <div style={{ fontSize: '13px', fontWeight: 600, ...cellNowrap }} title={text}>{text}</div>;
       }
     },
-    { key: 'service',          label: 'SCHEDULE', type: 'text', width: '130px' },
+    { key: 'service', label: 'SCHEDULE', type: 'text', width: '170px', minWidth: '160px' },
     {
       key: 'services',
       label: 'SERVICES',
       type: 'custom',
-      width: '180px',
+      width: '140px',
+      minWidth: '130px',
       render: (row) => {
         const services = row.services || [];
-        if (!services.length) return <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No services</span>;
+        if (!services.length) return <span style={{ color: '#9CA3AF', fontStyle: 'italic', whiteSpace: 'nowrap' }}>No services</span>;
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -323,27 +332,30 @@ const DialysisBilling = () => {
       key: 'totalAmount',
       label: 'TOTAL',
       type: 'custom',
-      width: '100px',
-      render: (_row, value) => <span style={{ fontWeight: 600 }}>₹{Number(value).toLocaleString()}</span>,
+      width: '90px',
+      minWidth: '90px',
+      render: (_row, value) => <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>₹{Number(value).toLocaleString()}</span>,
     },
     {
       key: 'amountPaid',
       label: 'RECEIVED',
       type: 'custom',
-      width: '100px',
+      width: '90px',
+      minWidth: '90px',
       render: (_row, value) => (
-        <span style={{ color: '#16A34A', fontWeight: 600 }}>₹{Number(value).toLocaleString()}</span>
+        <span style={{ color: '#16A34A', fontWeight: 600, whiteSpace: 'nowrap' }}>₹{Number(value).toLocaleString()}</span>
       ),
     },
     {
       key: 'pending',
       label: 'PENDING',
       type: 'custom',
-      width: '100px',
+      width: '90px',
+      minWidth: '90px',
       render: (row) => {
         const pending = Math.max(0, Number(row.totalAmount || 0) - Number(row.amountPaid || 0));
         return (
-          <span style={{ color: pending > 0 ? '#DC2626' : '#6B7280', fontWeight: pending > 0 ? 600 : 400 }}>
+          <span style={{ color: pending > 0 ? '#DC2626' : '#6B7280', fontWeight: pending > 0 ? 600 : 400, whiteSpace: 'nowrap' }}>
             ₹{pending.toLocaleString()}
           </span>
         );
@@ -353,7 +365,8 @@ const DialysisBilling = () => {
       key: 'payStatus',
       label: 'PAYMENT',
       type: 'custom',
-      width: '115px',
+      width: '100px',
+      minWidth: '100px',
       render: (row) => {
         let ps = row.payment_action;
         if (!ps || ps === 'UNDEFINED') ps = getPaymentStatus(row.totalAmount, row.amountPaid);
@@ -394,12 +407,13 @@ const DialysisBilling = () => {
       key: 'actions',
       label: 'ACTIONS',
       type: 'custom',
-      width: '180px',
+      width: '150px',
+      minWidth: '140px',
       render: (row) => {
         let ps = row.payment_action;
         if (!ps || ps === 'UNDEFINED') ps = getPaymentStatus(row.totalAmount, row.amountPaid);
         return (
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'nowrap', justifyContent: 'flex-start' }}>
             {ps !== 'PAID' && (
               <ActionBtn
                 label="Pay"
@@ -572,7 +586,34 @@ const DialysisBilling = () => {
                 </div>
               </div>
             ) : (
+              <style>{`
+                .dt-billing-table {
+                  overflow-x: auto;
+                }
+                .dt-billing-table .list-table {
+                  width: 100%;
+                  min-width: 1080px;
+                  table-layout: fixed;
+                }
+                .dt-billing-table .list-table thead th,
+                .dt-billing-table .list-table__header-cell,
+                .dt-billing-table .list-table__cell {
+                  padding: 12px 10px;
+                  white-space: nowrap;
+                  vertical-align: middle;
+                }
+                .dt-billing-table .list-table__text-cell {
+                  display: block;
+                  white-space: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  word-wrap: normal;
+                  overflow-wrap: normal;
+                  max-width: 100%;
+                }
+              `}</style>
               <UnifiedListTable
+                className="dt-billing-table"
                 columns={columns}
                 data={filteredBills}
                 emptyMessage="No billing records found"
