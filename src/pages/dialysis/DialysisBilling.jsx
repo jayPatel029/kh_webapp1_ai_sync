@@ -22,16 +22,42 @@ import { getAppointments, addAppointmentPayment, getAppointmentById, updateAppoi
 import { getPatients } from '../../ApiCalls/patientAPis';
 import { useDialysisScope } from './DialysisScope';
 
-function formatBillingDate(value) {
-  if (!value || value === '—') return '—';
+function localIsoDate(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function daysAgoIso(days) {
+  const date = new Date();
+  date.setDate(date.getDate() - Number(days || 0));
+  return localIsoDate(date);
+}
+
+function toIsoDate(value) {
+  if (!value) return '';
   const raw = String(value).trim();
   const isoDate = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoDate) return `${isoDate[3]}-${isoDate[2]}-${isoDate[1]}`;
+  if (isoDate) return `${isoDate[1]}-${isoDate[2]}-${isoDate[3]}`;
   const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return raw;
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return `${dd}-${mm}-${d.getFullYear()}`;
+  if (Number.isNaN(d.getTime())) return '';
+  return localIsoDate(d);
+}
+
+function formatBillingDate(value) {
+  if (!value || value === '—') return '—';
+  const iso = toIsoDate(value);
+  if (!iso) {
+    const raw = String(value).trim();
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return raw;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}-${mm}-${d.getFullYear()}`;
+  }
+  const [year, month, day] = iso.split('-');
+  return `${day}-${month}-${year}`;
 }
 
 const normalizeBillingRow = (apt, patients) => {
@@ -39,6 +65,7 @@ const normalizeBillingRow = (apt, patients) => {
   
   return {
     id: apt.id,
+    appointment_date_iso: toIsoDate(apt.appointment_date || apt.startUTC),
     appointment_date: formatBillingDate(apt.appointment_date || apt.startUTC),
     name: apt.patient_name || apt.patientName || patientData?.name || (apt.patient_id ? `Patient #${apt.patient_id}` : '—'),
     age: apt.age || apt.patient_age || patientData?.age || '—',
@@ -66,11 +93,18 @@ const PAYMENT_COLORS = {
 };
 const TOOLBAR_CONTROL_H = 40;
 const TOOLBAR_FILTER_W = 180;
+const TOOLBAR_DATE_W = 160;
 const toolbarSelectWrap = {
   width: TOOLBAR_FILTER_W,
   minWidth: TOOLBAR_FILTER_W,
   height: TOOLBAR_CONTROL_H,
   flex: `0 0 ${TOOLBAR_FILTER_W}px`,
+};
+const toolbarDateWrap = {
+  width: TOOLBAR_DATE_W,
+  minWidth: TOOLBAR_DATE_W,
+  height: TOOLBAR_CONTROL_H,
+  flex: `0 0 ${TOOLBAR_DATE_W}px`,
 };
 
 function filterWrapClass(active) {
@@ -108,6 +142,8 @@ const DialysisBilling = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [invoiceTarget, setInvoiceTarget] = useState(null);
   const [paymentFilter, setPaymentFilter] = useState('ALL');
+  const [fromDate, setFromDate] = useState(() => daysAgoIso(15));
+  const [toDate, setToDate] = useState(() => localIsoDate());
 
   const fetchBills = useCallback(async () => {
     setLoading(true);
@@ -116,6 +152,8 @@ const DialysisBilling = () => {
       const result = await getAppointments({
         clinicId: selectedClinicId || undefined,
         orgId: selectedOrgId || undefined,
+        from: fromDate || undefined,
+        to: toDate || undefined,
       });
       if (result.success) {
         const list = Array.isArray(result.data?.data)
@@ -136,7 +174,7 @@ const DialysisBilling = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedClinicId, selectedOrgId, patients, showToast]);
+  }, [selectedClinicId, selectedOrgId, fromDate, toDate, patients, showToast]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -218,6 +256,12 @@ const DialysisBilling = () => {
       if (selectedClinicId && String(b.clinic_id || b.clinicId || '') !== String(selectedClinicId)) {
         return false;
       }
+      if (fromDate || toDate) {
+        const rowDate = b.appointment_date_iso;
+        if (!rowDate) return false;
+        if (fromDate && rowDate < fromDate) return false;
+        if (toDate && rowDate > toDate) return false;
+      }
       if (paymentFilter !== 'ALL') {
         const ps = getDerivedPayStatus(b);
         if (paymentFilter === 'PAID' && ps !== 'PAID') return false;
@@ -228,17 +272,17 @@ const DialysisBilling = () => {
         .filter((value) => value != null && value !== '')
         .some((value) => String(value).toLowerCase().includes(q));
     });
-  }, [bills, searchQuery, selectedOrgId, selectedClinicId, paymentFilter, clinics]);
+  }, [bills, searchQuery, selectedOrgId, selectedClinicId, paymentFilter, fromDate, toDate, clinics]);
 
   // ─── Stats ─────────────────────────────────────────────
-  const totalRevenue  = bills.reduce((s, b) => s + Number(b.amountPaid || 0), 0);
+  const totalRevenue  = filteredBills.reduce((s, b) => s + Number(b.amountPaid || 0), 0);
 
-  const paidCount     = bills.filter((b) => getDerivedPayStatus(b) === 'PAID').length;
-  const pendingCount  = bills.filter((b) => {
+  const paidCount     = filteredBills.filter((b) => getDerivedPayStatus(b) === 'PAID').length;
+  const pendingCount  = filteredBills.filter((b) => {
     const ps = getDerivedPayStatus(b);
     return ps === 'UNPAID' || ps === 'PENDING' || ps === 'PARTIAL';
   }).length;
-  const outstanding   = bills.reduce((s, b) => s + Math.max(0, Number(b.totalAmount || 0) - Number(b.amountPaid || 0)), 0);
+  const outstanding   = filteredBills.reduce((s, b) => s + Math.max(0, Number(b.totalAmount || 0) - Number(b.amountPaid || 0)), 0);
 
   const cellNowrap = {
     whiteSpace: 'nowrap',
@@ -510,6 +554,12 @@ const DialysisBilling = () => {
                 .dt-roster-toolbar .form-control { width: 100%; height: ${TOOLBAR_CONTROL_H}px; margin: 0; }
                 .dt-roster-toolbar .custom-select,
                 .dt-roster-toolbar .custom-select__trigger { width: 100%; height: ${TOOLBAR_CONTROL_H}px; }
+                .dt-roster-toolbar input[type="date"] {
+                  width: 100%;
+                  height: ${TOOLBAR_CONTROL_H}px;
+                  margin: 0;
+                  box-sizing: border-box;
+                }
                 .dt-roster-filter--off .custom-select__trigger {
                   opacity: 0.9;
                   background: #f8fafc;
@@ -572,6 +622,28 @@ const DialysisBilling = () => {
                     <option value="PAID">Paid</option>
                     <option value="PENDING">Pending</option>
                   </Select>
+                </div>
+                <div className={filterWrapClass(Boolean(fromDate))} style={toolbarDateWrap}>
+                  <Input
+                    type="date"
+                    size="md"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    aria-label="From date"
+                    title="From"
+                    style={{ height: TOOLBAR_CONTROL_H, margin: 0, width: '100%' }}
+                  />
+                </div>
+                <div className={filterWrapClass(Boolean(toDate))} style={toolbarDateWrap}>
+                  <Input
+                    type="date"
+                    size="md"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    aria-label="To date"
+                    title="To"
+                    style={{ height: TOOLBAR_CONTROL_H, margin: 0, width: '100%' }}
+                  />
                 </div>
               </div>
             </div>
