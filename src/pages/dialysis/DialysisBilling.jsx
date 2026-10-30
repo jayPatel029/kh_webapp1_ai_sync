@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Box, Input, Button } from '../../component-library';
+import { Box, Input, Button, Select } from '../../component-library';
 import PageHeader from '../../components/PageHeader';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
@@ -53,6 +53,18 @@ const PAYMENT_COLORS = {
   PAID:    { bg: '#DCFCE7', text: '#166534' },
   PENDING: { bg: '#FEE2E2', text: '#991B1B' },
 };
+const TOOLBAR_CONTROL_H = 40;
+const TOOLBAR_FILTER_W = 180;
+const toolbarSelectWrap = {
+  width: TOOLBAR_FILTER_W,
+  minWidth: TOOLBAR_FILTER_W,
+  height: TOOLBAR_CONTROL_H,
+  flex: `0 0 ${TOOLBAR_FILTER_W}px`,
+};
+
+function filterWrapClass(active) {
+  return `dt-roster-filter ${active ? 'dt-roster-filter--on' : 'dt-roster-filter--off'}`;
+}
 
 const ActionBtn = ({ label, bg, color, onClick }) => (
   <button
@@ -83,17 +95,21 @@ const DialysisBilling = () => {
   const [error, setError]             = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [invoiceTarget, setInvoiceTarget] = useState(null);
-  const [selectedClinicId, setSelectedClinicId] = useState('');
+  const storedOrgId = localStorage.getItem('organization_id') || '';
+  const storedClinicId = localStorage.getItem('clinic_id') || '';
+  const [selectedClinicId, setSelectedClinicId] = useState(storedClinicId);
   const [clinics, setClinics] = useState([]);
   const [organizations, setOrganizations] = useState([]);
-  const [selectedOrgId, setSelectedOrgId] = useState('');
+  const [selectedOrgId, setSelectedOrgId] = useState(storedOrgId);
+  const [paymentFilter, setPaymentFilter] = useState('ALL');
 
   const fetchBills = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const result = await getAppointments({
-        clinicId: selectedClinicId || undefined
+        clinicId: selectedClinicId || undefined,
+        orgId: selectedOrgId || undefined,
       });
       if (result.success) {
         const list = Array.isArray(result.data?.data)
@@ -114,7 +130,7 @@ const DialysisBilling = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedClinicId, patients, showToast]);
+  }, [selectedClinicId, selectedOrgId, patients, showToast]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -146,21 +162,14 @@ const DialysisBilling = () => {
     fetchInitialData();
   }, []);
 
-  // Handle clinic reset when organization changes
   useEffect(() => {
-    if (selectedOrgId && clinics.length > 0) {
-      const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
-      if (orgClinics.length > 0) {
-        const isCurrentInOrg = orgClinics.some(c => String(c.id) === String(selectedClinicId));
-        if (!isCurrentInOrg) {
-          setSelectedClinicId(String(orgClinics[0].id));
-        }
-      } else {
-        setSelectedClinicId('');
-      }
-    } else {
+    if (!selectedOrgId) {
       setSelectedClinicId('');
+      return;
     }
+    const orgClinics = clinics.filter((c) => String(c.organization_id || c.org_id) === String(selectedOrgId));
+    const clinicStillValid = orgClinics.some((c) => String(c.id) === String(selectedClinicId));
+    if (!clinicStillValid) setSelectedClinicId('');
   }, [selectedOrgId, clinics, selectedClinicId]);
 
   useEffect(() => {
@@ -211,25 +220,37 @@ const DialysisBilling = () => {
     },
   });
 
-  // ─── Filtered bills ────────────────────────────────────
-  const filteredBills = useMemo(() => {
-    if (!searchQuery.trim()) return bills;
-    const q = searchQuery.toLowerCase();
-    return bills.filter(
-      (b) =>
-        b.name.toLowerCase().includes(q) ||
-        b.service?.toLowerCase().includes(q)
-    );
-  }, [bills, searchQuery]);
-
-  // ─── Stats ─────────────────────────────────────────────
-  const totalRevenue  = bills.reduce((s, b) => s + Number(b.amountPaid || 0), 0);
-  
   const getDerivedPayStatus = (b) => {
     let ps = b.payment_action;
     if (!ps || ps === 'UNDEFINED') ps = getPaymentStatus(b.totalAmount, b.amountPaid);
     return ps;
   };
+
+  const filteredBills = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return bills.filter((b) => {
+      if (selectedOrgId) {
+        const clinic = clinics.find((c) => String(c.id) === String(b.clinic_id || b.clinicId));
+        const rowOrg = b._raw?.organization_id || b._raw?.org_id || clinic?.organization_id || clinic?.org_id;
+        if (String(rowOrg || '') !== String(selectedOrgId)) return false;
+      }
+      if (selectedClinicId && String(b.clinic_id || b.clinicId || '') !== String(selectedClinicId)) {
+        return false;
+      }
+      if (paymentFilter !== 'ALL') {
+        const ps = getDerivedPayStatus(b);
+        if (paymentFilter === 'PAID' && ps !== 'PAID') return false;
+        if (paymentFilter === 'PENDING' && !(ps === 'UNPAID' || ps === 'PENDING' || ps === 'PARTIAL')) return false;
+      }
+      if (!q) return true;
+      return [b.name, b.service, b.mobile_no, b.patient_id, b.id]
+        .filter((value) => value != null && value !== '')
+        .some((value) => String(value).toLowerCase().includes(q));
+    });
+  }, [bills, searchQuery, selectedOrgId, selectedClinicId, paymentFilter, clinics]);
+
+  // ─── Stats ─────────────────────────────────────────────
+  const totalRevenue  = bills.reduce((s, b) => s + Number(b.amountPaid || 0), 0);
 
   const paidCount     = bills.filter((b) => getDerivedPayStatus(b) === 'PAID').length;
   const pendingCount  = bills.filter((b) => {
@@ -428,87 +449,172 @@ const DialysisBilling = () => {
               { label: 'Dashboard', path: '/' },
               { label: 'Dialysis Billing', active: true },
             ]}
+            rightAction={
+              !isMobile ? (
+                <Input
+                  type="text"
+                  size="md"
+                  placeholder="Search patient"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ height: TOOLBAR_CONTROL_H, width: '220px', margin: 0, borderRadius: '9999px', paddingLeft: '16px', paddingRight: '16px' }}
+                />
+              ) : null
+            }
           />
         </Box>
 
-        <div className={`admin-page-content ${isMobile ? 'px-3 pb-20' : ''}`}>
-          {/* ─── Stats Cards ─── */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
-              gap: '14px',
-              marginBottom: '16px',
-            }}
-          >
-            {[
-              { label: 'Total Collected', value: `₹${totalRevenue.toLocaleString()}`, color: '#16A34A' },
-              { label: 'Outstanding',     value: `₹${outstanding.toLocaleString()}`,  color: '#DC2626' },
-              { label: 'Paid',            value: paidCount,                           color: '#1E40AF' },
-              { label: 'Pending',         value: pendingCount,                        color: '#EF4444' },
-            ].map(({ label, value, color }) => (
-              <div
-                key={label}
-                className="admin-card"
-                style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '4px' }}
-              >
-                <span style={{ fontSize: '12px', color: '#6B7280' }}>{label}</span>
-                <span style={{ fontSize: '22px', fontWeight: 800, color }}>{value}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* ─── Billing Table ─── */}
-          <div className="admin-card">
+        <div className={isMobile ? 'px-3 pb-20' : ''} style={{ background: '#f8fafc', width: '100%' }}>
+          <div style={{ width: '100%', padding: isMobile ? '12px 0' : '16px 0', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '12px',
-                marginBottom: '12px',
-                position: 'relative',
-                zIndex: 100
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+                gap: '14px',
               }}
             >
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '14px', fontWeight: 600 }}>
-                  Bills: <strong>{filteredBills.length}</strong>
-                </span>
-                <OrganizationSelector
-                  orgId={selectedOrgId}
-                  setOrgId={setSelectedOrgId}
-                  organizations={organizations}
-                  label=""
-                  minW="180px"
-                />
-                <ClinicSelector
-                  clinicId={selectedClinicId}
-                  setClinicId={setSelectedClinicId}
-                  orgId={selectedOrgId}
-                  clinics={clinics}
-                  label=""
-                  minW="180px"
-                />
+              {[
+                { label: 'Total Collected', value: `₹${totalRevenue.toLocaleString()}`, color: '#16A34A' },
+                { label: 'Outstanding',     value: `₹${outstanding.toLocaleString()}`,  color: '#DC2626' },
+                { label: 'Paid',            value: paidCount,                           color: '#1E40AF' },
+                { label: 'Pending',         value: pendingCount,                        color: '#EF4444' },
+              ].map(({ label, value, color }) => (
+                <div
+                  key={label}
+                  style={{
+                    background: '#fff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}
+                >
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>{label}</span>
+                  <span style={{ fontSize: '22px', fontWeight: 800, color }}>{value}</span>
+                </div>
+              ))}
+            </div>
+
+            <div
+              className="dt-roster-toolbar"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexWrap: 'wrap',
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px 14px',
+              }}
+            >
+              <style>{`
+                .dt-roster-toolbar .form-control { width: 100%; height: ${TOOLBAR_CONTROL_H}px; margin: 0; }
+                .dt-roster-toolbar .custom-select,
+                .dt-roster-toolbar .custom-select__trigger { width: 100%; height: ${TOOLBAR_CONTROL_H}px; }
+                .dt-roster-filter--off .custom-select__trigger {
+                  opacity: 0.9;
+                  background: #f8fafc;
+                  border-color: #cbd5e1;
+                }
+                .dt-roster-filter--off .custom-select__label,
+                .dt-roster-filter--off .custom-select__label--placeholder {
+                  color: #64748b;
+                  font-weight: 400;
+                }
+                .dt-roster-filter--off:hover .custom-select__trigger {
+                  opacity: 0.8;
+                }
+                .dt-roster-filter--on .custom-select__trigger {
+                  opacity: 1;
+                  background: #fff;
+                  border-color: #0f766e;
+                }
+                .dt-roster-filter--on .custom-select__label {
+                  color: #0f172a;
+                  font-weight: 600;
+                }
+              `}</style>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  flex: '1 1 auto',
+                  minWidth: 0,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {isMobile && (
+                  <Input
+                    type="text"
+                    size="md"
+                    placeholder="Search patient"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      height: TOOLBAR_CONTROL_H,
+                      margin: 0,
+                      flex: '1 1 100%',
+                      minWidth: '100%',
+                      boxSizing: 'border-box',
+                      borderRadius: '9999px',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                    }}
+                  />
+                )}
+                <div className={filterWrapClass(Boolean(selectedOrgId))} style={toolbarSelectWrap}>
+                  <OrganizationSelector
+                    orgId={selectedOrgId}
+                    setOrgId={(val) => {
+                      setSelectedOrgId(val);
+                      setSelectedClinicId('');
+                    }}
+                    organizations={organizations}
+                    label=""
+                    size="md"
+                    minW="100%"
+                    placeholder="All organizations"
+                  />
+                </div>
+                <div className={filterWrapClass(Boolean(selectedClinicId))} style={toolbarSelectWrap}>
+                  <ClinicSelector
+                    clinicId={selectedClinicId}
+                    setClinicId={setSelectedClinicId}
+                    orgId={selectedOrgId}
+                    clinics={clinics}
+                    label=""
+                    size="md"
+                    minW="100%"
+                    placeholder="All clinics"
+                  />
+                </div>
+                <div className={filterWrapClass(paymentFilter !== 'ALL')} style={toolbarSelectWrap}>
+                  <Select
+                    size="md"
+                    value={paymentFilter}
+                    onChange={(e) => setPaymentFilter(e.target.value)}
+                  >
+                    <option value="ALL">All payments</option>
+                    <option value="PAID">Paid</option>
+                    <option value="PENDING">Pending</option>
+                  </Select>
+                </div>
               </div>
-              <Input
-                type="text"
-                placeholder="Search patient or service…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ width: isMobile ? '100%' : '280px' }}
-              />
             </div>
 
             {loading ? (
-              <div className="flex items-center justify-center" style={{ minHeight: '180px' }}>
-                <p style={{ color: '#6B7280' }}>Loading billing records…</p>
-              </div>
+              <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading billing records…</div>
             ) : error ? (
-              <div className="flex flex-col items-center justify-center" style={{ minHeight: '180px', gap: '12px' }}>
-                <p style={{ color: '#DC2626' }}>{error}</p>
-                <Button variant="outline" onClick={fetchBills}>Retry</Button>
+              <div style={{ padding: '24px', color: '#dc2626' }}>
+                {error}
+                <div style={{ marginTop: '12px' }}>
+                  <Button variant="outline" onClick={fetchBills}>Retry</Button>
+                </div>
               </div>
             ) : (
               <UnifiedListTable
