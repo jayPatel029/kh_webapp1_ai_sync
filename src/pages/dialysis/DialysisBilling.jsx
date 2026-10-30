@@ -586,40 +586,42 @@ const DialysisBilling = () => {
                 </div>
               </div>
             ) : (
-              <style>{`
-                .dt-billing-table {
-                  overflow-x: auto;
-                }
-                .dt-billing-table .list-table {
-                  width: 100%;
-                  min-width: 1080px;
-                  table-layout: fixed;
-                }
-                .dt-billing-table .list-table thead th,
-                .dt-billing-table .list-table__header-cell,
-                .dt-billing-table .list-table__cell {
-                  padding: 12px 10px;
-                  white-space: nowrap;
-                  vertical-align: middle;
-                }
-                .dt-billing-table .list-table__text-cell {
-                  display: block;
-                  white-space: nowrap;
-                  overflow: hidden;
-                  text-overflow: ellipsis;
-                  word-wrap: normal;
-                  overflow-wrap: normal;
-                  max-width: 100%;
-                }
-              `}</style>
-              <UnifiedListTable
-                className="dt-billing-table"
-                columns={columns}
-                data={filteredBills}
-                emptyMessage="No billing records found"
-                displayMode="table"
-                rowsPerPage={10}
-              />
+              <>
+                <style>{`
+                  .dt-billing-table {
+                    overflow-x: auto;
+                  }
+                  .dt-billing-table .list-table {
+                    width: 100%;
+                    min-width: 1080px;
+                    table-layout: fixed;
+                  }
+                  .dt-billing-table .list-table thead th,
+                  .dt-billing-table .list-table__header-cell,
+                  .dt-billing-table .list-table__cell {
+                    padding: 12px 10px;
+                    white-space: nowrap;
+                    vertical-align: middle;
+                  }
+                  .dt-billing-table .list-table__text-cell {
+                    display: block;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    word-wrap: normal;
+                    overflow-wrap: normal;
+                    max-width: 100%;
+                  }
+                `}</style>
+                <UnifiedListTable
+                  className="dt-billing-table"
+                  columns={columns}
+                  data={filteredBills}
+                  emptyMessage="No billing records found"
+                  displayMode="table"
+                  rowsPerPage={10}
+                />
+              </>
             )}
           </div>
         </div>
