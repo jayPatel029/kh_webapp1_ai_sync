@@ -47,6 +47,10 @@ const toolbarSelectWrap = {
   flex: `0 0 ${TOOLBAR_FILTER_W}px`,
 };
 
+function filterWrapClass(active) {
+  return `dt-roster-filter ${active ? 'dt-roster-filter--on' : 'dt-roster-filter--off'}`;
+}
+
 const STATUS_COLORS = {
   Waiting: { bg: '#DBEAFE', text: '#1E40AF' },
   Temp: { bg: '#FFEDD5', text: '#9A3412' },
@@ -623,9 +627,9 @@ export default function DialysisPatientRoster() {
                   />
                   <Button
                     variant="brand"
-                    size="md"
+                    size="sm"
                     onClick={openAdd}
-                    style={{ height: TOOLBAR_CONTROL_H, margin: 0, padding: '0 18px', whiteSpace: 'nowrap', borderRadius: '9999px' }}
+                    style={{ height: TOOLBAR_CONTROL_H, margin: 0, padding: '0 18px', whiteSpace: 'nowrap', borderRadius: '9999px', fontSize: 'var(--font-size-sm)' }}
                   >
                     Add Patient
                   </Button>
@@ -654,6 +658,28 @@ export default function DialysisPatientRoster() {
                 .dt-roster-toolbar .form-control { width: 100%; height: ${TOOLBAR_CONTROL_H}px; margin: 0; }
                 .dt-roster-toolbar .custom-select,
                 .dt-roster-toolbar .custom-select__trigger { width: 100%; height: ${TOOLBAR_CONTROL_H}px; }
+                .dt-roster-filter--off .custom-select__trigger {
+                  opacity: 0.55;
+                  background: #f8fafc;
+                  border-color: #cbd5e1;
+                }
+                .dt-roster-filter--off .custom-select__label,
+                .dt-roster-filter--off .custom-select__label--placeholder {
+                  color: #94a3b8;
+                  font-weight: 400;
+                }
+                .dt-roster-filter--off:hover .custom-select__trigger {
+                  opacity: 0.8;
+                }
+                .dt-roster-filter--on .custom-select__trigger {
+                  opacity: 1;
+                  background: #fff;
+                  border-color: #0f766e;
+                }
+                .dt-roster-filter--on .custom-select__label {
+                  color: #0f172a;
+                  font-weight: 600;
+                }
               `}</style>
               <div
                 style={{
@@ -684,7 +710,7 @@ export default function DialysisPatientRoster() {
                     }}
                   />
                 )}
-                <div style={toolbarSelectWrap}>
+                <div className={filterWrapClass(Boolean(selectedOrgId))} style={toolbarSelectWrap}>
                   <OrganizationSelector
                     orgId={selectedOrgId}
                     setOrgId={(val) => {
@@ -698,7 +724,7 @@ export default function DialysisPatientRoster() {
                     placeholder="All organizations"
                   />
                 </div>
-                <div style={toolbarSelectWrap}>
+                <div className={filterWrapClass(Boolean(selectedClinicId))} style={toolbarSelectWrap}>
                   <ClinicSelector
                     orgId={selectedOrgId}
                     clinicId={selectedClinicId}
@@ -710,7 +736,7 @@ export default function DialysisPatientRoster() {
                     placeholder="All clinics"
                   />
                 </div>
-                <div style={toolbarSelectWrap}>
+                <div className={filterWrapClass(statusFilter !== 'ALL')} style={toolbarSelectWrap}>
                   <Select
                     size="md"
                     value={statusFilter}
@@ -726,7 +752,7 @@ export default function DialysisPatientRoster() {
               {isMobile && (
                 <Button
                   variant="brand"
-                  size="md"
+                  size="sm"
                   onClick={openAdd}
                   style={{
                     height: TOOLBAR_CONTROL_H,
@@ -736,6 +762,7 @@ export default function DialysisPatientRoster() {
                     flexShrink: 0,
                     width: '100%',
                     borderRadius: '9999px',
+                    fontSize: 'var(--font-size-sm)',
                   }}
                 >
                   Add Patient
