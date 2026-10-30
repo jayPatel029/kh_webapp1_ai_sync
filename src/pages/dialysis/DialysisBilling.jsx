@@ -22,12 +22,24 @@ import { getAppointments, addAppointmentPayment, getAppointmentById, updateAppoi
 import { getPatients } from '../../ApiCalls/patientAPis';
 import { useDialysisScope } from './DialysisScope';
 
+function formatBillingDate(value) {
+  if (!value || value === '—') return '—';
+  const raw = String(value).trim();
+  const isoDate = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoDate) return `${isoDate[3]}-${isoDate[2]}-${isoDate[1]}`;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}-${mm}-${d.getFullYear()}`;
+}
+
 const normalizeBillingRow = (apt, patients) => {
   const patientData = patients.find(p => String(p.patient_id || p.id) === String(apt.patient_id));
   
   return {
     id: apt.id,
-    appointment_date: apt.appointment_date || (apt.startUTC ? String(apt.startUTC).split('T')[0] : '—'),
+    appointment_date: formatBillingDate(apt.appointment_date || apt.startUTC),
     name: apt.patient_name || apt.patientName || patientData?.name || (apt.patient_id ? `Patient #${apt.patient_id}` : '—'),
     age: apt.age || apt.patient_age || patientData?.age || '—',
     sex: apt.gender || apt.patient_gender || patientData?.gender || patientData?.sex || '—',
