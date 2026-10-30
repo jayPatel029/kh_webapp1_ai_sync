@@ -659,13 +659,13 @@ export default function DialysisPatientRoster() {
                 .dt-roster-toolbar .custom-select,
                 .dt-roster-toolbar .custom-select__trigger { width: 100%; height: ${TOOLBAR_CONTROL_H}px; }
                 .dt-roster-filter--off .custom-select__trigger {
-                  opacity: 0.55;
+                  opacity: 0.7;
                   background: #f8fafc;
                   border-color: #cbd5e1;
                 }
                 .dt-roster-filter--off .custom-select__label,
                 .dt-roster-filter--off .custom-select__label--placeholder {
-                  color: #94a3b8;
+                  color: #64748b;
                   font-weight: 400;
                 }
                 .dt-roster-filter--off:hover .custom-select__trigger {
