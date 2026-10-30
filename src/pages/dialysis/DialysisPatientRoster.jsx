@@ -9,6 +9,7 @@ import {
   FormLabel,
   Input,
   Select,
+  Textarea,
 } from '../../component-library';
 import { FormModal } from '../../component-library/modals/FormModal';
 import PageHeader from '../../components/PageHeader';
@@ -35,6 +36,8 @@ const ROSTER_STATUSES = ['Waiting', 'Temp', 'Active', 'Discontinued'];
 const BOOKABLE_STATUSES = ['Waiting', 'Temp', 'Active'];
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 const LAB_OPTIONS = ['Pending', 'Positive', 'Negative'];
+const DISCONTINUE_NOTE_MAX_CHARS = 200;
+const DISCONTINUE_NOTE_MAX_WORDS = 40;
 
 const STATUS_COLORS = {
   Waiting: { bg: '#DBEAFE', text: '#1E40AF' },
@@ -133,10 +136,23 @@ function ActionIconBtn({ title, onClick, disabled, children, src }) {
   );
 }
 
+function wordCount(text) {
+  return String(text || '').trim().split(/\s+/).filter(Boolean).length;
+}
+
+function formatDiscontinueReason(reason) {
+  const raw = String(reason || '').trim();
+  if (!raw) return '';
+  if (raw === 'Left' || raw === 'Death') return raw;
+  const note = /^other\s*:/i.test(raw) ? raw.replace(/^other\s*:/i, '').trim() : raw;
+  const display = note ? `Other · ${note}` : 'Other';
+  return display.length > 48 ? `${display.slice(0, 45)}…` : display;
+}
+
 function StatusBadge({ status, reason }) {
   const colors = STATUS_COLORS[status] || { bg: '#F3F4F6', text: '#374151' };
   const label = status === 'Discontinued' && reason
-    ? `Discontinued · ${reason === 'Left' ? 'Left' : reason}`
+    ? `Discontinued · ${formatDiscontinueReason(reason)}`
     : (status || 'Waiting');
   return (
     <span
@@ -151,6 +167,7 @@ function StatusBadge({ status, reason }) {
         fontWeight: 600,
         whiteSpace: 'nowrap',
       }}
+      title={status === 'Discontinued' && reason ? String(reason) : undefined}
     >
       {label}
     </span>
@@ -179,6 +196,7 @@ export default function DialysisPatientRoster() {
   const [submitting, setSubmitting] = useState(false);
   const [discontinueRow, setDiscontinueRow] = useState(null);
   const [discontinueReason, setDiscontinueReason] = useState('');
+  const [discontinueNote, setDiscontinueNote] = useState('');
   const [actionError, setActionError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
 
@@ -385,22 +403,54 @@ export default function DialysisPatientRoster() {
     replaceRow(result.data);
   };
 
+  const resetDiscontinue = () => {
+    setDiscontinueRow(null);
+    setDiscontinueReason('');
+    setDiscontinueNote('');
+    setActionError('');
+  };
+
+  const handleDiscontinueNoteChange = (value) => {
+    const next = String(value || '').slice(0, DISCONTINUE_NOTE_MAX_CHARS);
+    const words = next.trim().split(/\s+/).filter(Boolean);
+    if (words.length > DISCONTINUE_NOTE_MAX_WORDS) {
+      setDiscontinueNote(words.slice(0, DISCONTINUE_NOTE_MAX_WORDS).join(' '));
+      return;
+    }
+    setDiscontinueNote(next);
+  };
+
   const handleDiscontinue = async () => {
     if (!discontinueRow || !discontinueReason) {
       setActionError('Select a reason');
       return;
     }
+    const note = discontinueNote.trim();
+    if (discontinueReason === 'Other') {
+      if (!note) {
+        setActionError('Enter a reason');
+        return;
+      }
+      if (note.length > DISCONTINUE_NOTE_MAX_CHARS) {
+        setActionError(`Keep the reason to ${DISCONTINUE_NOTE_MAX_CHARS} characters or fewer`);
+        return;
+      }
+      if (wordCount(note) > DISCONTINUE_NOTE_MAX_WORDS) {
+        setActionError(`Keep the reason to ${DISCONTINUE_NOTE_MAX_WORDS} words or fewer`);
+        return;
+      }
+    }
     setActionBusy(true);
     setActionError('');
-    const result = await discontinueDtPatient(discontinueRow.id, discontinueReason);
+    const reasonToSend = discontinueReason === 'Other' ? `Other: ${note}` : discontinueReason;
+    const result = await discontinueDtPatient(discontinueRow.id, reasonToSend);
     setActionBusy(false);
     if (!result.success) {
       setActionError(result.message || 'Could not discontinue patient');
       return;
     }
     replaceRow(result.data);
-    setDiscontinueRow(null);
-    setDiscontinueReason('');
+    resetDiscontinue();
   };
 
   const columns = useMemo(
@@ -517,6 +567,7 @@ export default function DialysisPatientRoster() {
                   onClick={() => {
                     setActionError('');
                     setDiscontinueReason('');
+                    setDiscontinueNote('');
                     setDiscontinueRow(row);
                   }}
                 >
@@ -769,26 +820,51 @@ export default function DialysisPatientRoster() {
 
         <FormModal
           isOpen={Boolean(discontinueRow)}
-          onClose={() => { setDiscontinueRow(null); setDiscontinueReason(''); setActionError(''); }}
+          onClose={resetDiscontinue}
           onSubmit={handleDiscontinue}
           title="Discontinue patient"
           submitText={actionBusy ? 'Saving…' : 'Discontinue'}
           submitVariant="brand"
           isLoading={actionBusy}
-          isSubmitDisabled={actionBusy || !discontinueReason}
+          isSubmitDisabled={
+            actionBusy
+            || !discontinueReason
+            || (discontinueReason === 'Other' && !discontinueNote.trim())
+          }
           errorMessage={actionError}
         >
           <FormControl isRequired>
             <FormLabel>Reason</FormLabel>
             <Select
               value={discontinueReason}
-              onChange={(e) => setDiscontinueReason(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setDiscontinueReason(next);
+                if (next !== 'Other') setDiscontinueNote('');
+              }}
               placeholder="Select reason"
             >
               <option value="Death">Death</option>
               <option value="Left">Left / cancelled with us</option>
+              <option value="Other">Other</option>
             </Select>
           </FormControl>
+          {discontinueReason === 'Other' && (
+            <FormControl isRequired style={{ marginTop: '12px' }}>
+              <FormLabel>Details</FormLabel>
+              <Textarea
+                value={discontinueNote}
+                onChange={(e) => handleDiscontinueNoteChange(e.target.value)}
+                placeholder="Enter the reason"
+                rows={3}
+                maxLength={DISCONTINUE_NOTE_MAX_CHARS}
+                resize="none"
+              />
+              <div style={{ marginTop: '6px', fontSize: '12px', color: '#64748b' }}>
+                {wordCount(discontinueNote)}/{DISCONTINUE_NOTE_MAX_WORDS} words · {discontinueNote.length}/{DISCONTINUE_NOTE_MAX_CHARS} characters
+              </div>
+            </FormControl>
+          )}
         </FormModal>
       </Box>
     </ThemeProvider>
