@@ -159,6 +159,16 @@ const UnifiedListTable = ({
         return `${day}-${month}-${year}`;
     };
 
+    const isEmptyTableValue = (val) => {
+        if (val == null) return true;
+        const text = String(val).trim();
+        return text === '' || text === '-' || text === '—' || text.toLowerCase() === 'n/a';
+    };
+
+    const textCellClass = (val) => (
+        `list-table__text-cell ${isEmptyTableValue(val) ? 'list-table__text-cell--empty' : 'list-table__text-cell--filled'}`
+    );
+
     const renderCell = (row, column) => {
         const value = row[column.key];
 
@@ -176,15 +186,19 @@ const UnifiedListTable = ({
                     </div>
                 );
 
-            case 'text':
-                return <span className="list-table__text-cell">{value || '-'}</span>;
+            case 'text': {
+                const display = (value == null || value === '') ? '-' : value;
+                return <span className={textCellClass(display)}>{display}</span>;
+            }
 
-            case 'date':
+            case 'date': {
+                const display = formatDateSafe(value);
                 return (
-                    <span className="list-table__text-cell">
-                        {formatDateSafe(value)}
+                    <span className={textCellClass(display)}>
+                        {display}
                     </span>
                 );
+            }
 
             case 'multi-line':
                 // For arrays or objects with multiple items

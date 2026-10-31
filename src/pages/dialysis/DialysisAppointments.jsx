@@ -1407,12 +1407,29 @@ const DialysisAppointments = () => {
       type: 'custom', 
       width: '300px',
       render: (row) => {
-        const code = row._raw?.patient_code || row.patient_code || row.patientCode || row.patient_id || '-';
-        const name = row.name || '-';
-        const age = row.age || '-';
-        const gender = row.sex || row.gender || '-';
-        const phone = row.mobile_no || row.phone || '-';
-        return <div style={{ fontSize: '13px', fontWeight: 600 }}>{`${code} / ${name} / ${age} / ${gender} / ${phone}`}</div>;
+        const empty = (val) => {
+          const text = String(val ?? '').trim();
+          return !text || text === '-' || text === '—';
+        };
+        const parts = [
+          row._raw?.patient_code || row.patient_code || row.patientCode || row.patient_id || '-',
+          row.name || '-',
+          row.age || '-',
+          row.sex || row.gender || '-',
+          row.mobile_no || row.phone || '-',
+        ];
+        return (
+          <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            {parts.map((part, idx) => (
+              <span key={`${row.id || 'row'}-${idx}`}>
+                {idx > 0 ? <span style={{ color: '#cbd5e1', fontWeight: 400 }}> / </span> : null}
+                <span style={{ color: empty(part) ? '#cbd5e1' : '#0f172a', fontWeight: empty(part) ? 400 : 600 }}>
+                  {part}
+                </span>
+              </span>
+            ))}
+          </div>
+        );
       }
     },
     { key: 'appointment_time', label: 'APPOINTMENT TIME', type: 'text', width: '130px' },
@@ -1749,13 +1766,26 @@ const DialysisAppointments = () => {
                 <Button variant="outline" onClick={fetchAppointments}>Retry</Button>
               </div>
             ) : (
-              <UnifiedListTable
-                columns={columns}
-                data={filtered}
-                emptyMessage="No dialysis appointments. Book one from the Patients tab."
-                displayMode="table"
-                rowsPerPage={10}
-              />
+              <>
+                <style>{`
+                  .dt-appointments-table .list-table__text-cell--filled {
+                    color: #0f172a;
+                    font-weight: 600;
+                  }
+                  .dt-appointments-table .list-table__text-cell--empty {
+                    color: #cbd5e1;
+                    font-weight: 400;
+                  }
+                `}</style>
+                <UnifiedListTable
+                  className="dt-appointments-table"
+                  columns={columns}
+                  data={filtered}
+                  emptyMessage="No dialysis appointments. Book one from the Patients tab."
+                  displayMode="table"
+                  rowsPerPage={10}
+                />
+              </>
             )}
           </div>
         </div>
