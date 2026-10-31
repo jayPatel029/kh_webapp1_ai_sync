@@ -443,7 +443,15 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
       setPatientRaw(patientData);
 
       setPrescriptionRaw(rxRes?.success ? rxRes.data : null);
-      setVitalsRaw(vitalsRes?.success ? unwrapRecord(vitalsRes.data, ['vitals']) || vitalsRes.data : null);
+      const vitalsPayload = vitalsRes?.success
+        ? unwrapRecord(vitalsRes.data, ['vitals']) || vitalsRes.data
+        : null;
+      const vitalsBelongToThisSession = Boolean(
+        vitalsPayload
+        && vitalsPayload.session_id != null
+        && String(vitalsPayload.session_id) === String(activeSessionId)
+      );
+      setVitalsRaw(vitalsBelongToThisSession ? vitalsPayload : null);
       setAlertsRaw(alertsRes?.success ? unwrapList(alertsRes.data) : []);
 
       const session = sessionRes?.success ? unwrapRecord(sessionRes.data) || sessionRes.data : null;

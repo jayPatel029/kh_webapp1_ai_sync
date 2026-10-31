@@ -33,7 +33,7 @@ import usePreDialysisDashboard, {
 } from '../../hooks/usePreDialysisDashboard';
 import { getSeverityStyle } from './dialysisQueueConstants';
 import { ROUTES } from '../../routes/routeConstants';
-import { formatIst, resolveP2SessionId } from './p2Runtime';
+import { formatIst, MISSING, resolveP2SessionId } from './p2Runtime';
 
 // ---------------------------------------------------------------------------
 // Styling Tokens
@@ -478,6 +478,16 @@ const PreDialysisDashboardView = ({
                   <span style={{ fontSize: '12px', color: '#64748b' }}>Reference Ranges</span>
                 </div>
 
+                {latestVitals.bpTag === 'Missing'
+                  && latestVitals.pulseTag === 'Missing'
+                  && latestVitals.tempTag === 'Missing'
+                  && latestVitals.spo2Tag === 'Missing'
+                  && latestVitals.preWeight === MISSING
+                  && latestVitals.respRateTag === 'Missing' ? (
+                  <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '12px' }}>
+                    No vitals recorded for this session yet.
+                  </div>
+                ) : null}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <VitalCell label="BP" value={latestVitals.bp} tag={latestVitals.bpTag} />
                   <VitalCell label="Pulse" value={latestVitals.pulse} tag={latestVitals.pulseTag} />

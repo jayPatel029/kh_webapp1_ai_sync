@@ -115,7 +115,7 @@ export const ROLLUP_LABELS = {
 export function normalizeStepStatus(raw) {
   const value = String(raw || '').toLowerCase();
   if (value === 'complete' || value === 'completed' || value === 'passed') return 'Completed';
-  if (value === 'in_progress' || value === 'in-progress' || value === 'pending') return 'In Progress';
+  if (value === 'in_progress' || value === 'in-progress') return 'In Progress';
   if (value === 'failed' || value === 'fail') return 'Failed';
   return 'Not started';
 }
