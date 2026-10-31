@@ -639,7 +639,7 @@ const PatientVerificationView = ({
                   fontWeight: 700,
                 }}
               >
-                {prescriptionDetails.valid ? 'Valid' : 'Missing'}
+                {prescriptionDetails.valid ? 'Valid' : 'Deferred'}
               </span>
             </div>
 
@@ -719,7 +719,7 @@ const PatientVerificationView = ({
               <span>
                 {prescriptionDetails.valid
                   ? 'Prescription is valid and matches today\'s schedule.'
-                  : 'No prescription on file for this patient. Continue stays blocked until a prescription exists.'}
+                  : 'No dialysis standing order on file. Prescription verification is parked until a source table exists — Continue is not blocked for now.'}
               </span>
             </div>
           </div>
@@ -970,7 +970,7 @@ const PatientVerificationView = ({
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
               {!canProceed ? (
                 <div style={{ fontSize: '12px', color: '#b45309' }}>
-                  Continue stays disabled until identity (2 matches), a verification method, infection check, consumables, and a prescription are all resolved.
+                  Continue stays disabled until identity (2 matches), a verification method, infection check, and consumables are resolved.
                 </div>
               ) : null}
               <div style={{ display: 'flex', gap: '12px' }}>

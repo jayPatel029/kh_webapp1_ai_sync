@@ -20,6 +20,10 @@ import { notifyError, notifySuccess } from '../helpers/notify';
 import { liveValue, MISSING, unwrapList, unwrapRecord, formatIst } from '../pages/dialysis/p2Runtime';
 import { loadP2Draft, saveP2Draft } from '../pages/dialysis/p2DraftCache';
 
+// Parked: no dialysis standing-order table exists yet (old `prescriptions` is a PDF/note).
+// P2-04 must not block Continue on a missing prescription until that source is built.
+export const PRESCRIPTION_GATE_ENABLED = false;
+
 export const VERIFICATION_STEPS_7 = [
   { id: 1, key: 'verification', name: 'Patient Verification', code: 'P2-04' },
   { id: 2, key: 'vitals', name: 'Vitals & Measurements', code: 'P2-05' },
@@ -385,7 +389,9 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
   );
   const consumablesValid = checkConsumablesValid(consumablesState);
   const prescriptionValid = Boolean(prescriptionDetails.valid);
-  const canProceed = identityValid && methodValid && infectionValid && consumablesValid && prescriptionValid;
+  const canProceed = identityValid && methodValid && infectionValid && consumablesValid && (
+    PRESCRIPTION_GATE_ENABLED ? prescriptionValid : true
+  );
 
   const currentDraft = useMemo(() => ({
     identityMatches,
@@ -410,7 +416,7 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
         identity_dob_match: identityMatches.dobMatched,
         identity_pid_match: identityMatches.pidMatched,
         identity_phone_match: identityMatches.phoneMatched,
-        prescription_valid: prescriptionValid,
+        ...(PRESCRIPTION_GATE_ENABLED || prescriptionValid ? { prescription_valid: prescriptionValid } : {}),
         hiv_status: infectionState.hivStatus,
         hepatitis_status: infectionState.hepatitisStatus,
         hiv_skipped: infectionState.skipped,
@@ -446,7 +452,7 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
         identity_dob_match: identityMatches.dobMatched,
         identity_pid_match: identityMatches.pidMatched,
         identity_phone_match: identityMatches.phoneMatched,
-        prescription_valid: prescriptionValid,
+        ...(PRESCRIPTION_GATE_ENABLED || prescriptionValid ? { prescription_valid: prescriptionValid } : {}),
         hiv_status: infectionState.hivStatus,
         hepatitis_status: infectionState.hepatitisStatus,
         hiv_skipped: infectionState.skipped,
