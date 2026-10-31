@@ -33,15 +33,13 @@ import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientPr
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import usePatientAssessment, {
-  CRITICAL_SUBJECTIVE_SYMPTOMS,
-  NON_CRITICAL_SUBJECTIVE_SYMPTOMS,
   KPS_DESCRIPTIONS,
+  OPTIONAL_ASSESSMENT_FIELDS,
 } from '../../hooks/usePatientAssessment';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
-import { resolveP2SessionId } from './p2Runtime';
+import { MISSING, resolveP2SessionId } from './p2Runtime';
 import './duringDialysis.css';
 import { ROUTES } from '../../routes/routeConstants';
-import { submitSessionAssessment } from '../../ApiCalls/preDialysisApis';
 
 // ---------------------------------------------------------------------------
 // Styling Tokens
@@ -129,84 +127,96 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
     skipReasons,
     setSkipReasons,
     checkSkippedNonMandatory,
+    alerts,
+    keyVitals,
+    notes,
+    assessmentTime,
     loading,
+    saving,
     error,
-  } = usePatientAssessment(patientId);
+    refresh,
+    saveDraft,
+    submitFinal,
+  } = usePatientAssessment(patientId, effectiveSessionId);
 
   const [focusedSymptom, setFocusedSymptom] = useState(null);
 
-  // Handle Back Click
   const handleBackClick = () => {
     if (onBack) {
       onBack();
     } else {
       navigate(ROUTES.DIALYSIS_PATIENTS, {
-        state: { patientId, step: 'P2-05' },
+        state: { patientId, sessionId: effectiveSessionId, step: 'P2-05' },
       });
     }
   };
 
-  // Handle Save as Draft
-  const handleSaveDraft = () => {
-    alert('Patient Assessment draft saved locally.');
+  const goNext = () => {
+    if (onNext) {
+      onNext();
+      return;
+    }
+    navigate(ROUTES.DIALYSIS_PATIENTS, {
+      state: { patientId, sessionId: effectiveSessionId, step: 'P2-07' },
+    });
   };
 
-  // Handle Save & Continue Click
-  const handleSaveContinue = () => {
-    if (!canProceed) return;
+  const goToStep = (step) => {
+    if (onNavigateStep) {
+      onNavigateStep(step);
+      return;
+    }
+    navigate(ROUTES.DIALYSIS_PATIENTS, {
+      state: { patientId, sessionId: effectiveSessionId, step },
+    });
+  };
 
+  const buildSkips = (labels) => labels.map((label) => {
+    const field = OPTIONAL_ASSESSMENT_FIELDS.find((item) => item.label === label);
+    const reason = skipReasons[label];
+    return {
+      field_name: field?.field_name || label,
+      reason: reason && String(reason).trim() ? String(reason).trim() : null,
+    };
+  });
+
+  const handleSaveContinue = async () => {
+    if (!canProceed || saving) return;
     const skipped = checkSkippedNonMandatory();
     if (skipped.length > 0) {
       setSkippedFieldsList(skipped);
       setShowSkipModal(true);
-    } else {
-      proceedToNext();
+      return;
     }
+    const saved = await submitFinal([]);
+    if (saved) goNext();
   };
 
   const proceedToNext = async () => {
-    try {
-      await submitSessionAssessment(effectiveSessionId, {
-        status: 'final',
-        section: 'Subjective Assessment',
-        assessment: {
-          shortness_of_breath: subjective.shortnessOfBreath ? 'yes' : 'no',
-          chest_pain: subjective.chestPain ? 'yes' : 'no',
-          bleeding_bruising: subjective.bleedingBruising ? 'yes' : 'no',
-          dizziness_giddiness: subjective.dizzinessGiddiness ? 'yes' : 'no',
-          fever_chills: subjective.feverChills ? 'yes' : 'no',
-          any_abnormal_finding: objective.anyAbnormalFinding ? 'yes' : 'no',
-          consciousness: objective.consciousness || 'alert',
-          lung_sounds: objective.lungSounds || 'clear',
-          heart_sounds: objective.heartSounds || 'normal',
-          nausea_vomiting: subjective.nauseaVomiting ? 'yes' : 'no',
-          cough: subjective.cough ? 'yes' : 'no',
-          muscle_cramps: subjective.muscleCramps ? 'yes' : 'no',
-          itching: subjective.itching ? 'yes' : 'no',
-          headache: subjective.headache ? 'yes' : 'no',
-          loss_of_appetite: subjective.lossOfAppetite ? 'yes' : 'no',
-          general_appearance: objective.generalAppearance || 'well',
-          edema: objective.edema || 'none',
-          kps: functional.kps || '80',
-        },
-        skips: skippedFieldsList.map((key) => ({ field_name: key, reason: skipReasons[key] || 'optional' })),
-      });
-    } catch (_) {}
-
+    if (!canProceed || saving) return;
+    const saved = await submitFinal(buildSkips(skippedFieldsList));
+    if (!saved) return;
     setShowSkipModal(false);
-    if (onNext) {
-      onNext();
-    } else {
-      navigate(ROUTES.DIALYSIS_PATIENTS, {
-        state: { patientId, step: 'P2-07' },
-      });
-    }
+    goNext();
   };
 
   if (loading) {
     return (
       <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', fontSize: '16px' }}>
         Loading Patient Assessment...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '60px', textAlign: 'center' }}>
+        <p style={{ color: '#dc2626', marginBottom: '16px', fontSize: '15px' }}>
+          {error}
+        </p>
+        <Button variant="outline" onClick={refresh}>
+          Retry
+        </Button>
       </div>
     );
   }
@@ -237,7 +247,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                 <button
                   type="button"
                   className={step.id === 3 ? 'active' : ''}
-                  onClick={() => { if (onNavigateStep) onNavigateStep(step.code); else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, step: step.code } }); }}
+                  onClick={() => goToStep(step.code)}
                   aria-current={step.id === 3 ? 'step' : undefined}
                 >
                   <span className="during-step-number">{step.id}</span>
@@ -277,13 +287,13 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                     </p>
                   </div>
                   <div style={{ fontSize: '12px', color: '#64748b' }}>
-                    Assessment Time: <strong>26 May 2025, 06:48 AM</strong>
+                    Assessment Time: <strong>{assessmentTime && assessmentTime !== MISSING ? assessmentTime : MISSING}</strong>
                   </div>
                 </div>
 
                 {/* 11 Symptoms Grid (4 columns) */}
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: '14px', marginBottom: '16px' }}>
-                  {SYMPTOM_DEFINITIONS.map((sym, idx) => {
+                  {SYMPTOM_DEFINITIONS.map((sym) => {
                     const isYes = subjective[sym.key] === 'Yes';
                     const IconComp = SYMPTOM_ICON_MAP[sym.key] || MedicalInformationOutlinedIcon;
 
@@ -322,7 +332,6 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
 
                         <div style={{ marginTop: '10px' }}>
                           <textarea
-                            autoFocus={idx === 0}
                             rows={focusedSymptom === sym.key ? 2 : 1}
                             placeholder="Describe symptom details..."
                             value={subjective.symptomDetails[sym.key] || ''}
@@ -400,6 +409,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       onChange={(e) => updateObjectiveField('generalAppearance', e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                     >
+                      <option value="">Select</option>
                       <option value="Alert">Alert</option>
                       <option value="Drowsy">Drowsy</option>
                       <option value="Lethargic">Lethargic</option>
@@ -416,6 +426,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       onChange={(e) => updateObjectiveField('consciousness', e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                     >
+                      <option value="">Select</option>
                       <option value="Oriented">Oriented</option>
                       <option value="Confused">Confused</option>
                       <option value="Unresponsive">Unresponsive</option>
@@ -431,6 +442,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       onChange={(e) => updateObjectiveField('edema', e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                     >
+                      <option value="">Select</option>
                       <option value="None">None</option>
                       <option value="Mild (1+)">Mild (1+)</option>
                       <option value="Moderate (2+)">Moderate (2+)</option>
@@ -447,6 +459,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       onChange={(e) => updateObjectiveField('hydrationStatus', e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                     >
+                      <option value="">Select</option>
                       <option value="Euvolemic">Euvolemic</option>
                       <option value="Dehydrated">Dehydrated</option>
                       <option value="Fluid Overloaded">Fluid Overloaded</option>
@@ -462,6 +475,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       onChange={(e) => updateObjectiveField('skinCondition', e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                     >
+                      <option value="">Select</option>
                       <option value="Normal">Normal</option>
                       <option value="Dry">Dry</option>
                       <option value="Pale">Pale</option>
@@ -481,6 +495,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       onChange={(e) => updateObjectiveField('jvp', e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                     >
+                      <option value="">Select</option>
                       <option value="Normal">Normal</option>
                       <option value="Elevated">Elevated</option>
                       <option value="Not Visible">Not Visible</option>
@@ -496,6 +511,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       onChange={(e) => updateObjectiveField('lungSounds', e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                     >
+                      <option value="">Select</option>
                       <option value="Clear">Clear</option>
                       <option value="Crackles/Rales">Crackles/Rales</option>
                       <option value="Wheezing">Wheezing</option>
@@ -512,6 +528,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       onChange={(e) => updateObjectiveField('heartSounds', e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                     >
+                      <option value="">Select</option>
                       <option value="Normal">Normal</option>
                       <option value="Murmur">Murmur</option>
                       <option value="Gallop">Gallop</option>
@@ -528,6 +545,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       onChange={(e) => updateObjectiveField('abdomen', e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                     >
+                      <option value="">Select</option>
                       <option value="Soft, Non-tender">Soft, Non-tender</option>
                       <option value="Tender">Tender</option>
                       <option value="Distended">Distended</option>
@@ -608,6 +626,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       onChange={(e) => updateFunctionalField('kps', e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: 700 }}
                     >
+                      <option value="">Select</option>
                       {Object.keys(KPS_DESCRIPTIONS).map((score) => (
                         <option key={score} value={score}>{score}</option>
                       ))}
@@ -688,60 +707,94 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                   <span>Pre-Dialysis Alerts</span>
                 </div>
                 <div style={{ fontSize: '12px', color: '#92400e', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div>• High Potassium (5.2 mEq/L)</div>
-                  <div>• Low Hemoglobin (9.6 g/dL)</div>
+                  {alerts.length === 0 ? (
+                    <div>No active alerts</div>
+                  ) : alerts.map((alert) => (
+                    <div key={alert.id}>
+                      • {alert.title}
+                      {alert.message && alert.message !== MISSING ? ` — ${alert.message}` : ''}
+                    </div>
+                  ))}
                 </div>
-                <button type="button" style={{ background: 'none', border: 'none', color: '#b45309', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '10px', padding: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => goToStep('P2-03')}
+                  style={{ background: 'none', border: 'none', color: '#b45309', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '10px', padding: 0 }}
+                >
                   View All Alerts →
                 </button>
               </div>
 
-              {/* Card 3: Key Vitals (06:45 AM) */}
+              {/* Card 3: Key Vitals */}
               <div style={CARD_STYLE}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>
-                    Key Vitals <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 500 }}>(06:45 AM)</span>
+                    Key Vitals{' '}
+                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 500 }}>
+                      {keyVitals?.time && keyVitals.time !== MISSING ? `(${keyVitals.time})` : ''}
+                    </span>
                   </div>
                 </div>
-                <div style={{ fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>BP</span>
-                    <strong>138 / 82 mmHg</strong>
+                {keyVitals ? (
+                  <div style={{ fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>BP</span>
+                      <strong>{keyVitals.bp}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Pulse</span>
+                      <strong>{keyVitals.pulse}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Temp.</span>
+                      <strong>{keyVitals.temperature}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>SpO₂</span>
+                      <strong>{keyVitals.spo2}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Weight (Pre)</span>
+                      <strong>{keyVitals.weightPre}</strong>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Pulse</span>
-                    <strong>78 bpm</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Temp.</span>
-                    <strong>36.8 °C</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>SpO₂</span>
-                    <strong>98 %</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Weight (Pre)</span>
-                    <strong>68.5 kg</strong>
-                  </div>
-                </div>
-                <button type="button" style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '10px', padding: 0 }}>
+                ) : (
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>No vitals recorded for this session</div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => goToStep('P2-05')}
+                  style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '10px', padding: 0 }}
+                >
                   View All Vitals →
                 </button>
               </div>
 
-              {/* Card 4: Notes (0) Empty State */}
-              <div style={{ ...CARD_STYLE, textAlign: 'center', padding: '24px' }}>
+              {/* Card 4: Notes */}
+              <div style={{ ...CARD_STYLE, textAlign: notes.length ? 'left' : 'center', padding: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>Notes (0)</div>
-                  <button type="button" style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 700, cursor: 'pointer', padding: 0 }}>
-                    Add Note
-                  </button>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a' }}>Notes ({notes.length})</div>
                 </div>
-                <div style={{ width: '48px', height: '48px', margin: '0 auto 8px auto', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <NoteAltOutlinedIcon aria-hidden="true" sx={{ color: '#94a3b8', fontSize: 24 }} />
-                </div>
-                <div style={{ fontSize: '12px', color: '#64748b' }}>No notes added yet.</div>
+                {notes.length === 0 ? (
+                  <>
+                    <div style={{ width: '48px', height: '48px', margin: '0 auto 8px auto', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <NoteAltOutlinedIcon aria-hidden="true" sx={{ color: '#94a3b8', fontSize: 24 }} />
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>No notes added yet.</div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {notes.map((note) => (
+                      <div key={note.id}>
+                        <div style={{ color: '#64748b', fontWeight: 700 }}>
+                          {note.label}
+                          {note.time && note.time !== MISSING ? ` · ${note.time}` : ''}
+                        </div>
+                        <div>{note.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -764,19 +817,19 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
             </Button>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <Button variant="outline" onClick={handleSaveDraft}>
-                Save as Draft
+              <Button variant="outline" onClick={saveDraft} disabled={saving}>
+                {saving ? 'Saving…' : 'Save as Draft'}
               </Button>
               <Button
                 variant="brand"
                 onClick={handleSaveContinue}
-                disabled={!canProceed}
+                disabled={!canProceed || saving}
                 style={{
-                  opacity: canProceed ? 1 : 0.5,
-                  cursor: canProceed ? 'pointer' : 'not-allowed',
+                  opacity: canProceed && !saving ? 1 : 0.5,
+                  cursor: canProceed && !saving ? 'pointer' : 'not-allowed',
                 }}
               >
-                Save & Continue →
+                {saving ? 'Saving…' : 'Save & Continue →'}
               </Button>
             </div>
           </div>
@@ -824,11 +877,11 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <Button variant="outline" onClick={() => setShowSkipModal(false)}>
+                <Button variant="outline" onClick={() => setShowSkipModal(false)} disabled={saving}>
                   Go Back & Complete
                 </Button>
-                <Button onClick={proceedToNext}>
-                  Skip & Proceed
+                <Button onClick={proceedToNext} disabled={saving}>
+                  {saving ? 'Saving…' : 'Skip & Proceed'}
                 </Button>
               </div>
             </div>
