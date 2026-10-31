@@ -82,6 +82,24 @@ export async function unassignPatientFromBed(payload, config = {}) {
 }
 
 /**
+ * Undo a drag-assign if pre-dialysis was cancelled before the session started.
+ * @param {Object} payload - {bed_id, patient_id, appointment_id, session_id}
+ * @returns {Promise<{success: boolean, data: any}>}
+ */
+export async function cancelPendingBedAssignment(payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(
+      `${server_url}/dt/beds/cancel-pending-assignment`,
+      payload,
+      config
+    );
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, data: error.response?.data || error.message };
+  }
+}
+
+/**
  * Mark a bed as quarantine
  * @param {string|number} bedId - Bed ID
  * @param {Object} payload - {reason, quarantine_status (true/false), estimated_duration}

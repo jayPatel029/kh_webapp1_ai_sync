@@ -60,6 +60,7 @@ import {
   getAppointments,
   getOrganizations,
 } from '../../../ApiCalls/clinicApis';
+import { cancelPendingBedAssignment } from '../../../ApiCalls/bedManagementApis';
 
 import OrganizationSelector from '../../../components/OrganizationSelector';
 import { useNavigate } from 'react-router-dom';
@@ -898,6 +899,7 @@ export default function BedManagementDashboard({
   const [isDialysisModalOpen, setIsDialysisModalOpen] = useState(false);
   const [dialysisPatientData, setDialysisPatientData] = useState({});
   const [dialysisBedData, setDialysisBedData] = useState({});
+  const [revertAssignmentOnClose, setRevertAssignmentOnClose] = useState(false);
 
   const showNotification = useCallback((title, description, status = 'success') => {
     setNotification({ title, description, status });
@@ -1069,6 +1071,7 @@ export default function BedManagementDashboard({
             sessionId: assignedSessionId,
           });
           setDialysisBedData(targetBed);
+          setRevertAssignmentOnClose(true);
           setIsDialysisModalOpen(true);
 
           showNotification('Success', `Patient assigned to Bed ${targetBed.bed_number} — opening workflow`, 'success');
@@ -1100,6 +1103,7 @@ export default function BedManagementDashboard({
         appointment_id: bed.appointment_id,
       });
       setDialysisBedData(bed);
+      setRevertAssignmentOnClose(false);
       setIsDialysisModalOpen(true);
     } else if (bed.status === 'EMPTY' || bed.status === 'AVAILABLE' || bed.status === 'QUARANTINE') {
       // For empty or quarantine beds, show assignment modal
@@ -1140,6 +1144,7 @@ export default function BedManagementDashboard({
           });
           const bedForModal = selectedBed || { id: assignmentData.bed_id, bed_number: selectedBed?.bed_number || `Bed ${assignmentData.bed_id}` };
           setDialysisBedData(bedForModal);
+          setRevertAssignmentOnClose(true);
           setIsDialysisModalOpen(true);
           showNotification('Success', `Patient assigned — opening workflow`, 'success');
           loadAppointments(clinicId);
@@ -1165,7 +1170,9 @@ export default function BedManagementDashboard({
 
   const handleDialysisStageChange = useCallback(
     (stageName, data) => {
-      // Refresh both beds and appointments
+      if (['during', 'after', 'completed', 'aborted'].includes(String(stageName || ''))) {
+        setRevertAssignmentOnClose(false);
+      }
       fetchAllBeds();
       loadAppointments(clinicId);
 
@@ -1175,6 +1182,48 @@ export default function BedManagementDashboard({
     },
     [clinicId, fetchAllBeds, loadAppointments, showNotification]
   );
+
+  const handleWorkflowClose = useCallback(async () => {
+    if (revertAssignmentOnClose) {
+      const confirmed = window.confirm(
+        'Cancel the procedure? The bed will go back to empty and the patient will return to the queue.'
+      );
+      if (!confirmed) return;
+
+      const result = await cancelPendingBedAssignment({
+        bed_id: dialysisBedData?.id,
+        patient_id: dialysisPatientData?.patient_id,
+        appointment_id: dialysisPatientData?.appointment_id,
+        session_id: dialysisPatientData?.dialysis_session_id || dialysisPatientData?.session_id,
+      });
+
+      if (result.success) {
+        showNotification('Assignment cancelled', 'Bed is empty again. Patient is back in the queue.', 'info');
+      } else {
+        const code = result.data?.error_code;
+        if (code === 'ERR_SESSION_ALREADY_STARTED') {
+          showNotification('Session already started', 'The bed stays occupied.', 'info');
+        } else {
+          showNotification('Could not release bed', result.data?.message || result.data || 'Unknown error', 'error');
+        }
+      }
+    }
+
+    setIsDialysisModalOpen(false);
+    setRevertAssignmentOnClose(false);
+    setDialysisPatientData({});
+    setDialysisBedData({});
+    fetchAllBeds();
+    loadAppointments(clinicId);
+  }, [
+    revertAssignmentOnClose,
+    dialysisBedData,
+    dialysisPatientData,
+    clinicId,
+    fetchAllBeds,
+    loadAppointments,
+    showNotification,
+  ]);
 
   if (bedsLoading && clinics.length === 0 && !hideScopeSelectors) {
     return (
@@ -1437,12 +1486,7 @@ export default function BedManagementDashboard({
 
       <DialysisParametersModal
         isOpen={isDialysisModalOpen}
-        onClose={() => {
-          setIsDialysisModalOpen(false);
-          setDialysisPatientData({});
-          setDialysisBedData({});
-          fetchAllBeds(); // final refresh
-        }}
+        onClose={handleWorkflowClose}
         patient={dialysisPatientData}
         bed={dialysisBedData}
         onStageChange={handleDialysisStageChange}
