@@ -1540,7 +1540,21 @@ const DialysisAppointments = () => {
 
   // ─── Columns ──────────────────────────────────────────
   const columns = [
-    { key: 'created_date', label: 'DATE', type: 'text', width: '100px' },
+    {
+      key: 'created_date',
+      label: 'DATE',
+      type: 'custom',
+      width: '120px',
+      minWidth: '120px',
+      render: (row) => (
+        <span
+          className={`list-table__text-cell ${!row.created_date || row.created_date === '—' ? 'list-table__text-cell--empty' : 'list-table__text-cell--filled'}`}
+          style={{ whiteSpace: 'nowrap', display: 'inline-block' }}
+        >
+          {row.created_date || '—'}
+        </span>
+      ),
+    },
     { 
       key: 'patient_details', 
       label: 'PATIENT\nDETAILS', 
@@ -1901,6 +1915,19 @@ const DialysisAppointments = () => {
                   .dt-appointments-table .list-table__cell {
                     white-space: nowrap;
                     vertical-align: middle;
+                  }
+                  .dt-appointments-table .list-table thead th:first-child,
+                  .dt-appointments-table .list-table__header-cell:first-child,
+                  .dt-appointments-table .list-table__cell:first-child {
+                    white-space: nowrap;
+                    min-width: 120px;
+                    width: 120px;
+                  }
+                  .dt-appointments-table .list-table__cell:first-child .list-table__text-cell {
+                    white-space: nowrap;
+                    overflow: visible;
+                    word-break: keep-all;
+                    overflow-wrap: normal;
                   }
                   .dt-appointments-table .list-table__text-cell--filled {
                     color: #0f172a;
