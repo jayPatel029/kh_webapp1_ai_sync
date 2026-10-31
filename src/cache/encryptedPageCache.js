@@ -5,7 +5,6 @@
  * Falls back to plaintext with warning if crypto unavailable (engineering confirmation pending).
  * @file src/cache/encryptedPageCache.js
  */
-import * as baseCache from './pageCache';
 
 // Simple base64 helpers
 const enc = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
@@ -67,6 +66,3 @@ export async function encryptedGet(key) {
     return JSON.parse(dec.decode(pt));
   } catch (_) { return null; }
 }
-
-// Re-export TTL helpers delegating to baseCache where needed
-export const CACHE_ENABLED = baseCache.CACHE_ENABLED;
