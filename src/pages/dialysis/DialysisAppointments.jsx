@@ -1572,6 +1572,38 @@ const DialysisAppointments = () => {
         );
       }
     },
+    {
+      key: 'timeline',
+      label: 'TIMELINE',
+      type: 'custom',
+      width: '110px',
+      minWidth: '110px',
+      render: (row) => (
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setTimelinePatientId(row.patient_id);
+              setTimelinePatientName(row.name || row.patient_name || '');
+              setIsTimelineOpen(true);
+            }}
+            style={{
+              background: '#F8FAFC',
+              color: '#1E40AF',
+              border: '1px solid #BFDBFE',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            View
+          </button>
+        </div>
+      ),
+    },
     { key: 'appointment_time', label: 'APPOINTMENT TIME', type: 'text', width: '130px' },
     { key: 'duration', label: 'DURATION', type: 'text', width: '100px' },
     {
@@ -1713,28 +1745,15 @@ const DialysisAppointments = () => {
       key: 'actions',
       label: 'ACTIONS',
       type: 'custom',
-      width: '190px',
-      minWidth: '190px',
+      width: '110px',
+      minWidth: '110px',
       render: (row) => {
         return (
-          <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-start', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
             <ActionIconBtn
               icon={EditIcon}
               onClick={() => handleEditOpen(row)}
             />
-            <Button
-              size="xs"
-              variant="ghost"
-              colorScheme="teal"
-              onClick={() => {
-                setTimelinePatientId(row.patient_id);
-                setTimelinePatientName(row.name || row.patient_name || '');
-                setIsTimelineOpen(true);
-              }}
-              style={{ padding: '0 4px', fontSize: '10px' }}
-            >
-              Timeline
-            </Button>
             {String(row.status || '').toUpperCase() !== 'CANCELLED' && (
               <ActionIconBtn
                 icon={DeleteIcon}
@@ -1892,8 +1911,8 @@ const DialysisAppointments = () => {
                     position: sticky;
                     right: 0;
                     z-index: 2;
-                    min-width: 190px;
-                    width: 190px;
+                    min-width: 110px;
+                    width: 110px;
                     overflow: visible;
                     box-shadow: -8px 0 8px -8px rgba(15, 23, 42, 0.16);
                   }
