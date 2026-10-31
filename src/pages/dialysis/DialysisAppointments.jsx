@@ -214,15 +214,36 @@ function calculateDuration(start, end) {
   } catch { return '—'; }
 }
 
+function toIsoDate(value) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '';
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const ddmmyyyy = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2]}-${ddmmyyyy[1]}`;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function formatDateDisplay(dateStr) {
   if (!dateStr) return '—';
   try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    return `${dd}-${mm}-${yyyy}`;
+    const iso = toIsoDate(dateStr);
+    if (iso) {
+      const [yyyy, mm, dd] = iso.split('-');
+      return `${dd}-${mm}-${yyyy}`;
+    }
+    return dateStr;
   } catch { return dateStr; }
 }
 
@@ -1176,9 +1197,9 @@ const DialysisAppointments = () => {
       org_id: String(raw.organization_id || raw.org_id || ''),
       clinic_id: String(raw.clinic_id || ''),
       clinic_name: raw.clinic_name || clinics.find(c => String(c.id) === String(raw.clinic_id))?.clinic_name || '',
-      appointment_date: raw.appointment_date || (raw.startUTC ? String(raw.startUTC).split('T')[0] : today),
-      custom_start_date: raw.recurrence?.startDate || raw.appointment_date || (raw.startUTC ? String(raw.startUTC).split('T')[0] : today),
-      custom_end_date: raw.recurrence?.endDate || '',
+      appointment_date: toIsoDate(raw.appointment_date || raw.startUTC) || today,
+      custom_start_date: toIsoDate(raw.recurrence?.startDate || raw.appointment_date || raw.startUTC) || today,
+      custom_end_date: toIsoDate(raw.recurrence?.endDate) || '',
       booking_mode: raw.metadata?.booking_mode || raw.metadata?.slot_type || 'continuous',
       start_time: raw.start_time || (raw.startUTC ? String(raw.startUTC).split('T')[1]?.slice(0, 5) : ''),
       end_time: raw.end_time || '',

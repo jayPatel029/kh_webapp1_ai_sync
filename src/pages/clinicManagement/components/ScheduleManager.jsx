@@ -42,6 +42,25 @@ function ymdFromIso(iso) {
   return dt.toISOString().slice(0, 10);
 }
 
+function toYmd(value) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '';
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function sessionCounts(booked, instCap, clinicBeds) {
   const taken = Number(booked) || 0;
   const slotLimit = Number(instCap) || 0;
@@ -124,8 +143,13 @@ export function ScheduleManager({
         return;
       }
 
-      const start = date || new Date().toISOString().split('T')[0];
+      const start = toYmd(date) || new Date().toISOString().split('T')[0];
       const endD = new Date(`${start}T00:00:00Z`);
+      if (Number.isNaN(endD.getTime())) {
+        setAvailableInstances([]);
+        setActiveAppointments([]);
+        return;
+      }
       endD.setUTCDate(endD.getUTCDate() + 21);
       const end = endD.toISOString().split('T')[0];
 
@@ -300,11 +324,11 @@ export function ScheduleManager({
               // Basic overlap check if a date is provided
               let remaining = slotCap;
               if (date) {
-                const sDate = new Date(date).toISOString().split('T')[0];
+                const sDate = toYmd(date);
                 const overlaps = allRelevantAppts.filter(appt => {
                   if (!appt.startTime || !appt.endTime || ['CANCELLED', 'MISSED', 'REJECTED'].includes(appt.status?.toUpperCase())) return false;
-                  const aDate = new Date(appt.date).toISOString().split('T')[0];
-                  if (aDate !== sDate) return false;
+                  const aDate = toYmd(appt.date);
+                  if (!sDate || !aDate || aDate !== sDate) return false;
                   const aStart = appt.startTime.slice(0, 5);
                   const aEnd = appt.endTime.slice(0, 5);
                   return (aStart < eStr && aEnd > sStr);
