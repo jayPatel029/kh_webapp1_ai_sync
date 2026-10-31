@@ -171,8 +171,7 @@ const normalizeAppointment = (apt, patients) => {
       : (apt.startUTC && apt.endUTC)
         ? calculateDuration(String(apt.startUTC).split('T')[1]?.slice(0, 5), String(apt.endUTC).split('T')[1]?.slice(0, 5))
         : '—',
-    service: apt.service || apt.reason || metadata.notes || metadata.notes_brief || '',
-    services: parseAppointmentServices(apt, metadata),
+    services: parseAppointmentServices(apt),
     bill_id: apt.bill_id || apt.billId || apt.invoice_id || apt.invoiceId,
     invoice_id: apt.bill_id || apt.billId || apt.invoice_id || apt.invoiceId,
     metadata: metadata,
@@ -180,13 +179,7 @@ const normalizeAppointment = (apt, patients) => {
   };
 };
 
-function serviceDisplayName(value) {
-  const name = String(value || '').replace(/\s+appointment$/i, '').trim();
-  if (!name || name === '-' || name === '—') return '';
-  return name;
-}
-
-function parseAppointmentServices(apt, metadata = {}) {
+function parseAppointmentServices(apt) {
   let raw = apt?.services;
   if (typeof raw === 'string') {
     try {
@@ -195,13 +188,12 @@ function parseAppointmentServices(apt, metadata = {}) {
       raw = [];
     }
   }
-  const fromRows = (Array.isArray(raw) ? raw : [])
-    .map((item) => serviceDisplayName(item?.service_name || item?.name))
-    .filter(Boolean);
-  if (fromRows.length) return [...new Set(fromRows)];
-
-  const fallback = serviceDisplayName(apt?.service || apt?.reason || metadata.notes || metadata.notes_brief);
-  return fallback ? [fallback] : [];
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(
+    raw
+      .map((item) => String(item?.service_name || item?.name || '').trim())
+      .filter((name) => name && name !== '-' && name !== '—'),
+  )];
 }
 
 function calculateDuration(start, end) {
@@ -1536,7 +1528,7 @@ const DialysisAppointments = () => {
       type: 'custom',
       width: '180px',
       render: (row) => {
-        const services = parseAppointmentServices(row._raw || row, row.metadata || {});
+        const services = parseAppointmentServices(row._raw || row);
         if (!services.length) return <span className="list-table__text-cell list-table__text-cell--empty">—</span>;
         return (
           <span className="list-table__text-cell list-table__text-cell--filled">
