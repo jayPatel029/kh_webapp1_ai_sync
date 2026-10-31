@@ -1589,10 +1589,11 @@ const DialysisAppointments = () => {
       key: 'actions',
       label: 'ACTIONS',
       type: 'custom',
-      width: '100px',
+      width: '190px',
+      minWidth: '190px',
       render: (row) => {
         return (
-          <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-start', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
             <ActionIconBtn
               icon={EditIcon}
               onClick={() => handleEditOpen(row)}
@@ -1721,7 +1722,8 @@ const DialysisAppointments = () => {
             borderRadius: '20px',
             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
             border: '1px solid #f1f5f9',
-            overflow: 'hidden'
+            overflowX: 'auto',
+            overflowY: 'visible',
           }}>
             {loading ? (
               <div className="flex items-center justify-center" style={{ minHeight: '200px' }}>
@@ -1738,6 +1740,20 @@ const DialysisAppointments = () => {
             ) : (
               <>
                 <style>{`
+                  .dt-appointments-table .list-table__wrapper {
+                    overflow-x: auto;
+                  }
+                  .dt-appointments-table .list-table {
+                    width: 100%;
+                    min-width: 1480px;
+                    table-layout: auto;
+                  }
+                  .dt-appointments-table .list-table thead th,
+                  .dt-appointments-table .list-table__header-cell,
+                  .dt-appointments-table .list-table__cell {
+                    white-space: nowrap;
+                    vertical-align: middle;
+                  }
                   .dt-appointments-table .list-table__text-cell--filled {
                     color: #0f172a;
                     font-weight: 600;
@@ -1745,6 +1761,26 @@ const DialysisAppointments = () => {
                   .dt-appointments-table .list-table__text-cell--empty {
                     color: #cbd5e1;
                     font-weight: 400;
+                  }
+                  .dt-appointments-table .list-table thead th:last-child,
+                  .dt-appointments-table .list-table__header-cell:last-child,
+                  .dt-appointments-table .list-table__cell:last-child {
+                    position: sticky;
+                    right: 0;
+                    z-index: 2;
+                    min-width: 190px;
+                    width: 190px;
+                    overflow: visible;
+                    box-shadow: -8px 0 8px -8px rgba(15, 23, 42, 0.16);
+                  }
+                  .dt-appointments-table .list-table__header-cell:last-child {
+                    z-index: 3;
+                  }
+                  .dt-appointments-table .list-table__cell:last-child {
+                    background: #ffffff;
+                  }
+                  .dt-appointments-table .list-table__row:hover .list-table__cell:last-child {
+                    background: #efefef;
                   }
                 `}</style>
                 <UnifiedListTable
