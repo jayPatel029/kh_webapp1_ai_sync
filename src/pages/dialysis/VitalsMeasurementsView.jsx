@@ -13,17 +13,18 @@
  * @file src/pages/dialysis/VitalsMeasurementsView.jsx
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Box, Button } from '../../component-library';
-import PageHeader from '../../components/PageHeader';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
-import useVitalsMeasurements, { VITAL_SEVERITY } from '../../hooks/useVitalsMeasurements';
-import { submitSessionVitals } from '../../ApiCalls/preDialysisApis';
+import useVitalsMeasurements, {
+  OPTIONAL_VITAL_FIELDS,
+  VITAL_SEVERITY,
+} from '../../hooks/useVitalsMeasurements';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
-import { resolveP2SessionId } from './p2Runtime';
+import { MISSING, formatIst, resolveP2SessionId } from './p2Runtime';
 import './duringDialysis.css';
 import { ROUTES } from '../../routes/routeConstants';
 
@@ -88,9 +89,10 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
-  const effectiveSessionId = useMemo(() => {
-    return resolveP2SessionId(propSessionId, location);
-  }, [propSessionId, location.state, patientId]);
+  const effectiveSessionId = useMemo(
+    () => resolveP2SessionId(propSessionId, location),
+    [propSessionId, location],
+  );
 
   const {
     patientRaw,
@@ -104,8 +106,11 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
     pulseEval,
     tempEval,
     spo2Eval,
+    respEval,
+    glucoseEval,
     formSeverity,
     canProceed,
+    mandatoryFilled,
     showSkipModal,
     setShowSkipModal,
     skippedFieldsList,
@@ -113,78 +118,82 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
     skipReasons,
     setSkipReasons,
     checkSkippedNonMandatory,
+    alerts,
+    previousVitals,
     loading,
+    saving,
     error,
     refresh,
-  } = useVitalsMeasurements(patientId);
+    saveDraft,
+    submitFinal,
+  } = useVitalsMeasurements(patientId, effectiveSessionId);
 
-  // Handle Back Click
   const handleBackClick = () => {
     if (onBack) {
       onBack();
     } else {
       navigate(ROUTES.DIALYSIS_PATIENTS, {
-        state: { patientId, step: 'P2-04' },
+        state: { patientId, sessionId: effectiveSessionId, step: 'P2-04' },
       });
     }
   };
 
-  // Handle Save as Draft
-  const handleSaveDraft = () => {
-    alert('Vitals draft saved locally.');
+  const goNext = () => {
+    if (onNext) {
+      onNext();
+      return;
+    }
+    navigate(ROUTES.DIALYSIS_PATIENTS, {
+      state: { patientId, sessionId: effectiveSessionId, step: 'P2-06' },
+    });
   };
 
-  // Handle Save & Continue Click
-  const handleSaveContinue = () => {
-    if (!canProceed) return;
+  const buildSkips = (labels) => labels.map((label) => {
+    const field = OPTIONAL_VITAL_FIELDS.find((item) => item.label === label);
+    const reason = skipReasons[label];
+    return {
+      field_name: field?.field_name || label,
+      reason: reason && String(reason).trim() ? String(reason).trim() : null,
+    };
+  });
 
+  const handleSaveContinue = async () => {
+    if (!canProceed || saving) return;
     const skipped = checkSkippedNonMandatory();
     if (skipped.length > 0) {
       setSkippedFieldsList(skipped);
       setShowSkipModal(true);
-    } else {
-      proceedToNext();
+      return;
     }
+    const saved = await submitFinal([]);
+    if (saved) goNext();
   };
 
   const proceedToNext = async () => {
-    try {
-      await submitSessionVitals(effectiveSessionId, {
-        status: 'final',
-        bp_systolic: parseFloat(formState.systolic) || 120,
-        bp_diastolic: parseFloat(formState.diastolic) || 80,
-        pulse: parseFloat(formState.pulse) || 72,
-        temperature: parseFloat(formState.temperature) || 36.8,
-        spo2: parseFloat(formState.spo2) || 98,
-        weight_pre: parseFloat(formState.weightPre) || 68.5,
-        edw: parseFloat(formState.edw) || 66.0,
-        heparin_dose_units: parseFloat(formState.heparinDose) || 2000,
-        heparin_concentration: 5000,
-        saline_flush_ml: 100,
-        treatment_duration_hours: 4,
-        respiratory_rate: parseFloat(formState.respRate) || 16,
-        height_cm: parseFloat(formState.height) || 170,
-        pain_score: parseFloat(formState.painScore) || 0,
-        glucose: parseFloat(formState.glucose) || 110,
-        notes: formState.notes || '',
-        skips: skippedFieldsList.map((f) => ({ field_name: f, reason: skipReasons[f] || 'optional' })),
-      });
-    } catch (_) {}
-
+    if (!canProceed || saving) return;
+    const saved = await submitFinal(buildSkips(skippedFieldsList));
+    if (!saved) return;
     setShowSkipModal(false);
-    if (onNext) {
-      onNext();
-    } else {
-      navigate(ROUTES.DIALYSIS_PATIENTS, {
-        state: { patientId, step: 'P2-06' },
-      });
-    }
+    goNext();
   };
 
   if (loading) {
     return (
       <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', fontSize: '16px' }}>
         Loading Vitals & Measurements...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '60px', textAlign: 'center' }}>
+        <p style={{ color: '#dc2626', marginBottom: '16px', fontSize: '15px' }}>
+          {error}
+        </p>
+        <Button variant="outline" onClick={refresh}>
+          Retry
+        </Button>
       </div>
     );
   }
@@ -215,7 +224,7 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                 <button
                   type="button"
                   className={step.id === 2 ? 'active' : ''}
-                  onClick={() => { if (onNavigateStep) onNavigateStep(step.code); else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, step: step.code } }); }}
+                  onClick={() => { if (onNavigateStep) onNavigateStep(step.code); else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, sessionId: effectiveSessionId, step: step.code } }); }}
                   aria-current={step.id === 2 ? 'step' : undefined}
                 >
                   <span className="during-step-number">{step.id}</span>
@@ -316,7 +325,7 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                   </div>
 
                   {/* Respiratory Rate */}
-                  <div style={FIELD_CONTAINER_STYLE(VITAL_SEVERITY.NORMAL)}>
+                  <div style={FIELD_CONTAINER_STYLE(respEval.severity)}>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
                       Respiratory Rate (breaths/min) ⓘ
                     </div>
@@ -326,7 +335,7 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                       onChange={(e) => updateField('respRate', e.target.value)}
                       style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: 700, marginTop: '6px' }}
                     />
-                    <span style={BADGE_STYLE(VITAL_SEVERITY.NORMAL)}>Normal (12–20 /min)</span>
+                    <span style={BADGE_STYLE(respEval.severity)}>{respEval.label}</span>
                   </div>
                 </div>
 
@@ -359,7 +368,10 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                       style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: 700, marginTop: '6px' }}
                     />
                     <div style={{ fontSize: '10px', color: '#64748b', marginTop: '6px' }}>
-                      Last Post Weight: {formState.lastPostWeight} kg (24 May 2025)
+                      Last Post Weight:{' '}
+                      {formState.lastPostWeight
+                        ? `${formState.lastPostWeight} kg${formState.lastPostWeightAt ? ` (${formatIst(formState.lastPostWeightAt)})` : ''}`
+                        : MISSING}
                     </div>
                   </div>
 
@@ -414,14 +426,14 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>Pain Score (0–10) ⓘ</span>
                       <span style={{ background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: '4px', fontWeight: 800, fontSize: '12px' }}>
-                        {formState.painScore}
+                        {formState.painScore === '' ? MISSING : formState.painScore}
                       </span>
                     </div>
                     <input
                       type="range"
                       min={0}
                       max={10}
-                      value={formState.painScore}
+                      value={formState.painScore === '' ? 0 : formState.painScore}
                       onChange={(e) => updateField('painScore', parseInt(e.target.value, 10))}
                       style={{ width: '100%', marginTop: '10px', accentColor: '#2563eb' }}
                     />
@@ -432,7 +444,7 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                   </div>
 
                   {/* Glucose */}
-                  <div style={FIELD_CONTAINER_STYLE(VITAL_SEVERITY.NORMAL)}>
+                  <div style={FIELD_CONTAINER_STYLE(glucoseEval.severity)}>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
                       Glucose (mg/dL) ⓘ
                     </div>
@@ -442,7 +454,7 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                       onChange={(e) => updateField('glucose', e.target.value)}
                       style={{ width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', fontWeight: 700, marginTop: '6px' }}
                     />
-                    <span style={BADGE_STYLE(VITAL_SEVERITY.NORMAL)}>Normal (70–140 mg/dL)</span>
+                    <span style={BADGE_STYLE(glucoseEval.severity)}>{glucoseEval.label}</span>
                   </div>
                 </div>
 
@@ -535,7 +547,12 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                 </div>
 
                 {/* Form Status Info Banner */}
-                {formSeverity === VITAL_SEVERITY.CRITICAL ? (
+                {!mandatoryFilled ? (
+                  <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '12px 16px', color: '#1e40af', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>ℹ</span>
+                    <span>Enter the required vitals (BP, pulse, temperature, SpO₂, pre-weight, EDW) to continue.</span>
+                  </div>
+                ) : formSeverity === VITAL_SEVERITY.CRITICAL ? (
                   <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', color: '#991b1b', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>🚨</span>
                     <span>1 or more vital sign(s) at critical levels — resolve before continuing.</span>
@@ -548,7 +565,7 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                 ) : (
                   <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '12px 16px', color: '#1e40af', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>ℹ</span>
-                    <span>All vital signs look within acceptable range. Click "Save & Continue" to proceed.</span>
+                    <span>Entered vital signs look within acceptable range. Click "Save & Continue" to proceed.</span>
                   </div>
                 )}
               </div>
@@ -565,12 +582,15 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                   <span>Pre-Dialysis Alerts</span>
                 </div>
                 <div style={{ fontSize: '12px', color: '#92400e', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div>• High Potassium (5.2 mEq/L)</div>
-                  <div>• Low Hemoglobin (9.6 g/dL)</div>
+                  {alerts.length === 0 ? (
+                    <div>No active alerts</div>
+                  ) : alerts.map((alert) => (
+                    <div key={alert.id}>
+                      • {alert.title}
+                      {alert.message && alert.message !== MISSING ? ` — ${alert.message}` : ''}
+                    </div>
+                  ))}
                 </div>
-                <button type="button" style={{ background: 'none', border: 'none', color: '#b45309', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '10px', padding: 0 }}>
-                  View All Alerts →
-                </button>
               </div>
 
               {/* Card 3: Quick Reference */}
@@ -609,26 +629,30 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
               {/* Card 4: Previous Vitals */}
               <div style={CARD_STYLE}>
                 <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', marginBottom: '12px' }}>
-                  Previous Vitals (24 May 2025)
+                  Previous Vitals{previousVitals?.date && previousVitals.date !== MISSING ? ` (${previousVitals.date})` : ''}
                 </div>
-                <div style={{ fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>BP</span>
-                    <strong>132 / 78 mmHg</strong>
+                {previousVitals ? (
+                  <div style={{ fontSize: '12px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>BP</span>
+                      <strong>{previousVitals.bp}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Pulse</span>
+                      <strong>{previousVitals.pulse}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Temp.</span>
+                      <strong>{previousVitals.temperature}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Weight (Pre)</span>
+                      <strong>{previousVitals.weightPre}</strong>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Pulse</span>
-                    <strong>76 bpm</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Temp.</span>
-                    <strong>36.7 °C</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Weight (Pre)</span>
-                    <strong>67.2 kg</strong>
-                  </div>
-                </div>
+                ) : (
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>No previous vitals</div>
+                )}
               </div>
             </div>
           </div>
@@ -651,19 +675,19 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
             </Button>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <Button variant="outline" onClick={handleSaveDraft}>
-                Save as Draft
+              <Button variant="outline" onClick={saveDraft} disabled={saving}>
+                {saving ? 'Saving…' : 'Save as Draft'}
               </Button>
               <Button
                 variant="brand"
                 onClick={handleSaveContinue}
-                disabled={!canProceed}
+                disabled={!canProceed || saving}
                 style={{
-                  opacity: canProceed ? 1 : 0.5,
-                  cursor: canProceed ? 'pointer' : 'not-allowed',
+                  opacity: canProceed && !saving ? 1 : 0.5,
+                  cursor: canProceed && !saving ? 'pointer' : 'not-allowed',
                 }}
               >
-                Save & Continue →
+                {saving ? 'Saving…' : 'Save & Continue →'}
               </Button>
             </div>
           </div>
@@ -711,11 +735,11 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <Button variant="outline" onClick={() => setShowSkipModal(false)}>
+                <Button variant="outline" onClick={() => setShowSkipModal(false)} disabled={saving}>
                   Go Back & Complete
                 </Button>
-                <Button onClick={proceedToNext}>
-                  Skip & Proceed
+                <Button onClick={proceedToNext} disabled={saving}>
+                  {saving ? 'Saving…' : 'Skip & Proceed'}
                 </Button>
               </div>
             </div>

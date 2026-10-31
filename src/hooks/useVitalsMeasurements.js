@@ -10,16 +10,16 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   getPatientDetails,
+  getPatientLatestVitals,
+  getPatientAlerts,
+  getPatientLatestPrescription,
   submitSessionVitals,
 } from '../ApiCalls/preDialysisApis';
-import { getPatientById, getHemoDialysisParameters } from '../ApiCalls';
-import { formatDate } from './usePatientSummary';
-import { notifyError } from '../helpers/notify';
+import { notifyError, notifySuccess } from '../helpers/notify';
 import { getVitalsThresholds, getUfThresholds } from '../config/vitalsThresholds';
-
-// ---------------------------------------------------------------------------
-// Constants & Threshold Enums
-// ---------------------------------------------------------------------------
+import { normalizeAlertsList } from './usePreDialysisDashboard';
+import { liveValue, MISSING, unwrapRecord, formatIst } from '../pages/dialysis/p2Runtime';
+import { loadP2Draft, saveP2Draft } from '../pages/dialysis/p2DraftCache';
 
 export const VITAL_SEVERITY = {
   NORMAL: 'NORMAL',
@@ -27,13 +27,111 @@ export const VITAL_SEVERITY = {
   CRITICAL: 'CRITICAL',
 };
 
-// ---------------------------------------------------------------------------
-// Pure Calculation Helpers
-// ---------------------------------------------------------------------------
+export const OPTIONAL_VITAL_FIELDS = [
+  { key: 'respRate', field_name: 'respiratory_rate', label: 'Respiratory Rate' },
+  { key: 'height', field_name: 'height_cm', label: 'Height' },
+  { key: 'painScore', field_name: 'pain_score', label: 'Pain Score' },
+  { key: 'glucose', field_name: 'glucose', label: 'Glucose' },
+];
 
-/**
- * Calculate Weight Gain (kg) = Weight (Pre) - Last Post Weight
- */
+const EMPTY_FORM = {
+  measurementTime: '',
+  systolic: '',
+  diastolic: '',
+  pulse: '',
+  temperature: '',
+  respRate: '',
+  spo2: '',
+  weightPre: '',
+  height: '',
+  painScore: '',
+  glucose: '',
+  lastPostWeight: '',
+  lastPostWeightAt: '',
+  edw: '',
+  notes: '',
+  ktvChecked: false,
+  preDialysisBun: '',
+};
+
+function asInput(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return '';
+  return String(value);
+}
+
+function optionalNumber(value) {
+  if (value === '' || value === null || value === undefined) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function pickEdw(patient, prescription) {
+  const sources = [
+    patient?.dry_weight,
+    patient?.dryWeight,
+    patient?.edw,
+    patient?.target_weight,
+    prescription?.edw,
+    prescription?.target_weight,
+    prescription?.dry_weight,
+    prescription?.dryWeight,
+  ];
+  for (const value of sources) {
+    const n = optionalNumber(value);
+    if (n != null) return String(n);
+  }
+  return '';
+}
+
+function pickLastPostWeight(patient, previousVitals) {
+  const sources = [
+    patient?.post_weight_kg,
+    patient?.post_weight,
+    patient?.last_post_weight,
+    previousVitals?.weight_post,
+    previousVitals?.post_weight,
+    previousVitals?.post_weight_kg,
+  ];
+  for (const value of sources) {
+    const n = optionalNumber(value);
+    if (n != null) return String(n);
+  }
+  return '';
+}
+
+function vitalsFromRow(row) {
+  if (!row) return {};
+  return {
+    systolic: asInput(row.bp_systolic),
+    diastolic: asInput(row.bp_diastolic),
+    pulse: asInput(row.pulse),
+    temperature: asInput(row.temperature),
+    respRate: asInput(row.respiratory_rate ?? row.respiration),
+    spo2: asInput(row.spo2),
+    weightPre: asInput(row.weight_pre),
+    height: asInput(row.height_cm),
+    painScore: row.pain_score === null || row.pain_score === undefined ? '' : Number(row.pain_score),
+    glucose: asInput(row.glucose),
+    edw: asInput(row.edw),
+    notes: row.notes ? String(row.notes) : '',
+    ktvChecked: Boolean(row.kt_v_assessment_flag),
+    preDialysisBun: asInput(row.pre_dialysis_bun),
+  };
+}
+
+function mapPreviousVitals(row) {
+  if (!row) return null;
+  const sys = liveValue(row.bp_systolic);
+  const dia = liveValue(row.bp_diastolic);
+  return {
+    date: formatIst(row.recorded_at || row.updated_at || row.created_at),
+    bp: sys !== MISSING && dia !== MISSING ? `${sys} / ${dia} mmHg` : MISSING,
+    pulse: liveValue(row.pulse, ' bpm'),
+    temperature: liveValue(row.temperature, ' °C'),
+    weightPre: liveValue(row.weight_pre, ' kg'),
+  };
+}
+
 export const calculateWeightGain = (weightPre, lastPostWeight) => {
   const wPre = parseFloat(weightPre);
   const wPost = parseFloat(lastPostWeight);
@@ -42,9 +140,6 @@ export const calculateWeightGain = (weightPre, lastPostWeight) => {
   return diff >= 0 ? diff.toFixed(1) : '0.0';
 };
 
-/**
- * Calculate BMI (kg/m²) = Weight (kg) / (Height (m))^2
- */
 export const calculateBMI = (weight, heightCm) => {
   const w = parseFloat(weight);
   const h = parseFloat(heightCm);
@@ -54,9 +149,6 @@ export const calculateBMI = (weight, heightCm) => {
   return bmi.toFixed(1);
 };
 
-/**
- * Calculate Pre-Dialysis MAP (mmHg) = (Systolic + 2 * Diastolic) / 3
- */
 export const calculateMAP = (systolic, diastolic) => {
   const sys = parseFloat(systolic);
   const dia = parseFloat(diastolic);
@@ -64,9 +156,6 @@ export const calculateMAP = (systolic, diastolic) => {
   return Math.round((sys + 2 * dia) / 3);
 };
 
-/**
- * Calculate UF Goal (L) = (Weight Pre - EDW) + Heparin/Saline Allowance (default 0.5 L)
- */
 export const calculateUFGoal = (weightPre, edw, fluidAllowance = 0.5) => {
   const wPre = parseFloat(weightPre);
   const dryW = parseFloat(edw);
@@ -75,11 +164,6 @@ export const calculateUFGoal = (weightPre, edw, fluidAllowance = 0.5) => {
   const goal = netUf + fluidAllowance;
   return goal >= 0 ? goal.toFixed(1) : '0.0';
 };
-
-// ---------------------------------------------------------------------------
-// Clinical Threshold Evaluators — admin-configurable via src/config/vitalsThresholds.js
-// Resolved per Change Requirements #6: literature-backed defaults, editable by admin.
-// ---------------------------------------------------------------------------
 
 export const evaluateBp = (systolic, diastolic) => {
   const sys = parseFloat(systolic);
@@ -129,11 +213,18 @@ export const evaluateSpo2 = (spo2) => {
 
 export const evaluateRespRate = (resp) => {
   const r = parseFloat(resp);
-  if (Number.isNaN(r)) return { severity: VITAL_SEVERITY.NORMAL, label: '12–20 bpm' };
+  if (Number.isNaN(r)) return { severity: VITAL_SEVERITY.NORMAL, label: '12–20 /min' };
   const t = getVitalsThresholds().respiration;
   if (r < t.criticalLow || r > t.criticalHigh) return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical' };
   if ((r >= t.warningLow[0] && r <= t.warningLow[1]) || (r >= t.warningHigh[0] && r <= t.warningHigh[1])) return { severity: VITAL_SEVERITY.WARNING, label: 'Warning' };
-  return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal (12–20 bpm)' };
+  return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal (12–20 /min)' };
+};
+
+export const evaluateGlucose = (glucose) => {
+  const g = parseFloat(glucose);
+  if (Number.isNaN(g)) return { severity: VITAL_SEVERITY.NORMAL, label: '70–140 mg/dL' };
+  if (g < 70 || g > 140) return { severity: VITAL_SEVERITY.WARNING, label: g > 140 ? 'High' : 'Low' };
+  return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal (70–140 mg/dL)' };
 };
 
 export const evaluateUfRate = (ufRate) => {
@@ -145,45 +236,35 @@ export const evaluateUfRate = (ufRate) => {
   return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal' };
 };
 
-// ---------------------------------------------------------------------------
-// Hook Definition
-// ---------------------------------------------------------------------------
+function highestSeverity(severities) {
+  if (severities.includes(VITAL_SEVERITY.CRITICAL)) return VITAL_SEVERITY.CRITICAL;
+  if (severities.includes(VITAL_SEVERITY.WARNING)) return VITAL_SEVERITY.WARNING;
+  return VITAL_SEVERITY.NORMAL;
+}
 
-export default function useVitalsMeasurements(patientId) {
+export default function useVitalsMeasurements(patientId, rawSessionId) {
+  const activeSessionId = rawSessionId && String(rawSessionId).trim() !== '' ? String(rawSessionId) : '';
+
   const [patientRaw, setPatientRaw] = useState(null);
-  const [prescriptionRaw, setPrescriptionRaw] = useState(null);
+  const [alerts, setAlerts] = useState([]);
+  const [previousVitals, setPreviousVitals] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
-  // Form State
-  const [formState, setFormState] = useState({
-    measurementTime: '26 May 2025, 06:42 AM',
-    systolic: '138',
-    diastolic: '82',
-    pulse: '78',
-    temperature: '36.8',
-    respRate: '18',
-    spo2: '98',
-    weightPre: '68.5',
-    height: '170',
-    painScore: 2,
-    glucose: '124',
-    lastPostWeight: '67.0',
-    edw: '67.0',
-    notes: '',
-    ktvChecked: false,
-    preDialysisBun: '',
-  });
-
-  // Skip modal state for non-mandatory fields
+  const [formState, setFormState] = useState(EMPTY_FORM);
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [skippedFieldsList, setSkippedFieldsList] = useState([]);
   const [skipReasons, setSkipReasons] = useState({});
 
-  // Fetch patient and prescription data
   const loadVitalsData = useCallback(async () => {
+    if (!activeSessionId) {
+      setLoading(false);
+      setError('No dialysis session id. Return to Sessions and drag the patient to a bed again.');
+      return;
+    }
     if (!patientId) {
       setLoading(false);
+      setError('No patient id for this session.');
       return;
     }
 
@@ -191,31 +272,53 @@ export default function useVitalsMeasurements(patientId) {
     setError(null);
 
     try {
-      const patientRes = await getPatientById(patientId);
-      let patientData = null;
+      const [patientRes, vitalsRes, alertsRes, rxRes, draft] = await Promise.all([
+        getPatientDetails(patientId),
+        getPatientLatestVitals(patientId),
+        getPatientAlerts(patientId),
+        getPatientLatestPrescription(patientId),
+        loadP2Draft(activeSessionId, 'P2-05'),
+      ]);
 
-      if (patientRes?.success) {
-        const raw = patientRes.data;
-        patientData = raw?.patient || raw?.data?.patient || raw?.data || raw || {};
-      } else {
-        patientData = { id: patientId };
+      if (!patientRes?.success) {
+        setError(patientRes?.message || 'Patient data is not available for this session');
+        setPatientRaw(null);
+        return;
       }
 
+      const patientData = unwrapRecord(patientRes.data, ['patient']) || patientRes.data;
       setPatientRaw(patientData);
 
-      try {
-        const rxRes = await getHemoDialysisParameters(patientId);
-        if (rxRes?.success) {
-          const rxData = Array.isArray(rxRes.data) ? rxRes.data[0] : rxRes.data;
-          setPrescriptionRaw(rxData);
-          if (rxData?.target_weight || rxData?.edw) {
-            setFormState((prev) => ({
-              ...prev,
-              edw: String(rxData.target_weight || rxData.edw),
-            }));
-          }
-        }
-      } catch (_) {}
+      const vitalsPayload = vitalsRes?.success && vitalsRes.data?.vitals && typeof vitalsRes.data.vitals === 'object'
+        ? vitalsRes.data.vitals
+        : null;
+      const vitalsBelongToThisSession = Boolean(
+        vitalsPayload
+        && vitalsPayload.session_id != null
+        && String(vitalsPayload.session_id) === String(activeSessionId)
+      );
+
+      const previousRow = vitalsBelongToThisSession ? null : vitalsPayload;
+      setPreviousVitals(mapPreviousVitals(previousRow));
+      setAlerts(alertsRes?.success ? normalizeAlertsList(alertsRes.data) : []);
+
+      const prescription = rxRes?.success
+        ? (rxRes.data?.prescription || unwrapRecord(rxRes.data, ['prescription']))
+        : null;
+      const nextForm = {
+        ...EMPTY_FORM,
+        measurementTime: formatIst(new Date()),
+        edw: pickEdw(patientData, prescription),
+        lastPostWeight: pickLastPostWeight(patientData, previousRow),
+        lastPostWeightAt: previousRow?.recorded_at || patientData?.last_dialysis_date || '',
+        ...(vitalsBelongToThisSession ? vitalsFromRow(vitalsPayload) : {}),
+      };
+
+      if (draft?.payload && typeof draft.payload === 'object') {
+        Object.assign(nextForm, draft.payload);
+      }
+
+      setFormState(nextForm);
     } catch (err) {
       const errMsg = err?.message || 'Failed to load pre-dialysis vitals data';
       setError(errMsg);
@@ -223,76 +326,54 @@ export default function useVitalsMeasurements(patientId) {
     } finally {
       setLoading(false);
     }
-  }, [patientId]);
+  }, [activeSessionId, patientId]);
 
   useEffect(() => {
     loadVitalsData();
   }, [loadVitalsData]);
 
-  // Derived Calculations
-  const weightGain = useMemo(
-    () => calculateWeightGain(formState.weightPre, formState.lastPostWeight),
-    [formState.weightPre, formState.lastPostWeight]
-  );
+  const weightGain = useMemo(() => {
+    if (!formState.weightPre || !formState.lastPostWeight) return MISSING;
+    return calculateWeightGain(formState.weightPre, formState.lastPostWeight);
+  }, [formState.weightPre, formState.lastPostWeight]);
 
-  const bmi = useMemo(
-    () => calculateBMI(formState.weightPre, formState.height),
-    [formState.weightPre, formState.height]
-  );
+  const bmi = useMemo(() => {
+    if (!formState.weightPre || !formState.height) return MISSING;
+    return calculateBMI(formState.weightPre, formState.height);
+  }, [formState.weightPre, formState.height]);
 
-  const map = useMemo(
-    () => calculateMAP(formState.systolic, formState.diastolic),
-    [formState.systolic, formState.diastolic]
-  );
+  const map = useMemo(() => {
+    if (!formState.systolic || !formState.diastolic) return MISSING;
+    return String(calculateMAP(formState.systolic, formState.diastolic));
+  }, [formState.systolic, formState.diastolic]);
 
-  const ufGoal = useMemo(
-    () => calculateUFGoal(formState.weightPre, formState.edw),
-    [formState.weightPre, formState.edw]
-  );
+  const ufGoal = useMemo(() => {
+    if (!formState.weightPre || !formState.edw) return MISSING;
+    return calculateUFGoal(formState.weightPre, formState.edw, 0);
+  }, [formState.weightPre, formState.edw]);
 
-  // Derived Threshold Evaluators
   const bpEval = useMemo(
     () => evaluateBp(formState.systolic, formState.diastolic),
     [formState.systolic, formState.diastolic]
   );
+  const pulseEval = useMemo(() => evaluatePulse(formState.pulse), [formState.pulse]);
+  const tempEval = useMemo(() => evaluateTemp(formState.temperature), [formState.temperature]);
+  const spo2Eval = useMemo(() => evaluateSpo2(formState.spo2), [formState.spo2]);
+  const respEval = useMemo(() => evaluateRespRate(formState.respRate), [formState.respRate]);
+  const glucoseEval = useMemo(() => evaluateGlucose(formState.glucose), [formState.glucose]);
 
-  const pulseEval = useMemo(
-    () => evaluatePulse(formState.pulse),
-    [formState.pulse]
+  const formSeverity = useMemo(
+    () => highestSeverity([
+      bpEval.severity,
+      pulseEval.severity,
+      tempEval.severity,
+      spo2Eval.severity,
+      formState.respRate ? respEval.severity : VITAL_SEVERITY.NORMAL,
+      formState.glucose ? glucoseEval.severity : VITAL_SEVERITY.NORMAL,
+    ]),
+    [bpEval, pulseEval, tempEval, spo2Eval, respEval, glucoseEval, formState.respRate, formState.glucose]
   );
 
-  const tempEval = useMemo(
-    () => evaluateTemp(formState.temperature),
-    [formState.temperature]
-  );
-
-  const spo2Eval = useMemo(
-    () => evaluateSpo2(formState.spo2),
-    [formState.spo2]
-  );
-
-  // Overall form clinical severity tier
-  const formSeverity = useMemo(() => {
-    if (
-      bpEval.severity === VITAL_SEVERITY.CRITICAL ||
-      pulseEval.severity === VITAL_SEVERITY.CRITICAL ||
-      tempEval.severity === VITAL_SEVERITY.CRITICAL ||
-      spo2Eval.severity === VITAL_SEVERITY.CRITICAL
-    ) {
-      return VITAL_SEVERITY.CRITICAL;
-    }
-    if (
-      bpEval.severity === VITAL_SEVERITY.WARNING ||
-      pulseEval.severity === VITAL_SEVERITY.WARNING ||
-      tempEval.severity === VITAL_SEVERITY.WARNING ||
-      spo2Eval.severity === VITAL_SEVERITY.WARNING
-    ) {
-      return VITAL_SEVERITY.WARNING;
-    }
-    return VITAL_SEVERITY.NORMAL;
-  }, [bpEval, pulseEval, tempEval, spo2Eval]);
-
-  // Form field update handler
   const updateField = (field, value) => {
     setFormState((prev) => ({
       ...prev,
@@ -300,7 +381,6 @@ export default function useVitalsMeasurements(patientId) {
     }));
   };
 
-  // Mandatory fields check
   const mandatoryFilled = Boolean(
     formState.systolic &&
     formState.diastolic &&
@@ -312,18 +392,81 @@ export default function useVitalsMeasurements(patientId) {
     (!formState.ktvChecked || formState.preDialysisBun)
   );
 
-  // Critical tier blocks proceed
   const canProceed = mandatoryFilled && formSeverity !== VITAL_SEVERITY.CRITICAL;
 
-  // Check skipped non-mandatory fields
-  const checkSkippedNonMandatory = () => {
-    const skipped = [];
-    if (!formState.respRate) skipped.push('Respiratory Rate');
-    if (!formState.height) skipped.push('Height');
-    if (formState.painScore === null || formState.painScore === undefined) skipped.push('Pain Score');
-    if (!formState.glucose) skipped.push('Glucose');
-    return skipped;
-  };
+  const checkSkippedNonMandatory = () => OPTIONAL_VITAL_FIELDS
+    .filter((field) => formState[field.key] === '' || formState[field.key] === null || formState[field.key] === undefined)
+    .map((field) => field.label);
+
+  const buildPayload = useCallback((status, skips = []) => {
+    const payload = {
+      status,
+      bp_systolic: optionalNumber(formState.systolic),
+      bp_diastolic: optionalNumber(formState.diastolic),
+      pulse: optionalNumber(formState.pulse),
+      temperature: optionalNumber(formState.temperature),
+      spo2: optionalNumber(formState.spo2),
+      weight_pre: optionalNumber(formState.weightPre),
+      edw: optionalNumber(formState.edw),
+      respiratory_rate: optionalNumber(formState.respRate),
+      height_cm: optionalNumber(formState.height),
+      pain_score: optionalNumber(formState.painScore),
+      glucose: optionalNumber(formState.glucose),
+      notes: formState.notes ? String(formState.notes).slice(0, 200) : '',
+      kt_v_assessment_flag: Boolean(formState.ktvChecked),
+      pre_dialysis_bun: formState.ktvChecked ? optionalNumber(formState.preDialysisBun) : undefined,
+      skips,
+    };
+    if (weightGain !== MISSING) payload.weight_gain = optionalNumber(weightGain);
+    return payload;
+  }, [formState, weightGain]);
+
+  const saveDraft = useCallback(async () => {
+    if (!activeSessionId) {
+      notifyError('No dialysis session to save this draft against.');
+      return false;
+    }
+    setSaving(true);
+    try {
+      await saveP2Draft(activeSessionId, 'P2-05', formState);
+      const res = await submitSessionVitals(activeSessionId, buildPayload('draft'));
+      if (!res?.success) {
+        notifyError(res?.message || 'Could not save vitals draft');
+        return false;
+      }
+      notifySuccess('Draft saved');
+      return true;
+    } catch (err) {
+      notifyError(err?.message || 'Could not save vitals draft');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [activeSessionId, formState, buildPayload]);
+
+  const submitFinal = useCallback(async (skips = []) => {
+    if (!canProceed) return false;
+    if (!activeSessionId) {
+      notifyError('No dialysis session to save against.');
+      return false;
+    }
+    setSaving(true);
+    try {
+      const res = await submitSessionVitals(activeSessionId, buildPayload('final', skips));
+      if (!res?.success) {
+        notifyError(res?.message || res?.error_code || 'Vitals could not be saved');
+        return false;
+      }
+      await saveP2Draft(activeSessionId, 'P2-05', formState);
+      notifySuccess('Vitals saved');
+      return true;
+    } catch (err) {
+      notifyError(err?.message || 'Vitals could not be saved');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [canProceed, activeSessionId, buildPayload, formState]);
 
   return {
     patientRaw,
@@ -337,8 +480,11 @@ export default function useVitalsMeasurements(patientId) {
     pulseEval,
     tempEval,
     spo2Eval,
+    respEval,
+    glucoseEval,
     formSeverity,
     canProceed,
+    mandatoryFilled,
     showSkipModal,
     setShowSkipModal,
     skippedFieldsList,
@@ -346,8 +492,13 @@ export default function useVitalsMeasurements(patientId) {
     skipReasons,
     setSkipReasons,
     checkSkippedNonMandatory,
+    alerts,
+    previousVitals,
     loading,
+    saving,
     error,
     refresh: loadVitalsData,
+    saveDraft,
+    submitFinal,
   };
 }
