@@ -1,6 +1,6 @@
 // Validation logic for P2-12 Start Dialysis Confirmation
 
-export const DEFAULT_CORRECT_PIN = '1234';
+export const DEFAULT_CORRECT_PIN = '1111';
 export const MAX_ATTEMPTS = 3;
 
 export const verifyPin = (inputPin, currentAttempts = 0) => {
@@ -13,12 +13,13 @@ export const verifyPin = (inputPin, currentAttempts = 0) => {
     };
   }
 
-  if (inputPin === DEFAULT_CORRECT_PIN) {
+  // PIN is verified on the server only. This helper is unused by P2-12.
+  if (!inputPin) {
     return {
-      isValid: true,
+      isValid: false,
       attempts: currentAttempts,
       isLocked: false,
-      error: ''
+      error: 'Enter your start PIN.',
     };
   } else {
     const newAttempts = currentAttempts + 1;

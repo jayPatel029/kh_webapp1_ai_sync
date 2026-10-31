@@ -8,7 +8,7 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { ROUTES } from '../../routes/routeConstants';
 import './duringDialysis.css';
-import { verifyPin, MAX_ATTEMPTS } from './startDialysisValidation';
+import { MAX_ATTEMPTS } from './startDialysisValidation';
 import {
   startDialysis,
   unlockStartDialysis,
@@ -16,6 +16,8 @@ import {
   getPredialysisStatus,
   getPatientLatestVitals,
 } from '../../ApiCalls/preDialysisApis';
+import { resolveP2SessionId, mapRollupSteps, liveValue, MISSING } from './p2Runtime';
+import { saveP2Draft } from './p2DraftCache';
 
 // Icons
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -39,22 +41,16 @@ const SECTION_TITLE_STYLE = {
   marginBottom: '8px',
 };
 
-const StartDialysisConfirmationView = ({ patientId, sessionId: propSessionId, onBack, onNext, onNavigateStep }) => {
+const StartDialysisConfirmationView = ({ patientId, sessionId: propSessionId, machineId: propMachineId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const authUser = useSelector((state) => state.auth?.user);
 
-  const effectiveSessionId = React.useMemo(() => {
-    if (propSessionId) return propSessionId;
-    try {
-      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
-      if (fromState) return fromState;
-      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
-      if (persisted) return persisted;
-    } catch {}
-    return patientId || 1;
-  }, [propSessionId, location.state, patientId]);
+  const effectiveSessionId = React.useMemo(
+    () => resolveP2SessionId(propSessionId, location),
+    [propSessionId, location],
+  );
 
   const [patientData, setPatientData] = useState(null);
   const [predialysisStatus, setPredialysisStatus] = useState(null);
@@ -119,122 +115,27 @@ const StartDialysisConfirmationView = ({ patientId, sessionId: propSessionId, on
     };
   }, [effectiveSessionId, patientId]);
 
-  // Construct dynamic summary rows for pre-dialysis check steps from API payload
   const summaryRows = useMemo(() => {
-    const rawSteps = predialysisStatus?.steps || predialysisStatus?.checklist || predialysisStatus || {};
-
-    const getStatusLabel = (key) => {
-      const val = rawSteps[key] || rawSteps[key + '_status'] || rawSteps[key + 'Status'];
-      if (val === true || String(val).toUpperCase() === 'COMPLETE' || String(val).toUpperCase() === 'COMPLETED' || String(val).toUpperCase() === 'SUCCESS') {
-        return 'Completed';
-      }
-      if (String(val).toUpperCase() === 'IN_PROGRESS') {
-        return 'In Progress';
-      }
-      // If API returned a successful overall session status response, mark step completed
-      if (predialysisStatus && Object.keys(rawSteps).length === 0) {
-        return 'Completed';
-      }
-      return 'Completed';
-    };
-
-    const getBy = (key) => {
-      return rawSteps[key + '_by'] || rawSteps[key + 'CompletedBy'] || rawSteps[key + '_operator'] || currentUser;
-    };
-
-    const getTime = (key, minutesAgo) => {
-      const rawTime = rawSteps[key + '_time'] || rawSteps[key + 'Time'] || rawSteps[key + '_at'] || rawSteps.updated_at;
-      if (rawTime) {
-        try {
-          const d = new Date(rawTime);
-          if (!isNaN(d.getTime())) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } catch {}
-        return String(rawTime);
-      }
-      const date = new Date(Date.now() - minutesAgo * 60000);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
-
-    const bpVal = vitalsData?.bp || vitalsData?.blood_pressure || patientData?.bp || '138/82';
-    const pulseVal = vitalsData?.pulse || vitalsData?.heart_rate || patientData?.pulse || '78';
-    const wtVal = vitalsData?.weight_pre || vitalsData?.pre_weight || patientData?.dry_weight || '68.5';
-    const accessVal = patientData?.vascular_access || patientData?.access_type || 'AV Fistula (Left)';
-    const machineNo = patientData?.machine_number || patientData?.machine || 'HD-01';
-
-    return [
-      {
-        id: 1,
-        key: 'verification',
-        item: 'Patient Verification',
-        status: getStatusLabel('verification'),
-        details: patientData?.name ? `Identity & prescription verified for ${patientData.name}` : 'Identity and prescription verified',
-        completedBy: getBy('verification'),
-        time: getTime('verification', 12),
-      },
-      {
-        id: 2,
-        key: 'vitals',
-        item: 'Vitals & Measurements',
-        status: getStatusLabel('vitals'),
-        details: `BP: ${bpVal} mmHg | Pulse: ${pulseVal} bpm | Pre-wt: ${wtVal} kg`,
-        completedBy: getBy('vitals'),
-        time: getTime('vitals', 10),
-      },
-      {
-        id: 3,
-        key: 'assessment',
-        item: 'Patient Assessment',
-        status: getStatusLabel('assessment'),
-        details: 'Subjective & objective assessment complete – No critical issues',
-        completedBy: getBy('assessment'),
-        time: getTime('assessment', 8),
-      },
-      {
-        id: 4,
-        key: 'access',
-        item: 'Vascular Access Assessment',
-        status: getStatusLabel('access'),
-        details: `${accessVal} – Thrill & Bruit verified`,
-        completedBy: getBy('access'),
-        time: getTime('access', 6),
-      },
-      {
-        id: 5,
-        key: 'machine',
-        item: 'Machine Safety',
-        status: getStatusLabel('machine'),
-        details: `Machine ${machineNo} self-test & safety parameters normal`,
-        completedBy: getBy('machine'),
-        time: getTime('machine', 4),
-      },
-      {
-        id: 6,
-        key: 'water',
-        item: 'Water Safety',
-        status: getStatusLabel('water'),
-        details: 'RO water quality & conductivity normal',
-        completedBy: getBy('water'),
-        time: getTime('water', 3),
-      },
-      {
-        id: 7,
-        key: 'infection',
-        item: 'Infection Control',
-        status: getStatusLabel('infection'),
-        details: 'PPE & aseptic technique checklist completed',
-        completedBy: getBy('infection'),
-        time: getTime('infection', 2),
-      },
-      {
-        id: 8,
-        key: 'validation',
-        item: 'Safety Validation',
-        status: getStatusLabel('validation'),
-        details: 'All pre-dialysis safety criteria met & validated',
-        completedBy: getBy('validation'),
-        time: getTime('validation', 1),
-      },
-    ];
+    const mapped = mapRollupSteps(predialysisStatus).filter((step) => step.key !== 'step_start');
+    const vitals = vitalsData?.vitals || vitalsData || {};
+    const bpVal = liveValue(vitals.bp || vitals.blood_pressure);
+    const pulseVal = liveValue(vitals.pulse || vitals.heart_rate, ' bpm');
+    const wtVal = liveValue(vitals.weight_pre || vitals.pre_weight, ' kg');
+    return mapped.map((step) => {
+      let details = MISSING;
+      if (step.key === 'step_vitals') details = `BP: ${bpVal} | Pulse: ${pulseVal} | Pre-wt: ${wtVal}`;
+      else if (step.key === 'step_verification') details = patientData?.name ? `Identity check for ${patientData.name}` : MISSING;
+      else if (step.status === 'Completed') details = 'Recorded in session rollup';
+      return {
+        id: step.id,
+        key: step.key,
+        item: step.name,
+        status: step.status,
+        details,
+        completedBy: liveValue(currentUser),
+        time: MISSING,
+      };
+    });
   }, [predialysisStatus, vitalsData, patientData, currentUser]);
 
   const allCompleted = useMemo(() => {
@@ -252,52 +153,51 @@ const StartDialysisConfirmationView = ({ patientId, sessionId: propSessionId, on
 
   const handleStartDialysis = async () => {
     if (isLocked) return;
+    if (!effectiveSessionId) {
+      setErrorMsg('No dialysis session id. Close and drag the patient to a bed again.');
+      return;
+    }
+    if (!pin.trim()) {
+      setErrorMsg('Enter your start PIN.');
+      return;
+    }
 
-    const result = verifyPin(pin.trim(), attempts);
-    
-    if (result.isValid) {
-      setErrorMsg('');
-      let sessionId = null;
-      try {
-        const apiRes = await startDialysis(effectiveSessionId, {
-          attestation: isConfirmed,
-          pin: pin.trim(),
-          machine_id: 'HD-01',
-        });
-        sessionId = apiRes?.data?.session_id || apiRes?.data?.data?.session_id || apiRes?.data?.id || null;
-        if (!apiRes.success) {
-          if (apiRes.status === 423) {
-            setIsLocked(true);
-            setErrorMsg(apiRes.message || 'Session locked due to multiple invalid PIN attempts. Requires Nurse or Nephrologist unlock.');
-            return;
-          }
-        } else if (!sessionId) {
-          sessionId = String(patientId || Date.now());
-        }
-      } catch (_) {
-        sessionId = String(patientId || Date.now());
-      }
+    setErrorMsg('');
+    const apiRes = await startDialysis(effectiveSessionId, {
+      attestation: isConfirmed,
+      pin: pin.trim(),
+      machine_id: propMachineId || undefined,
+    });
 
-      // Whole-workflow handoff: P2-12 → P3-01 During Dialysis
-      if (sessionId) {
-        try {
-          localStorage.setItem('lastDialysisSessionId', String(sessionId));
-          sessionStorage.setItem('lastDialysisSessionId', String(sessionId));
-          if (patientId) {
-            localStorage.setItem('lastDialysisPatientId', String(patientId));
-            sessionStorage.setItem('lastDialysisPatientId', String(patientId));
-          }
-        } catch {}
-        navigate(`/dialysis/during/${sessionId}/P3-01`, { state: { patientId, sessionId } });
+    if (!apiRes?.success) {
+      if (apiRes?.status === 423 || apiRes?.error_code === 'ERR_START_LOCKED') {
+        setIsLocked(true);
+        setErrorMsg(apiRes.message || 'Start Dialysis is locked after 3 PIN failures. A nurse or nephrologist must unlock.');
         return;
       }
-      if (onNext) onNext(sessionId);
-    } else {
-      setAttempts(result.attempts);
-      setIsLocked(result.isLocked);
-      setErrorMsg(result.error);
+      const remaining = apiRes?.details?.attempts_remaining;
+      if (remaining !== undefined) {
+        setAttempts(MAX_ATTEMPTS - Number(remaining));
+      }
+      setErrorMsg(apiRes?.message || 'Incorrect PIN. Try again.');
       setPin('');
+      return;
     }
+
+    const startedId = apiRes?.data?.session_id || apiRes?.data?.id || effectiveSessionId;
+    try {
+      localStorage.setItem('lastDialysisSessionId', String(startedId));
+      sessionStorage.setItem('lastDialysisSessionId', String(startedId));
+      if (patientId) {
+        localStorage.setItem('lastDialysisPatientId', String(patientId));
+        sessionStorage.setItem('lastDialysisPatientId', String(patientId));
+      }
+    } catch {}
+    if (onNext) {
+      onNext(startedId);
+      return;
+    }
+    navigate(`/dialysis/during/${startedId}/P3-01`, { state: { patientId, sessionId: startedId } });
   };
 
   return (

@@ -372,6 +372,18 @@ const navigate = useNavigate();
   const [appointmentStatus, setAppointmentStatus] = useState(null);
   const [statusModal, setStatusModal] = useState({ isOpen: false, status: null, reason: '', durationDays: '' });
   const [sessionId, setSessionId] = useState(null);
+  const workflowSessionId =
+    patient?.dialysis_session_id ||
+    patient?.session_id ||
+    patient?.sessionId ||
+    sessionId ||
+    '';
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setBeforeStep('P2-03');
+    setStage('before');
+  }, [isOpen, patient?.dialysis_session_id, patient?.session_id, patient?.sessionId]);
   const [dischargeModal, setDischargeModal] = useState({ isOpen: false, confirmText: '' });
   const [abortModal, setAbortModal] = useState({ isOpen: false, isEmergency: false, reason: '' });
   const { showToast } = useAdminToast();
@@ -1344,82 +1356,103 @@ const navigate = useNavigate();
             <Box w="full" h="full">
               {stage === 'before' && (
                 <Box w="full" h="full">
-                  {/* {beforeStep === 'P2-03' && (
+                  {!workflowSessionId ? (
+                    <Box p={8}>
+                      <Text color="red.600" fontWeight="600">
+                        No dialysis session id for this assignment. Close this workflow and drag the patient to the bed again.
+                      </Text>
+                    </Box>
+                  ) : null}
+                  {workflowSessionId && beforeStep === 'P2-03' && (
                     <PreDialysisDashboardView
                       patientId={patient?.patient_id || patient?.id}
+                      sessionId={workflowSessionId}
                       onBack={onClose}
-                      onNavigateStep={setBefView AAMI Guidelines →oreStep}
+                      onNavigateStep={setBeforeStep}
                     />
-                  )} */}
-                  {beforeStep === 'P2-03' && (
+                  )}
+                  {workflowSessionId && beforeStep === 'P2-04' && (
                     <PatientVerificationView
                       patientId={patient?.patient_id || patient?.id}
+                      sessionId={workflowSessionId}
                       onBack={() => setBeforeStep('P2-03')}
                       onNext={() => setBeforeStep('P2-05')}
                       onNavigateStep={setBeforeStep}
                     />
                   )}
-                  {beforeStep === 'P2-05' && (
+                  {workflowSessionId && beforeStep === 'P2-05' && (
                     <VitalsMeasurementsView
                       patientId={patient?.patient_id || patient?.id}
+                      sessionId={workflowSessionId}
                       onBack={() => setBeforeStep('P2-04')}
                       onNext={() => setBeforeStep('P2-06')}
                       onNavigateStep={setBeforeStep}
                     />
                   )}
-                  {beforeStep === 'P2-06' && (
+                  {workflowSessionId && beforeStep === 'P2-06' && (
                     <PatientAssessmentView
                       patientId={patient?.patient_id || patient?.id}
+                      sessionId={workflowSessionId}
                       onBack={() => setBeforeStep('P2-05')}
                       onNext={() => setBeforeStep('P2-07')}
                       onNavigateStep={setBeforeStep}
                     />
                   )}
-                  {beforeStep === 'P2-07' && (
+                  {workflowSessionId && beforeStep === 'P2-07' && (
                     <VascularAccessAssessmentView
                       patientId={patient?.patient_id || patient?.id}
+                      sessionId={workflowSessionId}
                       onBack={() => setBeforeStep('P2-06')}
                       onNext={() => setBeforeStep('P2-08')}
                       onNavigateStep={setBeforeStep}
                     />
                   )}
-                  {beforeStep === 'P2-08' && (
+                  {workflowSessionId && beforeStep === 'P2-08' && (
                     <MachineSafetyView
                       patientId={patient?.patient_id || patient?.id}
+                      sessionId={workflowSessionId}
+                      machineId={bed?.machine_id || bed?.machine_number || patient?.machine_id}
                       onBack={() => setBeforeStep('P2-07')}
                       onNext={() => setBeforeStep('P2-09')}
                       onNavigateStep={setBeforeStep}
                     />
                   )}
-                  {beforeStep === 'P2-09' && (
+                  {workflowSessionId && beforeStep === 'P2-09' && (
                     <WaterSafetyView
                       patientId={patient?.patient_id || patient?.id}
+                      sessionId={workflowSessionId}
+                      roPlantId={bed?.ro_plant_id || patient?.ro_plant_id}
                       onBack={() => setBeforeStep('P2-08')}
                       onNext={() => setBeforeStep('P2-10')}
                       onNavigateStep={setBeforeStep}
                     />
                   )}
-                  {beforeStep === 'P2-10' && (
+                  {workflowSessionId && beforeStep === 'P2-10' && (
                     <InfectionControlView
                       patientId={patient?.patient_id || patient?.id}
+                      sessionId={workflowSessionId}
                       onBack={() => setBeforeStep('P2-09')}
                       onNext={() => setBeforeStep('P2-11')}
                       onNavigateStep={setBeforeStep}
                     />
                   )}
-                  {beforeStep === 'P2-11' && (
+                  {workflowSessionId && beforeStep === 'P2-11' && (
                     <SafetyValidationView
                       patientId={patient?.patient_id || patient?.id}
+                      sessionId={workflowSessionId}
                       onBack={() => setBeforeStep('P2-10')}
                       onNext={() => setBeforeStep('P2-12')}
                       onNavigateStep={setBeforeStep}
                     />
                   )}
-                  {beforeStep === 'P2-12' && (
+                  {workflowSessionId && beforeStep === 'P2-12' && (
                     <StartDialysisConfirmationView
                       patientId={patient?.patient_id || patient?.id}
+                      sessionId={workflowSessionId}
+                      machineId={bed?.machine_id || bed?.machine_number || patient?.machine_id}
                       onBack={() => setBeforeStep('P2-11')}
-                      onNext={() => {
+                      onNext={(startedId) => {
+                        setSessionId(startedId || workflowSessionId);
                         if (onStageChange) onStageChange('during');
                         setStage('during');
                       }}
@@ -1434,7 +1467,7 @@ const navigate = useNavigate();
                   {stage === 'during' ? (
                     <DuringDialysisPage
                       embedded
-                      sessionId={sessionId}
+                      sessionId={sessionId || workflowSessionId}
                       patientData={completePatientData || patient}
                       parameterQuestions={hemoParams}
                       patientId={patient?.patient_id || patient?.id}

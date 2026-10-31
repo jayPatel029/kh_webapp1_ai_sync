@@ -37,6 +37,8 @@ import usePatientVerification, {
   DIALYZER_USAGE_TYPE,
 } from '../../hooks/usePatientVerification';
 import { ROUTES } from '../../routes/routeConstants';
+import { resolveP2SessionId } from './p2Runtime';
+import { saveP2Draft } from './p2DraftCache';
 import './duringDialysis.css';
 
 // ---------------------------------------------------------------------------
@@ -144,16 +146,10 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
-  const effectiveSessionId = useMemo(() => {
-    if (propSessionId) return propSessionId;
-    try {
-      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
-      if (fromState) return fromState;
-      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
-      if (persisted) return persisted;
-    } catch {}
-    return patientId || 1;
-  }, [propSessionId, location.state, patientId]);
+  const effectiveSessionId = useMemo(
+    () => resolveP2SessionId(propSessionId, location),
+    [propSessionId, location],
+  );
 
   const {
     patientDetails,
@@ -936,7 +932,9 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
             </Button>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <Button variant="outline" onClick={() => alert('Verification draft saved locally.')}>
+              <Button variant="outline" onClick={async () => {
+                await saveP2Draft(effectiveSessionId, 'P2-04', { notesText, verificationMethods });
+              }}>
                 Save as Draft
               </Button>
               <Button

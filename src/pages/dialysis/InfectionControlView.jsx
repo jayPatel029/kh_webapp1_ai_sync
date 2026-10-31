@@ -19,6 +19,7 @@ import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientPr
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
+import { resolveP2SessionId } from './p2Runtime';
 import { ROUTES } from '../../routes/routeConstants';
 import './duringDialysis.css';
 import { submitInfectionControl, getPatientDetails } from '../../ApiCalls/preDialysisApis';
@@ -68,15 +69,7 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
   const navigate = useNavigate();
   const location = useLocation();
   const effectiveSessionId = useMemo(() => {
-    try {
-      const fromProp = sessionIdProp;
-      if (fromProp) return fromProp;
-      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
-      if (fromState) return fromState;
-      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
-      if (persisted) return persisted;
-    } catch {}
-    return patientId || 1;
+    return resolveP2SessionId(sessionIdProp, location);
   }, [sessionIdProp, location.state, patientId]);
   const [patientData, setPatientData] = useState(null);
   useEffect(() => {

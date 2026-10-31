@@ -20,6 +20,7 @@ import {
 import { calculateAge, formatDate, calcDialysisDuration } from './usePatientSummary';
 import { ALERT_SEVERITY } from '../pages/dialysis/dialysisQueueConstants';
 import { notifyError, notifySuccess } from '../helpers/notify';
+import { liveValue, MISSING, mapRollupSteps, ROLLUP_TO_DASHBOARD } from '../pages/dialysis/p2Runtime';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -167,41 +168,25 @@ export const normalizePatientInfoBar = (patientInput, isAnonymized = false) => {
  * Normalize latest vitals with reference tags.
  */
 export const normalizeLatestVitals = (patient) => {
-  if (!patient) {
-    return {
-      bp: '138/82 mmHg',
-      bpTag: 'Normal',
-      pulse: '78 bpm',
-      pulseTag: 'Normal',
-      temp: '36.8 °C',
-      tempTag: 'Normal',
-      spo2: '98%',
-      spo2Tag: 'Normal',
-      preWeight: '68.5 kg',
-      respRate: '18 bpm',
-      respRateTag: 'Normal',
-    };
-  }
-
-  const bpVal = patient.bp || patient.blood_pressure || '138/82';
-  const pulseVal = patient.pulse || patient.heart_rate || '78';
-  const tempVal = patient.temperature || patient.temp || '36.8';
-  const spo2Val = patient.spo2 || '98';
-  const preWeightVal = patient.pre_weight || patient.weight_pre || '68.5';
-  const respVal = patient.resp_rate || patient.respiratory_rate || '18';
-
+  const source = patient?.vitals || patient || {};
+  const withUnit = (value, unit) => {
+    if (value === null || value === undefined || String(value).trim() === '') return MISSING;
+    const text = String(value);
+    if (!unit) return text;
+    return text.includes(unit.replace(' ', '')) ? text : `${text}${unit}`;
+  };
   return {
-    bp: bpVal.includes('mmHg') ? bpVal : `${bpVal} mmHg`,
-    bpTag: 'Normal',
-    pulse: pulseVal.includes('bpm') ? pulseVal : `${pulseVal} bpm`,
-    pulseTag: 'Normal',
-    temp: tempVal.includes('°C') ? tempVal : `${tempVal} °C`,
-    tempTag: 'Normal',
-    spo2: spo2Val.includes('%') ? spo2Val : `${spo2Val}%`,
-    spo2Tag: 'Normal',
-    preWeight: preWeightVal.includes('kg') ? preWeightVal : `${preWeightVal} kg`,
-    respRate: respVal.includes('bpm') ? respVal : `${respVal} bpm`,
-    respRateTag: 'Normal',
+    bp: withUnit(source.bp || source.blood_pressure, ' mmHg'),
+    bpTag: source.bp ? 'Recorded' : 'Missing',
+    pulse: withUnit(source.pulse || source.heart_rate, ' bpm'),
+    pulseTag: source.pulse || source.heart_rate ? 'Recorded' : 'Missing',
+    temp: withUnit(source.temperature || source.temp, ' °C'),
+    tempTag: source.temperature || source.temp ? 'Recorded' : 'Missing',
+    spo2: withUnit(source.spo2, '%'),
+    spo2Tag: source.spo2 ? 'Recorded' : 'Missing',
+    preWeight: withUnit(source.pre_weight || source.weight_pre, ' kg'),
+    respRate: withUnit(source.resp_rate || source.respiratory_rate, ' bpm'),
+    respRateTag: source.resp_rate || source.respiratory_rate ? 'Recorded' : 'Missing',
   };
 };
 
@@ -209,15 +194,16 @@ export const normalizeLatestVitals = (patient) => {
  * Normalize pre-dialysis summary card details.
  */
 export const normalizePreDialysisSummary = (prescription, patient) => {
+  const rx = prescription?.prescription || prescription || {};
   return {
-    targetUfGoal: prescription?.uf_goal || patient?.uf_goal || '2.0 L',
-    expectedTreatmentTime: prescription?.dialysis_time || prescription?.dialysisTime || '4:00 hrs',
-    bfr: prescription?.blood_flow_rate || prescription?.bloodFlowRate || '350 mL/min',
-    dfr: prescription?.dialysate_flow_rate || prescription?.dialysateFlowRate || '500 mL/min',
-    dialysateTemp: prescription?.dialysate_temp || '36.5 °C',
-    na: prescription?.na || '138 mEq/L',
-    k: prescription?.k || '4.0 mEq/L',
-    bicarbonate: prescription?.bicarbonate || '32 mEq/L',
+    targetUfGoal: liveValue(rx.uf_goal || patient?.uf_goal),
+    expectedTreatmentTime: liveValue(rx.dialysis_time || rx.dialysisTime),
+    bfr: liveValue(rx.blood_flow_rate || rx.bloodFlowRate),
+    dfr: liveValue(rx.dialysate_flow_rate || rx.dialysateFlowRate),
+    dialysateTemp: liveValue(rx.dialysate_temp),
+    na: liveValue(rx.na),
+    k: liveValue(rx.k),
+    bicarbonate: liveValue(rx.bicarbonate),
   };
 };
 
@@ -272,7 +258,7 @@ export const normalizeNotesList = (patient) => {
     return patient.notes.map((note, index) => ({
       id: note.id || index,
       text: note.text || note.note || note.content,
-      author: note.author || note.created_by || 'Dr. Neha Mehta',
+      author: note.author || note.created_by || MISSING,
       date: formatDate(note.date || note.created_at),
     }));
   }
@@ -285,32 +271,33 @@ export const normalizeNotesList = (patient) => {
 
 export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis Technician', rawSessionId) {
   const activeSessionId = useMemo(() => {
-    if (rawSessionId && rawSessionId !== 1 && rawSessionId !== '1') return rawSessionId;
+    if (rawSessionId && String(rawSessionId).trim() !== '' && String(rawSessionId) !== '1') return rawSessionId;
     try {
       const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
       if (persisted) return persisted;
     } catch {}
-    return rawSessionId || 1;
+    return rawSessionId || '';
   }, [rawSessionId]);
 
-  const [patientRaw, setPatientRaw] = useState(null);
-  const [prescriptionRaw, setPrescriptionRaw] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastRefreshed, setLastRefreshed] = useState(new Date());
-
-  // Step statuses: defaults to 4 complete (1-4) matching Figma example (44%)
-  const [stepStatuses, setStepStatuses] = useState({
-    verification: STEP_STATUS.COMPLETE,
-    vitals: STEP_STATUS.COMPLETE,
-    assessment: STEP_STATUS.COMPLETE,
-    access: STEP_STATUS.COMPLETE,
-    machine: STEP_STATUS.IN_PROGRESS,
+  const emptyStepStatuses = {
+    verification: STEP_STATUS.NOT_STARTED,
+    vitals: STEP_STATUS.NOT_STARTED,
+    assessment: STEP_STATUS.NOT_STARTED,
+    access: STEP_STATUS.NOT_STARTED,
+    machine: STEP_STATUS.NOT_STARTED,
     water: STEP_STATUS.NOT_STARTED,
     infection: STEP_STATUS.NOT_STARTED,
     validation: STEP_STATUS.NOT_STARTED,
     start: STEP_STATUS.NOT_STARTED,
-  });
+  };
+
+  const [patientRaw, setPatientRaw] = useState(null);
+  const [prescriptionRaw, setPrescriptionRaw] = useState(null);
+  const [vitalsRaw, setVitalsRaw] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastRefreshed, setLastRefreshed] = useState(new Date());
+  const [stepStatuses, setStepStatuses] = useState(emptyStepStatuses);
 
   const [notes, setNotes] = useState([]);
 
@@ -342,9 +329,28 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
         setPrescriptionRaw(rxRes.data);
       }
 
-      const statusRes = await getPredialysisStatus(activeSessionId);
-      if (statusRes?.success && statusRes.data?.steps) {
-        setStepStatuses(statusRes.data.steps);
+      const vitalsRes = await getPatientLatestVitals(patientId);
+      if (vitalsRes?.success) {
+        setVitalsRaw(vitalsRes.data?.vitals || vitalsRes.data);
+      } else {
+        setVitalsRaw(null);
+      }
+
+      if (activeSessionId) {
+        const statusRes = await getPredialysisStatus(activeSessionId);
+        if (statusRes?.success) {
+          const next = { ...emptyStepStatuses };
+          mapRollupSteps(statusRes.data).forEach((step) => {
+            const key = ROLLUP_TO_DASHBOARD[step.key] || step.dashboardKey;
+            if (!key) return;
+            if (step.status === 'Completed') next[key] = STEP_STATUS.COMPLETE;
+            else if (step.status === 'In Progress') next[key] = STEP_STATUS.IN_PROGRESS;
+            else next[key] = STEP_STATUS.NOT_STARTED;
+          });
+          setStepStatuses(next);
+        }
+      } else {
+        setStepStatuses(emptyStepStatuses);
       }
 
       setNotes(normalizeNotesList(patientData));
@@ -380,7 +386,7 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
     [patientRaw, isConsentRevoked, isDoctorRole]
   );
 
-  const latestVitals = useMemo(() => normalizeLatestVitals(patientRaw), [patientRaw]);
+  const latestVitals = useMemo(() => normalizeLatestVitals(vitalsRaw || patientRaw), [vitalsRaw, patientRaw]);
   const preDialysisSummary = useMemo(
     () => normalizePreDialysisSummary(prescriptionRaw, patientRaw),
     [prescriptionRaw, patientRaw]
@@ -401,11 +407,11 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
     const newNote = {
       id: Date.now(),
       text: text.trim(),
-      author: isDoctorRole ? 'Dr. Neha Mehta' : 'Rahul Singh',
+      author: userRole || MISSING,
       date: formatDate(new Date()),
     };
     setNotes((prev) => [newNote, ...prev]);
-  }, [isDoctorRole]);
+  }, [userRole]);
 
   return {
     patientInfo,

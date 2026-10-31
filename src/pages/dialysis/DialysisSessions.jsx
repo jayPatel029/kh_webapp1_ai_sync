@@ -14,6 +14,8 @@ import DialysisAppointmentsDashboard from '../adminDashboard/components/Dialysis
 import UpcomingAppointmentsPanel from '../adminDashboard/components/UpcomingAppointmentsPanel';
 import { ROUTES } from '../../routes/routeConstants';
 import { useDialysisScope } from './DialysisScope';
+import { useSelector } from 'react-redux';
+import { canRunPart2 } from './p2Runtime';
 import {
   getAllBeds,
   getBedById,
@@ -59,6 +61,10 @@ const DialysisSessions = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { selectedOrgId, selectedClinicId } = useDialysisScope();
+  const permissionRole = useSelector((state) => state.permission?.role_name);
+  const authUser = useSelector((state) => state.auth?.user);
+  const roleName = permissionRole || authUser?.role || authUser?.role_name || (typeof window !== 'undefined' ? localStorage.getItem('role') : '');
+  const part2Allowed = canRunPart2(roleName);
   const [beds, setBeds] = useState([]);
   const [patientSessionReadings, setPatientSessionReadings] = useState([]);
   const [integrationLoading, setIntegrationLoading] = useState(false);
@@ -228,6 +234,19 @@ const DialysisSessions = () => {
   const stateSessionId = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
   const persistedSessionId = (() => { try { return localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || ''; } catch { return ''; } })();
   const activeSessionId = stateSessionId || persistedSessionId || '';
+  const isPart2Route = Boolean(selectedPatientId);
+
+  if (isPart2Route && !part2Allowed) {
+    return (
+      <ThemeProvider>
+        <Box className="p-8">
+          <Heading size="md">Part 2 is restricted</Heading>
+          <Text mt={2}>Admin cannot run the pre-dialysis workflow. Sign in as a dialysis technician, nurse, or nephrologist.</Text>
+          <Button mt={4} onClick={() => navigate(ROUTES.DIALYSIS_SESSIONS, { replace: true })}>Back to Sessions</Button>
+        </Box>
+      </ThemeProvider>
+    );
+  }
 
   // If Patient Assessment (P2-06) step requested
   if (selectedPatientId && isAssessmentStep) {

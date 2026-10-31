@@ -17,6 +17,7 @@
  */
 
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Badge,
   Box,
@@ -61,6 +62,8 @@ import {
   getOrganizations,
 } from '../../../ApiCalls/clinicApis';
 import { cancelPendingBedAssignment } from '../../../ApiCalls/bedManagementApis';
+import { getTodaySessions } from '../../../ApiCalls/preDialysisApis';
+import { canRunPart2, unwrapList } from '../../dialysis/p2Runtime';
 
 import OrganizationSelector from '../../../components/OrganizationSelector';
 import { useNavigate } from 'react-router-dom';
@@ -900,11 +903,40 @@ export default function BedManagementDashboard({
   const [dialysisPatientData, setDialysisPatientData] = useState({});
   const [dialysisBedData, setDialysisBedData] = useState({});
   const [revertAssignmentOnClose, setRevertAssignmentOnClose] = useState(false);
+  const permissionRole = useSelector((state) => state.permission?.role_name);
+  const authUser = useSelector((state) => state.auth?.user);
+  const roleName = permissionRole || authUser?.role || authUser?.role_name || (typeof window !== 'undefined' ? localStorage.getItem('role') : '');
+  const part2Allowed = canRunPart2(roleName);
 
   const showNotification = useCallback((title, description, status = 'success') => {
     setNotification({ title, description, status });
     setTimeout(() => setNotification(null), 3500);
   }, []);
+
+  const openPart2Workflow = useCallback((patientPayload, bedPayload, { revertOnClose } = {}) => {
+    if (!part2Allowed) {
+      showNotification(
+        'Part 2 restricted',
+        'Admin cannot run the pre-dialysis workflow. A technician or nurse must continue from here.',
+        'info',
+      );
+      return false;
+    }
+    const sessionId = patientPayload?.dialysis_session_id || patientPayload?.session_id || patientPayload?.sessionId;
+    if (!sessionId) {
+      showNotification(
+        'No dialysis session',
+        'A session id is required before pre-dialysis. Drag the patient to the bed again.',
+        'error',
+      );
+      return false;
+    }
+    setDialysisPatientData(patientPayload);
+    setDialysisBedData(bedPayload);
+    setRevertAssignmentOnClose(Boolean(revertOnClose));
+    setIsDialysisModalOpen(true);
+    return true;
+  }, [part2Allowed, showNotification]);
 
   useEffect(() => {
     if (scopedClinicId) setClinicId(String(scopedClinicId));
@@ -1062,19 +1094,22 @@ export default function BedManagementDashboard({
             } catch (_) {}
           }
           setIsAssignmentModalOpen(false);
-          setDialysisPatientData({
+          const patientPayload = {
             patient_id: patientData.patient_id,
             patient_name: patientData.patient_name,
             appointment_id: patientData.appointment_id,
             dialysis_session_id: assignedSessionId,
             session_id: assignedSessionId,
             sessionId: assignedSessionId,
-          });
-          setDialysisBedData(targetBed);
-          setRevertAssignmentOnClose(true);
-          setIsDialysisModalOpen(true);
-
-          showNotification('Success', `Patient assigned to Bed ${targetBed.bed_number} — opening workflow`, 'success');
+          };
+          const opened = openPart2Workflow(patientPayload, targetBed, { revertOnClose: true });
+          showNotification(
+            'Success',
+            opened
+              ? `Patient assigned to Bed ${targetBed.bed_number} — opening workflow`
+              : `Patient assigned to Bed ${targetBed.bed_number}`,
+            'success',
+          );
           loadAppointments(clinicId);
           fetchAllBeds(); // Refresh beds to show occupation
         } else {
@@ -1086,31 +1121,40 @@ export default function BedManagementDashboard({
         setIsAssigning(false);
       }
     },
-    [assignPatient, canAssignPatientToBed, clinicId, loadAppointments, showNotification]
+    [assignPatient, canAssignPatientToBed, clinicId, loadAppointments, openPart2Workflow, showNotification]
   );
 
-  const handleBedClick = useCallback((bed) => {
+  const handleBedClick = useCallback(async (bed) => {
     if (bed.status === 'CLEANING') {
       showNotification('Bed is Cleaning', `Last cleaned: ${bed.last_cleaned_at ? new Date(bed.last_cleaned_at).toLocaleTimeString() : 'N/A'}`, 'info');
       return;
     }
 
-    // If bed is occupied, open dialysis modal for session tracking
     if (bed.status === 'OCCUPIED' && bed.patient_id) {
-      setDialysisPatientData({
+      let sessionId = bed.dialysis_session_id || bed.session_id || bed.sessionId;
+      if (!sessionId) {
+        try {
+          const today = await getTodaySessions({ bed: bed.id });
+          const rows = unwrapList(today?.data);
+          const match = rows.find((row) => (
+            String(row.patient_id) === String(bed.patient_id) && row.session_id
+          ));
+          sessionId = match?.session_id || null;
+        } catch (_) {}
+      }
+      openPart2Workflow({
         patient_id: bed.patient_id,
         patient_name: bed.patient_name,
         appointment_id: bed.appointment_id,
-      });
-      setDialysisBedData(bed);
-      setRevertAssignmentOnClose(false);
-      setIsDialysisModalOpen(true);
+        dialysis_session_id: sessionId,
+        session_id: sessionId,
+        sessionId,
+      }, bed, { revertOnClose: false });
     } else if (bed.status === 'EMPTY' || bed.status === 'AVAILABLE' || bed.status === 'QUARANTINE') {
-      // For empty or quarantine beds, show assignment modal
       setSelectedBed(bed);
       setIsAssignmentModalOpen(true);
     }
-  }, [showNotification]);
+  }, [openPart2Workflow, showNotification]);
 
   // Cleaning confirmation flow reverted; clicking CLEANING beds shows notification only.
 
@@ -1134,19 +1178,16 @@ export default function BedManagementDashboard({
             } catch (_) {}
           }
           setIsAssignmentModalOpen(false);
-          setDialysisPatientData({
+          const bedForModal = selectedBed || { id: assignmentData.bed_id, bed_number: selectedBed?.bed_number || `Bed ${assignmentData.bed_id}` };
+          const opened = openPart2Workflow({
             patient_id: assignmentData.patient_id,
             patient_name: assignmentData.patient_name,
             appointment_id: assignmentData.appointment_id,
             dialysis_session_id: assignedSessionId,
             session_id: assignedSessionId,
             sessionId: assignedSessionId,
-          });
-          const bedForModal = selectedBed || { id: assignmentData.bed_id, bed_number: selectedBed?.bed_number || `Bed ${assignmentData.bed_id}` };
-          setDialysisBedData(bedForModal);
-          setRevertAssignmentOnClose(true);
-          setIsDialysisModalOpen(true);
-          showNotification('Success', `Patient assigned — opening workflow`, 'success');
+          }, bedForModal, { revertOnClose: true });
+          showNotification('Success', opened ? 'Patient assigned — opening workflow' : 'Patient assigned', 'success');
           loadAppointments(clinicId);
           fetchAllBeds();
           return;
@@ -1165,7 +1206,7 @@ export default function BedManagementDashboard({
         setIsAssigning(false);
       }
     },
-    [assignPatient, clinicId, loadAppointments, selectedBed, showNotification]
+    [assignPatient, clinicId, loadAppointments, openPart2Workflow, selectedBed, showNotification]
   );
 
   const handleDialysisStageChange = useCallback(

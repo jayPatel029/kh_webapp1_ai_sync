@@ -7,7 +7,15 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { ROUTES } from '../../routes/routeConstants';
 import './duringDialysis.css';
-import { reviewMachineSafety, getPatientDetails } from '../../ApiCalls/preDialysisApis';
+import {
+  reviewMachineSafety,
+  getPatientDetails,
+  getMachineQcToday,
+  getMachineSelfTestToday,
+} from '../../ApiCalls/preDialysisApis';
+import { getDialysisSessionById } from '../../ApiCalls/dialysisSessionApis';
+import { resolveP2SessionId, liveValue, MISSING } from './p2Runtime';
+import { saveP2Draft } from './p2DraftCache';
 
 // Icons
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -21,10 +29,6 @@ import VaccinesOutlinedIcon from '@mui/icons-material/VaccinesOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-
-import { validateMachineSafety } from './machineSafetyValidation';
-
-
 
 const CARD_STYLE = {
   background: '#ffffff',
@@ -40,58 +44,164 @@ const SECTION_TITLE_STYLE = {
   marginBottom: '8px',
 };
 
-// Mock data based on P2-08 image
-const MACHINE_INFO = {
-  machineId: 'B-02',
-  model: 'Fresenius 4008S',
-  serialNumber: 'SN-4008S-22145',
-  location: 'HD-01',
-  checkTime: '26 May 2025, 06:55 AM'
-};
-
-const SAFETY_CHECKLIST = [
-  { id: 'power', label: 'Power On Self Test', icon: SettingsPowerOutlinedIcon, status: 'OK', details: 'Completed Successfully', range: '—', action: '—' },
-  { id: 'blood_leak', label: 'Blood Leak Detector', icon: WaterDropOutlinedIcon, status: 'OK', details: 'Pass', range: 'Pass', action: '—' },
-  { id: 'air', label: 'Air Detector', icon: AirOutlinedIcon, status: 'OK', details: 'Pass', range: 'Pass', action: '—' },
-  { id: 'venous', label: 'Venous Pressure Sensor', icon: MonitorHeartOutlinedIcon, status: 'OK', details: '-12 mmHg', range: '-250 to +250 mmHg', action: '—' },
-  { id: 'arterial', label: 'Arterial Pressure Sensor', icon: MonitorHeartOutlinedIcon, status: 'OK', details: '98 mmHg', range: '-300 to +300 mmHg', action: '—' },
-  { id: 'tmp', label: 'TMP Sensor', icon: MonitorHeartOutlinedIcon, status: 'OK', details: '52 mmHg', range: '0 - 500 mmHg', action: '—' },
-  { id: 'heparin', label: 'Heparin Pump (if applicable)', icon: VaccinesOutlinedIcon, status: 'OK', details: 'Functional', range: 'Accurate delivery', action: '—' },
-  { id: 'uf_pump', label: 'UF Pump / System', icon: SettingsPowerOutlinedIcon, status: 'OK', details: 'Functional', range: 'Accurate delivery', action: '—' },
-  { id: 'conductivity', label: 'Conductivity Monitor (Dialysate)', icon: ScienceOutlinedIcon, status: 'OK', details: '14.2 mS/cm', range: '13.5 - 15.5 mS/cm', action: '—' },
-  { id: 'temperature', label: 'Temperature Monitor (Dialysate)', icon: ThermostatOutlinedIcon, status: 'OK', details: '36.6 °C', range: '35.0 - 37.0 °C', action: '—' },
-  { id: 'uf_rate', label: 'UF Rate Test', icon: SettingsPowerOutlinedIcon, status: 'OK', details: '500 mL/hr', range: '±10% accuracy', action: '—' },
-  { id: 'emergency', label: 'Emergency Stop Button', icon: ReportProblemOutlinedIcon, status: 'OK', details: 'Functional', range: 'Must be functional', action: '—' },
-  { id: 'alarms', label: 'Alarms & Indicators', icon: WarningAmberOutlinedIcon, status: 'OK', details: 'All audible & visible alarms working', range: 'All functional', action: '—' },
+const CHECK_FIELDS = [
+  { id: 'self_test', label: 'Power On Self Test', icon: SettingsPowerOutlinedIcon, source: 'self_test' },
+  { id: 'qc_status', label: 'Daily Machine QC', icon: ScienceOutlinedIcon, source: 'qc' },
+  { id: 'blood_leak', label: 'Blood Leak Detector', icon: WaterDropOutlinedIcon, keys: ['blood_leak', 'blood_leak_detector'] },
+  { id: 'air', label: 'Air Detector', icon: AirOutlinedIcon, keys: ['air_detector', 'air'] },
+  { id: 'venous', label: 'Venous Pressure Sensor', icon: MonitorHeartOutlinedIcon, keys: ['venous_pressure', 'venous'] },
+  { id: 'arterial', label: 'Arterial Pressure Sensor', icon: MonitorHeartOutlinedIcon, keys: ['arterial_pressure', 'arterial'] },
+  { id: 'tmp', label: 'TMP Sensor', icon: MonitorHeartOutlinedIcon, keys: ['tmp', 'tmp_sensor'] },
+  { id: 'heparin', label: 'Heparin Pump (if applicable)', icon: VaccinesOutlinedIcon, keys: ['heparin_pump', 'heparin'] },
+  { id: 'uf_pump', label: 'UF Pump / System', icon: SettingsPowerOutlinedIcon, keys: ['uf_pump', 'uf'] },
+  { id: 'conductivity', label: 'Conductivity Monitor (Dialysate)', icon: ScienceOutlinedIcon, keys: ['conductivity'] },
+  { id: 'temperature', label: 'Temperature Monitor (Dialysate)', icon: ThermostatOutlinedIcon, keys: ['temperature', 'temp'] },
+  { id: 'emergency', label: 'Emergency Stop Button', icon: ReportProblemOutlinedIcon, keys: ['emergency_stop', 'emergency'] },
+  { id: 'alarms', label: 'Alarms & Indicators', icon: WarningAmberOutlinedIcon, keys: ['alarms'] },
 ];
 
-const MachineSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, onNavigateStep }) => {
+function pickField(row, keys = []) {
+  if (!row) return null;
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') return row[key];
+  }
+  return null;
+}
+
+function statusFromValue(value, fallbackStatus) {
+  if (value === null || value === undefined || value === '') return fallbackStatus || 'Missing';
+  const raw = String(value).toLowerCase();
+  if (['passed', 'pass', 'ok', '1', 'true'].includes(raw)) return 'OK';
+  if (['failed', 'fail', 'not yet performed'].includes(raw)) return 'Failed';
+  return String(value);
+}
+
+const MachineSafetyView = ({ patientId, sessionId: propSessionId, machineId: propMachineId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
-  const effectiveSessionId = useMemo(() => {
-    if (propSessionId) return propSessionId;
-    try {
-      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
-      if (fromState) return fromState;
-      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
-      if (persisted) return persisted;
-    } catch {}
-    return patientId || 1;
-  }, [propSessionId, location.state, patientId]);
+  const effectiveSessionId = useMemo(
+    () => resolveP2SessionId(propSessionId, location),
+    [propSessionId, location],
+  );
   const [notes, setNotes] = useState('');
   const [patientData, setPatientData] = useState(null);
+  const [machineId, setMachineId] = useState(propMachineId || '');
+  const [machineInfo, setMachineInfo] = useState({
+    machineId: MISSING,
+    model: MISSING,
+    serialNumber: MISSING,
+    location: MISSING,
+    checkTime: MISSING,
+    manufacturer: MISSING,
+    installationDate: MISSING,
+    lastPm: MISSING,
+    nextDue: MISSING,
+  });
+  const [checklist, setChecklist] = useState([]);
+  const [warning, setWarning] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [draftMsg, setDraftMsg] = useState('');
+
   useEffect(() => {
     if (!patientId) return;
     let mounted = true;
-    getPatientDetails(patientId).then((res) => { if (mounted && res?.success) setPatientData(res.data?.patient || res.data?.data?.patient || res.data?.data || res.data); }).catch(()=>{});
+    getPatientDetails(patientId).then((res) => {
+      if (mounted && res?.success) {
+        setPatientData(res.data?.patient || res.data?.data?.patient || res.data?.data || res.data);
+      }
+    }).catch(() => {});
     return () => { mounted = false; };
   }, [patientId]);
 
-  // Validate that all statuses are OK (for "Save & Continue" enabled state)
-  const isFormValid = useMemo(() => {
-    return validateMachineSafety(SAFETY_CHECKLIST);
-  }, []);
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setWarning('');
+      let resolvedMachineId = propMachineId || '';
+      if (effectiveSessionId) {
+        const sessionRes = await getDialysisSessionById(effectiveSessionId);
+        if (sessionRes?.success) {
+          const session = sessionRes.data?.data || sessionRes.data || {};
+          resolvedMachineId = resolvedMachineId || session.machine_id || session.machineId || '';
+          if (mounted) {
+            setMachineInfo((prev) => ({
+              ...prev,
+              machineId: liveValue(resolvedMachineId),
+              location: liveValue(session.bed_code || session.bed_id),
+              model: liveValue(session.machine_model),
+              serialNumber: liveValue(session.machine_serial || session.serial_number),
+              manufacturer: liveValue(session.machine_manufacturer),
+            }));
+          }
+        }
+      }
+      if (mounted) setMachineId(resolvedMachineId);
+      if (!resolvedMachineId) {
+        if (mounted) {
+          setChecklist([]);
+          setWarning('No machine is linked to this session. Machine QC cannot be loaded.');
+        }
+        return;
+      }
+      const [qcRes, stRes] = await Promise.all([
+        getMachineQcToday(resolvedMachineId),
+        getMachineSelfTestToday(resolvedMachineId),
+      ]);
+      const qc = qcRes?.success ? (qcRes.data?.qc || qcRes.data) : null;
+      const selfTest = stRes?.success ? (stRes.data?.self_test || stRes.data) : null;
+      const qcStatus = String(qc?.status || '').toLowerCase();
+      const stStatus = String(selfTest?.status || '').toLowerCase();
+      const hasTodayCheck = qcStatus === 'passed' && stStatus === 'passed';
+      if (!hasTodayCheck && mounted) {
+        setWarning('No passed machine QC / self-test recorded for today. Continue is blocked until both pass.');
+      }
+      const rows = CHECK_FIELDS.map((field) => {
+        if (field.source === 'self_test') {
+          return {
+            ...field,
+            status: statusFromValue(selfTest?.status, 'Missing'),
+            details: liveValue(selfTest?.summary || selfTest?.status),
+            range: 'Passed today',
+            action: MISSING,
+          };
+        }
+        if (field.source === 'qc') {
+          return {
+            ...field,
+            status: statusFromValue(qc?.status, 'Missing'),
+            details: liveValue(qc?.summary || qc?.status),
+            range: 'Passed today',
+            action: MISSING,
+          };
+        }
+        const reading = pickField(qc, field.keys) ?? pickField(selfTest, field.keys);
+        return {
+          ...field,
+          status: reading == null ? 'Missing' : statusFromValue(reading),
+          details: liveValue(reading),
+          range: MISSING,
+          action: MISSING,
+        };
+      });
+      if (mounted) {
+        setChecklist(rows);
+        setMachineInfo((prev) => ({
+          ...prev,
+          checkTime: liveValue(qc?.performed_at || selfTest?.performed_at || qc?.check_date),
+          lastPm: liveValue(qc?.last_pm || qc?.last_preventive_maintenance),
+          nextDue: liveValue(qc?.next_due),
+        }));
+      }
+    };
+    load().catch(() => {
+      if (mounted) setWarning('Could not load machine QC for today.');
+    });
+    return () => { mounted = false; };
+  }, [effectiveSessionId, propMachineId]);
+
+  const isFormValid = Boolean(effectiveSessionId && machineId && !warning);
 
   return (
     <ThemeProvider>
@@ -152,24 +262,24 @@ const MachineSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext
                 <div className="grid grid-cols-5 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-[#64748b] mb-1">Machine ID</label>
-                    <input type="text" readOnly value={MACHINE_INFO.machineId} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
+                    <input type="text" readOnly value={machineInfo.machineId} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#64748b] mb-1">Model</label>
-                    <input type="text" readOnly value={MACHINE_INFO.model} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
+                    <input type="text" readOnly value={machineInfo.model} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#64748b] mb-1">Serial Number</label>
-                    <input type="text" readOnly value={MACHINE_INFO.serialNumber} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
+                    <input type="text" readOnly value={machineInfo.serialNumber} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#64748b] mb-1">Location / Bed</label>
-                    <input type="text" readOnly value={MACHINE_INFO.location} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
+                    <input type="text" readOnly value={machineInfo.location} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#64748b] mb-1">Check Time</label>
                     <div className="flex items-center gap-2 border border-[#e2e8f0] px-3 py-2 rounded-md bg-gray-50 text-sm">
-                      <span className="flex-1">{MACHINE_INFO.checkTime}</span>
+                      <span className="flex-1">{machineInfo.checkTime}</span>
                       <CalendarTodayIcon style={{ fontSize: '16px', color: '#64748b' }} />
                     </div>
                   </div>
@@ -198,10 +308,15 @@ const MachineSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext
 
                   {/* Table Rows */}
                   <div className="flex flex-col">
-                    {SAFETY_CHECKLIST.map((item, idx) => {
+                    {checklist.length === 0 ? (
+                      <div className="px-6 py-6 text-sm text-[#b45309] font-semibold">
+                        {warning || 'No machine safety readings are recorded for today.'}
+                      </div>
+                    ) : null}
+                    {checklist.map((item, idx) => {
                       const Icon = item.icon;
                       return (
-                        <div key={item.id} className={`flex items-center px-6 py-3 ${idx !== SAFETY_CHECKLIST.length - 1 ? 'border-b border-[#f1f5f9]' : ''}`}>
+                        <div key={item.id} className={`flex items-center px-6 py-3 ${idx !== checklist.length - 1 ? 'border-b border-[#f1f5f9]' : ''}`}>
                           <div className="w-[30%] flex items-center gap-3">
                             <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#eff6ff] text-[#2563eb]">
                               <Icon style={{ fontSize: '14px' }} />
@@ -230,10 +345,17 @@ const MachineSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext
                   </div>
                 </div>
 
-                <div className="m-6 p-4 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg flex items-center gap-3">
-                  <CheckCircleIcon style={{ color: '#16a34a' }} />
-                  <span className="font-bold text-[#166534] text-sm">Machine safety check completed. All parameters are within acceptable range.</span>
-                </div>
+                {warning ? (
+                  <div className="m-6 p-4 bg-[#fffbeb] border border-[#fde68a] rounded-lg flex items-center gap-3">
+                    <WarningAmberOutlinedIcon style={{ color: '#d97706' }} />
+                    <span className="font-bold text-[#b45309] text-sm">{warning}</span>
+                  </div>
+                ) : (
+                  <div className="m-6 p-4 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg flex items-center gap-3">
+                    <CheckCircleIcon style={{ color: '#16a34a' }} />
+                    <span className="font-bold text-[#166534] text-sm">Today's machine QC and self-test both passed.</span>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -253,12 +375,12 @@ const MachineSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext
                   <a href="#" className="text-blue-600 text-sm font-semibold">Edit</a>
                 </div>
                 <div className="flex flex-col gap-3 text-sm">
-                  <div className="flex justify-between"><span className="text-[#64748b]">Manufacturer</span><span className="font-semibold text-[#0f172a]">Fresenius</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Model</span><span className="font-semibold text-[#0f172a]">4008S</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Serial Number</span><span className="font-semibold text-[#0f172a]">SN-4008S-22145</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Installation Date</span><span className="font-semibold text-[#0f172a]">15 Mar 2022</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Last Preventive Maintenance</span><span className="font-semibold text-[#0f172a]">18 May 2025</span></div>
-                  <div className="flex justify-between"><span className="text-[#64748b]">Next Due</span><span className="font-semibold text-[#0f172a]">18 Jun 2025</span></div>
+                  <div className="flex justify-between"><span className="text-[#64748b]">Manufacturer</span><span className="font-semibold text-[#0f172a]">{machineInfo.manufacturer}</span></div>
+                  <div className="flex justify-between"><span className="text-[#64748b]">Model</span><span className="font-semibold text-[#0f172a]">{machineInfo.model}</span></div>
+                  <div className="flex justify-between"><span className="text-[#64748b]">Serial Number</span><span className="font-semibold text-[#0f172a]">{machineInfo.serialNumber}</span></div>
+                  <div className="flex justify-between"><span className="text-[#64748b]">Installation Date</span><span className="font-semibold text-[#0f172a]">{machineInfo.installationDate}</span></div>
+                  <div className="flex justify-between"><span className="text-[#64748b]">Last Preventive Maintenance</span><span className="font-semibold text-[#0f172a]">{machineInfo.lastPm}</span></div>
+                  <div className="flex justify-between"><span className="text-[#64748b]">Next Due</span><span className="font-semibold text-[#0f172a]">{machineInfo.nextDue}</span></div>
                 </div>
                 <div className="mt-4 text-right">
                   <a href="#" className="text-blue-600 text-sm font-semibold">View Maintenance History →</a>
@@ -273,7 +395,7 @@ const MachineSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon style={{ color: '#16a34a', fontSize: '18px' }} />
-                  <span className="text-sm font-semibold text-[#0f172a]">No active machine alerts.</span>
+                  <span className="text-sm font-semibold text-[#0f172a]">{warning || 'No active machine alerts.'}</span>
                 </div>
               </div>
 
@@ -301,19 +423,37 @@ const MachineSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext
           <Button variant="outline" onClick={onBack} style={{ padding: '10px 24px', borderRadius: '8px', fontWeight: 600 }}>
             ← Back
           </Button>
+          {submitError ? <span className="text-sm text-red-600 font-semibold mr-4">{submitError}</span> : null}
+          {draftMsg ? <span className="text-sm text-slate-500 mr-4">{draftMsg}</span> : null}
           <div className="flex gap-4">
-            <Button variant="outline" style={{ padding: '10px 24px', borderRadius: '8px', color: '#2563eb', borderColor: '#2563eb', fontWeight: 600 }}>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await saveP2Draft(effectiveSessionId, 'P2-08', { notes, machineId });
+                setDraftMsg('Draft saved on this device.');
+              }}
+              style={{ padding: '10px 24px', borderRadius: '8px', color: '#2563eb', borderColor: '#2563eb', fontWeight: 600 }}
+            >
               Save as Draft
             </Button>
             <Button 
               colorScheme="primary" 
               onClick={async () => {
-                try {
-                  await reviewMachineSafety(effectiveSessionId, { machine_id: 'HD-01' });
-                } catch (_) {}
+                if (!effectiveSessionId || !machineId) {
+                  setSubmitError('Session and machine id are required.');
+                  return;
+                }
+                setIsSubmitting(true);
+                setSubmitError('');
+                const res = await reviewMachineSafety(effectiveSessionId, { machine_id: machineId, notes });
+                setIsSubmitting(false);
+                if (!res?.success) {
+                  setSubmitError(res?.message || 'Machine QC must pass before continuing.');
+                  return;
+                }
                 if (onNext) onNext();
               }} 
-              isDisabled={!isFormValid}
+              isDisabled={!isFormValid || isSubmitting}
               style={{ padding: '10px 32px', borderRadius: '8px', background: isFormValid ? '#2563eb' : '#94a3b8', color: '#fff', fontWeight: 600 }}
             >
               Save & Continue →

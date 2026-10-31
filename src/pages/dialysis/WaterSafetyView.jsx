@@ -23,8 +23,10 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { ROUTES } from '../../routes/routeConstants';
 import './duringDialysis.css';
-import { validateWaterSafety } from './waterSafetyValidation';
-import { reviewWaterSafety, getPatientDetails } from '../../ApiCalls/preDialysisApis';
+import { reviewWaterSafety, getPatientDetails, getRoPlantShiftCheck, getRoPlantVerificationToday } from '../../ApiCalls/preDialysisApis';
+import { getDialysisSessionById } from '../../ApiCalls/dialysisSessionApis';
+import { resolveP2SessionId, liveValue, MISSING } from './p2Runtime';
+import { saveP2Draft } from './p2DraftCache';
 
 // Icons
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -55,40 +57,34 @@ const SECTION_TITLE_STYLE = {
   marginBottom: '8px',
 };
 
-const WATER_SYSTEM_INFO = {
-  roSystemId: 'RO-01',
-  makeModel: 'AquaMed Pro 500',
-  installationDate: '10 Jan 2022',
-  lastSanitization: '22 May 2025',
-  checkTime: '26 May 2025, 07:00 AM',
-};
-
-const WATER_QUALITY_CHECKLIST = [
-  { id: 'ph', label: 'pH', icon: WaterDropOutlinedIcon, result: '7.1', unit: '—', range: '6.5 – 8.0', method: 'pH Meter', status: 'OK', action: '—' },
-  { id: 'tds', label: 'Total Dissolved Solids (TDS)', icon: ScienceOutlinedIcon, result: '45', unit: 'ppm', range: '≤ 500 ppm', method: 'TDS Meter', status: 'OK', action: '—' },
-  { id: 'conductivity', label: 'Conductivity', icon: SpeedIcon, result: '22', unit: 'µS/cm', range: '≤ 50 µS/cm', method: 'Conductivity Meter', status: 'OK', action: '—' },
-  { id: 'hardness', label: 'Total Hardness', icon: OpacityIcon, result: '30', unit: 'ppm', range: '≤ 50 ppm', method: 'Titration', status: 'OK', action: '—' },
-  { id: 'free_chlorine', label: 'Chlorine (Free)', icon: WaterDropOutlinedIcon, result: '0.00', unit: 'ppm', range: '≤ 0.1 ppm', method: 'DPD Colorimetric', status: 'OK', action: '—' },
-  { id: 'chloramine', label: 'Chloramine', icon: WaterDropOutlinedIcon, result: '0.00', unit: 'ppm', range: '≤ 0.1 ppm', method: 'Colorimetric', status: 'OK', action: '—' },
-  { id: 'bacteria', label: 'Bacteria (HPC)', icon: BiotechIcon, result: '< 10', unit: 'CFU/mL', range: '≤ 100 CFU/mL', method: 'Petrifilm', status: 'OK', action: '—' },
-  { id: 'endotoxin', label: 'Endotoxin', icon: BiotechIcon, result: '< 0.01', unit: 'EU/mL', range: '≤ 0.25 EU/mL', method: 'LAL Test', status: 'OK', action: '—' },
-  { id: 'turbidity', label: 'Turbidity', icon: DeviceThermostatIcon, result: '0.10', unit: 'NTU', range: '≤ 1.0 NTU', method: 'Turbidity Meter', status: 'OK', action: '—' },
+const WATER_FIELDS = [
+  { id: 'ph', label: 'pH', icon: WaterDropOutlinedIcon, keys: ['ph'], range: '6.5 – 8.0' },
+  { id: 'tds', label: 'Total Dissolved Solids (TDS)', icon: ScienceOutlinedIcon, keys: ['tds'], range: '≤ 500 ppm' },
+  { id: 'conductivity', label: 'Conductivity', icon: SpeedIcon, keys: ['conductivity'], range: '≤ 50 µS/cm' },
+  { id: 'hardness', label: 'Total Hardness', icon: OpacityIcon, keys: ['hardness', 'total_hardness'], range: '≤ 50 ppm' },
+  { id: 'free_chlorine', label: 'Chlorine (Free)', icon: WaterDropOutlinedIcon, keys: ['chlorine', 'free_chlorine'], range: '≤ 0.1 ppm' },
+  { id: 'chloramine', label: 'Chloramine', icon: WaterDropOutlinedIcon, keys: ['chloramine'], range: '≤ 0.1 ppm' },
+  { id: 'bacteria', label: 'Bacteria (HPC)', icon: BiotechIcon, keys: ['bacteria', 'hpc'], range: '≤ 100 CFU/mL' },
+  { id: 'endotoxin', label: 'Endotoxin', icon: BiotechIcon, keys: ['endotoxin'], range: '≤ 0.25 EU/mL' },
+  { id: 'turbidity', label: 'Turbidity', icon: DeviceThermostatIcon, keys: ['turbidity'], range: '≤ 1.0 NTU' },
 ];
 
-const WaterSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, onNavigateStep }) => {
+function pickWaterField(row, keys = []) {
+  if (!row) return null;
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') return row[key];
+  }
+  return null;
+}
+
+const WaterSafetyView = ({ patientId, sessionId: propSessionId, roPlantId: propRoPlantId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
-  const effectiveSessionId = useMemo(() => {
-    if (propSessionId) return propSessionId;
-    try {
-      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
-      if (fromState) return fromState;
-      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
-      if (persisted) return persisted;
-    } catch {}
-    return patientId || 1;
-  }, [propSessionId, location.state, patientId]);
+  const effectiveSessionId = useMemo(
+    () => resolveP2SessionId(propSessionId, location),
+    [propSessionId, location],
+  );
   const [patientData, setPatientData] = useState(null);
   useEffect(() => {
     if (!patientId) return;
@@ -99,20 +95,105 @@ const WaterSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, 
   const [notes, setNotes] = useState('');
   const [sanitizationNotes, setSanitizationNotes] = useState('');
   const [additionalChecks, setAdditionalChecks] = useState({
-    roPressure: '65',
-    roFlowRate: '120',
-    carbonFilterStatus: 'Good',
-    softenerStatus: 'Good',
+    roPressure: '',
+    roFlowRate: '',
+    carbonFilterStatus: '',
+    softenerStatus: '',
   });
   const [sanitizationRecord, setSanitizationRecord] = useState({
-    type: 'Heat Disinfection',
-    nextDueDate: '29 May 2025',
-    performedBy: 'Rahul Singh',
+    type: '',
+    nextDueDate: '',
+    performedBy: '',
   });
+  const [waterInfo, setWaterInfo] = useState({
+    roSystemId: MISSING,
+    makeModel: MISSING,
+    installationDate: MISSING,
+    lastSanitization: MISSING,
+    checkTime: MISSING,
+  });
+  const [checklist, setChecklist] = useState([]);
+  const [roPlantId, setRoPlantId] = useState(propRoPlantId || '');
+  const [warning, setWarning] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [passedToday, setPassedToday] = useState(false);
 
-  const isFormValid = useMemo(() => {
-    return validateWaterSafety(WATER_QUALITY_CHECKLIST, additionalChecks);
-  }, [additionalChecks]);
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setWarning('');
+      let plantId = propRoPlantId || '';
+      if (effectiveSessionId) {
+        const sessionRes = await getDialysisSessionById(effectiveSessionId);
+        if (sessionRes?.success) {
+          const session = sessionRes.data?.data || sessionRes.data || {};
+          plantId = plantId || session.ro_plant_id || session.roPlantId || '';
+        }
+      }
+      if (mounted) {
+        setRoPlantId(plantId);
+        setWaterInfo((prev) => ({ ...prev, roSystemId: liveValue(plantId) }));
+      }
+      if (!plantId) {
+        if (mounted) {
+          setChecklist([]);
+          setPassedToday(false);
+          setWarning('No RO plant is linked to this session. Water checks cannot be loaded.');
+        }
+        return;
+      }
+      const [shiftRes, verifyRes] = await Promise.all([
+        getRoPlantShiftCheck(plantId),
+        getRoPlantVerificationToday(plantId),
+      ]);
+      const shift = shiftRes?.success ? (shiftRes.data?.shift_check || shiftRes.data) : null;
+      const verification = verifyRes?.success ? (verifyRes.data?.verification || verifyRes.data) : null;
+      const shiftOk = shift?.shift_check_passed === 1 || shift?.shift_check_passed === true;
+      const qualityOk = verification?.daily_verification_passed === 1 || verification?.daily_verification_passed === true;
+      if (mounted) {
+        setPassedToday(Boolean(shiftOk && qualityOk));
+        setWaterInfo((prev) => ({
+          ...prev,
+          makeModel: liveValue(shift?.make_model || verification?.make_model),
+          installationDate: liveValue(shift?.installation_date || verification?.installation_date),
+          lastSanitization: liveValue(shift?.last_sanitization || verification?.last_sanitization),
+          checkTime: liveValue(shift?.checked_at || verification?.checked_at || shift?.check_date),
+        }));
+        setAdditionalChecks({
+          roPressure: liveValue(shift?.ro_pressure),
+          roFlowRate: liveValue(shift?.ro_flow_rate),
+          carbonFilterStatus: liveValue(shift?.carbon_filter_status),
+          softenerStatus: liveValue(shift?.softener_status),
+        });
+        setSanitizationRecord({
+          type: liveValue(shift?.sanitization_type || verification?.sanitization_type),
+          nextDueDate: liveValue(shift?.next_sanitization || verification?.next_sanitization),
+          performedBy: liveValue(shift?.performed_by || verification?.performed_by),
+        });
+        setChecklist(WATER_FIELDS.map((field) => {
+          const result = pickWaterField(shift, field.keys) ?? pickWaterField(verification, field.keys);
+          return {
+            ...field,
+            result: liveValue(result),
+            unit: MISSING,
+            method: MISSING,
+            status: result == null ? 'Missing' : 'Recorded',
+            action: MISSING,
+          };
+        }));
+        if (!shiftOk || !qualityOk) {
+          setWarning('No passed RO shift check and daily verification for today. Continue is blocked.');
+        }
+      }
+    };
+    load().catch(() => {
+      if (mounted) setWarning('Could not load water quality checks for today.');
+    });
+    return () => { mounted = false; };
+  }, [effectiveSessionId, propRoPlantId]);
+
+  const isFormValid = Boolean(effectiveSessionId && roPlantId && passedToday);
 
   return (
     <ThemeProvider>
@@ -173,24 +254,24 @@ const WaterSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, 
                 <div className="grid grid-cols-5 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-[#64748b] mb-1">RO System ID</label>
-                    <input type="text" readOnly value={WATER_SYSTEM_INFO.roSystemId} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
+                    <input type="text" readOnly value={waterInfo.roSystemId} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#64748b] mb-1">Make / Model</label>
-                    <input type="text" readOnly value={WATER_SYSTEM_INFO.makeModel} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
+                    <input type="text" readOnly value={waterInfo.makeModel} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#64748b] mb-1">Installation Date</label>
-                    <input type="text" readOnly value={WATER_SYSTEM_INFO.installationDate} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
+                    <input type="text" readOnly value={waterInfo.installationDate} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#64748b] mb-1">Last Sanitization</label>
-                    <input type="text" readOnly value={WATER_SYSTEM_INFO.lastSanitization} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
+                    <input type="text" readOnly value={waterInfo.lastSanitization} className="w-full border border-[#e2e8f0] rounded-md px-3 py-2 text-sm bg-gray-50 focus:outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#64748b] mb-1">Check Time</label>
                     <div className="flex items-center gap-2 border border-[#e2e8f0] px-3 py-2 rounded-md bg-gray-50 text-sm">
-                      <span className="flex-1">{WATER_SYSTEM_INFO.checkTime}</span>
+                      <span className="flex-1">{waterInfo.checkTime}</span>
                       <CalendarTodayIcon style={{ fontSize: '16px', color: '#64748b' }} />
                     </div>
                   </div>
@@ -207,9 +288,15 @@ const WaterSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, 
                     </div>
                     <p className="text-sm text-[#475569]">Ensure all water quality parameters are within acceptable limits.</p>
                   </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded-full font-semibold text-xs">
-                    <CheckCircleIcon style={{ fontSize: '14px' }} /> All Parameters OK
-                  </div>
+                  {passedToday ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded-full font-semibold text-xs">
+                      <CheckCircleIcon style={{ fontSize: '14px' }} /> Today's checks passed
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-[#fef3c7] border border-[#fde68a] text-[#b45309] rounded-full font-semibold text-xs">
+                      <WarningAmberOutlinedIcon style={{ fontSize: '14px' }} /> No check today
+                    </div>
+                  )}
                 </div>
 
                 <div className="w-full text-sm mt-4">
@@ -225,10 +312,15 @@ const WaterSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, 
 
                   {/* Table Rows */}
                   <div className="flex flex-col">
-                    {WATER_QUALITY_CHECKLIST.map((item, idx) => {
+                    {checklist.length === 0 ? (
+                      <div className="px-6 py-6 text-sm text-[#b45309] font-semibold">
+                        {warning || 'No water quality readings are recorded for today.'}
+                      </div>
+                    ) : null}
+                    {checklist.map((item, idx) => {
                       const Icon = item.icon;
                       return (
-                        <div key={item.id} className={`flex items-center px-6 py-3 ${idx !== WATER_QUALITY_CHECKLIST.length - 1 ? 'border-b border-[#f1f5f9]' : ''}`}>
+                        <div key={item.id} className={`flex items-center px-6 py-3 ${idx !== checklist.length - 1 ? 'border-b border-[#f1f5f9]' : ''}`}>
                           <div className="w-[30%] flex items-center gap-3">
                             <div className="flex items-center justify-center w-6 h-6 rounded-full bg-[#eff6ff] text-[#2563eb]">
                               <Icon style={{ fontSize: '14px' }} />
@@ -250,9 +342,15 @@ const WaterSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, 
                           <div className="w-[18%] text-[#475569]">{item.method}</div>
                           
                           <div className="w-[10%] flex items-center">
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded-md font-semibold text-xs">
-                              <CheckCircleIcon style={{ fontSize: '14px' }} /> OK
-                            </div>
+                            {item.status === 'Recorded' ? (
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded-md font-semibold text-xs">
+                                Recorded
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#fef3c7] border border-[#fde68a] text-[#b45309] rounded-md font-semibold text-xs">
+                                Missing
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -260,10 +358,17 @@ const WaterSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, 
                   </div>
                 </div>
 
-                <div className="m-6 p-4 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg flex items-center gap-3">
-                  <CheckCircleIcon style={{ color: '#16a34a' }} />
-                  <span className="font-bold text-[#166534] text-sm">All water quality parameters are within acceptable range. Water is safe for dialysis.</span>
-                </div>
+                {warning ? (
+                  <div className="m-6 p-4 bg-[#fffbeb] border border-[#fde68a] rounded-lg flex items-center gap-3">
+                    <WarningAmberOutlinedIcon style={{ color: '#d97706' }} />
+                    <span className="font-bold text-[#b45309] text-sm">{warning}</span>
+                  </div>
+                ) : (
+                  <div className="m-6 p-4 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg flex items-center gap-3">
+                    <CheckCircleIcon style={{ color: '#16a34a' }} />
+                    <span className="font-bold text-[#166534] text-sm">Today's RO shift check and daily verification both passed.</span>
+                  </div>
+                )}
               </div>
 
               {/* Bottom Split (Additional Checks & Sanitization Record) — component-library uniform */}
@@ -524,18 +629,34 @@ const WaterSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, 
             ← Back
           </Button>
           <div className="flex gap-4">
-            <Button variant="outline" style={{ padding: '10px 24px', borderRadius: '8px', color: '#2563eb', borderColor: '#2563eb', fontWeight: 600 }}>
+            {submitError ? <span className="text-sm text-red-600 font-semibold mr-4">{submitError}</span> : null}
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await saveP2Draft(effectiveSessionId, 'P2-09', { notes, sanitizationNotes, additionalChecks, roPlantId });
+              }}
+              style={{ padding: '10px 24px', borderRadius: '8px', color: '#2563eb', borderColor: '#2563eb', fontWeight: 600 }}
+            >
               Save as Draft
             </Button>
             <Button 
               colorScheme="primary" 
               onClick={async () => {
-                try {
-                  await reviewWaterSafety(effectiveSessionId, { ro_plant_id: 'RO-1', shift_id: 1 });
-                } catch (_) {}
+                if (!effectiveSessionId || !roPlantId) {
+                  setSubmitError('Session and RO plant id are required.');
+                  return;
+                }
+                setIsSubmitting(true);
+                setSubmitError('');
+                const res = await reviewWaterSafety(effectiveSessionId, { ro_plant_id: roPlantId, notes });
+                setIsSubmitting(false);
+                if (!res?.success) {
+                  setSubmitError(res?.message || 'Water checks must pass before continuing.');
+                  return;
+                }
                 if (onNext) onNext();
               }} 
-              isDisabled={!isFormValid}
+              isDisabled={!isFormValid || isSubmitting}
               style={{ padding: '10px 32px', borderRadius: '8px', background: isFormValid ? '#2563eb' : '#94a3b8', color: '#fff', fontWeight: 600 }}
             >
               Save & Continue →

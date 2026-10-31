@@ -6,6 +6,7 @@ import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientPr
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
+import { resolveP2SessionId } from './p2Runtime';
 import { ROUTES } from '../../routes/routeConstants';
 import { AVF_AVG_CONFIG, CVC_CONFIG, validateVascularAccess } from './vascularAccessValidation';
 import { submitVascularAccess, getPatientDetails } from '../../ApiCalls/preDialysisApis';
@@ -142,15 +143,7 @@ const VascularAccessAssessmentView = ({ patientId, sessionId, onBack, onNext, on
   const navigate = useNavigate();
   const location = useLocation();
   const effectiveSessionId = useMemo(() => {
-    try {
-      const fromProp = sessionId;
-      if (fromProp) return fromProp;
-      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
-      if (fromState) return fromState;
-      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
-      if (persisted) return persisted;
-    } catch {}
-    return patientId || 1;
+    return resolveP2SessionId(sessionId, location);
   }, [sessionId, location.state, patientId]);
   const [accessType, setAccessType] = useState('');
   const [patientData, setPatientData] = useState(null);

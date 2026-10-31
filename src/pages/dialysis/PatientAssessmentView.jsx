@@ -38,6 +38,7 @@ import usePatientAssessment, {
   KPS_DESCRIPTIONS,
 } from '../../hooks/usePatientAssessment';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
+import { resolveP2SessionId } from './p2Runtime';
 import './duringDialysis.css';
 import { ROUTES } from '../../routes/routeConstants';
 import { submitSessionAssessment } from '../../ApiCalls/preDialysisApis';
@@ -106,14 +107,7 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
   const navigate = useNavigate();
   const location = useLocation();
   const effectiveSessionId = useMemo(() => {
-    if (propSessionId) return propSessionId;
-    try {
-      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
-      if (fromState) return fromState;
-      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
-      if (persisted) return persisted;
-    } catch {}
-    return patientId || 1;
+    return resolveP2SessionId(propSessionId, location);
   }, [propSessionId, location.state, patientId]);
 
   const {

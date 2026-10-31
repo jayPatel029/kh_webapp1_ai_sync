@@ -7,8 +7,9 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { ROUTES } from '../../routes/routeConstants';
 import './duringDialysis.css';
-import { validateSafetyValidation } from './safetyValidationLogic';
-import { validateSafetyChecklist, getPatientDetails } from '../../ApiCalls/preDialysisApis';
+import { validateSafetyChecklist, getPatientDetails, getPredialysisStatus } from '../../ApiCalls/preDialysisApis';
+import { resolveP2SessionId, mapRollupSteps, liveValue } from './p2Runtime';
+import { saveP2Draft } from './p2DraftCache';
 
 // Icons
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -29,32 +30,20 @@ const SECTION_TITLE_STYLE = {
   marginBottom: '8px',
 };
 
-const VALIDATION_STEPS = [
-  { id: 1, name: 'Patient Verification', status: 'Completed', completedBy: 'Rahul Singh', time: '06:40 AM' },
-  { id: 2, name: 'Vitals & Measurements', status: 'Completed', completedBy: 'Rahul Singh', time: '06:42 AM' },
-  { id: 3, name: 'Patient Assessment', status: 'Completed', completedBy: 'Rahul Singh', time: '06:48 AM' },
-  { id: 4, name: 'Vascular Access Assessment', status: 'Completed', completedBy: 'Rahul Singh', time: '06:52 AM' },
-  { id: 5, name: 'Machine Safety', status: 'Completed', completedBy: 'Rahul Singh', time: '06:55 AM' },
-  { id: 6, name: 'Water Safety', status: 'Completed', completedBy: 'Rahul Singh', time: '07:00 AM' },
-  { id: 7, name: 'Infection Control', status: 'Completed', completedBy: 'Rahul Singh', time: '07:05 AM' },
-];
-
 const SafetyValidationView = ({ patientId, sessionId: propSessionId, onBack, onNext, onNavigateStep }) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
-  const effectiveSessionId = useMemo(() => {
-    if (propSessionId) return propSessionId;
-    try {
-      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
-      if (fromState) return fromState;
-      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
-      if (persisted) return persisted;
-    } catch {}
-    return patientId || 1;
-  }, [propSessionId, location.state, patientId]);
+  const effectiveSessionId = useMemo(
+    () => resolveP2SessionId(propSessionId, location),
+    [propSessionId, location],
+  );
   const [notes, setNotes] = useState('');
   const [patientData, setPatientData] = useState(null);
+  const [validationSteps, setValidationSteps] = useState([]);
+  const [loadError, setLoadError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   useEffect(() => {
     if (!patientId) return;
     let mounted = true;
@@ -62,9 +51,31 @@ const SafetyValidationView = ({ patientId, sessionId: propSessionId, onBack, onN
     return () => { mounted = false; };
   }, [patientId]);
 
-  const { isValid, blockingIssues } = useMemo(() => {
-    return validateSafetyValidation(VALIDATION_STEPS);
-  }, []);
+  useEffect(() => {
+    let mounted = true;
+    if (!effectiveSessionId) {
+      setLoadError('No dialysis session id. Close and drag the patient to a bed again.');
+      setValidationSteps([]);
+      return undefined;
+    }
+    getPredialysisStatus(effectiveSessionId).then((res) => {
+      if (!mounted) return;
+      if (!res?.success) {
+        setLoadError(res?.message || 'Could not load pre-dialysis status.');
+        setValidationSteps([]);
+        return;
+      }
+      const mapped = mapRollupSteps(res.data).filter((step) => step.key !== 'step_start');
+      setValidationSteps(mapped);
+      setLoadError('');
+    }).catch(() => {
+      if (mounted) setLoadError('Could not load pre-dialysis status.');
+    });
+    return () => { mounted = false; };
+  }, [effectiveSessionId]);
+
+  const isValid = validationSteps.length > 0 && validationSteps.every((step) => step.status === 'Completed');
+  const blockingIssues = isValid ? [] : (loadError ? [loadError] : ['Complete all previous pre-dialysis steps before validating.']);
 
   return (
     <ThemeProvider>
@@ -123,9 +134,15 @@ const SafetyValidationView = ({ patientId, sessionId: propSessionId, onBack, onN
                     <h3 style={SECTION_TITLE_STYLE} className="!mb-0">Pre-Dialysis Validation Summary</h3>
                     <p className="text-sm text-[#475569]">All steps must show Completed before you can validate.</p>
                   </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded-full font-semibold text-xs">
-                    All Clear
-                  </div>
+                  {isValid ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded-full font-semibold text-xs">
+                      All Clear
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-[#fef3c7] border border-[#fde68a] text-[#b45309] rounded-full font-semibold text-xs">
+                      Pending
+                    </div>
+                  )}
                 </div>
 
                 <div className="w-full text-sm mt-4">
@@ -139,21 +156,32 @@ const SafetyValidationView = ({ patientId, sessionId: propSessionId, onBack, onN
 
                   {/* Table Rows */}
                   <div className="flex flex-col">
-                    {VALIDATION_STEPS.map((item, idx) => (
-                      <div key={item.id} className={`flex items-center px-6 py-3.5 ${idx !== VALIDATION_STEPS.length - 1 ? 'border-b border-[#f1f5f9]' : ''}`}>
+                    {validationSteps.length === 0 ? (
+                      <div className="px-6 py-6 text-sm text-[#b45309] font-semibold">
+                        {loadError || 'No pre-dialysis rollup found for this session.'}
+                      </div>
+                    ) : null}
+                    {validationSteps.map((item, idx) => (
+                      <div key={item.key || item.id} className={`flex items-center px-6 py-3.5 ${idx !== validationSteps.length - 1 ? 'border-b border-[#f1f5f9]' : ''}`}>
                         <div className="w-[45%] flex items-center gap-3">
                           <span className="font-bold text-[#2563eb] text-sm w-4">{item.id}</span>
                           <span className="font-semibold text-[#334155]">{item.name}</span>
                         </div>
                         
                         <div className="w-[20%] flex items-center">
-                          <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded-full font-semibold text-xs">
-                            <CheckCircleIcon style={{ fontSize: '14px' }} /> Completed
-                          </div>
+                          {item.status === 'Completed' ? (
+                            <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] rounded-full font-semibold text-xs">
+                              <CheckCircleIcon style={{ fontSize: '14px' }} /> Completed
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-[#fef3c7] border border-[#fde68a] text-[#b45309] rounded-full font-semibold text-xs">
+                              {item.status}
+                            </div>
+                          )}
                         </div>
 
-                        <div className="w-[20%] text-[#475569]">{item.completedBy}</div>
-                        <div className="w-[15%] text-[#475569]">{item.time}</div>
+                        <div className="w-[20%] text-[#475569]">{liveValue(item.completedBy)}</div>
+                        <div className="w-[15%] text-[#475569]">{liveValue(item.time)}</div>
                       </div>
                     ))}
                   </div>
@@ -178,11 +206,17 @@ const SafetyValidationView = ({ patientId, sessionId: propSessionId, onBack, onN
                 )}
               </div>
 
-              {/* Validation Result Banner */}
-              <div className="p-4 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl flex items-center gap-3">
-                <CheckCircleIcon style={{ color: '#16a34a', fontSize: '20px' }} />
-                <span className="font-bold text-[#166534] text-sm">All pre-dialysis checks complete. Safe to proceed to Start Dialysis.</span>
-              </div>
+              {isValid ? (
+                <div className="p-4 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl flex items-center gap-3">
+                  <CheckCircleIcon style={{ color: '#16a34a', fontSize: '20px' }} />
+                  <span className="font-bold text-[#166534] text-sm">All pre-dialysis checks complete. Safe to proceed to Start Dialysis.</span>
+                </div>
+              ) : (
+                <div className="p-4 bg-[#fffbeb] border border-[#fde68a] rounded-xl flex items-center gap-3">
+                  <WarningAmberOutlinedIcon style={{ color: '#d97706', fontSize: '20px' }} />
+                  <span className="font-bold text-[#b45309] text-sm">Validation is blocked until every previous step is complete in the database.</span>
+                </div>
+              )}
 
             </div>
 
@@ -195,10 +229,7 @@ const SafetyValidationView = ({ patientId, sessionId: propSessionId, onBack, onN
                   <WarningAmberOutlinedIcon style={{ color: '#dc2626' }} />
                   <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#991b1b' }}>Pre-Dialysis Alerts</h3>
                 </div>
-                <ul className="list-disc pl-5 flex flex-col gap-2 text-sm text-[#991b1b] font-semibold">
-                  <li>High Potassium (5.2 mEq/L)</li>
-                  <li>Low Hemoglobin (9.6 g/dL)</li>
-                </ul>
+                <p className="text-sm text-[#991b1b] font-semibold">No alert records loaded on this screen. Alerts only appear from the patient record.</p>
               </div>
 
               {/* Notes (Optional) Card */}
@@ -223,19 +254,33 @@ const SafetyValidationView = ({ patientId, sessionId: propSessionId, onBack, onN
           <Button variant="outline" onClick={onBack} style={{ padding: '10px 24px', borderRadius: '8px', fontWeight: 600 }}>
             ← Back
           </Button>
+          {submitError ? <span className="text-sm text-red-600 font-semibold mr-4">{submitError}</span> : null}
           <div className="flex gap-4">
-            <Button variant="outline" style={{ padding: '10px 24px', borderRadius: '8px', color: '#2563eb', borderColor: '#2563eb', fontWeight: 600 }}>
+            <Button
+              variant="outline"
+              onClick={async () => { await saveP2Draft(effectiveSessionId, 'P2-11', { notes }); }}
+              style={{ padding: '10px 24px', borderRadius: '8px', color: '#2563eb', borderColor: '#2563eb', fontWeight: 600 }}
+            >
               Save as Draft
             </Button>
             <Button 
               colorScheme="primary" 
               onClick={async () => {
-                try {
-                  await validateSafetyChecklist(effectiveSessionId, { notes: notes || '' });
-                } catch (_) {}
+                if (!effectiveSessionId) {
+                  setSubmitError('No dialysis session id.');
+                  return;
+                }
+                setIsSubmitting(true);
+                setSubmitError('');
+                const res = await validateSafetyChecklist(effectiveSessionId, { notes: notes || '' });
+                setIsSubmitting(false);
+                if (!res?.success) {
+                  setSubmitError(res?.message || 'Safety validation failed.');
+                  return;
+                }
                 if (onNext) onNext();
               }} 
-              isDisabled={!isValid}
+              isDisabled={!isValid || isSubmitting}
               style={{ padding: '10px 32px', borderRadius: '8px', background: isValid ? '#2563eb' : '#94a3b8', color: '#fff', fontWeight: 600 }}
             >
               Validate & Continue →

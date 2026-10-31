@@ -34,6 +34,7 @@ import usePreDialysisDashboard, {
 } from '../../hooks/usePreDialysisDashboard';
 import { ALERT_SEVERITY, getSeverityStyle } from './dialysisQueueConstants';
 import { ROUTES } from '../../routes/routeConstants';
+import { resolveP2SessionId } from './p2Runtime';
 
 // ---------------------------------------------------------------------------
 // Styling Tokens
@@ -129,14 +130,7 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
   const roleName = useSelector((state) => state.permission?.role_name) || 'Dialysis Technician';
 
   const effectiveSessionId = useMemo(() => {
-    if (propSessionId) return propSessionId;
-    try {
-      const fromState = location.state?.sessionId || location.state?.session_id || location.state?.dialysis_session_id;
-      if (fromState) return fromState;
-      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
-      if (persisted) return persisted;
-    } catch {}
-    return patientId || 1;
+    return resolveP2SessionId(propSessionId, location);
   }, [propSessionId, location.state, patientId]);
 
   const {

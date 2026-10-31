@@ -20,6 +20,7 @@ import { clearAuthSession, getHomePathForRole } from "../../helpers/authSession"
 import { clearPermissions } from "../../redux/permissionSlice";
 import { isRole } from "../../helpers/roleUtils";
 import { ROUTES } from "../../routes/routeConstants";
+import { sendLogoutDigest } from "../../ApiCalls/preDialysisApis";
 
 const Navbar = () => {
     const dispatch = useDispatch();
@@ -41,7 +42,10 @@ const Navbar = () => {
         return () => window.removeEventListener('sidebar:toggle', handler);
     }, []);
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            await sendLogoutDigest();
+        } catch (_) {}
         clearAllCaches();
         clearAuthSession();
         dispatch(clearPermissions());
