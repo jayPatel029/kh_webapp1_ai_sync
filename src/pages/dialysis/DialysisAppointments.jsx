@@ -1539,35 +1539,50 @@ const DialysisAppointments = () => {
   };
 
   // ─── Columns ──────────────────────────────────────────
+  const emptyVal = (val) => {
+    const text = String(val ?? '').trim();
+    return !text || text === '-' || text === '—';
+  };
+
   const columns = [
-    { key: 'created_date', label: 'DATE', type: 'text', width: '100px' },
-    { 
-      key: 'patient_details', 
-      label: 'PATIENT DETAILS', 
-      type: 'custom', 
-      width: '300px',
+    {
+      key: 'appointment_when',
+      label: 'APPOINTMENT',
+      type: 'custom',
+      width: '120px',
+      minWidth: '108px',
+      render: (row) => (
+        <div className="dt-stack">
+          <div className={`dt-stack__primary ${emptyVal(row.created_date) ? 'dt-stack__muted' : ''}`}>
+            {row.created_date || '—'}
+          </div>
+          <div className={`dt-stack__secondary ${emptyVal(row.appointment_time) ? 'dt-stack__muted' : ''}`}>
+            {row.appointment_time || '—'}
+          </div>
+          <div className={`dt-stack__secondary ${emptyVal(row.duration) ? 'dt-stack__muted' : ''}`}>
+            {row.duration || '—'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'patient_details',
+      label: 'PATIENT',
+      type: 'custom',
+      width: '180px',
+      minWidth: '150px',
       render: (row) => {
-        const empty = (val) => {
-          const text = String(val ?? '').trim();
-          return !text || text === '-' || text === '—';
-        };
-        const parts = [
-          row._raw?.patient_code || row.patient_code || row.patientCode || row.patient_id || '-',
-          row.name || '-',
-          row.age || '-',
-          row.sex || row.gender || '-',
-          row.mobile_no || row.phone || '-',
-        ];
+        const meta = [row.age, row.sex || row.gender, row.mobile_no || row.phone]
+          .map((part) => String(part ?? '').trim())
+          .filter((part) => part && part !== '-' && part !== '—');
         return (
-          <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-            {parts.map((part, idx) => (
-              <span key={`${row.id || 'row'}-${idx}`}>
-                {idx > 0 ? <span style={{ color: '#cbd5e1', fontWeight: 400 }}> / </span> : null}
-                <span style={{ color: empty(part) ? '#cbd5e1' : '#0f172a', fontWeight: empty(part) ? 400 : 600 }}>
-                  {part}
-                </span>
-              </span>
-            ))}
+          <div className="dt-stack">
+            <div className={`dt-stack__primary ${emptyVal(row.name) ? 'dt-stack__muted' : ''}`}>
+              {row.name || '—'}
+            </div>
+            <div className={`dt-stack__secondary ${meta.length ? '' : 'dt-stack__muted'}`}>
+              {meta.length ? meta.join(' · ') : '—'}
+            </div>
           </div>
         );
       }
@@ -1576,10 +1591,10 @@ const DialysisAppointments = () => {
       key: 'timeline',
       label: 'TIMELINE',
       type: 'custom',
-      width: '110px',
-      minWidth: '110px',
+      width: '84px',
+      minWidth: '80px',
       render: (row) => (
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
           <button
             type="button"
             onClick={() => {
@@ -1592,7 +1607,7 @@ const DialysisAppointments = () => {
               color: '#1E40AF',
               border: '1px solid #BFDBFE',
               borderRadius: '6px',
-              padding: '4px 10px',
+              padding: '3px 8px',
               fontSize: '11px',
               fontWeight: 700,
               cursor: 'pointer',
@@ -1604,28 +1619,12 @@ const DialysisAppointments = () => {
         </div>
       ),
     },
-    { key: 'appointment_time', label: 'APPOINTMENT TIME', type: 'text', width: '130px' },
-    { key: 'duration', label: 'DURATION', type: 'text', width: '100px' },
     {
-      key: 'payment_receipt',
-      label: 'PAYMENT RECEIPT',
+      key: 'payment',
+      label: 'PAYMENT',
       type: 'custom',
-      width: '120px',
-      render: (row) => (
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <ActionIconBtn
-            icon={DownloadIcon}
-            onClick={() => row.receipt_url && window.open(row.receipt_url, '_blank')}
-            disabled={!row.receipt_url}
-          />
-        </div>
-      )
-    },
-    {
-      key: 'payment_action',
-      label: 'PAYMENT STATUS',
-      type: 'custom',
-      width: '130px',
+      width: '96px',
+      minWidth: '88px',
       render: (row) => {
         let payStatus = String(row._raw?.payment_action || row._raw?.paymentAction || '').toUpperCase();
         if (!payStatus || payStatus === 'UNDEFINED') {
@@ -1636,8 +1635,15 @@ const DialysisAppointments = () => {
             { label: 'Pending', color: '#EF4444' };
 
         return (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div className="dt-stack dt-stack--center">
+            <ActionIconBtn
+              icon={DownloadIcon}
+              onClick={() => row.receipt_url && window.open(row.receipt_url, '_blank')}
+              disabled={!row.receipt_url}
+              style={{ width: '28px', height: '28px' }}
+            />
             <button
+              type="button"
               onClick={() => {
                 if (payStatus !== 'PAID') {
                   openPaymentModal(row);
@@ -1648,11 +1654,11 @@ const DialysisAppointments = () => {
                 color: config.color,
                 border: `1px solid ${config.color}`,
                 borderRadius: '4px',
-                padding: '4px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
+                padding: '2px 8px',
+                fontSize: '10px',
+                fontWeight: 700,
                 cursor: payStatus === 'PAID' ? 'default' : 'pointer',
-                minWidth: '80px'
+                lineHeight: 1.3,
               }}
             >
               {config.label}
@@ -1663,9 +1669,10 @@ const DialysisAppointments = () => {
     },
     {
       key: 'bill_invoice',
-      label: 'BILL INVOICE',
+      label: 'INVOICE',
       type: 'custom',
-      width: '110px',
+      width: '78px',
+      minWidth: '72px',
       render: (row) => (
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <ActionIconBtn
@@ -1674,6 +1681,7 @@ const DialysisAppointments = () => {
               const billId = row.bill_id || row._raw?.bill_id || row.invoice_id || row._raw?.invoice_id;
               setInvoiceTarget({ ...row, bill_id: billId });
             }}
+            style={{ width: '28px', height: '28px' }}
           />
         </div>
       )
@@ -1682,12 +1690,13 @@ const DialysisAppointments = () => {
       key: 'services',
       label: 'SERVICES',
       type: 'custom',
-      width: '180px',
+      width: '160px',
+      minWidth: '120px',
       render: (row) => {
         const services = parseAppointmentServices(row._raw || row);
         if (!services.length) return <span className="list-table__text-cell list-table__text-cell--empty">—</span>;
         return (
-          <span className="list-table__text-cell list-table__text-cell--filled">
+          <span className="list-table__text-cell list-table__text-cell--filled dt-services-cell" title={services.join(', ')}>
             {services.join(', ')}
           </span>
         );
@@ -1697,12 +1706,9 @@ const DialysisAppointments = () => {
       key: 'status',
       label: 'STATUS',
       type: 'custom',
-      width: '130px',
+      width: '110px',
+      minWidth: '96px',
       render: (row, value) => {
-        let payStatus = String(row._raw?.payment_action || row._raw?.paymentAction || '').toUpperCase();
-        if (!payStatus || payStatus === 'UNDEFINED') {
-          payStatus = getPaymentStatus(row.totalAmount, row.amountPaid);
-        }
           const openStatusPicker = () => {
             if (value === 'BOOKED' || value === 'SCHEDULED') {
               handleStatusUpdate(row, 'ARRIVED');
@@ -1717,7 +1723,7 @@ const DialysisAppointments = () => {
           const isClickable = ['BOOKED', 'SCHEDULED', 'ARRIVED'].includes(value);
 
           return (
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
               <button
                 onClick={openStatusPicker}
                 disabled={!isClickable}
@@ -1726,13 +1732,13 @@ const DialysisAppointments = () => {
                   color: STATUS_COLORS[value]?.text || '#374151',
                   border: 'none',
                   borderRadius: '4px',
-                  padding: '6px 14px',
-                  fontSize: '11px',
-                  fontWeight: 600,
+                  padding: '4px 8px',
+                  fontSize: '10px',
+                  fontWeight: 700,
                   cursor: isClickable ? 'pointer' : 'default',
                   textTransform: 'uppercase',
-                  minWidth: '100px',
-                  opacity: isClickable ? 1 : 0.7
+                  opacity: isClickable ? 1 : 0.7,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {value === 'ARRIVED' ? 'Arrived' : value}
@@ -1745,8 +1751,8 @@ const DialysisAppointments = () => {
       key: 'actions',
       label: 'ACTIONS',
       type: 'custom',
-      width: '110px',
-      minWidth: '110px',
+      width: '88px',
+      minWidth: '88px',
       render: (row) => {
         return (
           <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
@@ -1888,14 +1894,57 @@ const DialysisAppointments = () => {
                   }
                   .dt-appointments-table .list-table {
                     width: 100%;
-                    min-width: 1480px;
+                    min-width: 720px;
                     table-layout: auto;
                   }
                   .dt-appointments-table .list-table thead th,
-                  .dt-appointments-table .list-table__header-cell,
-                  .dt-appointments-table .list-table__cell {
+                  .dt-appointments-table .list-table__header-cell {
                     white-space: nowrap;
+                    font-size: 12px;
+                    padding: 10px 8px;
                     vertical-align: middle;
+                  }
+                  .dt-appointments-table .list-table__cell {
+                    white-space: normal;
+                    vertical-align: top;
+                    padding: 10px 8px;
+                  }
+                  .dt-appointments-table .dt-stack {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 2px;
+                    min-width: 0;
+                  }
+                  .dt-appointments-table .dt-stack--center {
+                    align-items: center;
+                  }
+                  .dt-appointments-table .dt-stack__primary {
+                    color: #0f172a;
+                    font-weight: 700;
+                    font-size: 13px;
+                    line-height: 1.3;
+                    word-break: break-word;
+                  }
+                  .dt-appointments-table .dt-stack__secondary {
+                    color: #64748b;
+                    font-weight: 500;
+                    font-size: 11px;
+                    line-height: 1.35;
+                    word-break: break-word;
+                  }
+                  .dt-appointments-table .dt-stack__muted {
+                    color: #cbd5e1;
+                    font-weight: 400;
+                  }
+                  .dt-appointments-table .dt-services-cell {
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                    white-space: normal;
+                    line-height: 1.35;
+                    max-width: 180px;
                   }
                   .dt-appointments-table .list-table__text-cell--filled {
                     color: #0f172a;
@@ -1911,8 +1960,8 @@ const DialysisAppointments = () => {
                     position: sticky;
                     right: 0;
                     z-index: 2;
-                    min-width: 110px;
-                    width: 110px;
+                    min-width: 88px;
+                    width: 88px;
                     overflow: visible;
                     box-shadow: -8px 0 8px -8px rgba(15, 23, 42, 0.16);
                   }
@@ -1925,13 +1974,26 @@ const DialysisAppointments = () => {
                   .dt-appointments-table .list-table__row:hover .list-table__cell:last-child {
                     background: #efefef;
                   }
+                  @media (max-width: 1100px) {
+                    .dt-appointments-table .list-table thead th,
+                    .dt-appointments-table .list-table__header-cell,
+                    .dt-appointments-table .list-table__cell {
+                      padding: 8px 6px;
+                    }
+                    .dt-appointments-table .dt-stack__primary {
+                      font-size: 12px;
+                    }
+                  }
                 `}</style>
                 <UnifiedListTable
                   className="dt-appointments-table"
                   columns={columns}
                   data={filtered}
                   emptyMessage="No dialysis appointments. Book one from the Patients tab."
-                  displayMode="table"
+                  displayMode={isMobile ? 'cards' : 'table'}
+                  cardTitleKey="name"
+                  cardSubtitleKey="created_date"
+                  cardStatusKey="status"
                   rowsPerPage={10}
                 />
               </>
