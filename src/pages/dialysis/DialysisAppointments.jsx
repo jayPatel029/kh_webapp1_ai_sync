@@ -172,13 +172,33 @@ const normalizeAppointment = (apt, patients) => {
       : (apt.startUTC && apt.endUTC)
         ? calculateDuration(String(apt.startUTC).split('T')[1]?.slice(0, 5), String(apt.endUTC).split('T')[1]?.slice(0, 5))
         : '—',
-    services: apt.services || [],
+    service: apt.service || apt.reason || metadata.notes || metadata.notes_brief || '',
+    services: parseAppointmentServices(apt, metadata),
     bill_id: apt.bill_id || apt.billId || apt.invoice_id || apt.invoiceId,
     invoice_id: apt.bill_id || apt.billId || apt.invoice_id || apt.invoiceId,
     metadata: metadata,
     _raw: apt,
   };
 };
+
+function parseAppointmentServices(apt, metadata = {}) {
+  let raw = apt?.services;
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      raw = [];
+    }
+  }
+  const fromRows = (Array.isArray(raw) ? raw : [])
+    .filter((item) => item && (item.service_name || item.name));
+  if (fromRows.length) return fromRows;
+
+  const fallback = apt?.service || apt?.reason || metadata.notes || metadata.notes_brief || '';
+  const name = String(fallback).trim();
+  if (!name || name === '-' || name === '—') return [];
+  return [{ name, status: 'INFO' }];
+}
 
 function calculateDuration(start, end) {
   if (!start || !end) return '—';
@@ -1512,8 +1532,8 @@ const DialysisAppointments = () => {
       type: 'custom',
       width: '180px',
       render: (row) => {
-        const services = row.services || row._raw?.services || [];
-        if (!services.length) return <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No services</span>;
+        const services = parseAppointmentServices(row._raw || row, row.metadata || {});
+        if (!services.length) return <span className="list-table__text-cell list-table__text-cell--empty">—</span>;
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1522,23 +1542,23 @@ const DialysisAppointments = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                fontSize: '10px',
-                background: s.status === 'USED' ? '#F0FDF4' : '#F9FAFB',
-                padding: '2px 6px',
+                fontSize: '12px',
+                background: s.status === 'USED' ? '#F0FDF4' : 'transparent',
+                padding: s.id ? '2px 6px' : 0,
                 borderRadius: '4px',
-                border: `1px solid ${s.status === 'USED' ? '#DCFCE7' : '#F3F4F6'}`
+                border: s.status === 'USED' ? '1px solid #DCFCE7' : 'none'
               }}>
                 <span style={{
-                  color: s.status === 'USED' ? '#166534' : '#374151',
+                  color: s.status === 'USED' ? '#166534' : '#0f172a',
+                  fontWeight: 600,
                   textDecoration: s.status === 'USED' ? 'line-through' : 'none',
-                  maxWidth: '100px',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
                 }}>
                   {s.service_name || s.name || 'Service'}
                 </span>
-                {s.status !== 'USED' ? (
+                {s.id && s.status !== 'USED' && s.status !== 'INFO' ? (
                   <button
                     onClick={async (e) => {
                       e.stopPropagation();
@@ -1558,9 +1578,9 @@ const DialysisAppointments = () => {
                   >
                     Use
                   </button>
-                ) : (
+                ) : s.status === 'USED' ? (
                   <span style={{ color: '#16A34A', fontWeight: 700 }}>✓</span>
-                )}
+                ) : null}
               </div>
             ))}
           </div>
