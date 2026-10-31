@@ -1391,6 +1391,7 @@ const navigate = useNavigate();
                     <PatientVerificationView
                       patientId={patient?.patient_id || patient?.id}
                       sessionId={workflowSessionId}
+                      assignment={p2Assignment}
                       onBack={() => setBeforeStep('P2-03')}
                       onNext={() => setBeforeStep('P2-05')}
                       onNavigateStep={setBeforeStep}

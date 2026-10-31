@@ -23,22 +23,16 @@ import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import { Box, Button } from '../../component-library';
 import AutoCollapseTextarea from '../../components/AutoCollapseTextarea';
-import PageHeader from '../../components/PageHeader';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
-import {
-  submitSessionVerification,
-  submitSessionConsumables,
-} from '../../ApiCalls/preDialysisApis';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import usePatientVerification, {
   INFECTION_STATUS,
   DIALYZER_USAGE_TYPE,
 } from '../../hooks/usePatientVerification';
 import { ROUTES } from '../../routes/routeConstants';
-import { resolveP2SessionId } from './p2Runtime';
-import { saveP2Draft } from './p2DraftCache';
+import { MISSING, resolveP2SessionId } from './p2Runtime';
 import './duringDialysis.css';
 
 // ---------------------------------------------------------------------------
@@ -142,7 +136,48 @@ const renderInfectionPill = (status) => {
 // PatientVerificationView Component
 // ---------------------------------------------------------------------------
 
-const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, onNext, onNavigateStep }) => {
+const IdentityRow = ({ icon, label, value, matched, onToggle, disabled }) => (
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '10px 14px',
+      borderRadius: '10px',
+      background: '#f8fafc',
+      border: '1px solid #f1f5f9',
+      gap: '10px',
+    }}
+  >
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#334155', minWidth: 0 }}>
+      {icon}
+      <span>{label}</span>
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+      <strong style={{ color: '#0f172a', fontSize: '14px' }}>{value}</strong>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#475569', cursor: disabled ? 'not-allowed' : 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={Boolean(matched)}
+          disabled={disabled}
+          onChange={(e) => onToggle(e.target.checked)}
+          style={{ width: '16px', height: '16px', accentColor: '#16a34a' }}
+        />
+        Match
+      </label>
+      {matched ? <MatchBadge /> : null}
+    </div>
+  </div>
+);
+
+const PatientVerificationView = ({
+  patientId,
+  sessionId: propSessionId,
+  assignment,
+  onBack,
+  onNext,
+  onNavigateStep,
+}) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
@@ -154,7 +189,8 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
   const {
     patientDetails,
     prescriptionDetails,
-    identityMatches: identityFields,
+    identityMatches,
+    setIdentityMatches,
     verificationMethods,
     setVerificationMethods,
     infectionState,
@@ -164,65 +200,46 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
     handleInfectionSkip,
     notesText,
     setNotesText,
+    identityValid,
     canProceed,
     loading,
+    saving,
     error,
     refresh,
-  } = usePatientVerification(patientId);
+    saveDraft,
+    submitFinal,
+  } = usePatientVerification(patientId, effectiveSessionId, assignment);
 
-  // Enter Now inline editor modal/state
   const [showInfectionEdit, setShowInfectionEdit] = useState(false);
-  const [editHiv, setEditHiv] = useState(INFECTION_STATUS.NEGATIVE);
-  const [editHep, setEditHep] = useState(INFECTION_STATUS.NEGATIVE);
+  const [editHiv, setEditHiv] = useState(INFECTION_STATUS.PENDING);
+  const [editHep, setEditHep] = useState(INFECTION_STATUS.PENDING);
 
-  // Handle Cancel
+  const infectionPending = (
+    infectionState.hivStatus === INFECTION_STATUS.PENDING
+    || infectionState.hepatitisStatus === INFECTION_STATUS.PENDING
+  );
+
   const handleCancelClick = () => {
     if (onBack) {
       onBack();
     } else {
       navigate(ROUTES.DIALYSIS_PATIENTS, {
-        state: { patientId, view: 'dashboard', step: 'P2-03' },
+        state: { patientId, sessionId: effectiveSessionId, view: 'dashboard', step: 'P2-03' },
       });
     }
   };
 
   const handleContinueClick = async () => {
-    if (!canProceed) return;
-    try {
-      await submitSessionVerification(effectiveSessionId, {
-        status: 'final',
-        identity_matched: identityFields.nameMatched && identityFields.dobMatched && identityFields.pidMatched && identityFields.phoneMatched,
-        identity_name_match: identityFields.nameMatched,
-        identity_dob_match: identityFields.dobMatched,
-        identity_pid_match: identityFields.pidMatched,
-        identity_phone_match: identityFields.phoneMatched,
-        prescription_valid: true,
-        hiv_status: infectionState.hivStatus,
-        hepatitis_status: infectionState.hepatitisStatus,
-        hiv_skipped: infectionState.skipped,
-        hepatitis_skipped: infectionState.skipped,
-        notes: notesText,
-      });
-
-      await submitSessionConsumables(effectiveSessionId, {
-        dialyzer_type: consumablesState.dialyzerUsageType === 'MULTI_USE' ? 'MULTI_USE' : 'SINGLE_USE',
-        dialyzer_id: consumablesState.dialyzerId || 'DLZ-1001',
-        reuse_action: consumablesState.discardConfirmed ? 'confirmed_new' : consumablesState.isOverridden ? 'overridden' : 'none',
-        old_dialyzer_discard_confirmed: consumablesState.discardConfirmed,
-        override_reason: consumablesState.overrideReason || '',
-        tubing_set_qty: consumablesState.tubingSetQty || 1,
-        needles_qty: consumablesState.needlesQty || 2,
-      });
-    } catch (_) {}
-
+    if (!canProceed || saving) return;
+    const saved = await submitFinal();
+    if (!saved) return;
     if (onNext) {
       onNext();
-    } else {
-      // Navigate to P2-05 (Vitals & Measurements)
-      navigate(ROUTES.DIALYSIS_PATIENTS, {
-        state: { patientId, step: 'P2-05' },
-      });
+      return;
     }
+    navigate(ROUTES.DIALYSIS_PATIENTS, {
+      state: { patientId, sessionId: effectiveSessionId, step: 'P2-05' },
+    });
   };
 
   if (loading) {
@@ -299,106 +316,90 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
               <div style={SECTION_SUBTITLE_STYLE}>Confirm at least two identifiers.</div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#f8fafc',
-                    border: '1px solid #f1f5f9',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#334155' }}>
-                    <PersonOutlineIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />
-                    <span>Full Name</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <strong style={{ color: '#0f172a', fontSize: '14px' }}>{patientDetails.name}</strong>
-                    <MatchBadge />
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#f8fafc',
-                    border: '1px solid #f1f5f9',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#334155' }}>
-                    <CalendarTodayOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />
-                    <span>Date of Birth</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <strong style={{ color: '#0f172a', fontSize: '14px' }}>{patientDetails.dobFormatted}</strong>
-                    <MatchBadge />
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: '#f8fafc',
-                    border: '1px solid #f1f5f9',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#334155' }}>
-                    <PhoneOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />
-                    <span>Phone Number</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <strong style={{ color: '#0f172a', fontSize: '14px' }}>{patientDetails.phone}</strong>
-                    <MatchBadge />
-                  </div>
-                </div>
+                <IdentityRow
+                  icon={<PersonOutlineIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />}
+                  label="Full Name"
+                  value={patientDetails.name}
+                  matched={identityMatches.nameMatched}
+                  disabled={patientDetails.name === MISSING}
+                  onToggle={(checked) => setIdentityMatches((prev) => ({ ...prev, nameMatched: checked }))}
+                />
+                <IdentityRow
+                  icon={<CalendarTodayOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />}
+                  label="Date of Birth"
+                  value={patientDetails.dobFormatted}
+                  matched={identityMatches.dobMatched}
+                  disabled={patientDetails.dobFormatted === MISSING}
+                  onToggle={(checked) => setIdentityMatches((prev) => ({ ...prev, dobMatched: checked }))}
+                />
+                <IdentityRow
+                  icon={<VerifiedUserOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />}
+                  label="Patient ID"
+                  value={patientDetails.patientCode}
+                  matched={identityMatches.pidMatched}
+                  disabled={patientDetails.patientCode === MISSING}
+                  onToggle={(checked) => setIdentityMatches((prev) => ({ ...prev, pidMatched: checked }))}
+                />
+                <IdentityRow
+                  icon={<PhoneOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 18 }} />}
+                  label="Phone Number"
+                  value={patientDetails.phone}
+                  matched={identityMatches.phoneMatched}
+                  disabled={patientDetails.phone === MISSING}
+                  onToggle={(checked) => setIdentityMatches((prev) => ({ ...prev, phoneMatched: checked }))}
+                />
               </div>
 
-              {/* Verified Green Banner */}
-              <div
-                style={{
-                  background: '#f0fdf4',
-                  border: '1px solid #bbf7d0',
-                  borderRadius: '10px',
-                  padding: '12px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}
-              >
+              {identityValid ? (
                 <div
                   style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '9999px',
-                    background: '#16a34a',
-                    color: '#ffffff',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '14px',
+                    gap: '12px',
                   }}
                 >
-                  <VerifiedUserOutlinedIcon aria-hidden="true" sx={{ fontSize: 18 }} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#15803d' }}>
-                    Identity Verified Successfully
+                  <div
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '9999px',
+                      background: '#16a34a',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '14px',
+                    }}
+                  >
+                    <VerifiedUserOutlinedIcon aria-hidden="true" sx={{ fontSize: 18 }} />
                   </div>
-                  <div style={{ fontSize: '12px', color: '#166534' }}>
-                    All mandatory identifiers matched.
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#15803d' }}>
+                      Identity Verified Successfully
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#166534' }}>
+                      At least two identifiers matched.
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div
+                  style={{
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    fontSize: '13px',
+                    color: '#92400e',
+                  }}
+                >
+                  Confirm at least two identifiers before continuing.
+                </div>
+              )}
             </div>
 
             {/* Right Stack: Verification Method */}
@@ -432,6 +433,17 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
                     <span>ID Card</span>
                   </label>
 
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: '#0f172a', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={verificationMethods.wristbandVerified}
+                      onChange={(e) =>
+                        setVerificationMethods((prev) => ({ ...prev, wristbandVerified: e.target.checked }))
+                      }
+                      style={{ width: '18px', height: '18px', accentColor: '#2563eb' }}
+                    />
+                    <span>Wristband</span>
+                  </label>
                 </div>
               </div>
             </div>
@@ -521,7 +533,7 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
             )}
 
             {/* Banner State: Pending / Positive / Confirmed */}
-            {infectionState.hivStatus === INFECTION_STATUS.PENDING && !infectionState.actioned ? (
+            {infectionPending && !infectionState.actioned ? (
               <div
                 style={{
                   background: '#fffbeb',
@@ -537,11 +549,17 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#92400e' }}>
                   <span>ℹ</span>
-                  <span>HIV status not yet recorded for this patient.</span>
+                  <span>
+                    {infectionState.hivStatus === INFECTION_STATUS.PENDING ? 'HIV' : 'Hepatitis B/C'} status not yet recorded for this patient.
+                  </span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <Button size="sm" onClick={() => setShowInfectionEdit(true)}>
+                  <Button size="sm" onClick={() => {
+                    setEditHiv(infectionState.hivStatus);
+                    setEditHep(infectionState.hepatitisStatus);
+                    setShowInfectionEdit(true);
+                  }}>
                     Enter Now
                   </Button>
                   <Button size="sm" variant="outline" onClick={handleInfectionSkip}>
@@ -566,6 +584,20 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
               >
                 <span>⚠</span>
                 <span>This patient requires isolation machine/bed assignment.</span>
+              </div>
+            ) : infectionState.skipped ? (
+              <div
+                style={{
+                  background: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  color: '#92400e',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+              >
+                Infection check skipped. Nephrologist will be alerted when you save.
               </div>
             ) : (
               <div
@@ -599,15 +631,15 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
               </div>
               <span
                 style={{
-                  background: '#dcfce7',
-                  color: '#15803d',
+                  background: prescriptionDetails.valid ? '#dcfce7' : '#fef3c7',
+                  color: prescriptionDetails.valid ? '#15803d' : '#b45309',
                   padding: '4px 12px',
                   borderRadius: '9999px',
                   fontSize: '12px',
                   fontWeight: 700,
                 }}
               >
-                Valid
+                {prescriptionDetails.valid ? 'Valid' : 'Missing'}
               </span>
             </div>
 
@@ -670,14 +702,13 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
               <strong>{prescriptionDetails.dialysateComposition.bicarbonate}</strong>
             </div>
 
-            {/* Prescription Valid Blue Banner */}
             <div
               style={{
-                background: '#eff6ff',
-                border: '1px solid #bfdbfe',
+                background: prescriptionDetails.valid ? '#eff6ff' : '#fffbeb',
+                border: prescriptionDetails.valid ? '1px solid #bfdbfe' : '1px solid #fde68a',
                 borderRadius: '10px',
                 padding: '12px 16px',
-                color: '#1e40af',
+                color: prescriptionDetails.valid ? '#1e40af' : '#92400e',
                 fontSize: '13px',
                 display: 'flex',
                 alignItems: 'center',
@@ -685,7 +716,11 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
               }}
             >
               <span>ⓘ</span>
-              <span>Prescription is valid and matches today's schedule.</span>
+              <span>
+                {prescriptionDetails.valid
+                  ? 'Prescription is valid and matches today\'s schedule.'
+                  : 'No prescription on file for this patient. Continue stays blocked until a prescription exists.'}
+              </span>
             </div>
           </div>
 
@@ -700,7 +735,7 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
             <div style={{ marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', marginBottom: '12px' }}>
                 <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
-                  Dialyzer: Fresenius FX 80
+                  Dialyzer: {consumablesState.dialyzerModel || MISSING}
                 </span>
 
                 <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
@@ -743,7 +778,7 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', fontSize: '13px', color: '#334155', marginBottom: '12px' }}>
                     <div>
                       <span style={{ color: '#64748b' }}>This Patient's Dialyzer ID:</span>{' '}
-                      <strong>{consumablesState.dialyzerId}</strong>
+                      <strong>{consumablesState.dialyzerId || MISSING}</strong>
                     </div>
                     <div>
                       <span style={{ color: '#64748b' }}>Reuse Count:</span>{' '}
@@ -760,7 +795,7 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
                       </span>
                     </div>
                     <div>
-                      <span style={{ color: '#64748b' }}>Last Used:</span> <strong>{consumablesState.lastUsed}</strong>
+                      <span style={{ color: '#64748b' }}>Last Used:</span> <strong>{consumablesState.lastUsed || MISSING}</strong>
                     </div>
                   </div>
 
@@ -860,7 +895,7 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
                     type="number"
                     min={1}
                     value={consumablesState.tubingSetQty}
-                    onChange={(e) => updateConsumables({ tubingSetQty: parseInt(e.target.value, 10) || 1 })}
+                    onChange={(e) => updateConsumables({ tubingSetQty: e.target.value === '' ? '' : parseInt(e.target.value, 10) })}
                     style={{ width: '80px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                   />
                   <span style={{ padding: '6px', color: '#64748b' }}>set</span>
@@ -876,7 +911,7 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
                     type="number"
                     min={0}
                     value={consumablesState.needlesQty}
-                    onChange={(e) => updateConsumables({ needlesQty: parseInt(e.target.value, 10) || 0 })}
+                    onChange={(e) => updateConsumables({ needlesQty: e.target.value === '' ? '' : parseInt(e.target.value, 10) })}
                     style={{ width: '80px', padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                   />
                   <span style={{ padding: '6px', color: '#64748b' }}>needles</span>
@@ -890,7 +925,7 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
                 <input
                   type="text"
                   readOnly
-                  value={consumablesState.salineQty}
+                  value={consumablesState.salineQty || 'To be confirmed at blood return'}
                   style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b' }}
                 />
               </div>
@@ -905,7 +940,8 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
             <AutoCollapseTextarea
               aria-label="Patient verification notes"
               value={notesText}
-              onChange={(e) => setNotesText(e.target.value)}
+              maxLength={200}
+              onChange={(e) => setNotesText(e.target.value.slice(0, 200))}
               placeholder="Add any notes if required..."
               style={{
                 padding: '10px',
@@ -931,23 +967,28 @@ const PatientVerificationView = ({ patientId, sessionId: propSessionId, onBack, 
               Cancel
             </Button>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <Button variant="outline" onClick={async () => {
-                await saveP2Draft(effectiveSessionId, 'P2-04', { notesText, verificationMethods });
-              }}>
-                Save as Draft
-              </Button>
-              <Button
-                variant="brand"
-                onClick={handleContinueClick}
-                disabled={!canProceed}
-                style={{
-                  opacity: canProceed ? 1 : 0.5,
-                  cursor: canProceed ? 'pointer' : 'not-allowed',
-                }}
-              >
-                Save & Continue →
-              </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+              {!canProceed ? (
+                <div style={{ fontSize: '12px', color: '#b45309' }}>
+                  Continue stays disabled until identity (2 matches), a verification method, infection check, consumables, and a prescription are all resolved.
+                </div>
+              ) : null}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <Button variant="outline" onClick={saveDraft} disabled={saving}>
+                  {saving ? 'Saving…' : 'Save as Draft'}
+                </Button>
+                <Button
+                  variant="brand"
+                  onClick={handleContinueClick}
+                  disabled={!canProceed || saving}
+                  style={{
+                    opacity: canProceed ? 1 : 0.5,
+                    cursor: canProceed ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  Save & Continue →
+                </Button>
+              </div>
             </div>
           </div>
         </div>
