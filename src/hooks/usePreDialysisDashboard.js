@@ -1,8 +1,8 @@
 /**
  * usePreDialysisDashboard — P2-03 Pre-Dialysis Dashboard Hook
  *
- * Manages data fetching, normalization, 9-step workflow checklist status,
- * overall progress calculations, role-gating for Print Summary, and ABDM consent rules.
+ * Loads live patient, session, vitals, prescription, alerts, and notes.
+ * Does not invent clinical values; missing fields stay as —.
  *
  * @file src/hooks/usePreDialysisDashboard.js
  */
@@ -12,19 +12,25 @@ import {
   getPatientDetails,
   getPatientLatestPrescription,
   getPatientLatestVitals,
-  getPatientLatestLabs,
   getPatientNotes,
+  getPatientAlerts,
   getPredialysisStatus,
   printSessionSummary,
 } from '../ApiCalls/preDialysisApis';
+import { getDialysisSessionById, updateSessionParameters } from '../ApiCalls/dialysisSessionApis';
+import { getBedById } from '../ApiCalls/bedManagementApis';
 import { calculateAge, formatDate, calcDialysisDuration } from './usePatientSummary';
 import { ALERT_SEVERITY } from '../pages/dialysis/dialysisQueueConstants';
 import { notifyError, notifySuccess } from '../helpers/notify';
-import { liveValue, MISSING, mapRollupSteps, ROLLUP_TO_DASHBOARD } from '../pages/dialysis/p2Runtime';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+import {
+  liveValue,
+  MISSING,
+  mapRollupSteps,
+  ROLLUP_TO_DASHBOARD,
+  unwrapList,
+  unwrapRecord,
+  formatIst,
+} from '../pages/dialysis/p2Runtime';
 
 export const PRE_DIALYSIS_STEPS = [
   { id: 1, key: 'verification', name: 'Patient Verification', code: 'P2-04' },
@@ -46,13 +52,18 @@ export const STEP_STATUS = {
 
 export const NEPHROLOGIST_ROLES = ['Nephrologist', 'Doctor', 'Nephro', 'Dr'];
 
-// ---------------------------------------------------------------------------
-// Business Logic Helpers
-// ---------------------------------------------------------------------------
+const EMPTY_STEP_STATUSES = {
+  verification: STEP_STATUS.NOT_STARTED,
+  vitals: STEP_STATUS.NOT_STARTED,
+  assessment: STEP_STATUS.NOT_STARTED,
+  access: STEP_STATUS.NOT_STARTED,
+  machine: STEP_STATUS.NOT_STARTED,
+  water: STEP_STATUS.NOT_STARTED,
+  infection: STEP_STATUS.NOT_STARTED,
+  validation: STEP_STATUS.NOT_STARTED,
+  start: STEP_STATUS.NOT_STARTED,
+};
 
-/**
- * Calculate overall progress percentage: (count of COMPLETE steps / 9) * 100
- */
 export const calculateProgressPercentage = (stepStatuses = {}) => {
   const completeCount = PRE_DIALYSIS_STEPS.filter(
     (step) => stepStatuses[step.key] === STEP_STATUS.COMPLETE
@@ -61,9 +72,6 @@ export const calculateProgressPercentage = (stepStatuses = {}) => {
   return Math.round((completeCount / 9) * 100);
 };
 
-/**
- * Derive pending tasks list from steps 1-8 that are not COMPLETE.
- */
 export const derivePendingTasks = (stepStatuses = {}) => {
   return PRE_DIALYSIS_STEPS.slice(0, 8)
     .filter((step) => stepStatuses[step.key] !== STEP_STATUS.COMPLETE)
@@ -91,18 +99,12 @@ export const derivePendingTasks = (stepStatuses = {}) => {
     });
 };
 
-/**
- * Step 9 (Start Dialysis Confirmation) is enabled ONLY if steps 1-8 are all COMPLETE.
- */
 export const checkCanStartDialysis = (stepStatuses = {}) => {
   return PRE_DIALYSIS_STEPS.slice(0, 8).every(
     (step) => stepStatuses[step.key] === STEP_STATUS.COMPLETE
   );
 };
 
-/**
- * Check if the user role is authorized to Print Summary (Nephrologist / Doctor only).
- */
 export const checkPrintSummaryAllowed = (roleName) => {
   if (!roleName) return false;
   const normalized = String(roleName).toLowerCase();
@@ -113,10 +115,114 @@ export const checkPrintSummaryAllowed = (roleName) => {
   );
 };
 
-/**
- * Normalize patient info bar details with optional ABDM anonymization for Doctor role.
- */
-export const normalizePatientInfoBar = (patientInput, isAnonymized = false) => {
+const parseJsonValue = (raw) => {
+  if (raw === null || raw === undefined || raw === '') return null;
+  if (typeof raw !== 'string') return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'string') {
+      try {
+        return JSON.parse(parsed);
+      } catch (_) {
+        return parsed;
+      }
+    }
+    return parsed;
+  } catch (_) {
+    return raw;
+  }
+};
+
+const normalizeNoteRecord = (note, fallbackId, fallbackDate) => {
+  if (note === null || note === undefined || note === '') return null;
+  if (typeof note === 'string') {
+    const text = note.trim();
+    if (!text) return null;
+    return {
+      id: fallbackId,
+      text,
+      author: MISSING,
+      date: formatIst(fallbackDate),
+    };
+  }
+  const text = String(note.text || note.note || note.content || note.pre_dialysis_notes || '').trim();
+  if (!text) return null;
+  return {
+    id: note.id || fallbackId,
+    text,
+    author: note.author || note.created_by || note.user_role || MISSING,
+    date: formatIst(note.date || note.created_at || note.updated_at || fallbackDate),
+  };
+};
+
+export const normalizeNotesList = (payload, sessionId) => {
+  const parsedRoot = parseJsonValue(payload);
+  const collected = [];
+
+  const pushNote = (note, fallbackId, fallbackDate) => {
+    const normalized = normalizeNoteRecord(note, fallbackId, fallbackDate);
+    if (normalized) collected.push(normalized);
+  };
+
+  if (Array.isArray(parsedRoot)) {
+    parsedRoot.forEach((note, index) => pushNote(note, `${sessionId || 'note'}-${index}`, null));
+    return collected;
+  }
+
+  const rows = unwrapList(parsedRoot);
+  if (rows.length > 0) {
+    rows.forEach((row, index) => {
+      const parsedNotes = parseJsonValue(row?.pre_dialysis_notes || row?.notes);
+      if (Array.isArray(parsedNotes)) {
+        parsedNotes.forEach((note, noteIndex) => {
+          pushNote(note, `${row.id || sessionId || index}-${noteIndex}`, row.updated_at);
+        });
+        return;
+      }
+      if (parsedNotes) {
+        pushNote(parsedNotes, `${row.id || sessionId || index}-pre`, row.updated_at);
+        return;
+      }
+      pushNote(row, row?.id || `${sessionId || 'note'}-${index}`, row?.updated_at || row?.created_at);
+    });
+    return collected;
+  }
+
+  if (parsedRoot && typeof parsedRoot === 'object') {
+    pushNote(parsedRoot, sessionId || 'note', parsedRoot.updated_at || parsedRoot.created_at);
+  }
+
+  return collected;
+};
+
+export const normalizeAlertsList = (payload) => {
+  return unwrapList(payload)
+    .filter((row) => {
+      const status = String(row?.status || '').toUpperCase();
+      return !status || status === 'ACTIVE';
+    })
+    .map((row, index) => {
+      const severityRaw = String(row.severity || row.level || '').toLowerCase();
+      let severity = ALERT_SEVERITY.INFO;
+      if (severityRaw.includes('crit') || severityRaw === 'high' || severityRaw === 'error') {
+        severity = ALERT_SEVERITY.CRITICAL;
+      } else if (severityRaw.includes('warn') || severityRaw === 'medium') {
+        severity = ALERT_SEVERITY.WARNING;
+      } else if (severityRaw.includes('info') || severityRaw === 'low') {
+        severity = ALERT_SEVERITY.INFO;
+      }
+
+      return {
+        id: row.id || `alert-${index}`,
+        title: row.title || row.alert_type || MISSING,
+        date: formatIst(row.created_at || row.updated_at || row.alert_date),
+        severity,
+        message: row.message || row.description || row.details || MISSING,
+      };
+    });
+};
+
+export const normalizePatientInfoBar = (patientInput, isAnonymized = false, assignment = {}) => {
   if (!patientInput) return null;
 
   const patient = (typeof patientInput === 'object' && patientInput !== null)
@@ -124,187 +230,159 @@ export const normalizePatientInfoBar = (patientInput, isAnonymized = false) => {
     : {};
 
   const dob = patient.dob || patient.date_of_birth || patient.birth_date || null;
-  const patientCode = patient.patient_code || patient.patientCode || (patient.id ? `P${String(patient.id).padStart(5, '0')}` : '—');
-  const rawName = patient.name || patient.patient_name || (patient.id ? `Patient #${patient.id}` : '—');
+  const rawId = patient.id || patient.patient_id || '';
+  const patientCode = patient.patient_code || patient.patientCode || (rawId ? `P${String(rawId).padStart(5, '0')}` : MISSING);
+  const rawName = patient.name || patient.patient_name || MISSING;
 
   const displayName = isAnonymized ? `ANON-${patientCode}` : rawName;
-  const displayPhone = isAnonymized ? 'XXXXXXXXXX' : (patient.phone_no || patient.number || patient.phone_number || patient.phone || patient.mobile_no || '—');
+  const displayPhone = isAnonymized
+    ? 'XXXXXXXXXX'
+    : (patient.phone_no || patient.number || patient.phone_number || patient.phone || patient.mobile_no || MISSING);
 
-  const bedNo = patient.bed_number || patient.bedNo || patient.bed || '—';
-  const machineNo = patient.machine_number || patient.machineNo || patient.machine || '—';
-  const bedMachineLabel = (bedNo !== '—' || machineNo !== '—') ? `${bedNo} / ${machineNo}` : '— / —';
+  const bedNo = assignment.bedNumber || patient.bed_number || patient.bedNo || patient.bed || MISSING;
+  const machineNo = assignment.machineNumber || patient.machine_number || patient.machineNo || patient.machine || MISSING;
+  const bedMachineLabel = (bedNo !== MISSING || machineNo !== MISSING) ? `${bedNo} / ${machineNo}` : `${MISSING} / ${MISSING}`;
 
   const rawGender = patient.gender || patient.sex || patient.patient_gender;
-  const gender = rawGender === 'F' ? 'Female' : rawGender === 'M' ? 'Male' : (rawGender || '—');
-  const ageVal = patient.age ? String(patient.age) : (dob ? calculateAge(dob) : '—');
+  const gender = rawGender === 'F' ? 'Female' : rawGender === 'M' ? 'Male' : (rawGender || MISSING);
+  const ageVal = patient.age ? String(patient.age) : (dob ? calculateAge(dob) : MISSING);
+  const dryWeightValue = patient.dry_weight || patient.target_weight || patient.edw;
 
   return {
-    id: patient.id || '',
+    id: rawId,
     patientCode,
     name: displayName,
     photo: isAnonymized ? null : patient.photo || patient.avatar || null,
-    statusBadge: patient.patient_status || patient.status || 'Active Patient',
-    age: ageVal || '—',
+    statusBadge: patient.patient_status || patient.status || MISSING,
+    status: patient.patient_status || patient.status || MISSING,
+    age: ageVal || MISSING,
     gender,
     phone: displayPhone,
-    dryWeight: patient.dry_weight || patient.target_weight ? `${patient.dry_weight || patient.target_weight} kg` : '—',
-    bloodGroup: patient.blood_group || patient.bloodGroup || '—',
-    lastDialysisDate: patient.last_dialysis_date ? formatDate(patient.last_dialysis_date) : '—',
+    dryWeight: dryWeightValue ? `${dryWeightValue} kg` : MISSING,
+    bloodGroup: patient.blood_group || patient.bloodGroup || MISSING,
+    lastDialysisDate: patient.last_dialysis_date ? formatDate(patient.last_dialysis_date) : MISSING,
     lastDialysisDuration: patient.last_dialysis_date ? calcDialysisDuration(patient.last_dialysis_date) : '',
-    vascularAccess: patient.vascular_access || patient.access_type || '—',
-    nextSchedule: patient.next_schedule || '—',
-    nephrologist: patient.primary_doctor_name || patient.doctor_name || '—',
-    dialysisType: patient.dialysis_type || 'Hemodialysis',
+    vascularAccess: patient.vascular_access || patient.access_type || MISSING,
+    nextSchedule: patient.next_schedule || MISSING,
+    nextScheduleDate: patient.next_schedule_date || patient.next_schedule || MISSING,
+    nextScheduleTime: patient.next_schedule_time || patient.shift_time || MISSING,
+    nephrologist: patient.primary_doctor_name || patient.doctor_name || MISSING,
+    dialysisType: patient.dialysis_type || MISSING,
     assignment: {
-      shift: patient.shift_time || '—',
+      shift: assignment.shift || patient.shift_time || patient.shift_name || MISSING,
       bedMachine: bedMachineLabel,
-      technician: patient.attending_technician || '—',
+      technician: assignment.technician || patient.attending_technician || MISSING,
     },
     raw: patient,
   };
 };
 
-/**
- * Normalize latest vitals with reference tags.
- */
-export const normalizeLatestVitals = (patient) => {
-  const source = patient?.vitals || patient || {};
+export const normalizeLatestVitals = (vitalsInput) => {
+  const source = unwrapRecord(vitalsInput, ['vitals']) || {};
+  const systolic = source.bp_systolic ?? source.systolic_bp_mm_hg ?? source.systolic;
+  const diastolic = source.bp_diastolic ?? source.diastolic_bp_mm_hg ?? source.diastolic;
+  const bp = (systolic !== undefined && systolic !== null && systolic !== '' && diastolic !== undefined && diastolic !== null && diastolic !== '')
+    ? `${systolic}/${diastolic}`
+    : (source.bp || source.blood_pressure || source.pre_bp || null);
+  const pulse = source.pulse ?? source.heart_rate ?? source.pre_hr;
+  const temp = source.temperature ?? source.temp;
+  const spo2 = source.spo2;
+  const preWeight = source.weight_pre ?? source.pre_weight ?? source.weight;
+  const respRate = source.respiratory_rate ?? source.resp_rate;
+
   const withUnit = (value, unit) => {
     if (value === null || value === undefined || String(value).trim() === '') return MISSING;
     const text = String(value);
     if (!unit) return text;
-    return text.includes(unit.replace(' ', '')) ? text : `${text}${unit}`;
+    return text.includes(unit.trim()) ? text : `${text}${unit}`;
   };
+
   return {
-    bp: withUnit(source.bp || source.blood_pressure, ' mmHg'),
-    bpTag: source.bp ? 'Recorded' : 'Missing',
-    pulse: withUnit(source.pulse || source.heart_rate, ' bpm'),
-    pulseTag: source.pulse || source.heart_rate ? 'Recorded' : 'Missing',
-    temp: withUnit(source.temperature || source.temp, ' °C'),
-    tempTag: source.temperature || source.temp ? 'Recorded' : 'Missing',
-    spo2: withUnit(source.spo2, '%'),
-    spo2Tag: source.spo2 ? 'Recorded' : 'Missing',
-    preWeight: withUnit(source.pre_weight || source.weight_pre, ' kg'),
-    respRate: withUnit(source.resp_rate || source.respiratory_rate, ' bpm'),
-    respRateTag: source.resp_rate || source.respiratory_rate ? 'Recorded' : 'Missing',
+    bp: withUnit(bp, ' mmHg'),
+    bpTag: bp ? 'Recorded' : 'Missing',
+    pulse: withUnit(pulse, ' bpm'),
+    pulseTag: pulse ? 'Recorded' : 'Missing',
+    temp: withUnit(temp, ' °C'),
+    tempTag: temp ? 'Recorded' : 'Missing',
+    spo2: withUnit(spo2, '%'),
+    spo2Tag: spo2 ? 'Recorded' : 'Missing',
+    preWeight: withUnit(preWeight, ' kg'),
+    respRate: withUnit(respRate, ' bpm'),
+    respRateTag: respRate ? 'Recorded' : 'Missing',
   };
 };
 
-/**
- * Normalize pre-dialysis summary card details.
- */
-export const normalizePreDialysisSummary = (prescription, patient) => {
-  const rx = prescription?.prescription || prescription || {};
-  return {
-    targetUfGoal: liveValue(rx.uf_goal || patient?.uf_goal),
-    expectedTreatmentTime: liveValue(rx.dialysis_time || rx.dialysisTime),
-    bfr: liveValue(rx.blood_flow_rate || rx.bloodFlowRate),
-    dfr: liveValue(rx.dialysate_flow_rate || rx.dialysateFlowRate),
-    dialysateTemp: liveValue(rx.dialysate_temp),
-    na: liveValue(rx.na),
-    k: liveValue(rx.k),
-    bicarbonate: liveValue(rx.bicarbonate),
-  };
-};
-
-/**
- * Normalize alerts list for P2-03 right column.
- */
-export const normalizeAlertsList = (patient) => {
-  const alerts = [];
-
-  if (patient?.potassium && parseFloat(patient.potassium) > 5.0) {
-    alerts.push({
-      id: 'high-k',
-      title: 'High Potassium',
-      date: formatDate(patient.labs_date || new Date().toISOString()),
-      severity: ALERT_SEVERITY.CRITICAL,
-      message: `Potassium level ${patient.potassium} mEq/L exceeds 5.0 mEq/L`,
-    });
-  }
-
-  if (patient?.hemoglobin && parseFloat(patient.hemoglobin) < 10) {
-    alerts.push({
-      id: 'low-hb',
-      title: 'Low Hemoglobin',
-      date: formatDate(patient.labs_date || new Date().toISOString()),
-      severity: ALERT_SEVERITY.WARNING,
-      message: `Hemoglobin ${patient.hemoglobin} g/dL below 10.0 g/dL`,
-    });
-  }
-
-  const weightGain = parseFloat(patient?.interdialytic_weight_gain || patient?.idwg);
-  if (!Number.isNaN(weightGain) && weightGain > 0 && patient?.target_uf) {
-    const targetUf = parseFloat(patient.target_uf);
-    if (!Number.isNaN(targetUf) && weightGain > targetUf) {
-      alerts.push({
-        id: 'fluid-overload',
-        title: 'Fluid Overload Risk',
-        date: formatDate(patient.labs_date || new Date().toISOString()),
-        severity: ALERT_SEVERITY.CRITICAL,
-        message: 'Interdialytic weight gain exceeds target threshold',
-      });
+export const normalizePreDialysisSummary = (prescription) => {
+  let rx = null;
+  if (prescription?.prescription !== undefined) {
+    rx = prescription.prescription;
+  } else if (prescription && typeof prescription === 'object') {
+    rx = unwrapRecord(prescription, ['prescription']);
+    if (rx && (rx.prescription === null || rx.has_active_prescription_today === false)) {
+      rx = rx.prescription || null;
     }
   }
-
-  return alerts;
-};
-
-/**
- * Normalize notes list for P2-03 right column.
- */
-export const normalizeNotesList = (patient) => {
-  if (Array.isArray(patient?.notes) && patient.notes.length > 0) {
-    return patient.notes.map((note, index) => ({
-      id: note.id || index,
-      text: note.text || note.note || note.content,
-      author: note.author || note.created_by || MISSING,
-      date: formatDate(note.date || note.created_at),
-    }));
+  if (!rx || typeof rx !== 'object') {
+    return {
+      targetUfGoal: MISSING,
+      expectedTreatmentTime: MISSING,
+      bfr: MISSING,
+      dfr: MISSING,
+      dialysateTemp: MISSING,
+      na: MISSING,
+      k: MISSING,
+      bicarbonate: MISSING,
+      hasPrescription: false,
+    };
   }
-  return [];
+  return {
+    targetUfGoal: liveValue(rx.uf_goal || rx.uf_goal_ml || rx.target_uf),
+    expectedTreatmentTime: liveValue(rx.dialysis_time || rx.dialysisTime || rx.duration || rx.prescribed_duration_mins),
+    bfr: liveValue(rx.blood_flow_rate || rx.bloodFlowRate || rx.bfr),
+    dfr: liveValue(rx.dialysate_flow_rate || rx.dialysateFlowRate || rx.dfr),
+    dialysateTemp: liveValue(rx.dialysate_temp || rx.dialysateTemperature),
+    na: liveValue(rx.na || rx.sodium),
+    k: liveValue(rx.k || rx.potassium),
+    bicarbonate: liveValue(rx.bicarbonate || rx.hco3),
+    hasPrescription: true,
+  };
 };
 
-// ---------------------------------------------------------------------------
-// Hook Definition
-// ---------------------------------------------------------------------------
+const mapRollupToDashboardStatuses = (payload) => {
+  const next = { ...EMPTY_STEP_STATUSES };
+  mapRollupSteps(payload).forEach((step) => {
+    const key = ROLLUP_TO_DASHBOARD[step.key] || step.dashboardKey;
+    if (!key || !(key in next)) return;
+    if (step.status === 'Completed') next[key] = STEP_STATUS.COMPLETE;
+    else if (step.status === 'In Progress') next[key] = STEP_STATUS.IN_PROGRESS;
+    else next[key] = STEP_STATUS.NOT_STARTED;
+  });
+  return next;
+};
 
-export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis Technician', rawSessionId) {
-  const activeSessionId = useMemo(() => {
-    if (rawSessionId && String(rawSessionId).trim() !== '' && String(rawSessionId) !== '1') return rawSessionId;
-    try {
-      const persisted = localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId');
-      if (persisted) return persisted;
-    } catch {}
-    return rawSessionId || '';
-  }, [rawSessionId]);
-
-  const emptyStepStatuses = {
-    verification: STEP_STATUS.NOT_STARTED,
-    vitals: STEP_STATUS.NOT_STARTED,
-    assessment: STEP_STATUS.NOT_STARTED,
-    access: STEP_STATUS.NOT_STARTED,
-    machine: STEP_STATUS.NOT_STARTED,
-    water: STEP_STATUS.NOT_STARTED,
-    infection: STEP_STATUS.NOT_STARTED,
-    validation: STEP_STATUS.NOT_STARTED,
-    start: STEP_STATUS.NOT_STARTED,
-  };
+export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis Technician', rawSessionId, assignmentHint = null) {
+  const activeSessionId = rawSessionId && String(rawSessionId).trim() !== '' ? String(rawSessionId) : '';
 
   const [patientRaw, setPatientRaw] = useState(null);
   const [prescriptionRaw, setPrescriptionRaw] = useState(null);
   const [vitalsRaw, setVitalsRaw] = useState(null);
+  const [alertsRaw, setAlertsRaw] = useState([]);
+  const [sessionNotesRaw, setSessionNotesRaw] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [savingNote, setSavingNote] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [error, setError] = useState(null);
-  const [lastRefreshed, setLastRefreshed] = useState(new Date());
-  const [stepStatuses, setStepStatuses] = useState(emptyStepStatuses);
-
+  const [lastRefreshed, setLastRefreshed] = useState(null);
+  const [stepStatuses, setStepStatuses] = useState(EMPTY_STEP_STATUSES);
+  const [serverProgressPct, setServerProgressPct] = useState(null);
+  const [serverCanStart, setServerCanStart] = useState(null);
   const [notes, setNotes] = useState([]);
+  const [assignment, setAssignment] = useState(assignmentHint || {});
 
-  // Fetch patient and prescription data
   const loadDashboardData = useCallback(async () => {
-    if (!patientId) {
+    if (!activeSessionId) {
       setLoading(false);
+      setError('No dialysis session id. Drag the patient to a bed again.');
       return;
     }
 
@@ -312,62 +390,113 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
     setError(null);
 
     try {
-      const patientRes = await getPatientDetails(patientId);
-      let patientData = null;
-
-      if (patientRes?.success) {
-        const raw = patientRes.data;
-        patientData = raw?.patient || raw?.data?.patient || raw?.data || raw;
-      } else {
-        patientData = { id: patientId };
+      const statusRes = await getPredialysisStatus(activeSessionId);
+      if (!statusRes?.success) {
+        setError(statusRes?.message || 'Failed to load pre-dialysis status');
+        setPatientRaw(null);
+        return;
       }
 
+      const statusPayload = unwrapRecord(statusRes.data) || statusRes.data || {};
+      const resolvedPatientId = statusPayload.patient_id || patientId;
+      setStepStatuses(mapRollupToDashboardStatuses(statusPayload));
+      setServerProgressPct(
+        statusPayload.progress_pct === null || statusPayload.progress_pct === undefined
+          ? null
+          : Number(statusPayload.progress_pct)
+      );
+      setServerCanStart(
+        typeof statusPayload.start_dialysis_enabled === 'boolean'
+          ? statusPayload.start_dialysis_enabled
+          : null
+      );
+
+      if (!resolvedPatientId) {
+        setError('This session has no patient id.');
+        setPatientRaw(null);
+        return;
+      }
+
+      const [
+        patientRes,
+        rxRes,
+        vitalsRes,
+        alertsRes,
+        notesRes,
+        sessionRes,
+      ] = await Promise.all([
+        getPatientDetails(resolvedPatientId),
+        getPatientLatestPrescription(resolvedPatientId),
+        getPatientLatestVitals(resolvedPatientId),
+        getPatientAlerts(resolvedPatientId),
+        getPatientNotes(resolvedPatientId),
+        getDialysisSessionById(activeSessionId),
+      ]);
+
+      if (!patientRes?.success) {
+        setError(patientRes?.message || 'Patient data is not available for this session');
+        setPatientRaw(null);
+        return;
+      }
+
+      const patientData = unwrapRecord(patientRes.data, ['patient']) || patientRes.data;
       setPatientRaw(patientData);
 
-      const rxRes = await getPatientLatestPrescription(patientId);
-      if (rxRes?.success) {
-        setPrescriptionRaw(rxRes.data);
-      }
+      setPrescriptionRaw(rxRes?.success ? rxRes.data : null);
+      setVitalsRaw(vitalsRes?.success ? unwrapRecord(vitalsRes.data, ['vitals']) || vitalsRes.data : null);
+      setAlertsRaw(alertsRes?.success ? unwrapList(alertsRes.data) : []);
 
-      const vitalsRes = await getPatientLatestVitals(patientId);
-      if (vitalsRes?.success) {
-        setVitalsRaw(vitalsRes.data?.vitals || vitalsRes.data);
-      } else {
-        setVitalsRaw(null);
-      }
+      const session = sessionRes?.success ? unwrapRecord(sessionRes.data) || sessionRes.data : null;
+      setSessionNotesRaw(session?.pre_dialysis_notes || null);
 
-      if (activeSessionId) {
-        const statusRes = await getPredialysisStatus(activeSessionId);
-        if (statusRes?.success) {
-          const next = { ...emptyStepStatuses };
-          mapRollupSteps(statusRes.data).forEach((step) => {
-            const key = ROLLUP_TO_DASHBOARD[step.key] || step.dashboardKey;
-            if (!key) return;
-            if (step.status === 'Completed') next[key] = STEP_STATUS.COMPLETE;
-            else if (step.status === 'In Progress') next[key] = STEP_STATUS.IN_PROGRESS;
-            else next[key] = STEP_STATUS.NOT_STARTED;
-          });
-          setStepStatuses(next);
+      const currentNotes = normalizeNotesList(session?.pre_dialysis_notes, activeSessionId);
+      const historyNotes = normalizeNotesList(notesRes?.success ? notesRes.data : [], activeSessionId)
+        .filter((note) => !currentNotes.some((current) => current.id === note.id && current.text === note.text));
+      setNotes([...currentNotes, ...historyNotes]);
+
+      let nextAssignment = {
+        bedNumber: assignmentHint?.bedNumber || null,
+        machineNumber: assignmentHint?.machineNumber || null,
+        shift: assignmentHint?.shift || null,
+        technician: assignmentHint?.technician || null,
+      };
+
+      if (session?.bed_id && (!nextAssignment.bedNumber || !nextAssignment.machineNumber)) {
+        const bedRes = await getBedById(session.bed_id);
+        if (bedRes?.success) {
+          const bed = unwrapRecord(bedRes.data) || bedRes.data;
+          nextAssignment = {
+            bedNumber: nextAssignment.bedNumber || bed?.bed_number || bed?.name || session.bed_id,
+            machineNumber: nextAssignment.machineNumber || bed?.machine_id || bed?.machine_number || null,
+            shift: nextAssignment.shift || bed?.shift_name || bed?.shift || null,
+            technician: nextAssignment.technician || bed?.technician_name || null,
+          };
+        } else if (!nextAssignment.bedNumber) {
+          nextAssignment.bedNumber = session.bed_id;
         }
-      } else {
-        setStepStatuses(emptyStepStatuses);
       }
 
-      setNotes(normalizeNotesList(patientData));
+      setAssignment(nextAssignment);
       setLastRefreshed(new Date());
     } catch (err) {
-      const errMsg = err?.message || 'Failed to load pre-dialysis dashboard data';
-      setError(errMsg);
+      setError(err?.message || 'Failed to load pre-dialysis dashboard data');
+      setPatientRaw(null);
     } finally {
       setLoading(false);
     }
-  }, [patientId, activeSessionId]);
+  }, [
+    activeSessionId,
+    patientId,
+    assignmentHint?.bedNumber,
+    assignmentHint?.machineNumber,
+    assignmentHint?.shift,
+    assignmentHint?.technician,
+  ]);
 
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  // ABDM consent revocation state
   const isConsentRevoked = Boolean(
     patientRaw?.consent_status === 'Revoked' || patientRaw?.consentRevoked
   );
@@ -375,25 +504,25 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
   const isDoctorRole = checkPrintSummaryAllowed(userRole);
   const isTechnicianBlocked = isConsentRevoked && !isDoctorRole;
 
-  // Derived values
   const printSummaryAllowed = checkPrintSummaryAllowed(userRole);
-  const overallProgress = calculateProgressPercentage(stepStatuses);
+  const overallProgress = serverProgressPct != null && !Number.isNaN(serverProgressPct)
+    ? Math.round(serverProgressPct)
+    : calculateProgressPercentage(stepStatuses);
   const pendingTasks = derivePendingTasks(stepStatuses);
-  const canStartDialysis = checkCanStartDialysis(stepStatuses);
+  const canStartDialysis = serverCanStart == null ? checkCanStartDialysis(stepStatuses) : serverCanStart;
 
   const patientInfo = useMemo(
-    () => normalizePatientInfoBar(patientRaw, isConsentRevoked && isDoctorRole),
-    [patientRaw, isConsentRevoked, isDoctorRole]
+    () => normalizePatientInfoBar(patientRaw, isConsentRevoked && isDoctorRole, assignment),
+    [patientRaw, isConsentRevoked, isDoctorRole, assignment]
   );
 
-  const latestVitals = useMemo(() => normalizeLatestVitals(vitalsRaw || patientRaw), [vitalsRaw, patientRaw]);
+  const latestVitals = useMemo(() => normalizeLatestVitals(vitalsRaw), [vitalsRaw]);
   const preDialysisSummary = useMemo(
-    () => normalizePreDialysisSummary(prescriptionRaw, patientRaw),
-    [prescriptionRaw, patientRaw]
+    () => normalizePreDialysisSummary(prescriptionRaw),
+    [prescriptionRaw]
   );
-  const alerts = useMemo(() => normalizeAlertsList(patientRaw), [patientRaw]);
+  const alerts = useMemo(() => normalizeAlertsList(alertsRaw), [alertsRaw]);
 
-  // Mark step complete helper
   const updateStepStatus = useCallback((stepKey, status) => {
     setStepStatuses((prev) => ({
       ...prev,
@@ -401,17 +530,72 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
     }));
   }, []);
 
-  // Add note helper
-  const addNote = useCallback((text) => {
-    if (!text || !text.trim()) return;
-    const newNote = {
-      id: Date.now(),
-      text: text.trim(),
-      author: userRole || MISSING,
-      date: formatDate(new Date()),
-    };
-    setNotes((prev) => [newNote, ...prev]);
-  }, [userRole]);
+  const addNote = useCallback(async (text) => {
+    if (!text || !text.trim()) return false;
+    if (!activeSessionId) {
+      notifyError('No dialysis session to save this note against.');
+      return false;
+    }
+
+    setSavingNote(true);
+    try {
+      const existing = normalizeNotesList(sessionNotesRaw, activeSessionId);
+      const nextNotes = [
+        {
+          text: text.trim(),
+          author: userRole || MISSING,
+          created_at: new Date().toISOString(),
+        },
+        ...existing.map((note) => ({
+          text: note.text,
+          author: note.author,
+          created_at: note.date,
+        })),
+      ];
+      const saveRes = await updateSessionParameters(activeSessionId, {
+        preDialysisNotes: nextNotes,
+      });
+      if (!saveRes?.success) {
+        notifyError(saveRes?.data?.message || saveRes?.message || 'Could not save note');
+        return false;
+      }
+      setSessionNotesRaw(nextNotes);
+      setNotes((prev) => {
+        const saved = normalizeNotesList(nextNotes, activeSessionId);
+        const rest = prev.filter((note) => !saved.some((item) => item.text === note.text && item.author === note.author));
+        return [...saved, ...rest];
+      });
+      notifySuccess('Note saved');
+      return true;
+    } catch (err) {
+      notifyError(err?.message || 'Could not save note');
+      return false;
+    } finally {
+      setSavingNote(false);
+    }
+  }, [activeSessionId, sessionNotesRaw, userRole]);
+
+  const printSummary = useCallback(async () => {
+    if (!activeSessionId) {
+      notifyError('No dialysis session to print.');
+      return false;
+    }
+    setPrinting(true);
+    try {
+      const res = await printSessionSummary(activeSessionId);
+      if (!res?.success) {
+        notifyError(res?.message || 'Print summary failed');
+        return false;
+      }
+      window.print();
+      return true;
+    } catch (err) {
+      notifyError(err?.message || 'Print summary failed');
+      return false;
+    } finally {
+      setPrinting(false);
+    }
+  }, [activeSessionId]);
 
   return {
     patientInfo,
@@ -427,10 +611,13 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
     isConsentRevoked,
     isTechnicianBlocked,
     loading,
+    savingNote,
+    printing,
     error,
     lastRefreshed,
     refresh: loadDashboardData,
     updateStepStatus,
     addNote,
+    printSummary,
   };
 }

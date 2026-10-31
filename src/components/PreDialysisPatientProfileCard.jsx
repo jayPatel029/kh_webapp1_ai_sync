@@ -3,31 +3,6 @@ import { getPatientDetails } from '../ApiCalls/preDialysisApis';
 import { getPatientById } from '../ApiCalls/patientAPis';
 import { calculateAge, formatDate, calcDialysisDuration } from '../hooks/usePatientSummary';
 
-const DEFAULT_PROFILE = {
-  id: '',
-  name: '—',
-  status: 'Active',
-  patientCode: '—',
-  age: '—',
-  gender: '—',
-  phone: '—',
-  dryWeight: '—',
-  bloodGroup: '—',
-  lastDialysis: '—',
-  lastDialysisDate: '—',
-  lastDialysisElapsed: '',
-  vascularAccess: '—',
-  nextScheduleDate: '—',
-  nextScheduleTime: '—',
-  nephrologist: '—',
-  dialysisType: 'Hemodialysis',
-  assignment: {
-    shift: '—',
-    bedMachine: '— / —',
-    technician: '—',
-  },
-};
-
 const readFirst = (source, keys) => {
   if (!source || typeof source !== 'object') return '';
   for (const key of keys) {
@@ -59,16 +34,9 @@ export const normalizePreDialysisProfileData = (patientInput = {}) => {
     }
   }
 
-  let name = readFirst(patient, ['name', 'patient_name', 'patientName', 'fullName', 'displayName']);
-  if (!name) {
-    if (rawId != null && rawId !== '') {
-      name = `Patient #${rawId}`;
-    } else {
-      name = '—';
-    }
-  }
+  const name = readFirst(patient, ['name', 'patient_name', 'patientName', 'fullName', 'displayName']) || '—';
 
-  const status = readFirst(patient, ['statusBadge', 'status', 'patient_status', 'condition']) || 'Active';
+  const status = readFirst(patient, ['statusBadge', 'status', 'patient_status', 'condition']) || '—';
 
   let age = readFirst(patient, ['age']);
   if (!age || age === '—') {
@@ -133,7 +101,7 @@ export const normalizePreDialysisProfileData = (patientInput = {}) => {
 
   const nephrologist = readFirst(patient, ['nephrologist', 'primary_doctor_name', 'doctor_name', 'nephrologist_name', 'doctor', 'physician']) || '—';
 
-  const dialysisType = readFirst(patient, ['dialysisType', 'dialysis_type']) || 'Hemodialysis';
+  const dialysisType = readFirst(patient, ['dialysisType', 'dialysis_type']) || '—';
 
   const vascularAccess = readFirst(patient, ['vascularAccess', 'vascular_access', 'access_type', 'accessType']) || '—';
 
@@ -262,6 +230,28 @@ const PhoneIcon = () => (
   </svg>
 );
 
+const StatusBadge = ({ status }) => {
+  if (!status || status === '—') return null;
+  return (
+    <span
+      style={{
+        background: '#ecfdf5',
+        color: '#047857',
+        border: '1px solid #a7f3d0',
+        padding: '1px 8px',
+        borderRadius: 9999,
+        fontSize: 11,
+        fontWeight: 700,
+        lineHeight: 1.6,
+        display: 'inline-flex',
+        alignItems: 'center',
+      }}
+    >
+      {status}
+    </span>
+  );
+};
+
 const MetricItem = ({ icon, label, value, subValue }) => (
   <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', minWidth: 0 }}>
     <IconBox>{icon}</IconBox>
@@ -359,20 +349,7 @@ const PreDialysisPatientProfileCard = ({ patient, patientId: propPatientId, isMo
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>{profile.name}</span>
-              <span
-                style={{
-                  background: '#ecfdf5',
-                  color: '#047857',
-                  border: '1px solid #a7f3d0',
-                  padding: '1px 8px',
-                  borderRadius: 9999,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  lineHeight: 1.6,
-                }}
-              >
-                {profile.status}
-              </span>
+              <StatusBadge status={profile.status} />
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 10px', marginTop: 6, fontSize: 12.5, color: '#475569', lineHeight: 1.4 }}>
               {showPatientId ? (
@@ -500,22 +477,7 @@ const PreDialysisPatientProfileCard = ({ patient, patientId: propPatientId, isMo
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
             <span style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', lineHeight: 1.2, whiteSpace: 'nowrap' }}>{profile.name}</span>
-            <span
-              style={{
-                background: '#ecfdf5',
-                color: '#047857',
-                border: '1px solid #a7f3d0',
-                padding: '0 8px',
-                borderRadius: 9999,
-                fontSize: 11,
-                fontWeight: 700,
-                lineHeight: '18px',
-                display: 'inline-flex',
-                alignItems: 'center',
-              }}
-            >
-              {profile.status}
-            </span>
+            <StatusBadge status={profile.status} />
           </div>
           <div
             style={{

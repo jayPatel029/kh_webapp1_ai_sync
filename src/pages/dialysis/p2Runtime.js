@@ -45,12 +45,47 @@ export function liveValue(value, suffix = '') {
   return suffix ? `${value}${suffix}` : String(value);
 }
 
+export function formatIst(value) {
+  if (value === null || value === undefined || value === '') return MISSING;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function unwrapList(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.rows)) return payload.rows;
   if (Array.isArray(payload?.sessions)) return payload.sessions;
+  if (Array.isArray(payload?.alerts)) return payload.alerts;
+  if (Array.isArray(payload?.notes)) return payload.notes;
+  if (Array.isArray(payload?.items)) return payload.items;
   return [];
+}
+
+export function unwrapRecord(payload, nestedKeys = []) {
+  if (!payload || typeof payload !== 'object') return null;
+  for (const key of nestedKeys) {
+    if (payload[key] && typeof payload[key] === 'object' && !Array.isArray(payload[key])) {
+      return payload[key];
+    }
+  }
+  if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
+    for (const key of nestedKeys) {
+      if (payload.data[key] && typeof payload.data[key] === 'object' && !Array.isArray(payload.data[key])) {
+        return payload.data[key];
+      }
+    }
+    return payload.data;
+  }
+  return payload;
 }
 
 export const ROLLUP_TO_DASHBOARD = {

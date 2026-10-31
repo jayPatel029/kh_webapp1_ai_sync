@@ -378,6 +378,21 @@ const navigate = useNavigate();
     patient?.sessionId ||
     sessionId ||
     '';
+  const p2Assignment = useMemo(() => ({
+    bedNumber: bed?.bed_number || bed?.name || null,
+    machineNumber: bed?.machine_id || bed?.machine_number || null,
+    shift: bed?.shift_name || bed?.shift || null,
+    technician: bed?.technician_name || bed?.technician || null,
+  }), [
+    bed?.bed_number,
+    bed?.name,
+    bed?.machine_id,
+    bed?.machine_number,
+    bed?.shift_name,
+    bed?.shift,
+    bed?.technician_name,
+    bed?.technician,
+  ]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -1367,6 +1382,7 @@ const navigate = useNavigate();
                     <PreDialysisDashboardView
                       patientId={patient?.patient_id || patient?.id}
                       sessionId={workflowSessionId}
+                      assignment={p2Assignment}
                       onBack={onClose}
                       onNavigateStep={setBeforeStep}
                     />

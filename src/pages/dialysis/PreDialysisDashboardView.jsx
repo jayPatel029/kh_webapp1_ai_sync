@@ -24,7 +24,6 @@ import NotificationsNoneOutlinedIcon from '@mui/icons-material/NotificationsNone
 import TaskAltOutlinedIcon from '@mui/icons-material/TaskAltOutlined';
 import { Box, Button } from '../../component-library';
 import AutoCollapseTextarea from '../../components/AutoCollapseTextarea';
-import PageHeader from '../../components/PageHeader';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import ThemeProvider from '../../components/ThemeProvider';
 import { useIsMobile } from '../../components/mobile/useIsMobile';
@@ -32,9 +31,9 @@ import usePreDialysisDashboard, {
   PRE_DIALYSIS_STEPS,
   STEP_STATUS,
 } from '../../hooks/usePreDialysisDashboard';
-import { ALERT_SEVERITY, getSeverityStyle } from './dialysisQueueConstants';
+import { getSeverityStyle } from './dialysisQueueConstants';
 import { ROUTES } from '../../routes/routeConstants';
-import { resolveP2SessionId } from './p2Runtime';
+import { formatIst, resolveP2SessionId } from './p2Runtime';
 
 // ---------------------------------------------------------------------------
 // Styling Tokens
@@ -123,7 +122,27 @@ const renderStepStatusBadge = (status) => {
 // PreDialysisDashboardView Component
 // ---------------------------------------------------------------------------
 
-const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack, onNavigateStep }) => {
+const VitalCell = ({ label, value, tag }) => (
+  <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>{label}</div>
+    <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
+      {value}
+    </div>
+    {tag ? (
+      <span style={{ fontSize: '10px', color: tag === 'Recorded' ? '#16a34a' : '#94a3b8', fontWeight: 700 }}>
+        {tag}
+      </span>
+    ) : null}
+  </div>
+);
+
+const PreDialysisDashboardView = ({
+  patientId,
+  sessionId: propSessionId,
+  assignment,
+  onBack,
+  onNavigateStep,
+}) => {
   const { isMobile } = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
@@ -131,7 +150,7 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
 
   const effectiveSessionId = useMemo(() => {
     return resolveP2SessionId(propSessionId, location);
-  }, [propSessionId, location.state, patientId]);
+  }, [propSessionId, location]);
 
   const {
     patientInfo,
@@ -146,50 +165,58 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
     printSummaryAllowed,
     isTechnicianBlocked,
     loading,
+    savingNote,
+    printing,
     error,
     lastRefreshed,
     refresh,
     addNote,
-  } = usePreDialysisDashboard(patientId, roleName, effectiveSessionId);
+    printSummary,
+  } = usePreDialysisDashboard(patientId, roleName, effectiveSessionId, assignment);
 
   const [newNoteText, setNewNoteText] = useState('');
   const [showAddNoteInput, setShowAddNoteInput] = useState(false);
 
-  // Handle Add Note action
-  const handleAddNoteSubmit = (e) => {
+  const handleAddNoteSubmit = async (e) => {
     e.preventDefault();
-    if (newNoteText.trim()) {
-      addNote(newNoteText);
+    if (!newNoteText.trim() || savingNote) return;
+    const saved = await addNote(newNoteText);
+    if (saved) {
       setNewNoteText('');
       setShowAddNoteInput(false);
     }
   };
 
-  // Handle Print Summary action (Nephrologist / Doctor only)
   const handlePrintSummary = () => {
-    window.print();
+    printSummary();
   };
 
-  // Handle Step Click
   const handleStepClick = (step) => {
     if (onNavigateStep) {
-      onNavigateStep(step.code, step);
-    } else {
-      // Default fallback navigation to Dialysis Patients or specific step
-      navigate(ROUTES.DIALYSIS_PATIENTS, {
-        state: { patientId, step: step.code },
-      });
+      onNavigateStep(step.code);
+      return;
     }
+    navigate(ROUTES.DIALYSIS_PATIENTS, {
+      state: { patientId, sessionId: effectiveSessionId, step: step.code },
+    });
   };
 
-  // Handle Save as Draft — like P2-04 footer pattern
-  const handleSaveDraft = () => {
-    alert('Pre-dialysis dashboard draft saved locally.');
+  const handleSaveDraft = async () => {
+    if (!newNoteText.trim()) return;
+    const saved = await addNote(newNoteText);
+    if (saved) {
+      setNewNoteText('');
+      setShowAddNoteInput(false);
+    }
   };
 
   const handleSaveContinue = () => {
     if (onNavigateStep) onNavigateStep('P2-04');
-    else navigate(ROUTES.DIALYSIS_PATIENTS, { state: { patientId, step: 'P2-04' } });
+    else {
+      navigate(ROUTES.DIALYSIS_PATIENTS, {
+        state: { patientId, sessionId: effectiveSessionId, step: 'P2-04' },
+      });
+    }
   };
 
   // Handle Back
@@ -303,7 +330,7 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
 
             {/* Print Summary — HIDDEN from Nurse and Technician, shown ONLY for Nephrologist/Doctor */}
             {printSummaryAllowed && (
-              <Button variant="outline" size="sm" onClick={handlePrintSummary}>
+              <Button variant="outline" size="sm" onClick={handlePrintSummary} disabled={printing}>
                 🖨 Print Summary
               </Button>
             )}
@@ -452,52 +479,12 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
-                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>BP</div>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-                      {latestVitals.bp}
-                    </div>
-                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>{latestVitals.bpTag}</span>
-                  </div>
-
-                  <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
-                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Pulse</div>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-                      {latestVitals.pulse}
-                    </div>
-                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>{latestVitals.pulseTag}</span>
-                  </div>
-
-                  <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
-                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Temp</div>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-                      {latestVitals.temp}
-                    </div>
-                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>{latestVitals.tempTag}</span>
-                  </div>
-
-                  <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
-                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>SpO₂</div>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-                      {latestVitals.spo2}
-                    </div>
-                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>{latestVitals.spo2Tag}</span>
-                  </div>
-
-                  <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
-                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Weight (Pre)</div>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-                      {latestVitals.preWeight}
-                    </div>
-                  </div>
-
-                  <div style={{ background: '#f8fafc', padding: '10px 12px', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
-                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Resp Rate</div>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-                      {latestVitals.respRate}
-                    </div>
-                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>{latestVitals.respRateTag}</span>
-                  </div>
+                  <VitalCell label="BP" value={latestVitals.bp} tag={latestVitals.bpTag} />
+                  <VitalCell label="Pulse" value={latestVitals.pulse} tag={latestVitals.pulseTag} />
+                  <VitalCell label="Temp" value={latestVitals.temp} tag={latestVitals.tempTag} />
+                  <VitalCell label="SpO₂" value={latestVitals.spo2} tag={latestVitals.spo2Tag} />
+                  <VitalCell label="Weight (Pre)" value={latestVitals.preWeight} />
+                  <VitalCell label="Resp Rate" value={latestVitals.respRate} tag={latestVitals.respRateTag} />
                 </div>
               </div>
 
@@ -542,6 +529,11 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
                     <span style={{ color: '#64748b' }}>Electrolytes (Na+ / K+ / HCO3-)</span>
                     <strong>{preDialysisSummary.na} / {preDialysisSummary.k} / {preDialysisSummary.bicarbonate}</strong>
                   </div>
+                  {!preDialysisSummary.hasPrescription ? (
+                    <div style={{ fontSize: '12px', color: '#b45309', marginTop: '4px' }}>
+                      No prescription on file for this patient.
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -562,30 +554,36 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {alerts.map((alert) => {
-                    const style = getSeverityStyle(alert.severity);
-                    return (
-                      <div
-                        key={alert.id}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: '10px',
-                          background: style.bg,
-                          border: `1px solid ${style.border}`,
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '13px', color: style.color }}>
-                            {alert.title}
-                          </span>
-                          <span style={{ fontSize: '10px', color: '#64748b' }}>{alert.date}</span>
+                {alerts.length === 0 ? (
+                  <div style={{ fontSize: '13px', color: '#94a3b8', padding: '8px 0' }}>
+                    No alerts.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {alerts.map((alert) => {
+                      const style = getSeverityStyle(alert.severity);
+                      return (
+                        <div
+                          key={alert.id}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '10px',
+                            background: style.bg,
+                            border: `1px solid ${style.border}`,
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: 700, fontSize: '13px', color: style.color }}>
+                              {alert.title}
+                            </span>
+                            <span style={{ fontSize: '10px', color: '#64748b' }}>{alert.date}</span>
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#334155' }}>{alert.message}</div>
                         </div>
-                        <div style={{ fontSize: '12px', color: '#334155' }}>{alert.message}</div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Pending Tasks Card */}
@@ -658,11 +656,11 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
                       }}
                     />
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      <Button size="sm" variant="outline" onClick={() => setShowAddNoteInput(false)}>
+                      <Button size="sm" variant="outline" type="button" onClick={() => setShowAddNoteInput(false)} disabled={savingNote}>
                         Cancel
                       </Button>
-                      <Button size="sm" type="submit">
-                        Save Note
+                      <Button size="sm" type="submit" disabled={savingNote || !newNoteText.trim()}>
+                        {savingNote ? 'Saving…' : 'Save Note'}
                       </Button>
                     </div>
                   </form>
@@ -716,7 +714,7 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
               ← Back
             </Button>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <Button variant="outline" onClick={handleSaveDraft}>
+              <Button variant="outline" onClick={handleSaveDraft} disabled={savingNote || !newNoteText.trim()}>
                 Save as Draft
               </Button>
               <Button variant="brand" onClick={handleSaveContinue}>
@@ -744,7 +742,7 @@ const PreDialysisDashboardView = ({ patientId, sessionId: propSessionId, onBack,
           >
             <div>All times are in Asia/Kolkata (IST)</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>Data refreshed just now</span>
+              <span>Data refreshed {lastRefreshed ? formatIst(lastRefreshed) : '—'}</span>
               <button
                 type="button"
                 onClick={refresh}
