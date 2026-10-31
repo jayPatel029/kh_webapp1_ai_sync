@@ -1543,7 +1543,7 @@ const DialysisAppointments = () => {
     { key: 'created_date', label: 'DATE', type: 'text', width: '100px' },
     { 
       key: 'patient_details', 
-      label: 'PATIENT DETAILS', 
+      label: 'PATIENT\nDETAILS', 
       type: 'custom', 
       width: '300px',
       render: (row) => {
@@ -1599,11 +1599,11 @@ const DialysisAppointments = () => {
         </div>
       ),
     },
-    { key: 'appointment_time', label: 'APPOINTMENT TIME', type: 'text', width: '130px' },
+    { key: 'appointment_time', label: 'APPOINTMENT\nTIME', type: 'text', width: '130px' },
     { key: 'duration', label: 'DURATION', type: 'text', width: '100px' },
     {
       key: 'payment_receipt',
-      label: 'PAYMENT RECEIPT',
+      label: 'PAYMENT\nRECEIPT',
       type: 'custom',
       width: '120px',
       render: (row) => (
@@ -1618,7 +1618,7 @@ const DialysisAppointments = () => {
     },
     {
       key: 'payment_action',
-      label: 'PAYMENT STATUS',
+      label: 'PAYMENT\nSTATUS',
       type: 'custom',
       width: '130px',
       render: (row) => {
@@ -1658,7 +1658,7 @@ const DialysisAppointments = () => {
     },
     {
       key: 'bill_invoice',
-      label: 'BILL INVOICE',
+      label: 'BILL\nINVOICE',
       type: 'custom',
       width: '110px',
       render: (row) => (
@@ -1887,7 +1887,17 @@ const DialysisAppointments = () => {
                     table-layout: auto;
                   }
                   .dt-appointments-table .list-table thead th,
-                  .dt-appointments-table .list-table__header-cell,
+                  .dt-appointments-table .list-table__header-cell {
+                    white-space: pre-line;
+                    vertical-align: middle;
+                    height: 58px;
+                    line-height: 1.15;
+                  }
+                  .dt-appointments-table .list-table__header-cell > div {
+                    white-space: pre-line;
+                    align-items: center;
+                    line-height: 1.15;
+                  }
                   .dt-appointments-table .list-table__cell {
                     white-space: nowrap;
                     vertical-align: middle;
