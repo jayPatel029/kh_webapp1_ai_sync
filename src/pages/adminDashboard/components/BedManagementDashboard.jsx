@@ -425,8 +425,7 @@ const AppointmentTableComponent = ({ appointments = [] }) => {
 const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => {
   const handleDragStart = (e, apt) => {
     const status = String(apt.status).toLowerCase();
-    // Only allow waiting appointments to be assigned to a bed
-    const canAssign = ['waiting'].includes(status);
+    const canAssign = ['waiting', 'arrived'].includes(status);
 
     if (!canAssign) {
       e.preventDefault();
@@ -451,7 +450,7 @@ const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => 
     const inferredInfectious = (String(parsedAilments || '').toLowerCase().includes('infectious')) || (apt.is_infectious);
 
     const dragPayload = {
-      patient_id: apt.patient_id || apt.id,
+      patient_id: apt.patient_id,
       appointment_id: apt.id,
       patient_name: apt.patient_name || (parsedObj && parsedObj.patientName) || `Patient #${apt.patient_id || apt.id}`,
       is_infectious: inferredInfectious,
@@ -495,7 +494,7 @@ const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => 
                 }
               } catch (err) { /* ignore */ }
 
-              const isEligible = String(apt.status).toLowerCase() === 'waiting';
+              const isEligible = ['waiting', 'arrived'].includes(String(apt.status).toLowerCase());
               const isInfectious = String(displayAilments || '').toLowerCase().includes('infectious') || apt.is_infectious;
 
               const rowStyle = isInfectious ? { background: '#FEF2F2' } : {};
@@ -953,9 +952,12 @@ export default function BedManagementDashboard(props) {
     setAppointmentsLoading(true);
     try {
       // Use getAppointments with filters
+      const today = new Date().toLocaleDateString('en-CA');
       const result = await getAppointments({
         clinicId: cid,
-        status: 'WAITING'
+        from: today,
+        to: today,
+        limit: 500,
       });
 
       if (result.success) {
@@ -1294,7 +1296,7 @@ export default function BedManagementDashboard(props) {
                   <Badge variant="solid" colorScheme="brand" borderRadius="full">
                     {(Array.isArray(appointments) ? appointments : []).filter(a => {
                       const s = String(a.status).toLowerCase();
-                      return s === 'waiting';
+                      return s === 'waiting' || s === 'arrived';
                     }).length} READY
                   </Badge>
                 </HStack>

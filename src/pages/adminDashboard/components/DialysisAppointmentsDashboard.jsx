@@ -22,8 +22,14 @@ const STATUS_STYLE = {
 
 function toYmd(value) {
   if (!value) return '';
-  if (value instanceof Date) return value.toLocaleDateString('en-CA');
-  return String(value).slice(0, 10);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+  }
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
 }
 
 function hhmmFromIso(iso) {

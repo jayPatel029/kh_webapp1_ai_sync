@@ -11,7 +11,12 @@ import useDialysisAppointments from '../../../hooks/useDialysisAppointments';
 import { formatTimeRange } from '../../../utils/appointmentDateUtils';
 
 const UpcomingAppointmentsPanel = ({ rowsPerPage = 10 }) => {
-  const { appointments, cancelAppointment } = useDialysisAppointments();
+  const today = new Date().toLocaleDateString('en-CA');
+  const { appointments, cancelAppointment } = useDialysisAppointments({
+    from: today,
+    to: today,
+    limit: 500,
+  });
 
   const arrivedAppointments = useMemo(
     () => appointments.filter((a) => a.status === 'arrived'),
@@ -52,7 +57,7 @@ const UpcomingAppointmentsPanel = ({ rowsPerPage = 10 }) => {
 
   const handleDragStart = useCallback((e, appt) => {
     const dragPayload = {
-      patient_id: appt.patient_id || appt.id,
+      patient_id: appt.patient_id,
       appointment_id: appt.id,
       patient_name: appt.patientName || appt.patient_name,
     };

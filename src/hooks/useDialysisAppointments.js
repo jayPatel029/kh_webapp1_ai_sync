@@ -28,6 +28,32 @@ const normalizeStatus = (status) => {
   return normalized;
 };
 
+const toIsoDate = (value) => {
+  if (!value) return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+  }
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+};
+
+const toIsoTime = (value) => {
+  const match = String(value || '').match(/(\d{1,2}):(\d{2})/);
+  if (!match) return '';
+  return `${String(Number(match[1])).padStart(2, '0')}:${match[2]}`;
+};
+
+const appointmentDateTime = (dateValue, timeValue) => {
+  const date = toIsoDate(dateValue);
+  const time = toIsoTime(timeValue);
+  if (date && time) return new Date(`${date}T${time}`);
+  if (date) return new Date(`${date}T00:00:00`);
+  return new Date(NaN);
+};
+
 const DEFAULT_SETTINGS = {
   slotDurationMinutes: 30,
   bufferBeforeMinutes: 0,
@@ -59,7 +85,12 @@ export default function useDialysisAppointments(options = {}) {
     setLoading(true);
     setError(null);
     try {
-      const result = await getAppointments();
+      const result = await getAppointments({
+        from: options.from,
+        to: options.to,
+        clinicId: options.clinicId,
+        limit: options.limit || 500,
+      });
       if (result.success) {
         // Map backend fields to the hook's expected format if necessary
         const mapped = (result.data?.data || result.data || []).map(apt => ({
@@ -67,14 +98,12 @@ export default function useDialysisAppointments(options = {}) {
           id: apt.id,
           title: apt.reason || apt.metadata?.notes || apt.title || 'Dialysis Appointment',
           patientName: apt.patient_name || apt.patientName || `Patient #${apt.patient_id}`,
-          start: new Date(
-            apt.startUTC ||
-            (apt.start_time ? `${apt.appointment_date}T${apt.start_time}` : apt.appointment_date)
-          ),
-          end: new Date(
-            apt.endUTC ||
-            (apt.end_time ? `${apt.appointment_date}T${apt.end_time}` : apt.appointment_date)
-          ),
+          start: apt.startUTC
+            ? new Date(apt.startUTC)
+            : appointmentDateTime(apt.appointment_date, apt.start_time),
+          end: apt.endUTC
+            ? new Date(apt.endUTC)
+            : appointmentDateTime(apt.appointment_date, apt.end_time),
           status: normalizeStatus(apt.status || apt.appointmentStatus),
         }));
         setAppointments(mapped);
@@ -86,7 +115,7 @@ export default function useDialysisAppointments(options = {}) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [options.from, options.to, options.clinicId, options.limit]);
 
   useEffect(() => {
     fetchAppointments();
