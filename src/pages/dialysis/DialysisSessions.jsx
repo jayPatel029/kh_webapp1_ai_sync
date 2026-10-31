@@ -13,6 +13,7 @@ import BedManagementDashboard from '../adminDashboard/components/BedManagementDa
 import DialysisAppointmentsDashboard from '../adminDashboard/components/DialysisAppointmentsDashboard';
 import UpcomingAppointmentsPanel from '../adminDashboard/components/UpcomingAppointmentsPanel';
 import { ROUTES } from '../../routes/routeConstants';
+import { useDialysisScope } from './DialysisScope';
 import {
   getAllBeds,
   getBedById,
@@ -57,6 +58,7 @@ const DialysisSessions = () => {
   const { isMobile } = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
+  const { selectedOrgId, selectedClinicId } = useDialysisScope();
   const [beds, setBeds] = useState([]);
   const [patientSessionReadings, setPatientSessionReadings] = useState([]);
   const [integrationLoading, setIntegrationLoading] = useState(false);
@@ -357,16 +359,27 @@ const DialysisSessions = () => {
 
           <section aria-labelledby="bed-management-title">
             <Box className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <BedManagementDashboard hideAppointments={true} />
+              <BedManagementDashboard
+                hideAppointments={true}
+                hideScopeSelectors
+                orgId={selectedOrgId}
+                clinicId={selectedClinicId}
+              />
             </Box>
           </section>
 
           <div className="mt-8">
-            <DialysisAppointmentsDashboard hideBeds={true} />
+            <DialysisAppointmentsDashboard
+              hideBeds
+              todayOnly
+              hideScopeSelectors
+              orgId={selectedOrgId}
+              clinicId={selectedClinicId}
+            />
           </div>
 
           <div className="mt-8">
-            <UpcomingAppointmentsPanel />
+            <UpcomingAppointmentsPanel clinicId={selectedClinicId} />
           </div>
         </div>
       </Box>

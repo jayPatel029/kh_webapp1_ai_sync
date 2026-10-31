@@ -10,11 +10,12 @@ import UnifiedListTable from '../../../components/table/UnifiedListTable';
 import useDialysisAppointments from '../../../hooks/useDialysisAppointments';
 import { formatTimeRange } from '../../../utils/appointmentDateUtils';
 
-const UpcomingAppointmentsPanel = ({ rowsPerPage = 10 }) => {
+const UpcomingAppointmentsPanel = ({ rowsPerPage = 10, clinicId } = {}) => {
   const today = new Date().toLocaleDateString('en-CA');
   const { appointments, cancelAppointment } = useDialysisAppointments({
     from: today,
     to: today,
+    clinicId,
     limit: 500,
   });
 

@@ -106,6 +106,8 @@ const DialysisAppointmentsDashboard = ({
   orgId: initialOrgId = '',
   clinicId: initialClinicId = '',
   onSelectAppointment,
+  todayOnly = false,
+  hideScopeSelectors = false,
 }) => {
   const today = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
   const [organizations, setOrganizations] = useState([]);
@@ -113,7 +115,7 @@ const DialysisAppointmentsDashboard = ({
   const [selectedOrgId, setSelectedOrgId] = useState(String(initialOrgId || ''));
   const [selectedClinicId, setSelectedClinicId] = useState(String(initialClinicId || ''));
   const [fromDate, setFromDate] = useState(today);
-  const [toDate, setToDate] = useState(addDays(today, 6));
+  const [toDate, setToDate] = useState(todayOnly ? today : addDays(today, 6));
   const [instances, setInstances] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -128,10 +130,18 @@ const DialysisAppointmentsDashboard = ({
   }, [initialClinicId]);
 
   useEffect(() => {
+    if (todayOnly) {
+      setFromDate(today);
+      setToDate(today);
+    }
+  }, [todayOnly, today]);
+
+  useEffect(() => {
+    if (hideScopeSelectors) return;
     getOrganizations().then((res) => {
       if (res.success) setOrganizations(res.data?.data || res.data || []);
     });
-  }, []);
+  }, [hideScopeSelectors]);
 
   useEffect(() => {
     if (!selectedOrgId) {
@@ -146,10 +156,11 @@ const DialysisAppointmentsDashboard = ({
   }, [selectedOrgId]);
 
   useEffect(() => {
+    if (hideScopeSelectors) return;
     if (!selectedOrgId || !clinics.length || selectedClinicId) return;
     const match = clinics.find((c) => String(c.organization_id || c.org_id) === String(selectedOrgId));
     if (match) setSelectedClinicId(String(match.id));
-  }, [clinics, selectedOrgId, selectedClinicId]);
+  }, [clinics, selectedOrgId, selectedClinicId, hideScopeSelectors]);
 
   useEffect(() => {
     if (!selectedClinicId || !fromDate || !toDate) {
@@ -268,45 +279,55 @@ const DialysisAppointmentsDashboard = ({
           <Box>
             <Heading size="md" style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0F172A' }}>Scheduler</Heading>
             <Text style={{ margin: 0, fontSize: 12, color: '#64748B', fontWeight: 600 }}>
-              {selectedClinic ? (selectedClinic.clinic_name || selectedClinic.name) : 'Select a clinic to see session occupancy'}
+              {todayOnly
+                ? (selectedClinic ? `${selectedClinic.clinic_name || selectedClinic.name} · Today` : "Today's session occupancy")
+                : (selectedClinic ? (selectedClinic.clinic_name || selectedClinic.name) : 'Select a clinic to see session occupancy')}
             </Text>
           </Box>
           <Flex align="center" className="flex-wrap" style={{ gap: 8 }}>
-            <select
-              value={selectedOrgId}
-              onChange={(e) => handleOrgChange(e.target.value)}
-              style={selectStyle}
-            >
-              <option value="">Organization</option>
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>{org.name}</option>
-              ))}
-            </select>
-            <select
-              value={selectedClinicId}
-              onChange={(e) => setSelectedClinicId(e.target.value)}
-              disabled={!selectedOrgId}
-              style={{ ...selectStyle, background: selectedOrgId ? '#fff' : '#F8FAFC' }}
-            >
-              <option value="">Clinic</option>
-              {clinics.map((clinic) => (
-                <option key={clinic.id} value={clinic.id}>{clinic.clinic_name || clinic.name}</option>
-              ))}
-            </select>
-            <Input
-              type="date"
-              value={fromDate}
-              onChange={(e) => handleFromChange(e.target.value)}
-              style={{ height: 36, width: 150, margin: 0 }}
-            />
-            <Text style={{ color: '#94A3B8', fontWeight: 700, fontSize: 12 }}>to</Text>
-            <Input
-              type="date"
-              value={toDate}
-              min={fromDate}
-              onChange={(e) => handleToChange(e.target.value)}
-              style={{ height: 36, width: 150, margin: 0 }}
-            />
+            {!hideScopeSelectors && (
+              <>
+                <select
+                  value={selectedOrgId}
+                  onChange={(e) => handleOrgChange(e.target.value)}
+                  style={selectStyle}
+                >
+                  <option value="">Organization</option>
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>{org.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedClinicId}
+                  onChange={(e) => setSelectedClinicId(e.target.value)}
+                  disabled={!selectedOrgId}
+                  style={{ ...selectStyle, background: selectedOrgId ? '#fff' : '#F8FAFC' }}
+                >
+                  <option value="">Clinic</option>
+                  {clinics.map((clinic) => (
+                    <option key={clinic.id} value={clinic.id}>{clinic.clinic_name || clinic.name}</option>
+                  ))}
+                </select>
+              </>
+            )}
+            {!todayOnly && (
+              <>
+                <Input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => handleFromChange(e.target.value)}
+                  style={{ height: 36, width: 150, margin: 0 }}
+                />
+                <Text style={{ color: '#94A3B8', fontWeight: 700, fontSize: 12 }}>to</Text>
+                <Input
+                  type="date"
+                  value={toDate}
+                  min={fromDate}
+                  onChange={(e) => handleToChange(e.target.value)}
+                  style={{ height: 36, width: 150, margin: 0 }}
+                />
+              </>
+            )}
           </Flex>
         </Flex>
       </Box>
@@ -315,7 +336,11 @@ const DialysisAppointmentsDashboard = ({
         {!selectedClinicId ? (
           <Flex direction="column" align="center" justify="center" style={{ flex: 1, padding: 48, gap: 8 }}>
             <Text style={{ fontSize: 15, fontWeight: 800, color: '#0F172A' }}>Choose a clinic</Text>
-            <Text style={{ fontSize: 13, color: '#64748B' }}>Organization and clinic are needed to load the session grid.</Text>
+            <Text style={{ fontSize: 13, color: '#64748B' }}>
+              {hideScopeSelectors
+                ? 'Select organization and clinic in the bar above to load today\'s sessions.'
+                : 'Organization and clinic are needed to load the session grid.'}
+            </Text>
           </Flex>
         ) : loading ? (
           <Flex align="center" justify="center" style={{ flex: 1, color: '#64748B', fontWeight: 600 }}>
@@ -327,8 +352,12 @@ const DialysisAppointmentsDashboard = ({
           </Flex>
         ) : grid.sessionRows.length === 0 ? (
           <Flex direction="column" align="center" justify="center" style={{ flex: 1, padding: 48, gap: 8 }}>
-            <Text style={{ fontSize: 15, fontWeight: 800, color: '#0F172A' }}>No sessions in this range</Text>
-            <Text style={{ fontSize: 13, color: '#64748B' }}>Try another date range, or add slot timings for this clinic.</Text>
+            <Text style={{ fontSize: 15, fontWeight: 800, color: '#0F172A' }}>
+              {todayOnly ? 'No sessions today' : 'No sessions in this range'}
+            </Text>
+            <Text style={{ fontSize: 13, color: '#64748B' }}>
+              {todayOnly ? 'Add slot timings for this clinic, or check that appointments are booked for today.' : 'Try another date range, or add slot timings for this clinic.'}
+            </Text>
           </Flex>
         ) : (
           <Box style={{ overflow: 'auto', flex: 1 }}>

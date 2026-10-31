@@ -425,7 +425,7 @@ const AppointmentTableComponent = ({ appointments = [] }) => {
 const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => {
   const handleDragStart = (e, apt) => {
     const status = String(apt.status).toLowerCase();
-    const canAssign = ['waiting', 'arrived'].includes(status);
+    const canAssign = status === 'arrived';
 
     if (!canAssign) {
       e.preventDefault();
@@ -463,8 +463,8 @@ const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => 
   if (!appointments || appointments.length === 0) {
     return (
       <Box className="list-table__empty">
-        <Heading as="h4" size="sm" mb={2}>No Appointments</Heading>
-        <Text fontSize="sm" color="textMuted">No appointments available for this clinic</Text>
+        <Heading as="h4" size="sm" mb={2}>No Arrived Appointments</Heading>
+        <Text fontSize="sm" color="textMuted">Only arrived patients can be assigned to a bed</Text>
       </Box>
     );
   }
@@ -494,7 +494,7 @@ const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => 
                 }
               } catch (err) { /* ignore */ }
 
-              const isEligible = ['waiting', 'arrived'].includes(String(apt.status).toLowerCase());
+              const isEligible = String(apt.status).toLowerCase() === 'arrived';
               const isInfectious = String(displayAilments || '').toLowerCase().includes('infectious') || apt.is_infectious;
 
               const rowStyle = isInfectious ? { background: '#FEF2F2' } : {};
@@ -861,7 +861,12 @@ const AssignmentModal = ({
 // ============================================================================
 // Main BedManagementDashboard Component
 // ============================================================================
-export default function BedManagementDashboard(props) {
+export default function BedManagementDashboard({
+  orgId: scopedOrgId = '',
+  clinicId: scopedClinicId = '',
+  hideScopeSelectors = false,
+  hideAppointments = false,
+} = {}) {
   const navigate = useNavigate();
   const {
     beds,
@@ -877,7 +882,7 @@ export default function BedManagementDashboard(props) {
     transferPatient,
     quarantineBed,
     canAssignPatientToBed,
-  } = useBedManagement();
+  } = useBedManagement(scopedClinicId || null);
 
   const [clinics, setClinics] = useState([]);
   const [organizations, setOrganizations] = useState([]);
@@ -899,8 +904,17 @@ export default function BedManagementDashboard(props) {
     setTimeout(() => setNotification(null), 3500);
   }, []);
 
+  useEffect(() => {
+    if (scopedClinicId) setClinicId(String(scopedClinicId));
+  }, [scopedClinicId, setClinicId]);
+
+  useEffect(() => {
+    if (scopedOrgId) setSelectedOrgId(String(scopedOrgId));
+  }, [scopedOrgId]);
+
   // Fetch Clinics & Orgs for selector
   useEffect(() => {
+    if (hideScopeSelectors) return;
     const fetchInitialData = async () => {
       setClinicsLoading(true);
       try {
@@ -926,10 +940,11 @@ export default function BedManagementDashboard(props) {
       }
     };
     fetchInitialData();
-  }, []);
+  }, [hideScopeSelectors]);
 
   // Reset clinic when org changes and auto-select first clinic of new org
   useEffect(() => {
+    if (hideScopeSelectors) return;
     if (selectedOrgId && clinics.length > 0) {
       const orgClinics = clinics.filter(c => String(c.organization_id || c.org_id) === String(selectedOrgId));
       if (orgClinics.length > 0) {
@@ -941,10 +956,10 @@ export default function BedManagementDashboard(props) {
       } else {
         setClinicId('');
       }
-    } else {
+    } else if (!hideScopeSelectors) {
       setClinicId('');
     }
-  }, [selectedOrgId, clinics, setClinicId, clinicId]);
+  }, [selectedOrgId, clinics, setClinicId, clinicId, hideScopeSelectors]);
 
   // Fetch Appointments for clinic (filter for arrived)
   const loadAppointments = useCallback(async (cid) => {
@@ -955,6 +970,7 @@ export default function BedManagementDashboard(props) {
       const today = new Date().toLocaleDateString('en-CA');
       const result = await getAppointments({
         clinicId: cid,
+        status: 'ARRIVED',
         from: today,
         to: today,
         limit: 500,
@@ -963,7 +979,7 @@ export default function BedManagementDashboard(props) {
       if (result.success) {
         // The API returns { page, limit, data: [...] }
         const appointmentList = result.data?.data || (Array.isArray(result.data) ? result.data : []);
-        setAppointments(appointmentList);
+        setAppointments(appointmentList.filter((apt) => String(apt.status || '').toUpperCase() === 'ARRIVED'));
       }
     } catch (err) {
       console.error('Failed to fetch appointments:', err);
@@ -1160,7 +1176,7 @@ export default function BedManagementDashboard(props) {
     [clinicId, fetchAllBeds, loadAppointments, showNotification]
   );
 
-  if (bedsLoading && clinics.length === 0) {
+  if (bedsLoading && clinics.length === 0 && !hideScopeSelectors) {
     return (
       <Flex justify="center" align="center" minH="400px">
         <Card variant="outline" className="loading-card">
@@ -1181,7 +1197,7 @@ export default function BedManagementDashboard(props) {
     <Box className="bed-management-dashboard">
       <VStack spacing={4} align="stretch">
 
-        {/* Command Center Header */}
+        {!hideScopeSelectors && (
         <HStack
           justify="space-between"
           align="center"
@@ -1206,22 +1222,9 @@ export default function BedManagementDashboard(props) {
               orgId={selectedOrgId}
               clinics={clinics}
             />
-
-            {/* <Button
-              variant="outline"
-              onClick={() => {
-                fetchAllBeds();
-                loadAppointments(clinicId);
-              }}
-              isLoading={bedsLoading || appointmentsLoading}
-              size="md"
-              className="mt-6 min-w-fit"
-              leftIcon={<span className="refresh-icon">↻</span>}
-            >
-              Sync
-            </Button> */}
           </HStack>
         </HStack>
+        )}
 
         {/* Capacity Summary */}
         {/* <Grid 
@@ -1279,12 +1282,13 @@ export default function BedManagementDashboard(props) {
 
         {/* Main Workspace */}
         <Grid
-          templateColumns={{ base: '1fr', lg: '350px 1fr' }}
+          templateColumns={{ base: '1fr', lg: hideAppointments ? '1fr' : '350px 1fr' }}
           gap={6}
           className="main-layout"
           width="100%"
         >
           {/* Appointment Queue Panel */}
+          {!hideAppointments && (
           <Box>
             <Card variant="outline" height="100%" borderRadius="xl" overflow="hidden">
               <CardHeader bg="gray.50" borderBottom="1px solid" borderColor="gray.100">
@@ -1296,7 +1300,7 @@ export default function BedManagementDashboard(props) {
                   <Badge variant="solid" colorScheme="brand" borderRadius="full">
                     {(Array.isArray(appointments) ? appointments : []).filter(a => {
                       const s = String(a.status).toLowerCase();
-                      return s === 'waiting' || s === 'arrived';
+                      return s === 'arrived';
                     }).length} READY
                   </Badge>
                 </HStack>
@@ -1310,6 +1314,7 @@ export default function BedManagementDashboard(props) {
               </CardBody>
             </Card>
           </Box>
+          )}
 
           {/* Bed Map Panel */}
           <Box>
