@@ -235,6 +235,56 @@ function toIsoDate(value) {
   return `${y}-${m}-${day}`;
 }
 
+function toIsoTime(value) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return '';
+    return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`;
+  }
+  const match = String(value).trim().match(/(\d{1,2}):(\d{2})/);
+  if (!match) return '';
+  return `${String(Number(match[1])).padStart(2, '0')}:${match[2]}`;
+}
+
+function hoursBetweenTimes(start, end) {
+  const startTime = toIsoTime(start);
+  const endTime = toIsoTime(end);
+  if (!startTime || !endTime) return '';
+  const [startHour, startMin] = startTime.split(':').map(Number);
+  const [endHour, endMin] = endTime.split(':').map(Number);
+  let diff = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+  if (diff <= 0) diff += 24 * 60;
+  const hours = diff / 60;
+  return String(Number.isInteger(hours) ? hours : Math.round(hours * 10) / 10);
+}
+
+function asAilmentText(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).join(', ');
+  if (value == null) return '';
+  return String(value);
+}
+
+function parseAppointmentEnvelope(raw) {
+  const ailmentsRaw = raw?.patient_ailments;
+  let envelope = {};
+  if (typeof ailmentsRaw === 'string' && ailmentsRaw.trim().startsWith('{')) {
+    try { envelope = JSON.parse(ailmentsRaw); } catch { envelope = {}; }
+  } else if (ailmentsRaw && typeof ailmentsRaw === 'object') {
+    envelope = ailmentsRaw;
+  }
+  const nested = envelope.metadata && typeof envelope.metadata === 'object' ? envelope.metadata : {};
+  return {
+    envelope,
+    nested,
+    patientName: envelope.patientName || nested.patientName || '',
+    ailments: asAilmentText(envelope.ailments || nested.patientAilments || nested.ailments || ''),
+    bookingMode: nested.booking_mode || nested.slot_type || envelope.booking_mode || 'continuous',
+    duration: nested.dialysisDuration || nested.duration || envelope.dialysisDuration || '',
+    metaServices: Array.isArray(nested.services) ? nested.services : [],
+    recurrence: nested.recurrence || envelope.recurrence || raw?.recurrence || null,
+  };
+}
+
 function formatDateDisplay(dateStr) {
   if (!dateStr) return '—';
   try {
@@ -296,20 +346,23 @@ function addMinutesToTime(timeStr, minutes) {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function buildSlotTemplates(raw) {
-  const startTime = raw.start_time || (raw.startUTC ? String(raw.startUTC).split('T')[1]?.slice(0, 5) : '');
-  const endTime = raw.end_time || (startTime ? addMinutesToTime(startTime, 30) : '');
+function buildSlotTemplates(raw, extra = {}) {
+  const startTime = toIsoTime(raw.start_time || extra.startTime || (raw.startUTC ? String(raw.startUTC).split('T')[1]?.slice(0, 5) : ''));
+  const endTime = toIsoTime(raw.end_time || extra.endTime) || (startTime ? addMinutesToTime(startTime, Number(extra.duration || 4) * 60) : '');
   if (!startTime) return [];
 
-  const appointmentDate = raw.appointment_date || (raw.startUTC ? String(raw.startUTC).split('T')[0] : null);
+  const appointmentDate = toIsoDate(raw.appointment_date || raw.startUTC || extra.date) || null;
+  const frequency = extra.frequency || extra.recurrence?.frequency || 'weekly';
+  const daysOfWeek = extra.daysOfWeek || extra.recurrence?.daysOfWeek || [getDayOfWeek(appointmentDate || new Date().toISOString().split('T')[0])];
   return [{
-    id: `slot-${Date.now()}`,
-    frequency: 'weekly',
-    daysOfWeek: [getDayOfWeek(appointmentDate || new Date().toISOString().split('T')[0])],
-    dayOfMonth: null,
+    id: `slot-${raw.id || Date.now()}`,
+    frequency: String(frequency).toLowerCase(),
+    daysOfWeek: Array.isArray(daysOfWeek) ? daysOfWeek : [daysOfWeek].filter(Boolean),
+    dayOfMonth: extra.recurrence?.dayOfMonth || null,
+    date: appointmentDate || '',
     startTime,
     endTime: endTime || '00:00',
-    maxPatientsPerSlot: Number(raw.clinic_capacity || raw.capacity || 0) || 1,
+    maxPatientsPerSlot: Number(raw.clinic_capacity || raw.capacity || extra.capacity || 0) || 1,
     bufferMinutes: 30,
     price: 0,
   }];
@@ -482,6 +535,7 @@ const DialysisAppointments = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const skipBillRecalcRef = useRef(false);
 
   const [patients, setPatients] = useState([]);
   const storedOrgId = localStorage.getItem('organization_id') || '';
@@ -622,10 +676,13 @@ const DialysisAppointments = () => {
         const services = fullClinic.services || [];
         setClinicServices(services);
         setSelectedClinicData(fullClinic);
-        setCreateForm(prev => ({
-          ...prev,
-          duration: String(fullClinic.defaultDuration || 4)
-        }));
+        setCreateForm(prev => {
+          if (isEditOpen) return prev;
+          return {
+            ...prev,
+            duration: String(fullClinic.duration || fullClinic.defaultDuration || prev.duration || 4),
+          };
+        });
 
         const dialysisService = services.find((s) => {
           const serviceName = String(s.name || s.service_name || '').toLowerCase();
@@ -645,7 +702,7 @@ const DialysisAppointments = () => {
         setClinicAppointments(aptsRes.data?.data || aptsRes.data || []);
       }
     })();
-  }, [createForm.clinic_id]);
+  }, [createForm.clinic_id, isEditOpen]);
 
   // --- Fetch Patient details when patient changes ---
   useEffect(() => {
@@ -802,6 +859,10 @@ const DialysisAppointments = () => {
 
   // --- Calculate total bill from added services and sessions ---
   useEffect(() => {
+    if (skipBillRecalcRef.current) {
+      skipBillRecalcRef.current = false;
+      return;
+    }
     const sessionCount = Math.max(plannedSessionCount, 1);
     const paidSessionCount = createForm.sessions_to_pay !== undefined 
       ? Number(createForm.sessions_to_pay) 
@@ -1153,25 +1214,40 @@ const DialysisAppointments = () => {
       return;
     }
 
-    const fullAppt = res.data?.appointment || res.data?.data || res.data;
-    const raw = fullAppt;
+    const body = res.data || {};
+    const apiAppointment = body.appointment || body.data?.appointment || (body.data?.id ? body.data : null);
+    const invoice = body.invoice || body.data?.invoice || null;
+    const raw = {
+      ...(apt._raw || {}),
+      ...(apiAppointment && typeof apiAppointment === 'object' && !Array.isArray(apiAppointment) ? apiAppointment : {}),
+    };
 
-    // Parse metadata from patient_ailments if it's JSON
-    let metadata = {};
-    let displayAilments = raw.patient_ailments || '';
-    if (typeof displayAilments === 'string' && displayAilments.startsWith('{')) {
-      try {
-        metadata = JSON.parse(displayAilments);
-        displayAilments = metadata.ailments || metadata.patientAilments || '';
-      } catch (e) { }
-    }
-
-    const slotTemplates = raw.slotTemplates || buildSlotTemplates(raw);
-    const reason = raw.reason || metadata.notes || metadata.notes_brief || '';
-    const totalAmount = raw.total_amount || raw.amountDue || raw.total_amt || 0;
-    const amountPaid = raw.amount_paid || raw.paidAmount || raw.received_amt || 0;
-    const paymentMethod = raw.paymentMethod || raw.payment_method || metadata.paymentMethod || 'cash';
+    const parsed = parseAppointmentEnvelope(raw);
+    const appointmentDate = toIsoDate(raw.appointment_date || raw.startUTC || apt.appointment_date) || today;
+    const startTime = toIsoTime(raw.start_time || raw.appointment_time || (raw.startUTC ? String(raw.startUTC).split('T')[1] : ''));
+    const endTime = toIsoTime(raw.end_time || (raw.endUTC ? String(raw.endUTC).split('T')[1] : ''));
+    const duration = String(parsed.duration || hoursBetweenTimes(startTime, endTime) || '4');
+    const slotTemplates = Array.isArray(raw.slotTemplates) && raw.slotTemplates.length
+      ? raw.slotTemplates
+      : buildSlotTemplates(raw, {
+          startTime,
+          endTime,
+          duration,
+          date: appointmentDate,
+          recurrence: parsed.recurrence,
+          frequency: parsed.recurrence?.frequency,
+          daysOfWeek: parsed.recurrence?.daysOfWeek,
+        });
+    const reason = raw.reason || parsed.nested.notes_brief || parsed.nested.notes || '';
+    const totalAmount = Number(
+      invoice?.total_amt ?? raw.total_amount ?? raw.amountDue ?? raw.total_amt ?? raw.unit_price ?? 0,
+    );
+    const amountPaid = Number(
+      raw.amount_paid ?? raw.paidAmount ?? invoice?.paid_amt ?? raw.received_amt ?? 0,
+    );
+    const paymentMethod = raw.paymentMethod || raw.payment_method || parsed.nested.paymentMethod || 'cash';
     const doctorId = raw.doctor_id || raw.doctorId || raw.primary_doctor_id || '';
+    const clinicMatch = clinics.find((c) => String(c.id) === String(raw.clinic_id));
 
     setCreateFieldErrors({});
     setCreateErrorMessage('');
@@ -1180,14 +1256,26 @@ const DialysisAppointments = () => {
     const fromRoster = patients.find((p) => String(p.id) === String(raw.patient_id));
     setSelectedPatientData({
       id: raw.patient_id,
-      name: raw.patient_name || raw.patientName || apt.name || fromRoster?.name,
-      gender: raw.gender || apt.gender || fromRoster?.gender,
-      age: raw.age || apt.age || fromRoster?.age,
-      phoneno: raw.phone || apt.phoneNumber || fromRoster?.phone_no,
-      phone: raw.phone || apt.phoneNumber || fromRoster?.phone_no,
+      name: raw.patient_name || parsed.patientName || apt.name || fromRoster?.name || '',
+      gender: raw.gender || raw.patient_gender || apt.gender || fromRoster?.gender || '',
+      age: raw.age || raw.patient_age || apt.age || fromRoster?.age || '',
+      phoneno: raw.phone || raw.patient_phone || apt.phoneNumber || fromRoster?.phone_no || '',
+      phone: raw.phone || raw.patient_phone || apt.phoneNumber || fromRoster?.phone_no || '',
       m1_patient_id: fromRoster?.m1_patient_id,
     });
 
+    const sourceServices = Array.isArray(raw.services) && raw.services.length ? raw.services : parsed.metaServices;
+    const fetchedServices = sourceServices.map((s, idx) => ({
+      name: s.service_name || s.name,
+      price: Number(s.amount ?? s.price ?? 0),
+      discount: Number(s.discount || 0),
+      service_id: s.service_id || s.id,
+      id: s.id,
+      status: s.status,
+      ui_key: `old-${s.id || idx}`,
+    })).filter((s) => s.name);
+
+    skipBillRecalcRef.current = true;
     setReceiptItems([]);
     setCreateForm({
       ...defaultForm,
@@ -1196,36 +1284,28 @@ const DialysisAppointments = () => {
       patient_id: String(raw.patient_id || ''),
       org_id: String(raw.organization_id || raw.org_id || ''),
       clinic_id: String(raw.clinic_id || ''),
-      clinic_name: raw.clinic_name || clinics.find(c => String(c.id) === String(raw.clinic_id))?.clinic_name || '',
-      appointment_date: toIsoDate(raw.appointment_date || raw.startUTC) || today,
-      custom_start_date: toIsoDate(raw.recurrence?.startDate || raw.appointment_date || raw.startUTC) || today,
-      custom_end_date: toIsoDate(raw.recurrence?.endDate) || '',
-      booking_mode: raw.metadata?.booking_mode || raw.metadata?.slot_type || 'continuous',
-      start_time: raw.start_time || (raw.startUTC ? String(raw.startUTC).split('T')[1]?.slice(0, 5) : ''),
-      end_time: raw.end_time || '',
+      clinic_name: raw.clinic_name || clinicMatch?.clinic_name || clinicMatch?.name || '',
+      appointment_date: appointmentDate,
+      custom_start_date: toIsoDate(parsed.recurrence?.startDate || raw.appointment_date) || appointmentDate,
+      custom_end_date: toIsoDate(parsed.recurrence?.endDate) || '',
+      booking_mode: parsed.bookingMode || 'continuous',
+      start_time: startTime,
+      end_time: endTime,
       appointment_type: raw.appointment_type || raw.treatment_type || 'in_clinic',
       doctor_id: doctorId,
-      is_emergency: Boolean(raw.is_emergency),
+      is_emergency: Boolean(raw.is_emergency || raw.isEmergency),
       reason,
-      patient_ailments: displayAilments,
+      patient_ailments: parsed.ailments,
       slotTemplates,
       total_amount: totalAmount,
       amount_paid: amountPaid,
-      payment_option: amountPaid >= totalAmount ? 'full' : 'partial',
+      payment_option: totalAmount > 0 && amountPaid >= totalAmount ? 'full' : 'partial',
       payment_method: String(paymentMethod).toLowerCase(),
       receipt_file: null,
-      duration: metadata.dialysisDuration || '4',
+      duration,
+      status: raw.status || apt.status || 'SCHEDULED',
     });
 
-    const fetchedServices = (raw.services || []).map((s, idx) => ({
-      name: s.service_name || s.name,
-      price: s.amount || s.price,
-      discount: s.discount || 0,
-      service_id: s.service_id || s.id,
-      id: s.id,
-      ui_key: `old-${idx}`
-    }));
-    
     setAddedServices(fetchedServices);
     setCreateStep(1);
     setIsEditOpen(true);
@@ -1358,9 +1438,32 @@ const DialysisAppointments = () => {
       // ---- Step 1: Create Appointments First ----
       let result;
       if (isEditOpen) {
+        const editStart = toIsoTime(createForm.start_time || createForm.slotTemplates[0]?.startTime) || '09:00';
+        const editEnd = toIsoTime(createForm.end_time || createForm.slotTemplates[0]?.endTime)
+          || addMinutesToTime(editStart, Number(createForm.duration || 4) * 60);
         result = await updateAppointment(createForm.id, {
-          ...payload,
-          patient_ailments: createForm.patient_ailments,
+          appointment_date: createForm.appointment_date,
+          start_time: editStart.length === 5 ? `${editStart}:00` : editStart,
+          end_time: editEnd.length === 5 ? `${editEnd}:00` : editEnd,
+          clinic_id: createForm.clinic_id || null,
+          organization_id: createForm.org_id || null,
+          primary_doctor_id: createForm.doctor_id || null,
+          reason: createForm.reason,
+          amountDue: Number(createForm.total_amount || 0),
+          services: addedServices
+            .filter((s) => String(s.status || 'PENDING').toUpperCase() !== 'USED')
+            .map((s) => ({
+              ...s,
+              amount: Number(s.price) - (Number(s.price) * Number(s.discount || 0) / 100),
+            })),
+          metadata: {
+            notes: servicesSummary,
+            notes_brief: createForm.reason,
+            patientAilments: createForm.patient_ailments,
+            services: addedServices,
+            dialysisDuration: createForm.duration,
+            booking_mode: createForm.booking_mode,
+          },
         });
       } else {
         result = await createAppointment(payload);
@@ -2244,7 +2347,7 @@ const DialysisAppointments = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                               {createForm.slotTemplates.map((s, i) => (
                                 <span key={i} style={{ fontSize: '12px' }}>
-                                  {s.date ? formatDateDisplay(s.date) : s.daysOfWeek[0]} {s.startTime}-{s.endTime} ({s.frequency.replace('-', ' ')})
+                                  {s.date ? formatDateDisplay(s.date) : (s.daysOfWeek?.[0] || '—')} {s.startTime}-{s.endTime} ({String(s.frequency || 'weekly').replace('-', ' ')})
                                 </span>
                               ))}
                               <span style={{ fontSize: '11px', color: '#6B7280' }}>
@@ -2297,6 +2400,7 @@ const DialysisAppointments = () => {
                       <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '12px' }}>
                         Payment
                       </div>
+                      {!isEditOpen && (
                       <FormControl>
                         <FormLabel>How many sessions do you want to pay for?</FormLabel>
                         <select
@@ -2311,6 +2415,7 @@ const DialysisAppointments = () => {
                           ))}
                         </select>
                       </FormControl>
+                      )}
                       
                       <div
                         style={{
@@ -2325,7 +2430,7 @@ const DialysisAppointments = () => {
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '13px', color: '#1E3A8A' }}>Amount to Pay Now</span>
+                          <span style={{ fontSize: '13px', color: '#1E3A8A' }}>{isEditOpen ? 'Amount Received' : 'Amount to Pay Now'}</span>
                           <span style={{ fontSize: '18px', fontWeight: 800, color: '#1D4ED8' }}>
                             ₹{Number(createForm.amount_paid || 0).toLocaleString()}
                           </span>
