@@ -10,19 +10,52 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   getPatientDetails,
-  getPatientLatestPrescription,
   getPatientDialyzerStatus,
+  getPatientStandingOrder,
+  getSessionSettings,
+  putPatientDryWeight,
+  putSessionSettings,
   submitSessionVerification,
   submitSessionConsumables,
 } from '../ApiCalls/preDialysisApis';
 import { calculateAge, formatDate } from './usePatientSummary';
 import { notifyError, notifySuccess } from '../helpers/notify';
-import { liveValue, MISSING, unwrapList, unwrapRecord, formatIst } from '../pages/dialysis/p2Runtime';
+import { MISSING, unwrapList, unwrapRecord, formatIst } from '../pages/dialysis/p2Runtime';
 import { loadP2Draft, saveP2Draft } from '../pages/dialysis/p2DraftCache';
 
-// Parked: no dialysis standing-order table exists yet (old `prescriptions` is a PDF/note).
-// P2-04 must not block Continue on a missing prescription until that source is built.
-export const PRESCRIPTION_GATE_ENABLED = false;
+const EMPTY_TODAY_SETTINGS = {
+  dialyzer: '',
+  bfr_ml_min: '',
+  dfr_ml_min: '',
+  duration_hours: '',
+  dialysate_temp: '',
+  na: '',
+  k: '',
+  bicarbonate: '',
+  out_of_range_reason: '',
+  source: 'manual',
+};
+
+function asInput(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return '';
+  return String(value);
+}
+
+function settingsFromRow(row) {
+  if (!row) return { ...EMPTY_TODAY_SETTINGS };
+  return {
+    dialyzer: asInput(row.dialyzer),
+    bfr_ml_min: asInput(row.bfr_ml_min),
+    dfr_ml_min: asInput(row.dfr_ml_min),
+    duration_hours: asInput(row.duration_hours),
+    dialysate_temp: asInput(row.dialysate_temp),
+    na: asInput(row.na),
+    k: asInput(row.k),
+    bicarbonate: asInput(row.bicarbonate),
+    out_of_range_reason: asInput(row.out_of_range_reason),
+    source: row.source || 'manual',
+  };
+}
 
 export const VERIFICATION_STEPS_7 = [
   { id: 1, key: 'verification', name: 'Patient Verification', code: 'P2-04' },
@@ -129,27 +162,16 @@ const normalizeInfectionStatus = (raw) => {
   return INFECTION_STATUS.PENDING;
 };
 
-const pickPrescription = (payload) => {
-  if (!payload) return null;
-  if (payload.prescription !== undefined) return payload.prescription || null;
-  const nested = unwrapRecord(payload, ['prescription']);
-  if (nested && (nested.has_active_prescription_today === false || nested.prescription === null)) {
-    return nested.prescription || null;
-  }
-  if (nested && (nested.id || nested.uf_goal || nested.blood_flow_rate || nested.Prescription)) {
-    return nested;
-  }
-  return null;
-};
-
 export default function usePatientVerification(patientId, rawSessionId, assignmentHint = null) {
   const activeSessionId = rawSessionId && String(rawSessionId).trim() !== '' ? String(rawSessionId) : '';
 
   const [patientRaw, setPatientRaw] = useState(null);
-  const [prescriptionRaw, setPrescriptionRaw] = useState(null);
+  const [standingOrder, setStandingOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [dryWeightInput, setDryWeightInput] = useState('');
+  const [todaySettings, setTodaySettings] = useState(EMPTY_TODAY_SETTINGS);
 
   const [identityMatches, setIdentityMatches] = useState(EMPTY_IDENTITY);
   const [verificationMethods, setVerificationMethods] = useState(EMPTY_METHODS);
@@ -179,9 +201,10 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     setError(null);
 
     try {
-      const [patientRes, rxRes, dialyzerRes, draft] = await Promise.all([
+      const [patientRes, orderRes, settingsRes, dialyzerRes, draft] = await Promise.all([
         getPatientDetails(patientId),
-        getPatientLatestPrescription(patientId),
+        getPatientStandingOrder(patientId),
+        getSessionSettings(activeSessionId),
         getPatientDialyzerStatus(patientId),
         loadP2Draft(activeSessionId, 'P2-04'),
       ]);
@@ -194,7 +217,13 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
 
       const patientData = unwrapRecord(patientRes.data, ['patient']) || patientRes.data;
       setPatientRaw(patientData);
-      setPrescriptionRaw(rxRes?.success ? rxRes.data : null);
+      const order = orderRes?.success ? (orderRes.data || null) : null;
+      setStandingOrder(order);
+      setDryWeightInput(asInput(order?.dry_weight || patientData?.dry_weight));
+      const settingsPayload = settingsRes?.success ? settingsRes.data : null;
+      const nextSettings = settingsFromRow(settingsPayload?.settings || settingsPayload?.prefill);
+      if (settingsPayload?.prefill && !settingsPayload?.settings) nextSettings.source = 'last_session';
+      setTodaySettings(nextSettings);
 
       const hivFromPatient = normalizeInfectionStatus(
         patientData?.hiv_status || patientRes.data?.hiv_status
@@ -242,6 +271,8 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
         if (draftPayload.infectionState) setInfectionState((prev) => ({ ...prev, ...draftPayload.infectionState }));
         if (draftPayload.consumablesState) setConsumablesState((prev) => ({ ...prev, ...draftPayload.consumablesState }));
         if (typeof draftPayload.notesText === 'string') setNotesText(draftPayload.notesText);
+        if (draftPayload.dryWeightInput != null) setDryWeightInput(asInput(draftPayload.dryWeightInput));
+        if (draftPayload.todaySettings) setTodaySettings((prev) => ({ ...prev, ...draftPayload.todaySettings }));
       } else {
         setIdentityMatches(EMPTY_IDENTITY);
         setVerificationMethods(EMPTY_METHODS);
@@ -290,7 +321,7 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
       gender,
       phone: p.phone_no || p.number || p.phone || p.phone_number || p.mobile_no || MISSING,
       bloodGroup: p.blood_group || p.bloodGroup || MISSING,
-      dryWeight: p.dry_weight || p.dryWeight || MISSING,
+      dryWeight: standingOrder?.dry_weight || p.dry_weight || p.dryWeight || MISSING,
       status: p.patient_status || p.status || MISSING,
       schedule: p.last_dialysis_date ? formatDate(p.last_dialysis_date) : MISSING,
       shift: assignment.shift || p.shift_time || MISSING,
@@ -304,51 +335,11 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
         technician: assignment.technician || MISSING,
       },
     };
-  }, [patientRaw, patientId, assignment]);
+  }, [patientRaw, patientId, assignment, standingOrder]);
 
-  const prescriptionDetails = useMemo(() => {
-    const rx = pickPrescription(prescriptionRaw);
-    if (!rx) {
-      return {
-        hasPrescription: false,
-        valid: false,
-        physician: MISSING,
-        prescriptionDate: MISSING,
-        dialysisType: MISSING,
-        prescribedDuration: MISSING,
-        bfr: MISSING,
-        dfr: MISSING,
-        dialysateTemp: MISSING,
-        ufGoal: MISSING,
-        heparin: MISSING,
-        dialysateComposition: {
-          potassium: MISSING,
-          calcium: MISSING,
-          sodium: MISSING,
-          bicarbonate: MISSING,
-        },
-      };
-    }
-    return {
-      hasPrescription: true,
-      valid: true,
-      physician: liveValue(rx.doctor_name || rx.physician || rx.prescriptionGivenBy),
-      prescriptionDate: rx.updated_at || rx.Date || rx.created_at ? formatDate(rx.updated_at || rx.Date || rx.created_at) : MISSING,
-      dialysisType: liveValue(rx.dialysis_type),
-      prescribedDuration: liveValue(rx.dialysis_time || rx.duration || rx.prescribed_duration_mins),
-      bfr: liveValue(rx.blood_flow_rate || rx.bfr),
-      dfr: liveValue(rx.dialysate_flow_rate || rx.dfr),
-      dialysateTemp: liveValue(rx.dialysate_temp),
-      ufGoal: liveValue(rx.uf_goal || rx.uf_goal_ml || rx.target_uf),
-      heparin: liveValue(rx.heparin),
-      dialysateComposition: {
-        potassium: liveValue(rx.potassium || rx.k),
-        calcium: liveValue(rx.calcium),
-        sodium: liveValue(rx.sodium || rx.na),
-        bicarbonate: liveValue(rx.bicarbonate || rx.hco3),
-      },
-    };
-  }, [prescriptionRaw]);
+  const heparinLabel = standingOrder?.heparin?.label || MISSING;
+  const dryWeightValid = Number.isFinite(Number(dryWeightInput)) && Number(dryWeightInput) >= 20 && Number(dryWeightInput) <= 200;
+  const durationValid = Number.isFinite(Number(todaySettings.duration_hours)) && Number(todaySettings.duration_hours) > 0;
 
   const handleInfectionEnterNow = (newHiv, newHep) => {
     setInfectionState({
@@ -388,10 +379,7 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     infectionState.actioned
   );
   const consumablesValid = checkConsumablesValid(consumablesState);
-  const prescriptionValid = Boolean(prescriptionDetails.valid);
-  const canProceed = identityValid && methodValid && infectionValid && consumablesValid && (
-    PRESCRIPTION_GATE_ENABLED ? prescriptionValid : true
-  );
+  const canProceed = identityValid && methodValid && infectionValid && consumablesValid && dryWeightValid && durationValid;
 
   const currentDraft = useMemo(() => ({
     identityMatches,
@@ -399,7 +387,13 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     infectionState,
     consumablesState,
     notesText,
-  }), [identityMatches, verificationMethods, infectionState, consumablesState, notesText]);
+    dryWeightInput,
+    todaySettings,
+  }), [identityMatches, verificationMethods, infectionState, consumablesState, notesText, dryWeightInput, todaySettings]);
+
+  const updateTodaySettings = (updates) => {
+    setTodaySettings((prev) => ({ ...prev, ...updates, source: 'manual' }));
+  };
 
   const saveDraft = useCallback(async () => {
     if (!activeSessionId) {
@@ -416,7 +410,6 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
         identity_dob_match: identityMatches.dobMatched,
         identity_pid_match: identityMatches.pidMatched,
         identity_phone_match: identityMatches.phoneMatched,
-        ...(PRESCRIPTION_GATE_ENABLED || prescriptionValid ? { prescription_valid: prescriptionValid } : {}),
         hiv_status: infectionState.hivStatus,
         hepatitis_status: infectionState.hepatitisStatus,
         hiv_skipped: infectionState.skipped,
@@ -435,7 +428,7 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     } finally {
       setSaving(false);
     }
-  }, [activeSessionId, currentDraft, identityValid, identityMatches, prescriptionValid, infectionState, notesText]);
+  }, [activeSessionId, currentDraft, identityValid, identityMatches, infectionState, notesText]);
 
   const submitFinal = useCallback(async () => {
     if (!canProceed) return false;
@@ -445,6 +438,31 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     }
     setSaving(true);
     try {
+      const dryRes = await putPatientDryWeight(patientId, {
+        dry_weight: Number(dryWeightInput),
+        session_id: activeSessionId,
+      });
+      if (!dryRes?.success) {
+        notifyError(dryRes?.message || 'Dry weight could not be saved');
+        return false;
+      }
+      setStandingOrder(dryRes.data || standingOrder);
+
+      const settingsRes = await putSessionSettings(activeSessionId, {
+        ...todaySettings,
+        duration_hours: Number(todaySettings.duration_hours),
+        bfr_ml_min: todaySettings.bfr_ml_min === '' ? null : Number(todaySettings.bfr_ml_min),
+        dfr_ml_min: todaySettings.dfr_ml_min === '' ? null : Number(todaySettings.dfr_ml_min),
+        dialysate_temp: todaySettings.dialysate_temp === '' ? null : Number(todaySettings.dialysate_temp),
+        na: todaySettings.na === '' ? null : Number(todaySettings.na),
+        k: todaySettings.k === '' ? null : Number(todaySettings.k),
+        bicarbonate: todaySettings.bicarbonate === '' ? null : Number(todaySettings.bicarbonate),
+      });
+      if (!settingsRes?.success) {
+        notifyError(settingsRes?.message || 'Today\'s settings could not be saved');
+        return false;
+      }
+
       const verificationRes = await submitSessionVerification(activeSessionId, {
         status: 'final',
         identity_matched: identityValid,
@@ -452,7 +470,6 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
         identity_dob_match: identityMatches.dobMatched,
         identity_pid_match: identityMatches.pidMatched,
         identity_phone_match: identityMatches.phoneMatched,
-        ...(PRESCRIPTION_GATE_ENABLED || prescriptionValid ? { prescription_valid: prescriptionValid } : {}),
         hiv_status: infectionState.hivStatus,
         hepatitis_status: infectionState.hepatitisStatus,
         hiv_skipped: infectionState.skipped,
@@ -496,16 +513,24 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     activeSessionId,
     identityValid,
     identityMatches,
-    prescriptionValid,
     infectionState,
     notesText,
     consumablesState,
     currentDraft,
+    patientId,
+    dryWeightInput,
+    todaySettings,
+    standingOrder,
   ]);
 
   return {
     patientDetails,
-    prescriptionDetails,
+    standingOrder,
+    heparinLabel,
+    dryWeightInput,
+    setDryWeightInput,
+    todaySettings,
+    updateTodaySettings,
     identityMatches,
     setIdentityMatches,
     verificationMethods,
@@ -520,7 +545,8 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     identityValid,
     infectionValid,
     consumablesValid,
-    prescriptionValid,
+    dryWeightValid,
+    durationValid,
     canProceed,
     loading,
     saving,

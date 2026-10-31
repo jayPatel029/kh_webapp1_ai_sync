@@ -12,7 +12,8 @@ import {
   getPatientDetails,
   getPatientLatestVitals,
   getPatientAlerts,
-  getPatientLatestPrescription,
+  getPatientStandingOrder,
+  getSessionSettings,
   submitSessionVitals,
 } from '../ApiCalls/preDialysisApis';
 import { notifyError, notifySuccess } from '../helpers/notify';
@@ -248,6 +249,9 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
   const [patientRaw, setPatientRaw] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [previousVitals, setPreviousVitals] = useState(null);
+  const [plannedDurationHours, setPlannedDurationHours] = useState(null);
+  const [heparinDoseUnits, setHeparinDoseUnits] = useState(null);
+  const [heparinConcentration, setHeparinConcentration] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -272,11 +276,12 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
     setError(null);
 
     try {
-      const [patientRes, vitalsRes, alertsRes, rxRes, draft] = await Promise.all([
+      const [patientRes, vitalsRes, alertsRes, orderRes, settingsRes, draft] = await Promise.all([
         getPatientDetails(patientId),
         getPatientLatestVitals(patientId),
         getPatientAlerts(patientId),
-        getPatientLatestPrescription(patientId),
+        getPatientStandingOrder(patientId),
+        getSessionSettings(activeSessionId),
         loadP2Draft(activeSessionId, 'P2-05'),
       ]);
 
@@ -302,13 +307,17 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
       setPreviousVitals(mapPreviousVitals(previousRow));
       setAlerts(alertsRes?.success ? normalizeAlertsList(alertsRes.data) : []);
 
-      const prescription = rxRes?.success
-        ? (rxRes.data?.prescription || unwrapRecord(rxRes.data, ['prescription']))
+      const order = orderRes?.success ? orderRes.data : null;
+      const settings = settingsRes?.success
+        ? (settingsRes.data?.settings || settingsRes.data?.prefill)
         : null;
+      setPlannedDurationHours(settings?.duration_hours != null ? Number(settings.duration_hours) : null);
+      setHeparinDoseUnits(order?.heparin?.bolus_iu != null ? Number(order.heparin.bolus_iu) : null);
+      setHeparinConcentration(order?.heparin?.concentration_iu_ml != null ? Number(order.heparin.concentration_iu_ml) : null);
       const nextForm = {
         ...EMPTY_FORM,
         measurementTime: formatIst(new Date()),
-        edw: pickEdw(patientData, prescription),
+        edw: pickEdw(patientData, { edw: order?.dry_weight }),
         lastPostWeight: pickLastPostWeight(patientData, previousRow),
         lastPostWeightAt: previousRow?.recorded_at || patientData?.last_dialysis_date || '',
         ...(vitalsBelongToThisSession ? vitalsFromRow(vitalsPayload) : {}),
@@ -415,11 +424,14 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
       notes: formState.notes ? String(formState.notes).slice(0, 200) : '',
       kt_v_assessment_flag: Boolean(formState.ktvChecked),
       pre_dialysis_bun: formState.ktvChecked ? optionalNumber(formState.preDialysisBun) : undefined,
+      heparin_dose_units: heparinDoseUnits,
+      heparin_concentration: heparinConcentration,
+      treatment_duration_hours: plannedDurationHours,
       skips,
     };
     if (weightGain !== MISSING) payload.weight_gain = optionalNumber(weightGain);
     return payload;
-  }, [formState, weightGain]);
+  }, [formState, weightGain, heparinDoseUnits, heparinConcentration, plannedDurationHours]);
 
   const saveDraft = useCallback(async () => {
     if (!activeSessionId) {
@@ -500,5 +512,6 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
     refresh: loadVitalsData,
     saveDraft,
     submitFinal,
+    plannedDurationHours,
   };
 }

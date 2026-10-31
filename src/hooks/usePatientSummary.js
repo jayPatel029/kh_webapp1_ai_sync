@@ -19,13 +19,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   getPatientDetails,
-  getPatientLatestPrescription,
-  getPatientLatestVitals,
-  getPatientLatestLabs,
-  getPatientNotes,
-  proceedPatientToPredialysis,
+  getPatientStandingOrder,
 } from '../ApiCalls/preDialysisApis';
-import { getPatientById, getHemoDialysisParameters } from '../ApiCalls';
 import { notifyError } from '../helpers/notify';
 import { ALERT_SEVERITY } from '../pages/dialysis/dialysisQueueConstants';
 
@@ -145,25 +140,18 @@ export function normalizePatientBanner(patientInput) {
 }
 
 /**
- * Normalize prescription parameters from getHemoDialysisParameters.
+ * Normalize standing order (dry weight + heparin) for P2-02.
  */
-export function normalizePrescription(params) {
-  if (!params || (Array.isArray(params) && params.length === 0)) {
-    return null;
-  }
-
-  // params may be an array of parameter objects or a single object
-  const data = Array.isArray(params) ? params[0] : params;
-  if (!data) return null;
-
+export function normalizePrescription(order) {
+  if (!order) return null;
+  const dryWeight = order.dry_weight;
+  if (dryWeight == null && !order.heparin) return null;
   return {
-    dialyzer: data.dialyzer || data.dialyzer_type || data.Dialyzer || '—',
-    bloodFlowRate: data.blood_flow_rate || data.bloodFlowRate || data['Blood Flow Rate'] || '—',
-    dialysateFlowRate: data.dialysate_flow_rate || data.dialysateFlowRate || data['Dialysate Flow Rate'] || '—',
-    dialysisTime: data.dialysis_time || data.dialysisTime || data['Dialysis Time'] || '—',
-    heparin: data.heparin || data.Heparin || '—',
-    lastUpdated: formatDate(data.updated_at || data.updatedAt || data.created_at),
-    updatedBy: data.updated_by_name || data.updatedBy || data.doctor_name || '—',
+    dryWeight: dryWeight != null ? `${dryWeight} kg` : '—',
+    heparin: order.heparin?.label || '—',
+    lastUpdated: formatDate(order.dry_weight_updated_at),
+    updatedBy: order.dry_weight_updated_by || '—',
+    hasDryWeight: dryWeight != null,
   };
 }
 
@@ -287,9 +275,9 @@ export default function usePatientSummary(patientId) {
     setError(null);
 
     try {
-      const [patientResult, prescriptionResult] = await Promise.all([
-        getPatientById(patientId),
-        getHemoDialysisParameters(patientId),
+      const [patientResult, orderResult] = await Promise.all([
+        getPatientDetails(patientId),
+        getPatientStandingOrder(patientId),
       ]);
 
       if (!patientResult.success) {
@@ -305,13 +293,7 @@ export default function usePatientSummary(patientId) {
       setLabs(normalizeLabs(patient));
       setAlerts(normalizeAlerts(patient));
       setNotes(normalizeNotes(patient));
-
-      if (prescriptionResult.success) {
-        const prescData = prescriptionResult.data?.data || prescriptionResult.data;
-        setPrescription(normalizePrescription(prescData));
-      } else {
-        setPrescription(null);
-      }
+      setPrescription(orderResult?.success ? normalizePrescription(orderResult.data) : null);
     } catch (err) {
       setError(err.message || 'An error occurred loading patient summary');
       notifyError(err.message || 'Failed to load patient summary');
@@ -324,8 +306,7 @@ export default function usePatientSummary(patientId) {
     fetchSummary();
   }, [fetchSummary]);
 
-  /** Spec: Proceed disabled when no active prescription exists for today. */
-  const hasActivePrescription = Boolean(prescription);
+  const hasActivePrescription = Boolean(prescription?.hasDryWeight);
 
   return {
     patientBanner,

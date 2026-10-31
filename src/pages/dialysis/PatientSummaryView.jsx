@@ -210,22 +210,18 @@ const PatientSummaryView = ({ patientId, appointment, onBackToQueue, onProceedTo
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
       {/* Row 1 — Prescription + Vitals */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '18px' }}>
-        {/* Current Prescription */}
-        <SectionCard title="Current Prescription">
-          {prescription ? (
+        <SectionCard title="Dry Weight and Heparin">
+          {prescription?.hasDryWeight ? (
             <>
-              <KVRow label="Dialyzer" value={prescription.dialyzer} />
-              <KVRow label="Blood Flow Rate" value={prescription.bloodFlowRate} />
-              <KVRow label="Dialysate Flow Rate" value={prescription.dialysateFlowRate} />
-              <KVRow label="Dialysis Time" value={prescription.dialysisTime} />
+              <KVRow label="Dry Weight" value={prescription.dryWeight} />
               <KVRow label="Heparin" value={prescription.heparin} />
               <div style={{ marginTop: '14px', fontSize: '12px', color: '#64748b' }}>
-                Last Updated: {prescription.lastUpdated || '—'} by {prescription.updatedBy || '—'}
+                Last Updated: {prescription.lastUpdated || '—'}
               </div>
             </>
           ) : (
             <div style={{ padding: '24px 0', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
-              No active prescription found
+              Dry weight not on record
             </div>
           )}
         </SectionCard>
@@ -578,7 +574,7 @@ const PatientSummaryView = ({ patientId, appointment, onBackToQueue, onProceedTo
                 disabled={!hasActivePrescription}
                 title={
                   !hasActivePrescription
-                    ? 'Cannot proceed — no active prescription found for this patient'
+                    ? 'Cannot proceed — Dry weight not on record'
                     : 'Proceed to Pre-Dialysis Dashboard'
                 }
                 style={{

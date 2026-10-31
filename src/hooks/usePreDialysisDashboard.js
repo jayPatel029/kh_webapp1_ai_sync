@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getPatientDetails,
-  getPatientLatestPrescription,
+  getSessionSettings,
   getPatientLatestVitals,
   getPatientNotes,
   getPatientAlerts,
@@ -312,19 +312,12 @@ export const normalizeLatestVitals = (vitalsInput) => {
   };
 };
 
-export const normalizePreDialysisSummary = (prescription) => {
-  let rx = null;
-  if (prescription?.prescription !== undefined) {
-    rx = prescription.prescription;
-  } else if (prescription && typeof prescription === 'object') {
-    rx = unwrapRecord(prescription, ['prescription']);
-    if (rx && (rx.prescription === null || rx.has_active_prescription_today === false)) {
-      rx = rx.prescription || null;
-    }
-  }
-  if (!rx || typeof rx !== 'object') {
+export const normalizePreDialysisSummary = (settingsPayload, vitalsPayload) => {
+  const settings = settingsPayload?.settings || settingsPayload?.prefill || settingsPayload || null;
+  const ufGoal = vitalsPayload?.uf_goal_ml;
+  if (!settings || typeof settings !== 'object') {
     return {
-      targetUfGoal: MISSING,
+      targetUfGoal: liveValue(ufGoal),
       expectedTreatmentTime: MISSING,
       bfr: MISSING,
       dfr: MISSING,
@@ -336,15 +329,15 @@ export const normalizePreDialysisSummary = (prescription) => {
     };
   }
   return {
-    targetUfGoal: liveValue(rx.uf_goal || rx.uf_goal_ml || rx.target_uf),
-    expectedTreatmentTime: liveValue(rx.dialysis_time || rx.dialysisTime || rx.duration || rx.prescribed_duration_mins),
-    bfr: liveValue(rx.blood_flow_rate || rx.bloodFlowRate || rx.bfr),
-    dfr: liveValue(rx.dialysate_flow_rate || rx.dialysateFlowRate || rx.dfr),
-    dialysateTemp: liveValue(rx.dialysate_temp || rx.dialysateTemperature),
-    na: liveValue(rx.na || rx.sodium),
-    k: liveValue(rx.k || rx.potassium),
-    bicarbonate: liveValue(rx.bicarbonate || rx.hco3),
-    hasPrescription: true,
+    targetUfGoal: liveValue(ufGoal),
+    expectedTreatmentTime: liveValue(settings.duration_hours, ' h'),
+    bfr: liveValue(settings.bfr_ml_min, ' mL/min'),
+    dfr: liveValue(settings.dfr_ml_min, ' mL/min'),
+    dialysateTemp: liveValue(settings.dialysate_temp, ' °C'),
+    na: liveValue(settings.na),
+    k: liveValue(settings.k),
+    bicarbonate: liveValue(settings.bicarbonate),
+    hasPrescription: Boolean(settings.duration_hours),
   };
 };
 
@@ -426,7 +419,7 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
         sessionRes,
       ] = await Promise.all([
         getPatientDetails(resolvedPatientId),
-        getPatientLatestPrescription(resolvedPatientId),
+        getSessionSettings(activeSessionId),
         getPatientLatestVitals(resolvedPatientId),
         getPatientAlerts(resolvedPatientId),
         getPatientNotes(resolvedPatientId),
@@ -526,8 +519,8 @@ export default function usePreDialysisDashboard(patientId, userRole = 'Dialysis 
 
   const latestVitals = useMemo(() => normalizeLatestVitals(vitalsRaw), [vitalsRaw]);
   const preDialysisSummary = useMemo(
-    () => normalizePreDialysisSummary(prescriptionRaw),
-    [prescriptionRaw]
+    () => normalizePreDialysisSummary(prescriptionRaw, vitalsRaw),
+    [prescriptionRaw, vitalsRaw]
   );
   const alerts = useMemo(() => normalizeAlertsList(alertsRaw), [alertsRaw]);
 

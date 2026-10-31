@@ -126,6 +126,7 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
     refresh,
     saveDraft,
     submitFinal,
+    plannedDurationHours,
   } = useVitalsMeasurements(patientId, effectiveSessionId);
 
   const handleBackClick = () => {
@@ -547,6 +548,12 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                 </div>
 
                 {/* Form Status Info Banner */}
+                {plannedDurationHours == null || Number.isNaN(Number(plannedDurationHours)) ? (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '12px 16px', color: '#92400e', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <span>⚠</span>
+                    <span>Enter planned duration.</span>
+                  </div>
+                ) : null}
                 {!mandatoryFilled ? (
                   <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '12px 16px', color: '#1e40af', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>ℹ</span>
@@ -621,7 +628,7 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#64748b' }}>UF Goal</span>
-                    <strong>As prescribed</strong>
+                    <strong>From today's settings</strong>
                   </div>
                 </div>
               </div>

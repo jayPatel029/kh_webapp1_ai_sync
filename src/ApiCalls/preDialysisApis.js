@@ -83,6 +83,68 @@ export async function getPatientDetails(patientId, config = {}) {
 }
 
 /**
+ * Standing order: GET /api/dt/patients/:id/standing-order
+ */
+export async function getPatientStandingOrder(patientId, config = {}) {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/dt/patients/${patientId}/standing-order`,
+      config
+    );
+    return handleResponse(response);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
+ * Standing order: PUT /api/dt/patients/:id/dry-weight
+ */
+export async function putPatientDryWeight(patientId, payload = {}, config = {}) {
+  try {
+    const response = await axiosInstance.put(
+      `${server_url}/dt/patients/${patientId}/dry-weight`,
+      payload,
+      config
+    );
+    return handleResponse(response);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
+ * Today's settings: GET /api/dt/sessions/:id/settings
+ */
+export async function getSessionSettings(sessionId, config = {}) {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/dt/sessions/${sessionId}/settings`,
+      config
+    );
+    return handleResponse(response);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
+ * Today's settings: PUT /api/dt/sessions/:id/settings
+ */
+export async function putSessionSettings(sessionId, payload = {}, config = {}) {
+  try {
+    const response = await axiosInstance.put(
+      `${server_url}/dt/sessions/${sessionId}/settings`,
+      payload,
+      config
+    );
+    return handleResponse(response);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
  * P2-02: GET /api/dt/patients/:id/prescriptions/latest
  */
 export async function getPatientLatestPrescription(patientId, config = {}) {
@@ -479,6 +541,10 @@ export default {
   getTodaySessions,
   markSessionEmergency,
   getPatientDetails,
+  getPatientStandingOrder,
+  putPatientDryWeight,
+  getSessionSettings,
+  putSessionSettings,
   getPatientLatestPrescription,
   getPatientLatestVitals,
   getPatientLatestLabs,

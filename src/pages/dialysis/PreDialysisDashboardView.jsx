@@ -503,15 +503,8 @@ const PreDialysisDashboardView = ({
                 <div style={SECTION_HEADER_STYLE}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                     <TaskAltOutlinedIcon aria-hidden="true" sx={{ color: '#2563eb', fontSize: 20 }} />
-                    Pre-Dialysis Summary
+                    Today's Settings
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleBackClick}
-                    style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    View Prescription →
-                  </button>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
@@ -541,7 +534,7 @@ const PreDialysisDashboardView = ({
                   </div>
                   {!preDialysisSummary.hasPrescription ? (
                     <div style={{ fontSize: '12px', color: '#b45309', marginTop: '4px' }}>
-                      No prescription on file for this patient.
+                      Enter planned duration on patient verification.
                     </div>
                   ) : null}
                 </div>

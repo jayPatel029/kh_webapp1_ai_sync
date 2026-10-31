@@ -188,7 +188,11 @@ const PatientVerificationView = ({
 
   const {
     patientDetails,
-    prescriptionDetails,
+    heparinLabel,
+    dryWeightInput,
+    setDryWeightInput,
+    todaySettings,
+    updateTodaySettings,
     identityMatches,
     setIdentityMatches,
     verificationMethods,
@@ -201,6 +205,8 @@ const PatientVerificationView = ({
     notesText,
     setNotesText,
     identityValid,
+    dryWeightValid,
+    durationValid,
     canProceed,
     loading,
     saving,
@@ -621,114 +627,105 @@ const PatientVerificationView = ({
           </div>
 
           {/* ----------------------------------------------------------------- */}
-          {/* Card 3: Verify Prescription                                       */}
+          {/* Card 3: Prescription (dry weight + heparin)                       */}
           {/* ----------------------------------------------------------------- */}
           <div style={{ ...CARD_STYLE, marginBottom: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={SECTION_HEADER_STYLE}>3. Verify Prescription</div>
-                <div style={SECTION_SUBTITLE_STYLE}>Confirm prescription details for today's dialysis.</div>
+                <div style={SECTION_HEADER_STYLE}>3. Prescription</div>
+                <div style={SECTION_SUBTITLE_STYLE}>Dry weight and heparin for this patient.</div>
               </div>
               <span
                 style={{
-                  background: prescriptionDetails.valid ? '#dcfce7' : '#fef3c7',
-                  color: prescriptionDetails.valid ? '#15803d' : '#b45309',
+                  background: dryWeightValid ? '#dcfce7' : '#fef3c7',
+                  color: dryWeightValid ? '#15803d' : '#b45309',
                   padding: '4px 12px',
                   borderRadius: '9999px',
                   fontSize: '12px',
                   fontWeight: 700,
                 }}
               >
-                {prescriptionDetails.valid ? 'Valid' : 'Deferred'}
+                {dryWeightValid ? 'On record' : 'Dry weight not on record'}
               </span>
             </div>
 
-            {/* Prescription Details Grid */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+                gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
                 gap: '16px',
                 fontSize: '13px',
                 color: '#334155',
-                marginBottom: '20px',
               }}
             >
               <div>
-                <span style={{ color: '#64748b' }}>Physician:</span> <strong>{prescriptionDetails.physician}</strong>
+                <label style={{ display: 'block', color: '#64748b', marginBottom: '4px' }}>Dry Weight (kg)*</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={dryWeightInput}
+                  onChange={(e) => setDryWeightInput(e.target.value)}
+                  placeholder="e.g. 62.5"
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700 }}
+                />
               </div>
               <div>
-                <span style={{ color: '#64748b' }}>Prescription Date:</span> <strong>{prescriptionDetails.prescriptionDate}</strong>
+                <div style={{ color: '#64748b', marginBottom: '4px' }}>Heparin</div>
+                <strong>{heparinLabel}</strong>
               </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Dialysis Type:</span> <strong>{prescriptionDetails.dialysisType}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Prescribed Duration:</span> <strong>{prescriptionDetails.prescribedDuration}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Blood Flow Rate (BFR):</span> <strong>{prescriptionDetails.bfr}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Dialysate Flow Rate (DFR):</span> <strong>{prescriptionDetails.dfr}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Dialysate Temperature:</span> <strong>{prescriptionDetails.dialysateTemp}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Ultrafiltration Goal:</span> <strong style={{ color: '#2563eb' }}>{prescriptionDetails.ufGoal}</strong>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Heparin:</span> <strong>{prescriptionDetails.heparin}</strong>
-              </div>
-            </div>
-
-            {/* Dialysate Composition Row */}
-            <div
-              style={{
-                background: '#f8fafc',
-                borderRadius: '10px',
-                padding: '12px 16px',
-                border: '1px solid #f1f5f9',
-                fontSize: '13px',
-                color: '#334155',
-                marginBottom: '16px',
-              }}
-            >
-              <strong style={{ color: '#0f172a' }}>Dialysate Composition:</strong>{' '}
-              Potassium: <strong>{prescriptionDetails.dialysateComposition.potassium}</strong> · Calcium:{' '}
-              <strong>{prescriptionDetails.dialysateComposition.calcium}</strong> · Sodium:{' '}
-              <strong>{prescriptionDetails.dialysateComposition.sodium}</strong> · Bicarbonate:{' '}
-              <strong>{prescriptionDetails.dialysateComposition.bicarbonate}</strong>
-            </div>
-
-            <div
-              style={{
-                background: prescriptionDetails.valid ? '#eff6ff' : '#fffbeb',
-                border: prescriptionDetails.valid ? '1px solid #bfdbfe' : '1px solid #fde68a',
-                borderRadius: '10px',
-                padding: '12px 16px',
-                color: prescriptionDetails.valid ? '#1e40af' : '#92400e',
-                fontSize: '13px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <span>ⓘ</span>
-              <span>
-                {prescriptionDetails.valid
-                  ? 'Prescription is valid and matches today\'s schedule.'
-                  : 'No dialysis standing order on file. Prescription verification is parked until a source table exists — Continue is not blocked for now.'}
-              </span>
             </div>
           </div>
 
           {/* ----------------------------------------------------------------- */}
-          {/* Card 4: Consumables Confirmation                                  */}
+          {/* Card 4: Today's Settings                                          */}
           {/* ----------------------------------------------------------------- */}
           <div style={{ ...CARD_STYLE, marginBottom: '24px' }}>
-            <div style={SECTION_HEADER_STYLE}>4. Consumables Confirmation</div>
+            <div style={SECTION_HEADER_STYLE}>4. Today&apos;s Settings</div>
+            <div style={SECTION_SUBTITLE_STYLE}>
+              {todaySettings.source === 'last_session'
+                ? 'Pre-filled from the last session. Edit if today is different.'
+                : 'Planned machine settings for this session.'}
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+                gap: '12px',
+                fontSize: '13px',
+              }}
+            >
+              {[
+                ['duration_hours', 'Duration (hours)*', 'number', '0.1'],
+                ['bfr_ml_min', 'BFR (mL/min)', 'number', '1'],
+                ['dfr_ml_min', 'DFR (mL/min)', 'number', '1'],
+                ['dialyzer', 'Dialyzer', 'text', null],
+                ['dialysate_temp', 'Dialysate Temp (°C)', 'number', '0.1'],
+                ['na', 'Na+', 'number', '0.1'],
+                ['k', 'K+', 'number', '0.1'],
+                ['bicarbonate', 'HCO3-', 'number', '0.1'],
+              ].map(([key, label, type, step]) => (
+                <div key={key}>
+                  <label style={{ display: 'block', color: '#64748b', marginBottom: '4px' }}>{label}</label>
+                  <input
+                    type={type}
+                    step={step || undefined}
+                    value={todaySettings[key]}
+                    onChange={(e) => updateTodaySettings({ [key]: e.target.value })}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700 }}
+                  />
+                </div>
+              ))}
+            </div>
+            {!durationValid ? (
+              <div style={{ marginTop: '12px', fontSize: '13px', color: '#b45309' }}>Enter planned duration.</div>
+            ) : null}
+          </div>
+
+          {/* ----------------------------------------------------------------- */}
+          {/* Card 5: Consumables Confirmation                                  */}
+          {/* ----------------------------------------------------------------- */}
+          <div style={{ ...CARD_STYLE, marginBottom: '24px' }}>
+            <div style={SECTION_HEADER_STYLE}>5. Consumables Confirmation</div>
             <div style={SECTION_SUBTITLE_STYLE}>Confirm consumables for today's session.</div>
 
             {/* Dialyzer Section */}
@@ -970,7 +967,7 @@ const PatientVerificationView = ({
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
               {!canProceed ? (
                 <div style={{ fontSize: '12px', color: '#b45309' }}>
-                  Continue stays disabled until identity (2 matches), a verification method, infection check, and consumables are resolved.
+                  Continue stays disabled until identity (2 matches), a verification method, infection check, consumables, dry weight, and planned duration are resolved.
                 </div>
               ) : null}
               <div style={{ display: 'flex', gap: '12px' }}>
