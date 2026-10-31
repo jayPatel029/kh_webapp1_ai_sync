@@ -58,7 +58,6 @@ import {
   getClinicAppointments,
   getOrganizationById,
   getAvailableSlots,
-  consumeAppointmentServices
 } from '../../ApiCalls/clinicApis';
 import { getPatientAilments, getPatientById, getGeneralParameterResponse } from '../../ApiCalls/patientAPis';
 import { listDtPatients } from '../../ApiCalls/dtPatientApis';
@@ -181,6 +180,12 @@ const normalizeAppointment = (apt, patients) => {
   };
 };
 
+function serviceDisplayName(value) {
+  const name = String(value || '').replace(/\s+appointment$/i, '').trim();
+  if (!name || name === '-' || name === '—') return '';
+  return name;
+}
+
 function parseAppointmentServices(apt, metadata = {}) {
   let raw = apt?.services;
   if (typeof raw === 'string') {
@@ -191,13 +196,12 @@ function parseAppointmentServices(apt, metadata = {}) {
     }
   }
   const fromRows = (Array.isArray(raw) ? raw : [])
-    .filter((item) => item && (item.service_name || item.name));
-  if (fromRows.length) return fromRows;
+    .map((item) => serviceDisplayName(item?.service_name || item?.name))
+    .filter(Boolean);
+  if (fromRows.length) return [...new Set(fromRows)];
 
-  const fallback = apt?.service || apt?.reason || metadata.notes || metadata.notes_brief || '';
-  const name = String(fallback).trim();
-  if (!name || name === '-' || name === '—') return [];
-  return [{ name, status: 'INFO' }];
+  const fallback = serviceDisplayName(apt?.service || apt?.reason || metadata.notes || metadata.notes_brief);
+  return fallback ? [fallback] : [];
 }
 
 function calculateDuration(start, end) {
@@ -1534,56 +1538,10 @@ const DialysisAppointments = () => {
       render: (row) => {
         const services = parseAppointmentServices(row._raw || row, row.metadata || {});
         if (!services.length) return <span className="list-table__text-cell list-table__text-cell--empty">—</span>;
-
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {services.map((s, idx) => (
-              <div key={s.id || idx} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontSize: '12px',
-                background: s.status === 'USED' ? '#F0FDF4' : 'transparent',
-                padding: s.id ? '2px 6px' : 0,
-                borderRadius: '4px',
-                border: s.status === 'USED' ? '1px solid #DCFCE7' : 'none'
-              }}>
-                <span style={{
-                  color: s.status === 'USED' ? '#166534' : '#0f172a',
-                  fontWeight: 600,
-                  textDecoration: s.status === 'USED' ? 'line-through' : 'none',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {s.service_name || s.name || 'Service'}
-                </span>
-                {s.id && s.status !== 'USED' && s.status !== 'INFO' ? (
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      try {
-                        const res = await consumeAppointmentServices(row.id, { serviceId: s.id });
-                        if (res.success) {
-                          showToast('Service marked as used', 'success');
-                          fetchAppointments();
-                        } else {
-                          showToast(res.data?.message || 'Failed to consume service', 'error');
-                        }
-                      } catch (err) {
-                        showToast('Error consuming service', 'error');
-                      }
-                    }}
-                    style={{ background: '#2563EB', color: '#fff', border: 'none', borderRadius: '3px', padding: '1px 6px', fontSize: '9px', cursor: 'pointer' }}
-                  >
-                    Use
-                  </button>
-                ) : s.status === 'USED' ? (
-                  <span style={{ color: '#16A34A', fontWeight: 700 }}>✓</span>
-                ) : null}
-              </div>
-            ))}
-          </div>
+          <span className="list-table__text-cell list-table__text-cell--filled">
+            {services.join(', ')}
+          </span>
         );
       }
     },
