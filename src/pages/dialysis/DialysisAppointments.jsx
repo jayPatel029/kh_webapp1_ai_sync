@@ -1551,23 +1551,18 @@ const DialysisAppointments = () => {
           const text = String(val ?? '').trim();
           return !text || text === '-' || text === '—';
         };
-        const parts = [
-          row._raw?.patient_code || row.patient_code || row.patientCode || row.patient_id || '-',
-          row.name || '-',
-          row.age || '-',
-          row.sex || row.gender || '-',
-          row.mobile_no || row.phone || '-',
-        ];
+        const name = row.name || '—';
+        const meta = [row.age, row.sex || row.gender, row.mobile_no || row.phone]
+          .map((part) => String(part ?? '').trim())
+          .filter((part) => part && part !== '-' && part !== '—');
         return (
-          <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-            {parts.map((part, idx) => (
-              <span key={`${row.id || 'row'}-${idx}`}>
-                {idx > 0 ? <span style={{ color: '#cbd5e1', fontWeight: 400 }}> / </span> : null}
-                <span style={{ color: empty(part) ? '#cbd5e1' : '#0f172a', fontWeight: empty(part) ? 400 : 600 }}>
-                  {part}
-                </span>
-              </span>
-            ))}
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: empty(name) ? '#cbd5e1' : '#0f172a', lineHeight: 1.3 }}>
+              {name}
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: 500, color: meta.length ? '#64748b' : '#cbd5e1', marginTop: '2px', lineHeight: 1.3 }}>
+              {meta.length ? meta.join(' · ') : '—'}
+            </div>
           </div>
         );
       }
