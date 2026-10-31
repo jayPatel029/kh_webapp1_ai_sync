@@ -360,7 +360,6 @@ const DialysisSessions = () => {
           <section aria-labelledby="bed-management-title">
             <Box className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <BedManagementDashboard
-                hideAppointments={true}
                 hideScopeSelectors
                 orgId={selectedOrgId}
                 clinicId={selectedClinicId}
