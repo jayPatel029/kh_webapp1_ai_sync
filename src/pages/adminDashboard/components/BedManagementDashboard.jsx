@@ -454,6 +454,7 @@ const AppointmentDraggableList = ({ appointments = [], onSlotClick = null }) => 
     const inferredInfectious = (String(parsedAilments || '').toLowerCase().includes('infectious')) || (apt.is_infectious);
 
     const dragPayload = {
+      source: 'queue',
       patient_id: apt.patient_id,
       appointment_id: apt.id,
       patient_name: apt.patient_name || (parsedObj && parsedObj.patientName) || `Patient #${apt.patient_id || apt.id}`,
@@ -689,6 +690,7 @@ const BedGridCompact = ({
   onBedDrop,
   onBedClick,
   onBedDragOver = null,
+  onOccupiedDragStart = null,
 }) => {
   const statusBeds = (Array.isArray(beds) ? beds : []).filter((b) => {
     const normalizedBedStatus = String(b.status || '').toUpperCase();
@@ -716,9 +718,16 @@ const BedGridCompact = ({
         gap: '24px',
         width: '100%',
       }}>
-        {statusBeds.map((bed) => (
+        {statusBeds.map((bed) => {
+          const isOccupied = String(bed.status || '').toUpperCase() === 'OCCUPIED';
+          return (
           <div
             key={bed.id}
+            draggable={Boolean(isOccupied && onOccupiedDragStart)}
+            onDragStart={(e) => {
+              if (!isOccupied || !onOccupiedDragStart) return;
+              onOccupiedDragStart(e, bed);
+            }}
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = 'move';
@@ -733,13 +742,16 @@ const BedGridCompact = ({
               bedId={`B${bed.bed_number}`}
               status={mapBedStatusToDialysisSeatStatus(bed.status)}
               hasAlert={bed.status === 'QUARANTINE'}
-              isRunning={Boolean(bed.dialysis_start && bed.dialysis_duration_minutes)}
+              isRunning={Boolean(bed.dialysis_start && bed.dialysis_duration_minutes) || String(bed.session_state || '').toUpperCase() === 'RUNNING'}
+              patientName={bed.patient_name || ''}
               onClick={() => onBedClick(bed)}
               dialysisStart={bed.dialysis_start}
               dialysisDurationMinutes={bed.dialysis_duration_minutes}
+              className={bed.patient_id ? 'dialysis-bed-seat--occupied' : ''}
             />
           </div>
-        ))}
+          );
+        })}
       </div>
     </Box>
   );
@@ -1041,6 +1053,34 @@ export default function BedManagementDashboard({
       try {
         const patientData = JSON.parse(draggedData);
 
+        if (patientData.source === 'occupied-bed') {
+          if (String(patientData.from_bed_id) === String(targetBed.id)) return;
+          if (targetBed.status === 'CLEANING') {
+            showNotification('Bed Unavailable', 'This bed is currently being cleaned.', 'error');
+            return;
+          }
+          const targetStatus = String(targetBed.status || '').toUpperCase();
+          if (targetStatus === 'OCCUPIED') {
+            showNotification('Bed occupied', 'Drop onto an empty bed to move this patient.', 'error');
+            return;
+          }
+          setIsAssigning(true);
+          const transferred = await transferPatient(
+            patientData.from_bed_id,
+            targetBed.id,
+            patientData.patient_id,
+            authUser?.id || authUser?.user_id,
+          );
+          if (transferred.success) {
+            showNotification('Bed moved', `Patient moved to Bed ${targetBed.bed_number}.`, 'success');
+            loadAppointments(clinicId);
+            fetchAllBeds();
+          } else {
+            showNotification('Could not move bed', transferred.data?.message || transferred.data || 'Unknown error', 'error');
+          }
+          return;
+        }
+
         // If patient marked infectious and target bed is not quarantine, require explicit confirmation and reason
         if (patientData.is_infectious && String(targetBed.status).toUpperCase() !== 'QUARANTINE') {
           const confirmed = window.confirm('Patient appears to be infectious. Assigning to a normal bed is not recommended. Do you want to proceed?');
@@ -1121,8 +1161,20 @@ export default function BedManagementDashboard({
         setIsAssigning(false);
       }
     },
-    [assignPatient, canAssignPatientToBed, clinicId, loadAppointments, openPart2Workflow, showNotification]
+    [assignPatient, authUser, canAssignPatientToBed, clinicId, fetchAllBeds, loadAppointments, openPart2Workflow, showNotification, transferPatient]
   );
+
+  const handleOccupiedDragStart = useCallback((e, bed) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      source: 'occupied-bed',
+      from_bed_id: bed.id,
+      patient_id: bed.patient_id,
+      appointment_id: bed.appointment_id,
+      patient_name: bed.patient_name,
+      session_id: bed.dialysis_session_id || bed.session_id,
+    }));
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
 
   const handleBedClick = useCallback(async (bed) => {
     if (bed.status === 'CLEANING') {
@@ -1132,6 +1184,7 @@ export default function BedManagementDashboard({
 
     if (bed.status === 'OCCUPIED' && bed.patient_id) {
       let sessionId = bed.dialysis_session_id || bed.session_id || bed.sessionId;
+      let sessionState = String(bed.session_state || '').toUpperCase();
       if (!sessionId) {
         try {
           const today = await getTodaySessions({ bed: bed.id });
@@ -1140,8 +1193,42 @@ export default function BedManagementDashboard({
             String(row.patient_id) === String(bed.patient_id) && row.session_id
           ));
           sessionId = match?.session_id || null;
+          sessionState = String(match?.session_state || '').toUpperCase();
         } catch (_) {}
       }
+      const freeOccupiedBed = async () => {
+        const result = await cancelPendingBedAssignment({
+          bed_id: bed.id,
+          patient_id: bed.patient_id,
+          appointment_id: bed.appointment_id,
+          session_id: sessionId,
+        });
+        if (result.success) {
+          showNotification('Bed freed', `Bed ${bed.bed_number || bed.code} is empty again.`, 'info');
+        } else {
+          showNotification('Could not free bed', result.data?.message || result.data || 'Unknown error', 'error');
+        }
+        fetchAllBeds();
+        loadAppointments(clinicId);
+      };
+
+      if (!sessionId) {
+        const confirmed = window.confirm(
+          'This bed is marked occupied but has no live dialysis session. Free it so it can be assigned again?'
+        );
+        if (!confirmed) return;
+        await freeOccupiedBed();
+        return;
+      }
+      if (!part2Allowed) {
+        const confirmed = window.confirm(
+          'Admin cannot run pre-dialysis. Free this bed assignment instead?'
+        );
+        if (!confirmed) return;
+        await freeOccupiedBed();
+        return;
+      }
+      const pending = sessionState === 'SCHEDULED' || sessionState === 'PRECHECK' || !sessionState;
       openPart2Workflow({
         patient_id: bed.patient_id,
         patient_name: bed.patient_name,
@@ -1149,12 +1236,12 @@ export default function BedManagementDashboard({
         dialysis_session_id: sessionId,
         session_id: sessionId,
         sessionId,
-      }, bed, { revertOnClose: false });
+      }, bed, { revertOnClose: pending });
     } else if (bed.status === 'EMPTY' || bed.status === 'AVAILABLE' || bed.status === 'QUARANTINE') {
       setSelectedBed(bed);
       setIsAssignmentModalOpen(true);
     }
-  }, [openPart2Workflow, showNotification]);
+  }, [clinicId, fetchAllBeds, loadAppointments, openPart2Workflow, part2Allowed, showNotification]);
 
   // Cleaning confirmation flow reverted; clicking CLEANING beds shows notification only.
 
@@ -1457,14 +1544,18 @@ export default function BedManagementDashboard({
                       background: 'transparent'
                     }}
                   >
-                    <Heading as="h4" size="xs" mb={4} color="gray.600" textTransform="uppercase" letterSpacing="wider">
+                    <Heading as="h4" size="xs" mb={1} color="gray.600" textTransform="uppercase" letterSpacing="wider">
                       Active Sessions
                     </Heading>
+                    <Text fontSize="xs" color="textMuted" mb={4}>
+                      Click to continue or free. Drag onto an empty bed to move.
+                    </Text>
                     <BedGridCompact
                       beds={beds}
                       status={BED_STATUS.OCCUPIED}
                       onBedDrop={handleBedDrop}
                       onBedClick={handleBedClick}
+                      onOccupiedDragStart={handleOccupiedDragStart}
                     />
                   </Box>
 

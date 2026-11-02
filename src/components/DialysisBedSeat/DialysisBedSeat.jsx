@@ -108,6 +108,7 @@ const DialysisBedSeat = ({
   onClick = null,
   dialysisStart = null, // ISO string or timestamp
   dialysisDurationMinutes = null,
+  className = '',
 }) => {
   // Determine effective status (ALERT overrides everything)
   const effectiveStatus = hasAlert ? 'ALERT' : status;
@@ -123,7 +124,7 @@ const DialysisBedSeat = ({
 
   return (
     <div
-      className={`dialysis-bed-seat${isIsolatedActive ? ' dialysis-bed-seat--isolated-active' : ''}`}
+      className={`dialysis-bed-seat${isIsolatedActive ? ' dialysis-bed-seat--isolated-active' : ''}${className ? ` ${className}` : ''}`}
       style={{
         '--status-color': backgroundColor,
         '--text-color': textColor,
