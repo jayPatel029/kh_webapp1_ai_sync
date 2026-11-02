@@ -518,6 +518,21 @@ export async function reviewWaterSafety(sessionId, payload, config = {}) {
 }
 
 /**
+ * P2-10: GET /api/dt/sessions/:id/infection-control
+ */
+export async function getSessionInfectionControl(sessionId, config = {}) {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/dt/sessions/${sessionId}/infection-control`,
+      config
+    );
+    return handleResponse(response);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
  * P2-10: POST /api/dt/sessions/:id/infection-control
  */
 export async function submitInfectionControl(sessionId, payload, config = {}) {
@@ -629,6 +644,7 @@ export default {
   getRoPlantShiftCheck,
   getRoPlantVerificationToday,
   reviewWaterSafety,
+  getSessionInfectionControl,
   submitInfectionControl,
   validateSafetyChecklist,
   startDialysis,
