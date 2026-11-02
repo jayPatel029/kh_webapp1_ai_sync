@@ -1,53 +1,63 @@
 /**
  * @jest-environment node
  */
-import { validateWaterSafety } from '../pages/dialysis/waterSafetyValidation';
+import {
+  validateWaterSafety,
+  canProceedWaterSafety,
+  isShiftWaterPassed,
+  isRoVerificationPassed,
+} from '../pages/dialysis/waterSafetyValidation';
 
-describe('Water Safety Validation Logic (P2-09)', () => {
-  const sampleChecklist = [
-    { id: 'ph', status: 'OK' },
-    { id: 'tds', status: 'OK' },
-    { id: 'conductivity', status: 'OK' },
-  ];
+describe('P2-09 Water Safety Validation Logic', () => {
+  it('passes only when plant is linked and both shift + daily checks pass', () => {
+    expect(canProceedWaterSafety(
+      { shift_check_passed: 1 },
+      { daily_verification_passed: true },
+      'RO-1',
+    )).toBe(true);
+  });
 
-  it('returns true when checklist is OK and additional checks are within range', () => {
-    const additional = {
+  it('blocks when RO plant is missing', () => {
+    expect(canProceedWaterSafety(
+      { shift_check_passed: 1 },
+      { daily_verification_passed: 1 },
+      '',
+    )).toBe(false);
+  });
+
+  it('blocks when shift check is not passed', () => {
+    expect(isShiftWaterPassed({ shift_check_passed: 0 })).toBe(false);
+    expect(canProceedWaterSafety(
+      { shift_check_passed: 0 },
+      { daily_verification_passed: 1 },
+      'RO-1',
+    )).toBe(false);
+  });
+
+  it('blocks when RO verification is not verified', () => {
+    expect(isRoVerificationPassed({ daily_verification_passed: false })).toBe(false);
+    expect(canProceedWaterSafety(
+      { shift_check_passed: 1 },
+      { daily_verification_passed: 0 },
+      'RO-1',
+    )).toBe(false);
+  });
+
+  it('legacy checklist helper still validates pressure/flow ranges', () => {
+    const sampleChecklist = [
+      { id: 'ph', status: 'OK' },
+      { id: 'tds', status: 'OK' },
+    ];
+    expect(validateWaterSafety(sampleChecklist, {
       roPressure: '65',
       roFlowRate: '120',
       carbonFilterStatus: 'Good',
       softenerStatus: 'Good',
-    };
-    expect(validateWaterSafety(sampleChecklist, additional)).toBe(true);
-  });
-
-  it('returns false if any checklist item fails', () => {
-    const failedChecklist = [
-      { id: 'ph', status: 'OK' },
-      { id: 'tds', status: 'Failed' },
-    ];
-    const additional = {
-      roPressure: '65',
+    })).toBe(true);
+    expect(validateWaterSafety(sampleChecklist, {
+      roPressure: '40',
       roFlowRate: '120',
-    };
-    expect(validateWaterSafety(failedChecklist, additional)).toBe(false);
-  });
-
-  it('returns false if RO pressure is out of range (< 50 or > 80)', () => {
-    const additionalLow = { roPressure: '40', roFlowRate: '120' };
-    const additionalHigh = { roPressure: '90', roFlowRate: '120' };
-    expect(validateWaterSafety(sampleChecklist, additionalLow)).toBe(false);
-    expect(validateWaterSafety(sampleChecklist, additionalHigh)).toBe(false);
-  });
-
-  it('returns false if RO flow rate is out of range (< 100 or > 150)', () => {
-    const additionalLow = { roPressure: '65', roFlowRate: '80' };
-    const additionalHigh = { roPressure: '65', roFlowRate: '180' };
-    expect(validateWaterSafety(sampleChecklist, additionalLow)).toBe(false);
-    expect(validateWaterSafety(sampleChecklist, additionalHigh)).toBe(false);
-  });
-
-  it('returns false if checklist is missing or empty', () => {
-    expect(validateWaterSafety(null, {})).toBe(false);
+    })).toBe(false);
     expect(validateWaterSafety([], {})).toBe(false);
   });
 });

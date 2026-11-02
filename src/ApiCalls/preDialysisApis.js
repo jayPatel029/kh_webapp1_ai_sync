@@ -457,6 +457,21 @@ export async function reviewMachineSafety(sessionId, payload, config = {}) {
 }
 
 /**
+ * P2-09: GET /api/dt/sessions/:id/water-safety
+ */
+export async function getSessionWaterSafety(sessionId, config = {}) {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/dt/sessions/${sessionId}/water-safety`,
+      config
+    );
+    return handleResponse(response);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
  * P2-09: GET /api/dt/ro-plants/:id/shift-check/current
  */
 export async function getRoPlantShiftCheck(roPlantId, shiftId = 1, config = {}) {
@@ -610,6 +625,7 @@ export default {
   getMachineSelfTestToday,
   getSessionMachineSafety,
   reviewMachineSafety,
+  getSessionWaterSafety,
   getRoPlantShiftCheck,
   getRoPlantVerificationToday,
   reviewWaterSafety,
