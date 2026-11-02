@@ -426,6 +426,21 @@ export async function getMachineSelfTestToday(machineId, config = {}) {
 }
 
 /**
+ * P2-08: GET /api/dt/sessions/:id/machine-safety
+ */
+export async function getSessionMachineSafety(sessionId, config = {}) {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/dt/sessions/${sessionId}/machine-safety`,
+      config
+    );
+    return handleResponse(response);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
  * P2-08: POST /api/dt/sessions/:id/machine-safety/review
  */
 export async function reviewMachineSafety(sessionId, payload, config = {}) {
@@ -593,6 +608,7 @@ export default {
   submitVascularAccess,
   getMachineQcToday,
   getMachineSelfTestToday,
+  getSessionMachineSafety,
   reviewMachineSafety,
   getRoPlantShiftCheck,
   getRoPlantVerificationToday,

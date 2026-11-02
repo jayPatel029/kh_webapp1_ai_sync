@@ -1,32 +1,62 @@
 /**
  * @jest-environment node
  */
-import { validateMachineSafety } from '../pages/dialysis/machineSafetyValidation';
+import {
+  validateMachineSafety,
+  canProceedMachineSafety,
+  isMachineCheckPassed,
+} from '../pages/dialysis/machineSafetyValidation';
 
-describe('Machine Safety Validation Logic', () => {
-  it('returns true when all checklist items have status OK', () => {
-    const mockChecklist = [
-      { id: '1', status: 'OK' },
-      { id: '2', status: 'OK' },
-      { id: '3', status: 'OK' },
-    ];
-    
-    expect(validateMachineSafety(mockChecklist)).toBe(true);
+describe('P2-08 Machine Safety Validation Logic', () => {
+  it('treats Passed as the only passing status', () => {
+    expect(isMachineCheckPassed('Passed')).toBe(true);
+    expect(isMachineCheckPassed('passed')).toBe(true);
+    expect(isMachineCheckPassed('Failed')).toBe(false);
+    expect(isMachineCheckPassed('Not Yet Performed')).toBe(false);
+    expect(isMachineCheckPassed('')).toBe(false);
   });
 
-  it('returns false when any checklist item has status other than OK', () => {
-    const mockChecklist = [
+  it('allows continue only when machine is linked and both checks Passed', () => {
+    expect(canProceedMachineSafety(
+      { status: 'Passed' },
+      { status: 'Passed' },
+      'HD-01',
+    )).toBe(true);
+  });
+
+  it('blocks continue when machine id is missing', () => {
+    expect(canProceedMachineSafety(
+      { status: 'Passed' },
+      { status: 'Passed' },
+      '',
+    )).toBe(false);
+  });
+
+  it('blocks continue when QC is not yet performed', () => {
+    expect(canProceedMachineSafety(
+      { status: 'Not Yet Performed' },
+      { status: 'Passed' },
+      'HD-01',
+    )).toBe(false);
+  });
+
+  it('blocks continue when Self-Test failed', () => {
+    expect(canProceedMachineSafety(
+      { status: 'Passed' },
+      { status: 'Failed' },
+      'HD-01',
+    )).toBe(false);
+  });
+
+  it('legacy checklist helper requires every item OK/Passed and rejects empty', () => {
+    expect(validateMachineSafety([
+      { id: '1', status: 'OK' },
+      { id: '2', status: 'Passed' },
+    ])).toBe(true);
+    expect(validateMachineSafety([
       { id: '1', status: 'OK' },
       { id: '2', status: 'Failed' },
-      { id: '3', status: 'OK' },
-    ];
-    
-    expect(validateMachineSafety(mockChecklist)).toBe(false);
-  });
-
-  it('returns true for an empty checklist', () => {
-    // If no items to check, technically it shouldn't block, 
-    // or depending on business logic it might fail. Standard "every" returns true.
-    expect(validateMachineSafety([])).toBe(true);
+    ])).toBe(false);
+    expect(validateMachineSafety([])).toBe(false);
   });
 });
