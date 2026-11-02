@@ -549,6 +549,21 @@ export async function submitInfectionControl(sessionId, payload, config = {}) {
 }
 
 /**
+ * P2-11: GET /api/dt/sessions/:id/validate
+ */
+export async function getSessionSafetyValidation(sessionId, config = {}) {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/dt/sessions/${sessionId}/validate`,
+      config
+    );
+    return handleResponse(response);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
  * P2-11: POST /api/dt/sessions/:id/validate
  */
 export async function validateSafetyChecklist(sessionId, payload = {}, config = {}) {
@@ -646,6 +661,7 @@ export default {
   reviewWaterSafety,
   getSessionInfectionControl,
   submitInfectionControl,
+  getSessionSafetyValidation,
   validateSafetyChecklist,
   startDialysis,
   unlockStartDialysis,
