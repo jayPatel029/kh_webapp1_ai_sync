@@ -55,7 +55,7 @@ describe('P2-04 Patient Verification Unit Logic & Rules (Node environment)', () 
   });
 
   describe('checkInfectionGateResolved', () => {
-    it('returns true when neither HIV nor Hepatitis status is Pending', () => {
+    it('returns true when neither HIV nor Hepatitis status is unresolved', () => {
       expect(
         checkInfectionGateResolved(
           INFECTION_STATUS.NEGATIVE,
@@ -65,20 +65,27 @@ describe('P2-04 Patient Verification Unit Logic & Rules (Node environment)', () 
       ).toBe(true);
     });
 
-    it('returns false when status is Pending and neither Enter Now nor Skip has been actioned', () => {
+    it('returns false when status is unresolved and neither Enter Now nor Skip has been actioned', () => {
       expect(
         checkInfectionGateResolved(
-          INFECTION_STATUS.PENDING,
+          INFECTION_STATUS.TEST_NOT_DONE,
+          INFECTION_STATUS.NEGATIVE,
+          false
+        )
+      ).toBe(false);
+      expect(
+        checkInfectionGateResolved(
+          INFECTION_STATUS.TEST_IN_PROGRESS,
           INFECTION_STATUS.NEGATIVE,
           false
         )
       ).toBe(false);
     });
 
-    it('returns true when status was Pending but has been actioned (Enter Now or Skip)', () => {
+    it('returns true when status was unresolved but has been actioned (Enter Now or Skip)', () => {
       expect(
         checkInfectionGateResolved(
-          INFECTION_STATUS.PENDING,
+          INFECTION_STATUS.TEST_NOT_DONE,
           INFECTION_STATUS.NEGATIVE,
           true // actioned/skipped
         )

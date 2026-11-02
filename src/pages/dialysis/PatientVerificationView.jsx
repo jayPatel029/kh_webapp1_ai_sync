@@ -29,6 +29,8 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import usePatientVerification, {
   INFECTION_STATUS,
+  INFECTION_STATUS_OPTIONS,
+  isInfectionStatusUnresolved,
   DIALYZER_USAGE_TYPE,
 } from '../../hooks/usePatientVerification';
 import { ROUTES } from '../../routes/routeConstants';
@@ -113,7 +115,22 @@ const renderInfectionPill = (status) => {
           Positive
         </span>
       );
-    case INFECTION_STATUS.PENDING:
+    case INFECTION_STATUS.TEST_IN_PROGRESS:
+      return (
+        <span
+          style={{
+            padding: '4px 12px',
+            borderRadius: '9999px',
+            background: '#e0f2fe',
+            color: '#0369a1',
+            fontSize: '12px',
+            fontWeight: 700,
+          }}
+        >
+          Test in progress awaiting result
+        </span>
+      );
+    case INFECTION_STATUS.TEST_NOT_DONE:
     default:
       return (
         <span
@@ -126,7 +143,7 @@ const renderInfectionPill = (status) => {
             fontWeight: 700,
           }}
         >
-          Pending
+          Test not done
         </span>
       );
   }
@@ -217,12 +234,12 @@ const PatientVerificationView = ({
   } = usePatientVerification(patientId, effectiveSessionId, assignment);
 
   const [showInfectionEdit, setShowInfectionEdit] = useState(false);
-  const [editHiv, setEditHiv] = useState(INFECTION_STATUS.PENDING);
-  const [editHep, setEditHep] = useState(INFECTION_STATUS.PENDING);
+  const [editHiv, setEditHiv] = useState(INFECTION_STATUS.TEST_NOT_DONE);
+  const [editHep, setEditHep] = useState(INFECTION_STATUS.TEST_NOT_DONE);
 
   const infectionPending = (
-    infectionState.hivStatus === INFECTION_STATUS.PENDING
-    || infectionState.hepatitisStatus === INFECTION_STATUS.PENDING
+    isInfectionStatusUnresolved(infectionState.hivStatus)
+    || isInfectionStatusUnresolved(infectionState.hepatitisStatus)
   );
 
   const handleCancelClick = () => {
@@ -499,9 +516,9 @@ const PatientVerificationView = ({
                       onChange={(e) => setEditHiv(e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                     >
-                      <option value={INFECTION_STATUS.NEGATIVE}>Negative</option>
-                      <option value={INFECTION_STATUS.POSITIVE}>Positive</option>
-                      <option value={INFECTION_STATUS.PENDING}>Pending</option>
+                      {INFECTION_STATUS_OPTIONS.map((status) => (
+                        <option key={`hiv-${status}`} value={status}>{status}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -514,9 +531,9 @@ const PatientVerificationView = ({
                       onChange={(e) => setEditHep(e.target.value)}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                     >
-                      <option value={INFECTION_STATUS.NEGATIVE}>Negative</option>
-                      <option value={INFECTION_STATUS.POSITIVE}>Positive</option>
-                      <option value={INFECTION_STATUS.PENDING}>Pending</option>
+                      {INFECTION_STATUS_OPTIONS.map((status) => (
+                        <option key={`hep-${status}`} value={status}>{status}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -556,7 +573,7 @@ const PatientVerificationView = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#92400e' }}>
                   <span>ℹ</span>
                   <span>
-                    {infectionState.hivStatus === INFECTION_STATUS.PENDING ? 'HIV' : 'Hepatitis B/C'} status not yet recorded for this patient.
+                    {isInfectionStatusUnresolved(infectionState.hivStatus) ? 'HIV' : 'Hepatitis B/C'} status not yet recorded for this patient.
                   </span>
                 </div>
 

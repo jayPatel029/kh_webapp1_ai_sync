@@ -35,7 +35,13 @@ import {
 const ROSTER_STATUSES = ['Waiting', 'Temp', 'Active', 'Discontinued'];
 const BOOKABLE_STATUSES = ['Waiting', 'Temp', 'Active'];
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
-const LAB_OPTIONS = ['Pending', 'Positive', 'Negative'];
+const LAB_OPTIONS = [
+  'Positive',
+  'Negative',
+  'Test in progress awaiting result',
+  'Test not done',
+];
+const DEFAULT_LAB_STATUS = 'Test not done';
 const DISCONTINUE_NOTE_MAX_CHARS = 200;
 const DISCONTINUE_NOTE_MAX_WORDS = 40;
 const TOOLBAR_CONTROL_H = 40;
@@ -72,8 +78,8 @@ function emptyForm(orgId, clinicId) {
     organization_id: orgId || '',
     clinic_id: clinicId || '',
     is_infectious: false,
-    hiv_status: 'Pending',
-    hepatitis_status: 'Pending',
+    hiv_status: DEFAULT_LAB_STATUS,
+    hepatitis_status: DEFAULT_LAB_STATUS,
     primary_diagnosis: '',
     registered_date: todayIso(),
   };
@@ -99,8 +105,8 @@ function formFromRow(row) {
     organization_id: row.organization_id ? String(row.organization_id) : '',
     clinic_id: row.clinic_id ? String(row.clinic_id) : '',
     is_infectious: Number(row.is_infectious) === 1,
-    hiv_status: row.hiv_status || 'Pending',
-    hepatitis_status: row.hepatitis_status || 'Pending',
+    hiv_status: row.hiv_status === 'Pending' ? DEFAULT_LAB_STATUS : (row.hiv_status || DEFAULT_LAB_STATUS),
+    hepatitis_status: row.hepatitis_status === 'Pending' ? DEFAULT_LAB_STATUS : (row.hepatitis_status || DEFAULT_LAB_STATUS),
     primary_diagnosis: row.primary_diagnosis || '',
     registered_date: String(row.registered_date || todayIso()).slice(0, 10),
   };

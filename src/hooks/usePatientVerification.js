@@ -70,8 +70,20 @@ export const VERIFICATION_STEPS_7 = [
 export const INFECTION_STATUS = {
   NEGATIVE: 'Negative',
   POSITIVE: 'Positive',
-  PENDING: 'Pending',
+  TEST_IN_PROGRESS: 'Test in progress awaiting result',
+  TEST_NOT_DONE: 'Test not done',
 };
+
+export const INFECTION_STATUS_OPTIONS = [
+  INFECTION_STATUS.POSITIVE,
+  INFECTION_STATUS.NEGATIVE,
+  INFECTION_STATUS.TEST_IN_PROGRESS,
+  INFECTION_STATUS.TEST_NOT_DONE,
+];
+
+export const isInfectionStatusUnresolved = (status) => (
+  status !== INFECTION_STATUS.POSITIVE && status !== INFECTION_STATUS.NEGATIVE
+);
 
 export const DIALYZER_USAGE_TYPE = {
   SINGLE_USE: 'Single-Use',
@@ -113,7 +125,7 @@ export const checkIdentityMatch = (identityFields = {}) => {
 };
 
 export const checkInfectionGateResolved = (hivStatus, hepatitisStatus, isActioned) => {
-  if (hivStatus !== INFECTION_STATUS.PENDING && hepatitisStatus !== INFECTION_STATUS.PENDING) {
+  if (!isInfectionStatusUnresolved(hivStatus) && !isInfectionStatusUnresolved(hepatitisStatus)) {
     return true;
   }
   return Boolean(isActioned);
@@ -155,11 +167,25 @@ export const checkConsumablesValid = (consumablesState = {}) => {
 
 const normalizeInfectionStatus = (raw) => {
   const value = String(raw || '').trim().toLowerCase();
-  if (!value) return INFECTION_STATUS.PENDING;
+  if (!value) return INFECTION_STATUS.TEST_NOT_DONE;
   if (value === 'negative' || value === 'neg') return INFECTION_STATUS.NEGATIVE;
   if (value === 'positive' || value === 'pos') return INFECTION_STATUS.POSITIVE;
-  if (value === 'pending') return INFECTION_STATUS.PENDING;
-  return INFECTION_STATUS.PENDING;
+  if (
+    value === 'test in progress awaiting result'
+    || value === 'test in progress'
+    || value === 'awaiting result'
+  ) {
+    return INFECTION_STATUS.TEST_IN_PROGRESS;
+  }
+  if (
+    value === 'test not done'
+    || value === 'not done'
+    || value === 'pending'
+  ) {
+    return INFECTION_STATUS.TEST_NOT_DONE;
+  }
+  const exact = INFECTION_STATUS_OPTIONS.find((opt) => opt.toLowerCase() === value);
+  return exact || INFECTION_STATUS.TEST_NOT_DONE;
 };
 
 export default function usePatientVerification(patientId, rawSessionId, assignmentHint = null) {
@@ -176,8 +202,8 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
   const [identityMatches, setIdentityMatches] = useState(EMPTY_IDENTITY);
   const [verificationMethods, setVerificationMethods] = useState(EMPTY_METHODS);
   const [infectionState, setInfectionState] = useState({
-    hivStatus: INFECTION_STATUS.PENDING,
-    hepatitisStatus: INFECTION_STATUS.PENDING,
+    hivStatus: INFECTION_STATUS.TEST_NOT_DONE,
+    hepatitisStatus: INFECTION_STATUS.TEST_NOT_DONE,
     actioned: false,
     skipped: false,
   });
@@ -343,8 +369,8 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
 
   const handleInfectionEnterNow = (newHiv, newHep) => {
     setInfectionState({
-      hivStatus: newHiv || INFECTION_STATUS.PENDING,
-      hepatitisStatus: newHep || INFECTION_STATUS.PENDING,
+      hivStatus: newHiv || INFECTION_STATUS.TEST_NOT_DONE,
+      hepatitisStatus: newHep || INFECTION_STATUS.TEST_NOT_DONE,
       actioned: true,
       skipped: false,
     });
