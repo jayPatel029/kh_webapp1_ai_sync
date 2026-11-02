@@ -365,6 +365,21 @@ export async function submitSessionAssessment(sessionId, payload, config = {}) {
 }
 
 /**
+ * P2-07: GET /api/dt/sessions/:id/vascular-access
+ */
+export async function getSessionVascularAccess(sessionId, config = {}) {
+  try {
+    const response = await axiosInstance.get(
+      `${server_url}/dt/sessions/${sessionId}/vascular-access`,
+      config
+    );
+    return handleResponse(response);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
  * P2-07: POST /api/dt/sessions/:id/vascular-access
  */
 export async function submitVascularAccess(sessionId, payload, config = {}) {
@@ -574,6 +589,7 @@ export default {
   submitSessionVitals,
   getSessionAssessment,
   submitSessionAssessment,
+  getSessionVascularAccess,
   submitVascularAccess,
   getMachineQcToday,
   getMachineSelfTestToday,
