@@ -79,11 +79,22 @@ function emptyForm(orgId, clinicId) {
   };
 }
 
+function normalizeFormGender(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (GENDER_OPTIONS.includes(raw)) return raw;
+  const lower = raw.toLowerCase();
+  if (lower === 'm' || lower === 'male') return 'Male';
+  if (lower === 'f' || lower === 'female') return 'Female';
+  if (lower === 'o' || lower === 'other') return 'Other';
+  return '';
+}
+
 function formFromRow(row) {
   return {
     name: row.name || '',
     phone_no: row.phone_no || '',
-    gender: row.gender || '',
+    gender: normalizeFormGender(row.gender),
     age: row.age == null ? '' : row.age,
     organization_id: row.organization_id ? String(row.organization_id) : '',
     clinic_id: row.clinic_id ? String(row.clinic_id) : '',
@@ -304,6 +315,10 @@ export default function DialysisPatientRoster() {
   };
 
   const openEdit = (row) => {
+    if (Number(row.anonymized) === 1) {
+      setError('Anonymized patients cannot be edited.');
+      return;
+    }
     setEditingId(row.id);
     setForm(formFromRow(row));
     setFieldErrors({});
@@ -312,22 +327,42 @@ export default function DialysisPatientRoster() {
   };
 
   const formPayload = () => ({
-    name: form.name,
-    phone_no: form.phone_no,
-    gender: form.gender,
+    name: String(form.name || '').trim(),
+    phone_no: String(form.phone_no || '').replace(/\D/g, ''),
+    gender: normalizeFormGender(form.gender),
     age: form.age === '' ? null : Number(form.age),
     organization_id: form.organization_id ? Number(form.organization_id) : null,
     clinic_id: form.clinic_id ? Number(form.clinic_id) : null,
     is_infectious: form.is_infectious ? 1 : 0,
     hiv_status: form.hiv_status,
     hepatitis_status: form.hepatitis_status,
-    primary_diagnosis: form.primary_diagnosis,
+    primary_diagnosis: String(form.primary_diagnosis || '').trim(),
     registered_date: form.registered_date,
   });
 
+  const validateFormClient = () => {
+    const next = {};
+    if (!String(form.name || '').trim()) next.name = 'Name is required';
+    const phone = String(form.phone_no || '').replace(/\D/g, '');
+    if (phone.length < 10) next.phone_no = 'Enter a valid 10-digit phone number';
+    if (!normalizeFormGender(form.gender)) next.gender = 'Select gender';
+    const age = Number(form.age);
+    if (!Number.isInteger(age) || age < 0 || age > 120) next.age = 'Age must be a number from 0 to 120';
+    if (!form.organization_id) next.organization_id = 'Organization is required';
+    if (!form.clinic_id) next.clinic_id = 'Clinic is required';
+    return next;
+  };
+
   const handleSavePatient = async () => {
+    const clientErrors = validateFormClient();
+    if (Object.keys(clientErrors).length) {
+      setFieldErrors(clientErrors);
+      setFormError('Fix the highlighted fields and try again.');
+      return;
+    }
     setSubmitting(true);
     setFormError('');
+    setFieldErrors({});
     const result = editingId
       ? await updateDtPatient(editingId, formPayload())
       : await createDtPatient(formPayload());
@@ -757,6 +792,8 @@ export default function DialysisPatientRoster() {
                 value={form.phone_no}
                 onChange={(e) => setFormField('phone_no', e.target.value)}
                 placeholder="10-digit phone"
+                inputMode="numeric"
+                maxLength={15}
               />
               <FormErrorMessage>{fieldErrors.phone_no}</FormErrorMessage>
             </FormControl>
