@@ -23,6 +23,7 @@ import {
   createTreatmentEvent,
   createIncident,
   getIncidents,
+  updateIncident,
   endDuringDialysisTreatment,
   getOverdueVitals,
   skipOverdueVital,
@@ -4610,123 +4611,288 @@ function TreatmentProgressView({ sessionId, go }) {
   );
 }
 
-function IncidentReportingView({ sessionId, go }) {
-  const [form, setForm] = useState({
+const INCIDENT_TYPES = [
+  'Severe Hypotension/Syncope',
+  'Patient Fall',
+  'Vascular Access Needle Infiltration/Blood Loss',
+  'Medication Error',
+  'Machine Malfunction',
+  'Other',
+];
+
+const INCIDENT_CATEGORIES = ['Clinical', 'Technical', 'Administrative'];
+
+const INCIDENT_CAUSES = [
+  'UF Rate Too High',
+  'Needle Position Issue',
+  'Clotting',
+  'Kinked Line',
+  'Equipment Malfunction',
+  'Patient Movement',
+  'Medication Error',
+  'Communication Gap',
+  'Unknown',
+  'Other',
+];
+
+const INCIDENT_OUTCOMES = [
+  'Stabilized',
+  'Resolved - No Harm',
+  'Resolved - Required Intervention',
+  'Ongoing Monitoring',
+  'Transferred/Escalated',
+  'Deceased',
+  'Other',
+];
+
+function toDatetimeLocalValue(value) {
+  if (!value) return '';
+  try {
+    const d = new Date(typeof value === 'string' ? value.replace(' ', 'T') : value);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return '';
+  }
+}
+
+function emptyIncidentForm(technicianId = '') {
+  return {
     event_time: nowTime(),
-    incident_type: 'Hypotension',
-    category: 'Clinical',
-    severity: 'Moderate',
+    incident_type: '',
+    category: '',
+    severity: '',
     description: '',
     cause: '',
-    observed_time: nowTime(),
+    observed_time: '',
     intervention: '',
     intervention_details: '',
-    outcome: 'Stabilized',
-    escalated_to: 'Nurse In-charge',
+    outcome: '',
+    escalated_to: '',
     escalation_time: '',
     further_action: 'No',
     followup: 'No',
-    resolved_by: 'Rahul Singh (Technician)',
+    resolved_by: technicianId || '',
     resolution_time: '',
     comments: '',
     notify: false,
-  });
+  };
+}
 
+function IncidentReportingView({ sessionId, go }) {
+  const technicianId = getTechnicianId();
+  const [form, setForm] = useState(() => emptyIncidentForm(technicianId));
+  const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [incidents, setIncidents] = useState([]);
+  const [overview, setOverview] = useState({ total: 0, open: 0, resolved: 0, escalated: 0 });
+  const [escalationContacts, setEscalationContacts] = useState([]);
 
-  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+  const activeSessionId = getValidSessionId(sessionId);
+  const furtherRequired = form.further_action === 'Yes';
+
+  const refreshIncidents = useCallback(async () => {
+    if (!activeSessionId) return;
+    const res = await getIncidents(activeSessionId);
+    if (!res?.success) return;
+    const d = responseData(res);
+    const items = Array.isArray(d) ? d : d.incidents || d.items || [];
+    setIncidents(items);
+    if (d?.overview) {
+      setOverview({
+        total: Number(d.overview.total) || 0,
+        open: Number(d.overview.open) || 0,
+        resolved: Number(d.overview.resolved) || 0,
+        escalated: Number(d.overview.escalated) || 0,
+      });
+    } else {
+      setOverview({
+        total: items.length,
+        open: items.filter((i) => ['draft', 'open', 'pending'].includes(String(i.status || '').toLowerCase())).length,
+        resolved: items.filter((i) => ['resolved', 'closed'].includes(String(i.status || '').toLowerCase())).length,
+        escalated: items.filter((i) => String(i.status || '').toLowerCase() === 'escalated' || i.further_action_required).length,
+      });
+    }
+    if (Array.isArray(d?.escalation_contacts)) setEscalationContacts(d.escalation_contacts);
+  }, [activeSessionId]);
 
   useEffect(() => {
-    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
-    getIncidents(activeSessionId).then((res) => {
-      if (res?.success) {
-        const d = responseData(res);
-        const items = Array.isArray(d) ? d : d.items || d.incidents || [];
-        setIncidents(items);
-      }
-    });
-  }, [activeSessionId]);
+    refreshIncidents();
+  }, [refreshIncidents]);
 
   const update = (key) => (e) => setForm((v) => ({ ...v, [key]: e.target.value }));
 
-  const executeSave = async () => {
-    const activeSessionId = getValidSessionId(sessionId);
+  const resetForm = () => {
+    setEditingId(null);
+    setForm(emptyIncidentForm(technicianId));
+    setError('');
+    setInfo('');
+  };
+
+  const loadIncidentIntoForm = (inc) => {
+    setEditingId(inc.id);
+    setForm({
+      event_time: toDatetimeLocalValue(inc.event_time) || nowTime(),
+      incident_type: inc.incident_type || '',
+      category: inc.event_category || '',
+      severity: inc.severity || '',
+      description: inc.description || '',
+      cause: inc.suspected_cause || '',
+      observed_time: toDatetimeLocalValue(inc.event_time_observed),
+      intervention: inc.intervention || '',
+      intervention_details: inc.intervention_details || '',
+      outcome: inc.outcome || '',
+      escalated_to: inc.escalated_to != null ? String(inc.escalated_to) : '',
+      escalation_time: toDatetimeLocalValue(inc.escalation_time),
+      further_action: Number(inc.further_action_required) === 1 || String(inc.further_action_required).toLowerCase() === 'yes' ? 'Yes' : 'No',
+      followup: Number(inc.follow_up_required) === 1 || String(inc.follow_up_required).toLowerCase() === 'yes' ? 'Yes' : 'No',
+      resolved_by: inc.resolved_by != null ? String(inc.resolved_by) : (technicianId || ''),
+      resolution_time: toDatetimeLocalValue(inc.resolution_time),
+      comments: inc.comments || '',
+      notify: Boolean(Number(inc.notify_flag)),
+    });
+    setInfo(inc.is_auto ? `Completing auto-created draft from ${inc.source_screen || 'another screen'}.` : 'Editing incident.');
+    setError('');
+  };
+
+  const buildPayload = (asDraft = false) => ({
+    event_time: form.event_time,
+    incident_type: form.incident_type,
+    event_category: form.category,
+    severity: form.severity,
+    description: form.description || null,
+    suspected_cause: form.cause || null,
+    event_time_observed: form.observed_time || null,
+    intervention: form.intervention || null,
+    intervention_details: form.intervention_details || null,
+    outcome: form.outcome || null,
+    escalated_to: furtherRequired ? form.escalated_to : (form.escalated_to || null),
+    escalation_time: furtherRequired ? (form.escalation_time || null) : (form.escalation_time || null),
+    further_action_required: form.further_action,
+    follow_up_required: form.followup,
+    resolved_by: form.resolved_by || null,
+    resolution_time: form.resolution_time || null,
+    comments: form.comments || null,
+    notify_flag: Boolean(form.notify),
+    save_as_draft: asDraft,
+    recorded_at: new Date().toISOString(),
+  });
+
+  const executeSave = async ({ asDraft = false } = {}) => {
     if (!activeSessionId) {
       const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before submitting incident report.';
       setError(alertMsg);
-      alert(alertMsg);
       return false;
     }
-    if (!form.incident_type || !form.description || !form.intervention) {
-      setError('Incident type, description, and intervention are required.');
+    if (!asDraft) {
+      if (!form.event_time || !form.incident_type || !form.category || !form.severity || !form.description || !form.intervention || !form.outcome) {
+        setError('Event Time, Incident Type, Event Category, Severity, Description, Intervention, and Outcome are required.');
+        return false;
+      }
+      if (furtherRequired && !form.escalated_to) {
+        setError('Escalated To is required when Further Action Required is Yes.');
+        return false;
+      }
+      if (furtherRequired && !form.escalation_time) {
+        setError('Escalation Time is required when Further Action Required is Yes.');
+        return false;
+      }
+    } else if (!form.incident_type) {
+      setError('Incident Type is required to save a draft.');
       return false;
     }
+
     setSaving(true);
     setError('');
-
-    const payload = {
-      ...form,
-      recorded_at: new Date().toISOString(),
-    };
-
-    const res = await createIncident(activeSessionId, payload);
+    const payload = buildPayload(asDraft);
+    const res = editingId
+      ? await updateIncident(activeSessionId, editingId, payload)
+      : await createIncident(activeSessionId, payload);
     setSaving(false);
 
     if (!res.success) {
-      const errMsg = responseData(res)?.message || res?.error || res?.message || 'Failed to save incident report.';
-      setError(errMsg);
+      setError(responseData(res)?.message || res?.error || res?.message || 'Failed to save incident report.');
       return false;
     }
 
-    setInfo('Incident report saved successfully.');
-    setIncidents((prev) => [
-      {
-        id: Date.now(),
-        time: form.event_time,
-        type: form.incident_type,
-        status: `Resolved at ${form.resolution_time || 'now'}`,
-        severity: form.severity,
-      },
-      ...prev,
-    ]);
+    const d = responseData(res);
+    if (d?.overview) {
+      setOverview({
+        total: Number(d.overview.total) || 0,
+        open: Number(d.overview.open) || 0,
+        resolved: Number(d.overview.resolved) || 0,
+        escalated: Number(d.overview.escalated) || 0,
+      });
+    }
+    setInfo(asDraft ? 'Incident draft saved.' : 'Incident report saved successfully.');
+    resetForm();
+    await refreshIncidents();
     return true;
   };
 
-  const handleSaveOnly = async () => { await executeSave(); };
-  const handleSaveAndExit = async () => { const ok = await executeSave(); if (ok) go('P3-01'); };
-  const handleSaveAndContinue = async () => { const ok = await executeSave(); if (ok) go('P3-10'); };
+  const handleSaveOnly = async () => { await executeSave({ asDraft: false }); };
+  const handleSaveDraft = async () => { const ok = await executeSave({ asDraft: true }); if (ok) go('P3-01'); };
+  const handleSaveReturn = async () => { const ok = await executeSave({ asDraft: false }); if (ok) go('P3-01'); };
+
+  const escalationOptions = escalationContacts.length
+    ? escalationContacts.map((c) => ({
+      value: String(c.id),
+      label: [c.role, c.name].filter(Boolean).join(' — ') || `Contact #${c.id}`,
+    }))
+    : DEFAULT_ESCALATION_ROLES.map((role) => ({ value: role, label: role }));
+
+  const typeOptions = useMemo(() => {
+    const current = form.incident_type;
+    if (current && !INCIDENT_TYPES.includes(current)) {
+      return [current, ...INCIDENT_TYPES];
+    }
+    return INCIDENT_TYPES;
+  }, [form.incident_type]);
+
+  const fmtClock = (value) => {
+    if (!value) return '—';
+    try {
+      return new Date(String(value).replace(' ', 'T')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return String(value);
+    }
+  };
 
   return (
     <>
       <div className="during-symptoms-layout-grid">
         <div style={{ minWidth: 0 }}>
-          <Card title="Report New Incident / Event">
+          <Card title={editingId ? 'Complete / Update Incident' : 'Report New Incident / Event'}>
+            {editingId && (
+              <div className="during-alert" style={{ marginBottom: 12 }}>
+                Editing incident #{editingId}.{' '}
+                <button type="button" className="during-card-action-link" onClick={resetForm}>Start new instead</button>
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '12px' }}>
-              <Field label="Event Time *" icon={AccessTimeOutlinedIcon}>
-                <Input type="text" value={form.event_time} onChange={update('event_time')} />
+              <Field label="Event Time" icon={AccessTimeOutlinedIcon} required>
+                <Input type="datetime-local" value={form.event_time} onChange={update('event_time')} />
               </Field>
 
-              <Field label="Incident Type *">
+              <Field label="Incident Type" required>
                 <Select value={form.incident_type} onChange={update('incident_type')}>
-                  <option value="Hypotension">Hypotension</option>
-                  <option value="Cramps">Cramps</option>
-                  <option value="Air Leak">Air Leak</option>
-                  <option value="Clotting">Clotting</option>
-                  <option value="Infiltration">Infiltration</option>
-                  <option value="Equipment Failure">Equipment Failure</option>
-                  <option value="Other">Other</option>
+                  <option value="">Select type</option>
+                  {typeOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </Select>
               </Field>
 
-              <Field label="Event Category *">
+              <Field label="Event Category" required>
                 <Select value={form.category} onChange={update('category')}>
-                  <option value="Clinical">Clinical</option>
-                  <option value="Technical">Technical</option>
-                  <option value="Procedural">Procedural</option>
-                  <option value="Operational">Operational</option>
+                  <option value="">Select category</option>
+                  {INCIDENT_CATEGORIES.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </Select>
               </Field>
 
@@ -4749,63 +4915,75 @@ function IncidentReportingView({ sessionId, go }) {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-              <Field label="Description of Incident *">
-                <Textarea placeholder="Patient developed hypotension..." maxLength="500" value={form.description} onChange={update('description')} />
+              <Field label="Description of Incident" required>
+                <Textarea placeholder="Describe the incident..." maxLength={500} value={form.description} onChange={update('description')} />
               </Field>
 
               <Field label="Suspected Cause (if known)">
                 <Select value={form.cause} onChange={update('cause')}>
-                  <option value="UF rate too high">UF rate too high</option>
-                  <option value="Access dysfunction">Access dysfunction</option>
-                  <option value="Dialysate temperature">Dialysate temperature</option>
-                  <option value="Unknown">Unknown</option>
+                  <option value="">Select cause</option>
+                  {INCIDENT_CAUSES.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </Select>
               </Field>
 
               <Field label="Event Time (Observed)" icon={AccessTimeOutlinedIcon}>
-                <Input type="text" value={form.observed_time} onChange={update('observed_time')} />
+                <Input type="datetime-local" value={form.observed_time} onChange={update('observed_time')} />
               </Field>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 1fr', gap: '10px', marginBottom: '12px' }}>
-              <Field label="Intervention / Action Taken *">
+              <Field label="Intervention / Action Taken" required>
                 <Select value={form.intervention} onChange={update('intervention')}>
-                  <option value="UF rate reduced">UF rate reduced</option>
-                  <option value="Saline bolus given">Saline bolus given</option>
-                  <option value="Needle repositioned">Needle repositioned</option>
-                  <option value="Treatment paused">Treatment paused</option>
+                  <option value="">Select intervention</option>
+                  {SYMPTOM_INTERVENTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </Select>
               </Field>
 
               <Field label="Intervention Details">
-                <Textarea placeholder="UF rate reduced from 800 to 500 mL/hr..." maxLength="300" value={form.intervention_details} onChange={update('intervention_details')} />
+                <Textarea placeholder="Details of action taken..." maxLength={300} value={form.intervention_details} onChange={update('intervention_details')} />
               </Field>
 
-              <Field label="Outcome / Patient Status *">
+              <Field label="Outcome / Patient Status" required>
                 <Select value={form.outcome} onChange={update('outcome')}>
-                  <option value="Stabilized">Stabilized</option>
-                  <option value="Recovered">Recovered</option>
-                  <option value="Under Observation">Under Observation</option>
-                  <option value="Transferred">Transferred</option>
+                  <option value="">Select outcome</option>
+                  {INCIDENT_OUTCOMES.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </Select>
               </Field>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '12px' }}>
-              <Field label="Escalated To">
-                <Select value={form.escalated_to} onChange={update('escalated_to')}>
-                  <option value="Nurse In-charge">Nurse In-charge</option>
-                  <option value="Dr. Neha Sharma">Dr. Neha Sharma</option>
-                  <option value="Technical Lead">Technical Lead</option>
+              <Field label="Escalated To" required={furtherRequired}>
+                <Select value={form.escalated_to} onChange={update('escalated_to')} disabled={!furtherRequired && !form.escalated_to}>
+                  <option value="">—</option>
+                  {escalationOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </Select>
               </Field>
 
-              <Field label="Escalation Time" icon={AccessTimeOutlinedIcon}>
-                <Input type="text" value={form.escalation_time} onChange={update('escalation_time')} />
+              <Field label="Escalation Time" icon={AccessTimeOutlinedIcon} required={furtherRequired}>
+                <Input type="datetime-local" value={form.escalation_time} onChange={update('escalation_time')} disabled={!furtherRequired} />
               </Field>
 
               <Field label="Further Action Required">
-                <Select value={form.further_action} onChange={update('further_action')}>
+                <Select
+                  value={form.further_action}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm((v) => ({
+                      ...v,
+                      further_action: val,
+                      escalated_to: val === 'Yes' ? v.escalated_to : '',
+                      escalation_time: val === 'Yes' ? (v.escalation_time || nowTime()) : '',
+                    }));
+                  }}
+                >
                   <option value="No">No</option>
                   <option value="Yes">Yes</option>
                 </Select>
@@ -4813,38 +4991,35 @@ function IncidentReportingView({ sessionId, go }) {
 
               <Field label="Follow-up Required">
                 <Select value={form.followup} onChange={update('followup')}>
-                  <option value="Yes">Yes</option>
                   <option value="No">No</option>
+                  <option value="Yes">Yes</option>
                 </Select>
               </Field>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '10px', marginBottom: '12px' }}>
               <Field label="Resolved By">
-                <Select value={form.resolved_by} onChange={update('resolved_by')}>
-                  <option value="Rahul Singh (Technician)">Rahul Singh (Technician)</option>
-                  <option value="Dr. Neha Sharma">Dr. Neha Sharma</option>
-                </Select>
+                <Input type="text" placeholder="Technician / nurse ID or name" value={form.resolved_by} onChange={update('resolved_by')} />
               </Field>
 
               <Field label="Resolution Time" icon={AccessTimeOutlinedIcon}>
-                <Input type="text" value={form.resolution_time} onChange={update('resolution_time')} />
+                <Input type="datetime-local" value={form.resolution_time} onChange={update('resolution_time')} />
               </Field>
 
-              <div>
-                <Field label="Comments / Additional Notes">
-                  <Textarea placeholder="BP stabilized to 110/64 mmHg..." maxLength="300" value={form.comments} onChange={update('comments')} />
-                </Field>
-              </div>
+              <Field label="Comments / Additional Notes">
+                <Textarea placeholder="Additional notes..." maxLength={300} value={form.comments} onChange={update('comments')} />
+              </Field>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
               <LibraryCheckbox isChecked={form.notify} onChange={(e) => setForm((v) => ({ ...v, notify: e.target.checked }))}>
-                Notify Nurse / Doctor ⓘ
+                Notify Nurse / Doctor
               </LibraryCheckbox>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <LibraryButton variant="outline" onClick={() => setForm({ event_time: nowTime(), incident_type: 'Hypotension', category: 'Clinical', severity: 'Moderate', description: '', cause: 'UF rate too high', observed_time: '', intervention: '', intervention_details: '', outcome: 'Stabilized', escalated_to: 'Nurse In-charge', escalation_time: '', further_action: 'No', followup: 'Yes', resolved_by: 'Rahul Singh (Technician)', resolution_time: '', comments: '', notify: true })}>Reset</LibraryButton>
-                <LibraryButton variant="primary" onClick={handleSaveOnly} disabled={saving}>{saving ? 'Saving...' : 'Save Incident'}</LibraryButton>
+                <LibraryButton variant="outline" onClick={resetForm}>Reset</LibraryButton>
+                <LibraryButton variant="primary" onClick={handleSaveOnly} disabled={saving}>
+                  {saving ? 'Saving...' : (editingId ? 'Update Incident' : 'Save Incident')}
+                </LibraryButton>
               </div>
             </div>
 
@@ -4853,50 +5028,57 @@ function IncidentReportingView({ sessionId, go }) {
           </Card>
         </div>
 
-        {/* Right Column */}
         <div style={{ minWidth: 0 }}>
           <Card title="Incident Overview">
             <div className="during-alarm-overview-grid">
               <div className="during-alarm-stat-tile" style={{ background: '#fef2f2', borderColor: '#fecaca' }}>
                 <WarningAmberOutlinedIcon sx={{ color: '#dc2626' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>{incidents.length}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>This Session</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{overview.total}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>This Session</span></div>
               </div>
               <div className="during-alarm-stat-tile" style={{ background: '#fffbeb', borderColor: '#fef3c7' }}>
                 <AccessTimeOutlinedIcon sx={{ color: '#d97706' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>{incidents.filter(i => !(i.status || '').toLowerCase().includes('resolve')).length}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Open</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{overview.open}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Open</span></div>
               </div>
               <div className="during-alarm-stat-tile" style={{ background: '#f0fdf4', borderColor: '#dcfce7' }}>
                 <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>{incidents.filter(i => (i.status || '').toLowerCase().includes('resolve')).length}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Resolved</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{overview.resolved}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Resolved</span></div>
               </div>
               <div className="during-alarm-stat-tile" style={{ background: '#eff6ff', borderColor: '#dbeafe' }}>
                 <TrendingUpOutlinedIcon sx={{ color: '#2563eb' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>{incidents.filter(i => (i.status || '').toLowerCase().includes('escalat')).length}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Escalated</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{overview.escalated}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Escalated</span></div>
               </div>
             </div>
           </Card>
 
           <Card title="Recent Incidents (This Session)" style={{ marginTop: '16px' }}>
-            <div className="during-card-header" style={{ marginTop: '-24px', marginBottom: '12px' }}>
-              <span />
-              <button type="button" className="during-card-action-link">View All</button>
-            </div>
             {incidents.length === 0 ? (
               <div className="during-empty" style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '12px' }}>
-                No incidents reported for this session.
+                No incidents this session.
               </div>
             ) : (
               <div className="during-med-reminders-list">
-                {incidents.map((inc, idx) => (
-                  <div key={inc.id || idx} className="during-med-reminder-item">
+                {incidents.map((inc) => (
+                  <button
+                    key={inc.id}
+                    type="button"
+                    className="during-med-reminder-item"
+                    style={{ width: '100%', textAlign: 'left', cursor: 'pointer', border: editingId === inc.id ? '1px solid #2563eb' : undefined }}
+                    onClick={() => loadIncidentIntoForm(inc)}
+                  >
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: '12px' }}>{inc.type || inc.incident_type || 'Incident'}</div>
-                      <div style={{ fontSize: '10px', color: '#64748b' }}>{inc.time || (inc.recorded_at ? new Date(inc.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—')} • {inc.status || 'Draft'}</div>
+                      <div style={{ fontWeight: 700, fontSize: '12px' }}>
+                        {inc.incident_type || 'Incident'}
+                        {Number(inc.is_auto) === 1 ? ' · Auto' : ''}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#64748b' }}>
+                        {fmtClock(inc.event_time)} • {inc.status || 'draft'}
+                        {inc.source_screen ? ` · from ${inc.source_screen}` : ''}
+                      </div>
                     </div>
                     <span className="during-status-pill alert" style={{ fontSize: '10px', padding: '1px 6px' }}>
-                      {inc.severity || 'Moderate'}
+                      {inc.severity || '—'}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -4908,9 +5090,8 @@ function IncidentReportingView({ sessionId, go }) {
               <span>Safety Reminder</span>
             </div>
             <div className="during-clinical-guidance-text" style={{ color: '#713f12' }}>
-              Report all incidents immediately and take appropriate action to ensure patient safety.
+              Report all incidents immediately and take appropriate action to ensure patient safety. Auto-drafts from P3-04/05/06/07 appear here for completion — click a card to finish Escalation, Outcome, and Follow-up.
             </div>
-            <button type="button" className="during-card-action-link">View Reporting Guidelines →</button>
           </div>
 
           <Card title="Quick Actions" style={{ marginTop: '16px' }}>
@@ -4937,10 +5118,12 @@ function IncidentReportingView({ sessionId, go }) {
       </div>
 
       <div className="during-bottom-nav-bar">
-        <LibraryButton variant="outline" onClick={() => go('P3-08')}>← Back</LibraryButton>
+        <LibraryButton variant="outline" onClick={() => go('P3-01')}>← Back</LibraryButton>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <LibraryButton variant="outline" onClick={handleSaveAndExit} disabled={saving}>Save as Draft</LibraryButton>
-          <LibraryButton variant="primary" onClick={handleSaveAndContinue} disabled={saving}>Save & Continue →</LibraryButton>
+          <LibraryButton variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</LibraryButton>
+          <LibraryButton variant="primary" onClick={handleSaveReturn} disabled={saving}>
+            {saving ? 'Saving...' : 'Save & Return to Dashboard'}
+          </LibraryButton>
         </div>
       </div>
     </>

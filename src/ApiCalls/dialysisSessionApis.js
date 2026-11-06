@@ -210,6 +210,8 @@ export const createIncident = (sessionId, payload, config) =>
   p3Request('post', p3Path(`/sessions/${sessionId}/incidents`), payload, config);
 export const getIncidents = (sessionId, config) =>
   p3Request('get', p3Path(`/sessions/${sessionId}/incidents`), undefined, config);
+export const updateIncident = (sessionId, incidentId, payload, config) =>
+  p3Request('patch', p3Path(`/sessions/${sessionId}/incidents/${incidentId}`), payload, config);
 export const endDuringDialysisTreatment = (sessionId, payload, config) =>
   p3Request('post', p3Path(`/sessions/${sessionId}/end-treatment`), payload, config);
 
@@ -245,5 +247,6 @@ export default {
   createTreatmentEvent,
   createIncident,
   getIncidents,
+  updateIncident,
   endDuringDialysisTreatment,
 };
