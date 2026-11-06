@@ -2392,98 +2392,233 @@ function AccessHealthGaugeSVG({ score = 95 }) {
   );
 }
 
+const AVF_AVG_FIELDS = [
+  { key: 'needle_position_security', name: 'Needle Position & Security', icon: NoteAltOutlinedIcon, options: ['Secure', 'Loose', 'Dislodged'], normal: 'Secure', critical: true },
+  { key: 'bleeding', name: 'Bleeding', icon: WaterDropOutlinedIcon, options: ['None', 'Minimal', 'Excessive'], normal: 'None', critical: true },
+  { key: 'swelling', name: 'Swelling', icon: HealingOutlinedIcon, options: ['None', 'Mild', 'Moderate', 'Severe'], normal: 'None', critical: false },
+  { key: 'infiltration_extravasation', name: 'Infiltration / Extravasation', icon: WaterDropOutlinedIcon, options: ['No', 'Yes (Mild)', 'Yes (Severe)'], normal: 'No', critical: true },
+  { key: 'pain_tenderness', name: 'Pain / Tenderness', icon: WarningAmberOutlinedIcon, options: ['None', 'Mild', 'Moderate', 'Severe'], normal: 'None', critical: false },
+  { key: 'thrill', name: 'Thrill (Palpation)', icon: AirOutlinedIcon, options: ['Strong', 'Weak', 'Absent'], normal: 'Strong', critical: true },
+  { key: 'bruit', name: 'Bruit (Auscultation)', icon: MonitorHeartOutlinedIcon, options: ['Normal', 'Weak', 'Absent'], normal: 'Normal', critical: true },
+  { key: 'blood_flow_adequacy', name: 'Blood Flow Adequacy', icon: MonitorHeartOutlinedIcon, options: ['Adequate', 'Inadequate', 'Not Assessable'], normal: 'Adequate', critical: true },
+  { key: 'skin_condition', name: 'Skin Condition', icon: HealingOutlinedIcon, options: ['Normal', 'Redness', 'Warmth', 'Other'], normal: 'Normal', critical: false },
+];
+
+const CVC_FIELDS = [
+  { key: 'catheter_connection_security', name: 'Catheter Connection Security', icon: NoteAltOutlinedIcon, options: ['Secure', 'Loose', 'Disconnected'], normal: 'Secure', critical: true },
+  { key: 'blood_flow_adequacy', name: 'Blood Flow Adequacy', icon: MonitorHeartOutlinedIcon, options: ['Adequate', 'Inadequate', 'Not Assessable'], normal: 'Adequate', critical: true },
+  { key: 'bleeding', name: 'Bleeding (at exit/connection)', icon: WaterDropOutlinedIcon, options: ['None', 'Minimal', 'Excessive'], normal: 'None', critical: true },
+  { key: 'signs_of_infection', name: 'Signs of Infection / Erythema / Discharge', icon: WarningAmberOutlinedIcon, options: ['No', 'Yes'], normal: 'No', critical: true },
+  { key: 'kinking_clamping', name: 'Kinking / Clamping Issues', icon: SettingsOutlinedIcon, options: ['None', 'Present'], normal: 'None', critical: true },
+  { key: 'tenderness_pain', name: 'Tenderness / Pain at Exit Site', icon: WarningAmberOutlinedIcon, options: ['No', 'Yes'], normal: 'No', critical: true },
+  { key: 'dressing_intact', name: 'Dressing Intact', icon: HealingOutlinedIcon, options: ['Yes', 'No'], normal: 'Yes', critical: false },
+  { key: 'exit_site_clean', name: 'Exit Site Clean', icon: HealingOutlinedIcon, options: ['Yes', 'No'], normal: 'Yes', critical: false },
+  { key: 'skin_condition', name: 'Skin Condition', icon: HealingOutlinedIcon, options: ['Normal', 'Redness', 'Warmth', 'Other'], normal: 'Normal', critical: false },
+];
+
+function emptyAccessFindings(fields) {
+  const out = {};
+  fields.forEach((f) => {
+    out[f.key] = { finding: '', comment: '' };
+  });
+  return out;
+}
+
+function accessHealthScore(overallStatus) {
+  const s = String(overallStatus || '').toLowerCase();
+  if (s.includes('not functional')) return 12;
+  if (s.includes('at risk')) return 62;
+  if (s.includes('good') || s.includes('functional')) return 98;
+  return 0;
+}
+
+function detectAccessFailureFlags(accessCode, items) {
+  const flags = [];
+  const val = (k) => String(items[k]?.finding || '').toLowerCase();
+  if (accessCode === 'CVC') {
+    if (val('catheter_connection_security').includes('loose') || val('catheter_connection_security').includes('disconnect')) {
+      flags.push('Catheter Connection Security');
+    }
+    if (val('blood_flow_adequacy').includes('inadequate')) flags.push('Blood Flow Adequacy');
+    if (val('bleeding').includes('excessive')) flags.push('Bleeding');
+    if (val('signs_of_infection') === 'yes') flags.push('Signs of Infection');
+  } else {
+    if (val('infiltration_extravasation').includes('yes') || val('infiltration_extravasation').includes('mild') || val('infiltration_extravasation').includes('severe')) {
+      flags.push('Infiltration / Extravasation');
+    }
+    if (val('bleeding').includes('excessive')) flags.push('Bleeding');
+    if (val('needle_position_security').includes('dislodg')) flags.push('Needle Position & Security');
+    if (val('thrill').includes('absent')) flags.push('Thrill');
+    if (val('blood_flow_adequacy').includes('inadequate')) flags.push('Blood Flow Adequacy');
+  }
+  return flags;
+}
+
+function resolveNextAssessmentDue(option) {
+  const now = new Date();
+  if (option === '1h') {
+    now.setHours(now.getHours() + 1);
+    return now.toISOString();
+  }
+  if (option === '2h') {
+    now.setHours(now.getHours() + 2);
+    return now.toISOString();
+  }
+  return null;
+}
+
 function VascularAccessMonitoringView({ sessionId, go }) {
-  const [accessType, setAccessType] = useState('AV Fistula (AVF)');
+  const [accessType, setAccessType] = useState('AVF');
   const [assessmentTime, setAssessmentTime] = useState(nowTime());
-  const [overallStatus, setOverallStatus] = useState('Good / Functional');
+  const [overallStatus, setOverallStatus] = useState('');
   const [intervention, setIntervention] = useState('');
   const [additionalNotes, setAdditionalNotes] = useState('');
-  const [nextDue, setNextDue] = useState('Next Hour (Every 1 hour)');
+  const [nextDue, setNextDue] = useState('1h');
   const [notify, setNotify] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [incidentToast, setIncidentToast] = useState(null);
+  const [summary, setSummary] = useState({
+    accessType: '—',
+    location: '—',
+    dateCreated: '—',
+    lastReviewed: '—',
+    overall: '—',
+  });
+  const [healthPct, setHealthPct] = useState(null);
 
-  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+  const accessCode = useMemo(() => {
+    const s = String(accessType || '').toUpperCase();
+    if (s.includes('CVC')) return 'CVC';
+    if (s.includes('AVG') || s.includes('GRAFT')) return 'AVG';
+    return 'AVF';
+  }, [accessType]);
+
+  const assessmentFields = accessCode === 'CVC' ? CVC_FIELDS : AVF_AVG_FIELDS;
+  const [assessmentItems, setAssessmentItems] = useState(() => emptyAccessFindings(AVF_AVG_FIELDS));
+
+  const activeSessionId = getValidSessionId(sessionId);
 
   useEffect(() => {
-    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
+    setAssessmentItems(emptyAccessFindings(assessmentFields));
+  }, [accessCode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!activeSessionId) return;
     getVascularAccessMonitoring(activeSessionId).then((res) => {
-      if (res?.success) {
-        const d = responseData(res);
-        const data = Array.isArray(d) ? d[d.length - 1] : d;
-        if (data) {
-          if (data.access_type) setAccessType(data.access_type);
-          if (data.overall_status) setOverallStatus(data.overall_status);
-          if (data.recorded_at) setAssessmentTime(new Date(data.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        }
+      if (!res?.success) return;
+      const d = responseData(res);
+      const latest = d.latest || (Array.isArray(d.items) ? d.items[0] : null) || (Array.isArray(d) ? d[0] : d);
+      const pre = d.predialysis_access || null;
+      let location = '—';
+      let dateCreated = '—';
+      if (pre?.details_json) {
+        try {
+          const details = typeof pre.details_json === 'string' ? JSON.parse(pre.details_json) : pre.details_json;
+          location = details.location || details.access_location || details.site || '—';
+          dateCreated = details.date_created || details.created_date || '—';
+        } catch (_) { /* ignore */ }
       }
-    });
+      if (pre?.access_type && !latest?.access_type) {
+        setAccessType(String(pre.access_type).toUpperCase().includes('CVC') ? 'CVC'
+          : String(pre.access_type).toUpperCase().includes('AVG') ? 'AVG' : 'AVF');
+      }
+      if (latest) {
+        if (latest.access_type) setAccessType(String(latest.access_type).toUpperCase());
+        if (latest.overall_status) {
+          setOverallStatus(latest.overall_status);
+          setHealthPct(latest.access_health_pct != null ? Number(latest.access_health_pct) : accessHealthScore(latest.overall_status));
+        }
+        if (latest.reading_time || latest.recorded_at) {
+          const ts = latest.reading_time || latest.recorded_at;
+          const dt = new Date(ts);
+          if (!Number.isNaN(dt.getTime())) setAssessmentTime(nowTime());
+        }
+        setSummary((prev) => ({
+          ...prev,
+          accessType: latest.access_type || pre?.access_type || prev.accessType,
+          location,
+          dateCreated,
+          lastReviewed: formatSymptomTime(latest.reading_time || latest.recorded_at),
+          overall: latest.overall_status || '—',
+        }));
+      } else {
+        setSummary((prev) => ({
+          ...prev,
+          accessType: pre?.access_type || prev.accessType,
+          location,
+          dateCreated,
+          lastReviewed: pre?.recorded_at ? formatSymptomTime(pre.recorded_at) : '—',
+        }));
+      }
+    }).catch(() => {});
   }, [activeSessionId]);
 
-  const [assessmentItems, setAssessmentItems] = useState({
-    needle_security: { finding: 'Secure', comment: '' },
-    bleeding: { finding: 'None', comment: '' },
-    swelling: { finding: 'None', comment: '' },
-    infiltration: { finding: 'No', comment: '' },
-    pain: { finding: 'None', comment: '' },
-    thrill: { finding: 'Strong', comment: '' },
-    bruit: { finding: 'Normal', comment: '' },
-    blood_flow: { finding: 'Adequate', comment: '' },
-    skin_condition: { finding: 'Normal', comment: '' },
-  });
+  useEffect(() => {
+    if (!incidentToast) return undefined;
+    const t = setTimeout(() => setIncidentToast(null), 8000);
+    return () => clearTimeout(t);
+  }, [incidentToast]);
 
-  const assessmentFields = [
-    { key: 'needle_security', name: 'Needle Position & Security', icon: NoteAltOutlinedIcon, options: ['Secure', 'Loose', 'Dislodged'], normal: 'Secure' },
-    { key: 'bleeding', name: 'Bleeding', icon: WaterDropOutlinedIcon, options: ['None', 'Minimal', 'Excessive'], normal: 'None' },
-    { key: 'swelling', name: 'Swelling', icon: HealingOutlinedIcon, options: ['None', 'Mild', 'Moderate', 'Severe'], normal: 'None' },
-    { key: 'infiltration', name: 'Infiltration / Extravasation', icon: WaterDropOutlinedIcon, options: ['No', 'Yes (Mild)', 'Yes (Severe)'], normal: 'No' },
-    { key: 'pain', name: 'Pain / Tenderness', icon: WarningAmberOutlinedIcon, options: ['None', 'Mild', 'Moderate', 'Severe'], normal: 'None' },
-    { key: 'thrill', name: 'Thrill (Palpation)', icon: AirOutlinedIcon, options: ['Strong', 'Weak', 'Absent'], normal: 'Strong' },
-    { key: 'bruit', name: 'Bruit (Auscultation)', icon: MonitorHeartOutlinedIcon, options: ['Normal', 'Weak', 'Absent'], normal: 'Normal' },
-    { key: 'blood_flow', name: 'Blood Flow Adequacy', icon: MonitorHeartOutlinedIcon, options: ['Adequate', 'Inadequate', 'Not Assessable'], normal: 'Adequate' },
-    { key: 'skin_condition', name: 'Skin Condition', icon: HealingOutlinedIcon, options: ['Normal', 'Redness', 'Warmth', 'Other'], normal: 'Normal' },
-  ];
+  const failureFlags = useMemo(
+    () => detectAccessFailureFlags(accessCode, assessmentItems),
+    [accessCode, assessmentItems],
+  );
+  const liveHealth = overallStatus ? accessHealthScore(overallStatus) : (healthPct ?? 0);
 
   const updateFinding = (key, findingVal) => {
     setAssessmentItems((prev) => ({
       ...prev,
-      [key]: { ...prev[key], finding: findingVal },
+      [key]: { ...(prev[key] || { comment: '' }), finding: findingVal },
     }));
   };
 
   const updateComment = (key, commentVal) => {
     setAssessmentItems((prev) => ({
       ...prev,
-      [key]: { ...prev[key], comment: commentVal },
+      [key]: { ...(prev[key] || { finding: '' }), comment: commentVal },
     }));
   };
 
   const executeSave = async () => {
-    const activeSessionId = getValidSessionId(sessionId);
     if (!activeSessionId) {
-      const alertMsg = 'No active dialysis session found. Please start a session from Patient Profile before saving access assessment.';
-      setError(alertMsg);
-      alert(alertMsg);
+      setError('No active dialysis session found. Please start a session from Patient Profile before saving access assessment.');
       return false;
     }
+    if (!overallStatus) {
+      setError('Overall Access Status is required.');
+      return false;
+    }
+    const missing = assessmentFields
+      .filter((f) => f.critical)
+      .filter((f) => !String(assessmentItems[f.key]?.finding || '').trim())
+      .map((f) => f.name);
+    if (missing.length) {
+      setError(`Critical findings required: ${missing.join(', ')}`);
+      return false;
+    }
+
     setSaving(true);
     setError('');
+    setInfo('');
 
-    const recorded_at = new Date().toISOString();
-    const recorded_by = getTechnicianId() || 'Rahul Singh';
+    const findings = {};
+    Object.entries(assessmentItems).forEach(([key, val]) => {
+      if (val?.finding) findings[key] = { finding: val.finding, comment: val.comment || '' };
+    });
 
     const payload = {
-      access_type: accessType,
+      access_type: accessCode,
       assessment_time: assessmentTime,
       overall_status: overallStatus,
-      intervention,
-      additional_notes: additionalNotes,
-      next_assessment_due: nextDue,
+      intervention: intervention || null,
+      notes: additionalNotes || null,
+      next_assessment_due: resolveNextAssessmentDue(nextDue),
       notify_flag: notify,
+      findings,
       assessment_items: assessmentItems,
-      recorded_by,
-      recorded_at,
+      recorded_at: new Date().toISOString(),
     };
 
     const res = await createVascularAccessMonitoring(activeSessionId, payload);
@@ -2495,42 +2630,75 @@ function VascularAccessMonitoringView({ sessionId, go }) {
       return false;
     }
 
-    setInfo('Vascular Access Assessment saved successfully.');
+    const d = responseData(res);
+    if (d?.access_health_pct != null) setHealthPct(Number(d.access_health_pct));
+    else setHealthPct(accessHealthScore(overallStatus));
+    setSummary((prev) => ({
+      ...prev,
+      accessType: accessCode,
+      overall: overallStatus,
+      lastReviewed: formatSymptomTime(new Date().toISOString()),
+    }));
+    if (d?.auto_incident_created) {
+      setIncidentToast({
+        incidentId: d.incident_id,
+        message: `Incident logged — ID ${d.incident_id}. Review on P3-09.`,
+      });
+      setInfo(`Access complication flagged. Incident draft ${d.incident_id} created.`);
+    } else if (failureFlags.length) {
+      setInfo(`Assessment saved with critical findings: ${failureFlags.join(', ')}.`);
+    } else {
+      setInfo('Vascular Access Assessment saved successfully.');
+    }
     return true;
   };
 
-  const handleSaveOnly = async () => {
-    await executeSave();
-  };
+  const handleSaveOnly = async () => { await executeSave(); };
+  const handleSaveDraft = async () => { const ok = await executeSave(); if (ok) go('P3-01'); };
+  const handleSaveReturn = async () => { const ok = await executeSave(); if (ok) go('P3-01'); };
 
-  const handleSaveAndExit = async () => {
-    const ok = await executeSave();
-    if (ok) go('P3-01');
-  };
-
-  const handleSaveAndContinue = async () => {
-    const ok = await executeSave();
-    if (ok) go('P3-06');
-  };
+  const titleLabel = accessCode === 'CVC'
+    ? 'Access Assessment – Central Venous Catheter'
+    : accessCode === 'AVG'
+      ? 'Access Assessment – AV Graft'
+      : 'Access Assessment – AV Fistula';
 
   return (
     <>
-      {/* Top Controls: Access Type Radio Bar & Assessment Time */}
+      {incidentToast && (
+        <div className="during-alert warning" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          <span>{incidentToast.message}</span>
+          <button type="button" className="during-card-action-link" onClick={() => go('P3-09')}>
+            View Incident →
+          </button>
+        </div>
+      )}
+
+      {failureFlags.length > 0 && (
+        <div className="during-alert warning" style={{ marginBottom: 12 }}>
+          <strong>Access failure state:</strong> {failureFlags.join(', ')}. Nurse/physician assessment required — no technician override.
+        </div>
+      )}
+
       <div className="during-access-top-bar">
         <div>
           <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '6px' }}>
             Access Type
           </label>
           <div className="during-access-type-radios">
-            {['AV Fistula (AVF)', 'AV Graft (AVG)', 'Central Venous Catheter (CVC)'].map((type) => (
-              <label key={type} className="during-access-type-radio-label">
+            {[
+              { code: 'AVF', label: 'AV Fistula (AVF)' },
+              { code: 'AVG', label: 'AV Graft (AVG)' },
+              { code: 'CVC', label: 'Central Venous Catheter (CVC)' },
+            ].map((type) => (
+              <label key={type.code} className="during-access-type-radio-label">
                 <input
                   type="radio"
                   name="accessTypeRadio"
-                  checked={accessType === type}
-                  onChange={() => setAccessType(type)}
+                  checked={accessCode === type.code}
+                  onChange={() => setAccessType(type.code)}
                 />
-                <span>{type}</span>
+                <span>{type.label}</span>
               </label>
             ))}
           </div>
@@ -2538,15 +2706,14 @@ function VascularAccessMonitoringView({ sessionId, go }) {
 
         <div style={{ minWidth: '220px' }}>
           <Field label="Assessment Time" icon={AccessTimeOutlinedIcon}>
-            <Input type="text" value={assessmentTime} onChange={(e) => setAssessmentTime(e.target.value)} />
+            <Input type="datetime-local" value={assessmentTime} onChange={(e) => setAssessmentTime(e.target.value)} />
           </Field>
         </div>
       </div>
 
       <div className="during-symptoms-layout-grid">
-        {/* Left Column: Assessment Matrix Card */}
         <div style={{ minWidth: 0 }}>
-          <Card title="Access Assessment – AV Fistula (Left)">
+          <Card title={titleLabel}>
             <p className="during-muted" style={{ marginTop: '-12px', marginBottom: '16px' }}>
               Evaluate access site during treatment.
             </p>
@@ -2563,14 +2730,16 @@ function VascularAccessMonitoringView({ sessionId, go }) {
                 <tbody>
                   {assessmentFields.map((field) => {
                     const Icon = field.icon;
-                    const itemState = assessmentItems[field.key] || { finding: field.normal, comment: '' };
-
+                    const itemState = assessmentItems[field.key] || { finding: '', comment: '' };
                     return (
                       <tr key={field.key}>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
                             <Icon sx={{ color: '#2563eb', fontSize: 16 }} />
-                            <span>{field.name}</span>
+                            <span>
+                              {field.name}
+                              {field.critical ? <em style={{ color: '#ef4444' }}> *</em> : null}
+                            </span>
                           </div>
                         </td>
                         <td>
@@ -2578,7 +2747,6 @@ function VascularAccessMonitoringView({ sessionId, go }) {
                             {field.options.map((opt) => {
                               const isSelected = itemState.finding === opt;
                               const isNormal = opt === field.normal;
-
                               return (
                                 <label key={opt} className="during-finding-radio-item">
                                   <input
@@ -2612,34 +2780,26 @@ function VascularAccessMonitoringView({ sessionId, go }) {
               </table>
             </div>
 
-            {/* Lower Form Section: Overall Access Status + Intervention + Notes */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '16px', marginTop: '20px' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', display: 'block', marginBottom: '8px' }}>
                   Overall Access Status <em style={{ color: '#ef4444' }}>*</em>
                 </label>
                 <div className="during-access-status-segmented-group">
-                  <button
-                    type="button"
-                    className={`during-[#access-status-btn] good ${overallStatus === 'Good / Functional' ? 'selected' : ''}`}
-                    onClick={() => setOverallStatus('Good / Functional')}
-                  >
-                    ✔ Good / Functional
-                  </button>
-                  <button
-                    type="button"
-                    className={`during-access-status-btn at-risk ${overallStatus === 'At Risk' ? 'selected' : ''}`}
-                    onClick={() => setOverallStatus('At Risk')}
-                  >
-                    ⚠️ At Risk
-                  </button>
-                  <button
-                    type="button"
-                    className={`during-access-status-btn not-functional ${overallStatus === 'Not Functional' ? 'selected' : ''}`}
-                    onClick={() => setOverallStatus('Not Functional')}
-                  >
-                    🚫 Not Functional
-                  </button>
+                  {[
+                    { value: 'Good / Functional', className: 'good', label: 'Good / Functional' },
+                    { value: 'At Risk', className: 'at-risk', label: 'At Risk' },
+                    { value: 'Not Functional', className: 'not-functional', label: 'Not Functional' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className={`during-access-status-btn ${opt.className} ${overallStatus === opt.value ? 'selected' : ''}`}
+                      onClick={() => setOverallStatus(opt.value)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -2650,12 +2810,12 @@ function VascularAccessMonitoringView({ sessionId, go }) {
                     <option value="None required">None required</option>
                     <option value="Needle repositioned">Needle repositioned</option>
                     <option value="Tape reinforced">Tape reinforced</option>
-                    <option value="Heparin lock flushed">Heparin lock flushed</option>
                     <option value="Pressure applied">Pressure applied</option>
+                    <option value="UF adjusted">UF adjusted</option>
                     <option value="Physician notified">Physician notified</option>
+                    <option value="Other">Other</option>
                   </Select>
                 </Field>
-
                 <div style={{ marginTop: '10px' }}>
                   <Field label="Additional Notes">
                     <Textarea
@@ -2671,12 +2831,11 @@ function VascularAccessMonitoringView({ sessionId, go }) {
               <div>
                 <Field label="Next Assessment Due" icon={AccessTimeOutlinedIcon}>
                   <Select value={nextDue} onChange={(e) => setNextDue(e.target.value)}>
-                    <option value="11:00 AM (In 1 hour)">11:00 AM (In 1 hour)</option>
-                    <option value="12:00 PM (In 2 hours)">12:00 PM (In 2 hours)</option>
-                    <option value="End of session">End of session</option>
+                    <option value="1h">In 1 hour</option>
+                    <option value="2h">In 2 hours</option>
+                    <option value="end">End of session</option>
                   </Select>
                 </Field>
-
                 <div style={{ marginTop: '18px' }}>
                   <LibraryCheckbox
                     isChecked={notify}
@@ -2693,77 +2852,73 @@ function VascularAccessMonitoringView({ sessionId, go }) {
 
             <div className="during-form-actions" style={{ marginTop: '16px' }}>
               <LibraryButton
+                type="button"
                 variant="outline"
                 onClick={() => {
-                  setOverallStatus('Good / Functional');
+                  setAssessmentItems(emptyAccessFindings(assessmentFields));
+                  setOverallStatus('');
                   setIntervention('');
                   setAdditionalNotes('');
+                  setAssessmentTime(nowTime());
+                  setError('');
+                  setInfo('');
                 }}
               >
                 Reset
               </LibraryButton>
-              <LibraryButton variant="primary" onClick={handleSaveOnly} disabled={saving}>
+              <LibraryButton type="button" variant="primary" onClick={handleSaveOnly} disabled={saving}>
                 {saving ? 'Saving...' : 'Save Assessment'}
               </LibraryButton>
             </div>
           </Card>
         </div>
 
-        {/* Right Column: Access Summary + Access Health Indicator + Guidance + Quick Actions */}
         <div style={{ minWidth: 0 }}>
-          {/* Card 1: Access Summary */}
           <Card title="Access Summary">
             <div className="during-card-header" style={{ marginTop: '-24px' }}>
               <span />
-              <span className="during-status-pill alert">Good / Functional</span>
+              <span className="during-status-pill alert">{overallStatus || summary.overall || '—'}</span>
             </div>
-
             <div style={{ marginTop: '8px' }}>
               <div className="during-access-summary-row">
-                <span style={{ color: '#64748b' }}>🔗 Access Type</span>
-                <strong>AV Fistula (Left)</strong>
+                <span style={{ color: '#64748b' }}>Access Type</span>
+                <strong>{accessCode || summary.accessType || '—'}</strong>
               </div>
               <div className="during-access-summary-row">
-                <span style={{ color: '#64748b' }}>📍 Location</span>
-                <strong>Left Forearm</strong>
+                <span style={{ color: '#64748b' }}>Location</span>
+                <strong>{summary.location || '—'}</strong>
               </div>
               <div className="during-access-summary-row">
-                <span style={{ color: '#64748b' }}>📅 Date Created</span>
-                <strong>15 Mar 2022</strong>
+                <span style={{ color: '#64748b' }}>Date Created</span>
+                <strong>{summary.dateCreated || '—'}</strong>
               </div>
               <div className="during-access-summary-row">
-                <span style={{ color: '#64748b' }}>⏱ Last Reviewed</span>
-                <strong>12 May 2025</strong>
+                <span style={{ color: '#64748b' }}>Last Reviewed</span>
+                <strong>{summary.lastReviewed || '—'}</strong>
               </div>
-            </div>
-
-            <div style={{ textAlign: 'center', marginTop: '14px' }}>
-              <button type="button" className="during-card-action-link">
-                View Access History →
-              </button>
             </div>
           </Card>
 
-          {/* Card 2: Access Health Indicator */}
           <Card title="Access Health Indicator">
-            <AccessHealthGaugeSVG score={95} />
+            <AccessHealthGaugeSVG score={liveHealth} />
+            <p className="during-muted" style={{ textAlign: 'center', marginTop: 8 }}>
+              Based on Overall Access Status
+              {overallStatus ? ` (${overallStatus})` : ''}
+            </p>
           </Card>
 
-          {/* Card 3: Clinical Guidance */}
           <div className="during-clinical-guidance-card">
             <div className="during-clinical-guidance-header">
               <SettingsOutlinedIcon fontSize="small" />
               <span>Clinical Guidance</span>
             </div>
             <div className="during-clinical-guidance-text">
-              Maintain adequate blood flow (BFR 250-300 mL/min). Inspect access site regularly for early signs of complications.
+              {accessCode === 'CVC'
+                ? 'Confirm catheter connections are secure, dressing intact, and flow is adequate. Escalate Loose/Disconnected connections or infection signs immediately.'
+                : 'Maintain adequate blood flow (BFR 250-300 mL/min). Inspect access site regularly for early signs of complications.'}
             </div>
-            <button type="button" className="during-card-action-link">
-              View Guidelines →
-            </button>
           </div>
 
-          {/* Card 4: Quick Actions Grid */}
           <Card title="Quick Actions" style={{ marginTop: '16px' }}>
             <div className="during-vitals-qa-2x2-grid">
               <button type="button" className="during-vitals-qa-tile" onClick={() => go('P3-04')}>
@@ -2773,7 +2928,6 @@ function VascularAccessMonitoringView({ sessionId, go }) {
                 </div>
                 <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
               </button>
-
               <button type="button" className="during-vitals-qa-tile" onClick={() => go('P3-02')}>
                 <div className="during-vitals-qa-tile-left">
                   <MonitorHeartOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" />
@@ -2781,7 +2935,6 @@ function VascularAccessMonitoringView({ sessionId, go }) {
                 </div>
                 <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
               </button>
-
               <button type="button" className="during-vitals-qa-tile" onClick={() => go('P3-07')}>
                 <div className="during-vitals-qa-tile-left">
                   <WarningAmberOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" />
@@ -2789,7 +2942,6 @@ function VascularAccessMonitoringView({ sessionId, go }) {
                 </div>
                 <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
               </button>
-
               <button type="button" className="during-vitals-qa-tile" onClick={() => go('P3-08')}>
                 <div className="during-vitals-qa-tile-left">
                   <ChecklistOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" />
@@ -2802,17 +2954,16 @@ function VascularAccessMonitoringView({ sessionId, go }) {
         </div>
       </div>
 
-      {/* Bottom Navigation Bar */}
       <div className="during-bottom-nav-bar">
-        <LibraryButton variant="outline" onClick={() => go('P3-04')}>
+        <LibraryButton type="button" variant="outline" onClick={() => go('P3-01')}>
           ← Back
         </LibraryButton>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <LibraryButton variant="outline" onClick={handleSaveAndExit} disabled={saving}>
+          <LibraryButton type="button" variant="outline" onClick={handleSaveDraft} disabled={saving}>
             Save as Draft
           </LibraryButton>
-          <LibraryButton variant="primary" onClick={handleSaveAndContinue} disabled={saving}>
-            Save & Continue →
+          <LibraryButton type="button" variant="primary" onClick={handleSaveReturn} disabled={saving}>
+            {saving ? 'Saving...' : 'Save & Return to Dashboard'}
           </LibraryButton>
         </div>
       </div>
