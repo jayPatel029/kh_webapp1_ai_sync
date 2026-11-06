@@ -4180,93 +4180,240 @@ function ProgressRingGaugeSVG({ title, value, unit, sub, status, statusColor, pe
   );
 }
 
+const PROGRESS_EVENT_TYPE_OPTIONS = [
+  'UF Goal Adjusted',
+  'Patient Repositioned',
+  'Parameter Adjustment',
+  'Treatment Note',
+  'Progress Note',
+  'Other',
+];
+
 function TreatmentProgressView({ sessionId, go }) {
   const [comments, setComments] = useState('');
-  const [nextReview, setNextReview] = useState('11:15 AM');
+  const [nextReview, setNextReview] = useState('');
   const [notify, setNotify] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [addingEvent, setAddingEvent] = useState(false);
+  const [showAddEvent, setShowAddEvent] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const [progress, setProgress] = useState(null);
+  const [uf, setUf] = useState(null);
+  const [parameters, setParameters] = useState([]);
   const [events, setEvents] = useState([]);
+  const [eventForm, setEventForm] = useState({
+    event_type: '',
+    description: '',
+    event_time: nowTime(),
+  });
 
-  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+  const activeSessionId = getValidSessionId(sessionId);
 
-  useEffect(() => {
-    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
-    getDuringDialysisProgress(activeSessionId).then((res) => {
-      if (res?.success) {
-        const d = responseData(res);
-        setProgress(d);
-        const evts = d?.events || d?.items || d?.logs || [];
-        setEvents(evts);
-      }
-    });
+  const refreshProgress = useCallback(async () => {
+    if (!activeSessionId) return;
+    setLoading(true);
+    const res = await getDuringDialysisProgress(activeSessionId);
+    setLoading(false);
+    if (!res?.success) {
+      setError(responseData(res)?.message || res?.error || res?.message || 'Failed to load treatment progress.');
+      return;
+    }
+    const d = responseData(res);
+    setProgress(d?.progress || d || null);
+    setUf(d?.uf || d?.progress?.uf || null);
+    setParameters(Array.isArray(d?.parameters_comparison) ? d.parameters_comparison : []);
+    setEvents(Array.isArray(d?.events) ? d.events : []);
+    setError('');
   }, [activeSessionId]);
 
-  const parameters = useMemo(() => {
-    if (!progress) return [];
-    return [
-      { name: 'Blood Flow Rate (BFR)', val: progress.bfr ? `${progress.bfr} mL/min` : '—', target: '300 - 350 mL/min', status: 'On Target' },
-      { name: 'Dialysate Flow Rate (DFR)', val: progress.dfr ? `${progress.dfr} mL/min` : '—', target: '500 mL/min', status: 'On Target' },
-      { name: 'UF Rate', val: progress.uf_rate ? `${progress.uf_rate} mL/hr` : '—', target: '500 - 800 mL/hr', status: 'On Target' },
-      { name: 'TMP', val: progress.tmp ? `${progress.tmp} mmHg` : '—', target: '< 120 mmHg', status: 'On Target' },
-      { name: 'Venous Pressure (VP)', val: progress.vp ? `${progress.vp} mmHg` : '—', target: '< 250 mmHg', status: 'On Target' },
-      { name: 'Arterial Pressure (AP)', val: progress.ap ? `${progress.ap} mmHg` : '—', target: '-50 to -250 mmHg', status: 'On Target' },
-      { name: 'Dialysate Conductivity', val: progress.conductivity ? `${progress.conductivity} mS/cm` : '—', target: '13.6 - 14.2 mS/cm', status: 'On Target' },
-    ];
-  }, [progress]);
+  useEffect(() => {
+    refreshProgress();
+  }, [refreshProgress]);
 
-  const executeSave = async () => {
-    const activeSessionId = getValidSessionId(sessionId);
+  const fmtHours = (hours) => {
+    if (hours == null || Number.isNaN(Number(hours))) return '—';
+    const totalMins = Math.max(0, Math.round(Number(hours) * 60));
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  const fmtClock = (value) => {
+    if (!value) return '—';
+    try {
+      return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return String(value);
+    }
+  };
+
+  const fmtNum = (value, digits = 2) => {
+    if (value == null || value === '' || Number.isNaN(Number(value))) return '—';
+    return Number(value).toFixed(digits).replace(/\.?0+$/, '');
+  };
+
+  const elapsedStr = progress?.elapsed_formatted || fmtHours(progress?.elapsed);
+  const remainingStr = progress?.remaining_formatted || fmtHours(progress?.remaining);
+  const totalStr = progress?.total_formatted || fmtHours(progress?.total);
+  const percentCompleted = progress?.percent != null ? Math.round(Number(progress.percent)) : 0;
+  const percentRemaining = progress?.total && progress.total > 0
+    ? Math.max(0, Math.round(100 - percentCompleted))
+    : 0;
+
+  const ufTarget = uf?.target ?? progress?.uf_target ?? progress?.uf?.target ?? null;
+  const ufAchieved = uf?.removed ?? progress?.uf_achieved ?? progress?.uf?.removed ?? null;
+  const ufPct = uf?.percent_of_goal != null
+    ? Math.round(Number(uf.percent_of_goal))
+    : (ufTarget && ufAchieved != null && Number(ufTarget) > 0
+      ? Math.round((Number(ufAchieved) / Number(ufTarget)) * 100)
+      : 0);
+
+  const bloodProcessed = progress?.blood_processed;
+  const ktV = progress?.kt_v;
+  const ktVValue = ktV && typeof ktV === 'object' ? ktV.value : ktV;
+  const ktVDisplay = (ktV && typeof ktV === 'object'
+    ? (ktV.display || (ktVValue != null ? String(ktVValue) : 'Not available'))
+    : (ktVValue != null ? String(ktVValue) : 'Not available'));
+  const ktVStatus = ktVValue == null
+    ? 'Not available'
+    : (Number(ktVValue) >= 1.2 ? 'Adequate' : 'Below target');
+
+  const currentTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const ufBarPct = ufTarget && Number(ufTarget) > 0
+    ? Math.min(100, Math.round((Number(ufAchieved || 0) / Number(ufTarget)) * 100))
+    : 0;
+
+  const updateEvent = (key) => (e) => setEventForm((v) => ({ ...v, [key]: e.target.value }));
+
+  const handleAddEvent = async () => {
     if (!activeSessionId) {
-      const alertMsg = 'No active dialysis session found. Please start a session from Patient Profile before saving treatment progress.';
-      setError(alertMsg);
-      alert(alertMsg);
-      return false;
+      setError('No active dialysis session found.');
+      return;
+    }
+    if (!eventForm.event_type) {
+      setError('Event type is required.');
+      return;
+    }
+    setAddingEvent(true);
+    setError('');
+    const res = await createTreatmentEvent(activeSessionId, {
+      event_type: eventForm.event_type,
+      description: eventForm.description || null,
+      event_time: eventForm.event_time || null,
+    });
+    setAddingEvent(false);
+    if (!res.success) {
+      setError(responseData(res)?.message || res?.error || res?.message || 'Failed to add event.');
+      return;
+    }
+    setInfo('Event added.');
+    setShowAddEvent(false);
+    setEventForm({ event_type: '', description: '', event_time: nowTime() });
+    await refreshProgress();
+  };
+
+  const handleSaveReturn = async () => {
+    if (!activeSessionId) {
+      go('P3-01');
+      return;
+    }
+    const hasNote = Boolean(comments.trim() || nextReview || notify);
+    if (!hasNote) {
+      go('P3-01');
+      return;
     }
     setSaving(true);
     setError('');
-
-    const payload = {
-      comments,
-      next_review_time: nextReview,
+    const res = await createTreatmentEvent(activeSessionId, {
+      event_type: 'Progress Note',
+      comments: comments.trim() || null,
+      next_review_time: nextReview || null,
       notify_flag: notify,
-      recorded_at: new Date().toISOString(),
-    };
-
-    const res = await createTreatmentEvent(activeSessionId, payload);
+      event_time: nowTime(),
+    });
     setSaving(false);
-
     if (!res.success) {
-      const errMsg = responseData(res)?.message || res?.error || res?.message || 'Failed to save treatment progress event.';
-      setError(errMsg);
-      return false;
+      setError(responseData(res)?.message || res?.error || res?.message || 'Failed to save progress note.');
+      return;
     }
-
-    setInfo('Treatment Progress record saved successfully.');
-    return true;
+    go('P3-01');
   };
-
-  const handleSaveAndExit = async () => { const ok = await executeSave(); if (ok) go('P3-01'); };
-  const handleSaveAndContinue = async () => { const ok = await executeSave(); if (ok) go('P3-09'); };
 
   return (
     <>
-      {/* 6 Circular Progress Rings Header Grid */}
+      {error && <div className="during-alert warning" style={{ marginBottom: 12 }}>{error}</div>}
+      {info && <div className="during-alert" style={{ marginBottom: 12 }}>{info}</div>}
+      {loading && !progress && <div style={{ marginBottom: 12, color: '#64748b' }}>Loading treatment progress…</div>}
+
       <div className="during-progress-rings-grid">
-        <ProgressRingGaugeSVG title="Elapsed Time" value="02:35" unit="hr:min" sub="of 04:00 hr" status="65% Completed" statusColor="blue" percent={65} strokeColor="#2563eb" />
-        <ProgressRingGaugeSVG title="Remaining Time" value="01:25" unit="hr:min" sub="Remaining" status="35% Remaining" statusColor="green" percent={35} strokeColor="#16a34a" />
-        <ProgressRingGaugeSVG title="UF Target" value="2.5" unit="L" sub="Goal" status="Set at start" statusColor="purple" percent={100} strokeColor="#8b5cf6" />
-        <ProgressRingGaugeSVG title="UF Achieved" value="1.65" unit="L" sub="Achieved" status="66% of target" statusColor="blue" percent={66} strokeColor="#2563eb" />
-        <ProgressRingGaugeSVG title="Blood Processed" value="58.2" unit="L" sub="Total Processed" status="Adequate" statusColor="green" percent={80} strokeColor="#f97316" />
-        <ProgressRingGaugeSVG title="Treatment Efficiency (Kt/V)" value="1.32" unit="" sub="Calculated" status="Adequate" statusColor="teal" percent={85} strokeColor="#0d9488" />
+        <ProgressRingGaugeSVG
+          title="Elapsed Time"
+          value={elapsedStr}
+          unit="hr:min"
+          sub={totalStr !== '—' ? `of ${totalStr} hr` : 'Prescribed duration unavailable'}
+          status={progress?.percent != null ? `${percentCompleted}% Completed` : '—'}
+          statusColor="blue"
+          percent={percentCompleted}
+          strokeColor="#2563eb"
+        />
+        <ProgressRingGaugeSVG
+          title="Remaining Time"
+          value={remainingStr}
+          unit="hr:min"
+          sub="Remaining"
+          status={progress?.percent != null ? `${percentRemaining}% Remaining` : '—'}
+          statusColor="green"
+          percent={percentRemaining}
+          strokeColor="#16a34a"
+        />
+        <ProgressRingGaugeSVG
+          title="UF Target"
+          value={ufTarget != null ? fmtNum(ufTarget) : '—'}
+          unit="L"
+          sub="Goal"
+          status={ufTarget != null ? 'Set at start' : 'Not set'}
+          statusColor="purple"
+          percent={ufTarget != null ? 100 : 0}
+          strokeColor="#8b5cf6"
+        />
+        <ProgressRingGaugeSVG
+          title="UF Achieved"
+          value={ufAchieved != null ? fmtNum(ufAchieved) : '—'}
+          unit="L"
+          sub="Achieved"
+          status={ufTarget != null ? `${ufPct}% of target` : '—'}
+          statusColor="blue"
+          percent={Math.min(100, ufPct)}
+          strokeColor="#2563eb"
+        />
+        <ProgressRingGaugeSVG
+          title="Blood Processed"
+          value={bloodProcessed != null ? fmtNum(bloodProcessed) : '—'}
+          unit="L"
+          sub="Total Processed"
+          status={bloodProcessed != null ? 'Live cumulative' : '—'}
+          statusColor="green"
+          percent={bloodProcessed != null ? Math.min(100, Math.round(Number(bloodProcessed))) : 0}
+          strokeColor="#f97316"
+        />
+        <ProgressRingGaugeSVG
+          title="Treatment Efficiency (Kt/V)"
+          value={ktVValue != null ? fmtNum(ktVValue, 2) : '—'}
+          unit=""
+          sub="Prior session"
+          status={ktVStatus}
+          statusColor="teal"
+          percent={ktVValue != null ? Math.min(100, Math.round((Number(ktVValue) / 1.4) * 100)) : 0}
+          strokeColor="#0d9488"
+        />
       </div>
 
       <div className="during-symptoms-layout-grid">
         <div style={{ minWidth: 0 }}>
-          {/* Treatment Parameters Table */}
           <Card title="Treatment Parameters">
             <div className="during-overdue-table-wrap">
               <table className="during-overdue-table">
@@ -4279,57 +4426,107 @@ function TreatmentProgressView({ sessionId, go }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {parameters.map((p) => (
-                    <tr key={p.name}>
+                  {parameters.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center', color: '#64748b' }}>
+                        No machine parameters recorded yet — open P3-03 to log readings.
+                      </td>
+                    </tr>
+                  ) : parameters.map((p) => (
+                    <tr key={p.key || p.name} className={p.status === 'Off Target' ? 'during-row-off-target' : undefined}>
                       <td><strong>{p.name}</strong></td>
-                      <td>{p.val}</td>
-                      <td>{p.target}</td>
-                      <td><span className="during-status-pill alert">{p.status}</span></td>
+                      <td>{p.current_display || '—'}</td>
+                      <td>{p.target_display || p.target || '—'}</td>
+                      <td>
+                        <span className={`during-status-pill ${p.status === 'Off Target' ? 'alert' : p.status === 'On Target' ? 'ok' : ''}`}>
+                          {p.status || '—'}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            <div style={{ textAlign: 'right', marginTop: 8 }}>
+              <button type="button" className="during-card-action-link" onClick={() => go('P3-03')}>
+                Adjust in Machine Parameters →
+              </button>
+            </div>
           </Card>
 
-          {/* Treatment Interventions / Events */}
           <Card title="Treatment Interventions / Events" style={{ marginTop: '16px' }}>
             <div className="during-card-header" style={{ marginTop: '-24px', marginBottom: '12px' }}>
               <span />
-              <LibraryButton variant="outline" size="sm">+ Add Event</LibraryButton>
+              <LibraryButton variant="outline" size="sm" onClick={() => { setShowAddEvent((v) => !v); setError(''); }}>
+                {showAddEvent ? 'Cancel' : '+ Add Event'}
+              </LibraryButton>
             </div>
+
+            {showAddEvent && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr 1fr auto', gap: 10, marginBottom: 14, alignItems: 'end' }}>
+                <Field label="Event Type" required>
+                  <Select value={eventForm.event_type} onChange={updateEvent('event_type')}>
+                    <option value="">Select type</option>
+                    {PROGRESS_EVENT_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Description">
+                  <Input
+                    type="text"
+                    maxLength={200}
+                    placeholder="Brief description (0/200)"
+                    value={eventForm.description}
+                    onChange={updateEvent('description')}
+                  />
+                </Field>
+                <Field label="Time" icon={AccessTimeOutlinedIcon}>
+                  <Input type="datetime-local" value={eventForm.event_time} onChange={updateEvent('event_time')} />
+                </Field>
+                <LibraryButton variant="primary" size="sm" onClick={handleAddEvent} disabled={addingEvent}>
+                  {addingEvent ? 'Saving…' : 'Add'}
+                </LibraryButton>
+              </div>
+            )}
+
             <div className="during-events-list">
-              {events.map((ev) => (
+              {events.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#64748b', padding: '16px 0' }}>
+                  No events logged this session.
+                </div>
+              ) : events.map((ev) => (
                 <div key={ev.id} className="during-event-item">
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <strong style={{ fontSize: '11px', color: '#64748b' }}>{ev.time}</strong>
+                    <strong style={{ fontSize: '11px', color: '#64748b' }}>{fmtClock(ev.event_time)}</strong>
                     <div>
-                      <div style={{ fontWeight: 700, color: '#1e293b' }}>{ev.title}</div>
-                      <div style={{ fontSize: '11px', color: '#64748b' }}>{ev.details}</div>
+                      <div style={{ fontWeight: 700, color: '#1e293b' }}>{ev.event_type}</div>
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>{ev.description || '—'}</div>
                     </div>
                   </div>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>{ev.by}</span>
+                  <span style={{ fontSize: '11px', color: '#64748b' }}>{ev.recorded_by_name || '—'}</span>
                 </div>
               ))}
             </div>
-            <div style={{ textAlign: 'center', marginTop: '12px' }}>
-              <button type="button" className="during-card-action-link">View Full Trends →</button>
-            </div>
           </Card>
 
-          {/* Comments & Next Review Time */}
           <Card style={{ marginTop: '16px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '16px' }}>
               <Field label="Comments">
-                <Textarea placeholder="Enter any observations or comments..." maxLength="300" value={comments} onChange={(e) => setComments(e.target.value)} />
+                <Textarea
+                  placeholder="Enter any observations or comments..."
+                  maxLength={300}
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                />
               </Field>
               <div>
                 <Field label="Next Review Time" icon={AccessTimeOutlinedIcon}>
-                  <Input type="text" value={nextReview} onChange={(e) => setNextReview(e.target.value)} />
+                  <Input type="datetime-local" value={nextReview} onChange={(e) => setNextReview(e.target.value)} />
                 </Field>
                 <div style={{ marginTop: '16px' }}>
                   <LibraryCheckbox isChecked={notify} onChange={(e) => setNotify(e.target.checked)}>
-                    Notify Nurse / Doctor ⓘ
+                    Notify Nurse / Doctor
                   </LibraryCheckbox>
                 </div>
               </div>
@@ -4337,42 +4534,34 @@ function TreatmentProgressView({ sessionId, go }) {
           </Card>
         </div>
 
-        {/* Right Column */}
         <div style={{ minWidth: 0 }}>
           <Card title="Real-time Summary">
             <div style={{ fontSize: '12px' }}>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Session Start Time</span><strong>07:45 AM</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Planned Duration</span><strong>04:00 hr</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Current Time</span><strong>10:20 AM</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Elapsed Time</span><strong>02:35 hr (65%)</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Remaining Time</span><strong>01:25 hr (35%)</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>UF Target</span><strong>2.5 L</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>UF Achieved</span><strong>1.65 L (66%)</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Blood Processed</span><strong>58.2 L</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Kt/V (Estimated)</span><strong>1.32</strong></div>
+              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Session Start Time</span><strong>{fmtClock(progress?.started_at)}</strong></div>
+              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Planned Duration</span><strong>{totalStr !== '—' ? `${totalStr} hr` : '—'}</strong></div>
+              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Current Time</span><strong>{currentTimeStr}</strong></div>
+              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Elapsed Time</span><strong>{elapsedStr !== '—' ? `${elapsedStr} hr${progress?.percent != null ? ` (${percentCompleted}%)` : ''}` : '—'}</strong></div>
+              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Remaining Time</span><strong>{remainingStr !== '—' ? `${remainingStr} hr${progress?.percent != null ? ` (${percentRemaining}%)` : ''}` : '—'}</strong></div>
+              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>UF Target</span><strong>{ufTarget != null ? `${fmtNum(ufTarget)} L` : '—'}</strong></div>
+              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>UF Achieved</span><strong>{ufAchieved != null ? `${fmtNum(ufAchieved)} L${ufTarget != null ? ` (${ufPct}%)` : ''}` : '—'}</strong></div>
+              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Blood Processed</span><strong>{bloodProcessed != null ? `${fmtNum(bloodProcessed)} L` : '—'}</strong></div>
+              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Kt/V (Estimated)</span><strong>{ktVDisplay}</strong></div>
             </div>
             <div style={{ textAlign: 'center', marginTop: '12px' }}>
-              <button type="button" className="during-card-action-link">View Parameter Trends →</button>
+              <button type="button" className="during-card-action-link" onClick={() => go('P3-03')}>View Parameter Trends →</button>
             </div>
           </Card>
 
-          {/* Progress Line Chart Card */}
-          <Card title="Progress Chart" style={{ marginTop: '16px' }}>
-            <div style={{ display: 'flex', gap: '12px', fontSize: '10px', color: '#64748b', marginBottom: '8px' }}>
-              <span>— UF Achieved (L)</span>
-              <span>-- UF Target (L)</span>
+          <Card title="UF Progress" style={{ marginTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 6 }}>
+              <span>UF Achieved {ufAchieved != null ? `${fmtNum(ufAchieved)} L` : '—'}</span>
+              <span>Target {ufTarget != null ? `${fmtNum(ufTarget)} L` : '—'}</span>
             </div>
-            <div style={{ width: '100%', height: '100px' }}>
-              <svg width="100%" height="100%" viewBox="0 0 240 90" preserveAspectRatio="none">
-                <line x1="20" y1="80" x2="230" y2="80" stroke="#e2e8f0" strokeWidth="1" />
-                <path d="M 20 80 Q 120 40 230 20" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="3 3" />
-                <path d="M 20 80 Q 120 50 230 35 L 230 80 L 20 80 Z" fill="rgba(37,99,235,0.1)" />
-                <path d="M 20 80 Q 120 50 230 35" fill="none" stroke="#2563eb" strokeWidth="2" />
-                <circle cx="230" cy="35" r="4" fill="#2563eb" />
-              </svg>
+            <div style={{ height: 10, background: '#e2e8f0', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ width: `${ufBarPct}%`, height: '100%', background: '#2563eb', transition: 'width 0.4s ease' }} />
             </div>
-            <div style={{ textAlign: 'center', marginTop: '8px' }}>
-              <button type="button" className="during-card-action-link">View Full Trends →</button>
+            <div style={{ marginTop: 8, fontSize: 11, color: '#64748b' }}>
+              {ufTarget != null ? `${ufPct}% of UF goal` : 'UF goal not set in Part 2'}
             </div>
           </Card>
 
@@ -4382,9 +4571,8 @@ function TreatmentProgressView({ sessionId, go }) {
               <span>Clinical Guidance</span>
             </div>
             <div className="during-clinical-guidance-text" style={{ color: '#713f12' }}>
-              Monitor treatment progress to ensure adequate dose (Kt/V ≥ 1.2) and UF goal achievement. Adjust parameters as per patient tolerance.
+              Monitor treatment progress to ensure adequate dose (Kt/V ≥ 1.2) and UF goal achievement. Adjust parameters as per patient tolerance. Mid-session Kt/V shows the most recent completed assessment only — live Kt/V is calculated in Part 4 after blood return.
             </div>
-            <button type="button" className="during-card-action-link">View Guidelines →</button>
           </div>
 
           <Card title="Quick Actions" style={{ marginTop: '16px' }}>
@@ -4393,7 +4581,7 @@ function TreatmentProgressView({ sessionId, go }) {
                 <div className="during-vitals-qa-tile-left"><TrendingUpOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" /><span>Parameter Trends</span></div>
                 <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
               </button>
-              <button type="button" className="during-vitals-qa-tile" onClick={() => go('P3-04')}>
+              <button type="button" className="during-vitals-qa-tile" onClick={() => setShowAddEvent(true)}>
                 <div className="during-vitals-qa-tile-left"><NoteAltOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" /><span>Intervention Log</span></div>
                 <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
               </button>
@@ -4411,10 +4599,11 @@ function TreatmentProgressView({ sessionId, go }) {
       </div>
 
       <div className="during-bottom-nav-bar">
-        <LibraryButton variant="outline" onClick={() => go('P3-07')}>← Back</LibraryButton>
+        <LibraryButton variant="outline" onClick={() => go('P3-01')}>← Back</LibraryButton>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <LibraryButton variant="outline" onClick={handleSaveAndExit} disabled={saving}>Save as Draft</LibraryButton>
-          <LibraryButton variant="primary" onClick={handleSaveAndContinue} disabled={saving}>Save & Continue →</LibraryButton>
+          <LibraryButton variant="primary" onClick={handleSaveReturn} disabled={saving}>
+            {saving ? 'Saving...' : 'Save & Return to Dashboard'}
+          </LibraryButton>
         </div>
       </div>
     </>
