@@ -3595,66 +3595,234 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
   );
 }
 
-function AlarmManagementView({ sessionId, go }) {
-  const [form, setForm] = useState({
-    alarm_time: nowTime(),
-    alarm_type: 'High Venous Pressure',
-    severity: 'High',
-    related_parameter: 'Venous Pressure (VP)',
-    alarm_code: 'A-204',
-    description: 'Venous pressure exceeds upper limit',
-    current_value: '245',
-    threshold: '> 230 mmHg',
-    duration: '02:15',
-    action_taken: 'Reduced BFR',
-    additional_actions: 'Repositioned patient, flushed line',
-    resolved_by: 'Rahul Singh (Technician)',
-    resolution_time: '10:37 AM',
-    resolution_status: 'Resolved',
-    patient_impact: 'No adverse effect',
-    escalated_to: '-',
-    escalation_time: '',
-    comments: 'Venous pressure normalized after reducing BFR and flushing line.',
-    notify: false,
-  });
+const ALARM_TYPES = [
+  'High Arterial Pressure',
+  'Low Arterial Pressure',
+  'High Venous Pressure',
+  'Low Venous Pressure',
+  'Air/Foam Detected',
+  'Blood Leak Detected',
+  'Venous Needle Dislodgement (Suspected)',
+  'High Conductivity',
+  'Low Conductivity',
+  'High Dialysate Temperature',
+  'Low Dialysate Temperature',
+  'Dialysate Flow Fault',
+  'High TMP',
+  'UF Rate Deviation/System Fault',
+  'Heparin Pump Fault/Occlusion',
+  'Power Failure/Interruption',
+  'System/Battery Fault',
+  'Other',
+];
 
+const ALARM_ACTIONS = [
+  'Reduced BFR',
+  'Increased BFR',
+  'Repositioned Patient',
+  'Flushed Line',
+  'Adjusted UF Rate',
+  'Cleared Air/Foam',
+  'Reset Alarm After Correction',
+  'Notified Nurse/Physician',
+  'Notified Biomedical Engineer',
+  'Other',
+];
+
+const ALARM_RELATED_PARAMS = [
+  'Arterial Pressure (AP)',
+  'Venous Pressure (VP)',
+  'TMP',
+  'Blood Flow Rate (BFR)',
+  'Dialysate Flow Rate (DFR)',
+  'Conductivity',
+  'Dialysate Temperature',
+  'UF Rate',
+  'Air Detector',
+  'Blood Leak Detector',
+  'Other',
+];
+
+const DEFAULT_ESCALATION_ROLES = [
+  'Nurse In-charge',
+  'Nephrologist/Physician',
+  'Biomedical Engineer',
+  'Centre In-charge',
+];
+
+function emptyAlarmForm(technicianId) {
+  return {
+    alarm_time: nowTime(),
+    alarm_type: '',
+    severity: '',
+    related_parameter: '',
+    alarm_code: '',
+    description: '',
+    current_value: '',
+    threshold: '',
+    action_taken: '',
+    additional_actions: '',
+    resolved_by: technicianId || '',
+    resolution_time: '',
+    resolution_status: '',
+    patient_impact: '',
+    escalated_to: '',
+    escalation_time: '',
+    comments: '',
+    notify: false,
+  };
+}
+
+function formatDurationSeconds(seconds) {
+  if (seconds == null || seconds === '' || Number.isNaN(Number(seconds))) return '—';
+  const total = Math.max(0, Number(seconds));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function calcDurationDisplay(alarmTime, resolutionTime) {
+  if (!alarmTime || !resolutionTime) return '—';
+  const a = new Date(alarmTime);
+  const b = new Date(resolutionTime);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return '—';
+  return formatDurationSeconds(Math.round((b.getTime() - a.getTime()) / 1000));
+}
+
+function safetyGuidanceForAlarm(alarmType) {
+  const t = String(alarmType || '').toLowerCase();
+  if (t.includes('venous') && t.includes('high')) {
+    return 'High venous pressure may indicate kinking, clotting, or improper needle position. Resolve promptly to prevent treatment interruption.';
+  }
+  if (t.includes('arterial') && t.includes('low')) {
+    return 'Low arterial pressure may indicate access inflow problems, needle malposition, or hypotension. Check access and patient vitals.';
+  }
+  if (t.includes('air') || t.includes('foam')) {
+    return 'Air/foam detected is an air-embolism risk. Stop blood pump if required by protocol, clamp lines, and escalate immediately.';
+  }
+  if (t.includes('blood leak')) {
+    return 'Blood leak detected may indicate circuit/exsanguination risk. Stop treatment per protocol and escalate immediately.';
+  }
+  if (t.includes('needle dislodg')) {
+    return 'Suspected venous needle dislodgement is an emergency. Secure access, control bleeding, and notify nurse/physician immediately.';
+  }
+  if (t.includes('tmp')) {
+    return 'High TMP may indicate clotting or ultrafiltration problems. Reduce UFR as appropriate and assess circuit integrity.';
+  }
+  if (t.includes('conductivity') || t.includes('dialysate temperature')) {
+    return 'Dialysate composition/temperature faults can cause hemolysis or patient instability. Do not continue until corrected.';
+  }
+  if (t.includes('power')) {
+    return 'Power failure/interruption requires safe machine recovery steps and escalation to biomedical/centre in-charge as needed.';
+  }
+  return 'Never silence alarms without identifying and correcting the underlying cause. Document action taken and resolution status before saving.';
+}
+
+function AlarmManagementView({ sessionId, go }) {
+  const technicianId = getTechnicianId();
+  const [form, setForm] = useState(() => emptyAlarmForm(technicianId));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [incidentToast, setIncidentToast] = useState(null);
   const [history, setHistory] = useState([]);
+  const [activeAlarms, setActiveAlarms] = useState([]);
+  const [overview, setOverview] = useState({ total: 0, resolved: 0, active: 0, escalated: 0 });
+  const [escalationContacts, setEscalationContacts] = useState([]);
 
-  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+  const activeSessionId = getValidSessionId(sessionId);
+  const isResolved = String(form.resolution_status || '').toLowerCase() === 'resolved';
+  const durationDisplay = isResolved
+    ? calcDurationDisplay(form.alarm_time, form.resolution_time)
+    : '—';
+
+  const refreshAlarms = useCallback(async () => {
+    if (!activeSessionId) return;
+    const res = await getAlarms(activeSessionId);
+    if (!res?.success) return;
+    const d = responseData(res);
+    const items = Array.isArray(d) ? d : (d.items || d.alarms || []);
+    setHistory(items);
+    setActiveAlarms(Array.isArray(d.active_alarms) ? d.active_alarms : items.filter((a) => String(a.resolution_status || '').toLowerCase() !== 'resolved'));
+    if (d.overview) {
+      setOverview({
+        total: Number(d.overview.total) || 0,
+        resolved: Number(d.overview.resolved) || 0,
+        active: Number(d.overview.active) || 0,
+        escalated: Number(d.overview.escalated) || 0,
+      });
+    } else {
+      setOverview({
+        total: items.length,
+        resolved: items.filter((a) => String(a.resolution_status || '').toLowerCase() === 'resolved').length,
+        active: items.filter((a) => String(a.resolution_status || '').toLowerCase() !== 'resolved').length,
+        escalated: items.filter((a) => String(a.resolution_status || '').toLowerCase() === 'escalated' || a.escalated_to).length,
+      });
+    }
+    if (Array.isArray(d.escalation_contacts)) setEscalationContacts(d.escalation_contacts);
+  }, [activeSessionId]);
 
   useEffect(() => {
-    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
-    getAlarms(activeSessionId).then((res) => {
-      if (res?.success) {
-        const d = responseData(res);
-        const items = Array.isArray(d) ? d : d.items || d.alarms || [];
-        setHistory(items);
-      }
-    });
-  }, [activeSessionId]);
+    refreshAlarms();
+  }, [refreshAlarms]);
+
+  useEffect(() => {
+    if (!incidentToast) return undefined;
+    const t = setTimeout(() => setIncidentToast(null), 8000);
+    return () => clearTimeout(t);
+  }, [incidentToast]);
 
   const update = (key) => (e) => setForm((v) => ({ ...v, [key]: e.target.value }));
 
+  const resetForm = () => {
+    setForm(emptyAlarmForm(technicianId));
+    setError('');
+    setInfo('');
+  };
+
+  const canSave = Boolean(form.action_taken && form.resolution_status);
+
   const executeSave = async () => {
-    const activeSessionId = getValidSessionId(sessionId);
     if (!activeSessionId) {
-      const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before saving alarm records.';
-      setError(alertMsg);
-      alert(alertMsg);
+      setError('No active dialysis session ID found. Please start a session from Patient Profile before saving alarm records.');
       return false;
     }
-    if (!form.alarm_type || !form.severity || !form.action_taken || !form.resolved_by) {
-      setError('Alarm type, action taken, and resolved by are required.');
+    if (!form.alarm_time || !form.alarm_type || !form.severity || !form.action_taken || !form.resolved_by || !form.resolution_status) {
+      setError('Alarm Time, Alarm Type, Severity, Action Taken, Resolved By, and Resolution Status are required.');
       return false;
     }
+    if (isResolved && !form.resolution_time) {
+      setError('Resolution Time is required when Resolution Status is Resolved.');
+      return false;
+    }
+    if (!isResolved && (!form.escalated_to || form.escalated_to === '-')) {
+      setError('Escalated To is required when Resolution Status is not Resolved.');
+      return false;
+    }
+
     setSaving(true);
     setError('');
+    setInfo('');
 
     const payload = {
-      ...form,
+      alarm_time: form.alarm_time,
+      alarm_type: form.alarm_type,
+      severity: form.severity,
+      related_parameter: form.related_parameter || null,
+      alarm_code: form.alarm_code || null,
+      description: form.description || null,
+      current_value: form.current_value || null,
+      threshold: form.threshold || null,
+      action_taken: form.action_taken,
+      additional_actions: form.additional_actions || null,
+      resolved_by: form.resolved_by,
+      resolution_time: isResolved ? form.resolution_time : null,
+      resolution_status: form.resolution_status,
+      patient_impact: form.patient_impact || null,
+      escalated_to: !isResolved ? form.escalated_to : (form.escalated_to || null),
+      escalation_time: form.escalation_time || null,
+      comments: form.comments || null,
+      notify_flag: Boolean(form.notify),
       recorded_at: new Date().toISOString(),
     };
 
@@ -3667,65 +3835,81 @@ function AlarmManagementView({ sessionId, go }) {
       return false;
     }
 
-    setInfo('Alarm record saved successfully.');
-    setHistory((prev) => [
-      {
-        id: Date.now(),
-        time: form.alarm_time,
-        type: form.alarm_type,
-        severity: form.severity,
-        parameter: form.related_parameter,
-        duration: form.duration ? `${form.duration} min` : '—',
-        action: form.action_taken,
-        status: form.resolution_status,
-        by: form.resolved_by,
-      },
-      ...prev,
-    ]);
+    const d = responseData(res);
+    if (d?.auto_incident_created) {
+      setIncidentToast({
+        incidentId: d.incident_id,
+        message: `Incident logged — ID ${d.incident_id}. Review on P3-09.`,
+      });
+      setInfo(`Alarm saved and incident draft ${d.incident_id} created.`);
+    } else {
+      setInfo('Alarm record saved successfully.');
+    }
+    if (d?.overview) setOverview({
+      total: Number(d.overview.total) || 0,
+      resolved: Number(d.overview.resolved) || 0,
+      active: Number(d.overview.active) || 0,
+      escalated: Number(d.overview.escalated) || 0,
+    });
+    resetForm();
+    await refreshAlarms();
     return true;
   };
 
   const handleSaveOnly = async () => { await executeSave(); };
-  const handleSaveAndExit = async () => { const ok = await executeSave(); if (ok) go('P3-01'); };
-  const handleSaveAndContinue = async () => { const ok = await executeSave(); if (ok) go('P3-08'); };
+  const handleSaveDraft = async () => { const ok = await executeSave(); if (ok) go('P3-01'); };
+  const handleSaveReturn = async () => { const ok = await executeSave(); if (ok) go('P3-01'); };
+
+  const escalationOptions = escalationContacts.length
+    ? escalationContacts.map((c) => ({
+      value: String(c.id),
+      label: [c.role, c.name].filter(Boolean).join(' — ') || `Contact #${c.id}`,
+    }))
+    : DEFAULT_ESCALATION_ROLES.map((role) => ({ value: role, label: role }));
 
   return (
     <>
+      {incidentToast && (
+        <div className="during-alert warning" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          <span>{incidentToast.message}</span>
+          <button type="button" className="during-card-action-link" onClick={() => go('P3-09')}>
+            View Incident →
+          </button>
+        </div>
+      )}
+
       <div className="during-symptoms-layout-grid">
         <div style={{ minWidth: 0 }}>
           <Card title="Record New Alarm">
-            {/* Form grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '12px' }}>
-              <Field label="Alarm Time *" icon={AccessTimeOutlinedIcon}>
-                <Input type="text" value={form.alarm_time} onChange={update('alarm_time')} />
+              <Field label="Alarm Time" icon={AccessTimeOutlinedIcon} required>
+                <Input type="datetime-local" value={form.alarm_time} onChange={update('alarm_time')} />
               </Field>
 
-              <Field label="Alarm Type *">
+              <Field label="Alarm Type" required>
                 <Select value={form.alarm_type} onChange={update('alarm_type')}>
-                  <option value="High Venous Pressure">High Venous Pressure</option>
-                  <option value="Low Arterial Pressure">Low Arterial Pressure</option>
-                  <option value="Air in Blood Line">Air in Blood Line</option>
-                  <option value="Conductivity High">Conductivity High</option>
-                  <option value="High TMP">High TMP</option>
-                  <option value="Blood Leak">Blood Leak</option>
+                  <option value="">Select alarm type</option>
+                  {ALARM_TYPES.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </Select>
               </Field>
 
-              <Field label="Severity *">
+              <Field label="Severity" required>
                 <Select value={form.severity} onChange={update('severity')}>
-                  <option value="High">🔴 High</option>
-                  <option value="Moderate">🟡 Moderate</option>
-                  <option value="Low">🔵 Low</option>
+                  <option value="">Select severity</option>
+                  <option value="High">High</option>
+                  <option value="Moderate">Moderate</option>
+                  <option value="Low">Low</option>
                 </Select>
               </Field>
 
               <Field label="Related Parameter">
                 <Select value={form.related_parameter} onChange={update('related_parameter')}>
-                  <option value="Venous Pressure (VP)">Venous Pressure (VP)</option>
-                  <option value="Arterial Pressure (AP)">Arterial Pressure (AP)</option>
-                  <option value="Air Detector">Air Detector</option>
-                  <option value="Conductivity">Conductivity</option>
-                  <option value="TMP">TMP</option>
+                  <option value="">Select parameter</option>
+                  {ALARM_RELATED_PARAMS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </Select>
               </Field>
 
@@ -3738,87 +3922,73 @@ function AlarmManagementView({ sessionId, go }) {
               <Field label="Alarm Description">
                 <Input type="text" value={form.description} onChange={update('description')} />
               </Field>
-
               <Field label="Current Value">
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <Input type="text" value={form.current_value} onChange={update('current_value')} style={{ flex: 1 }} />
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>mmHg</span>
-                </div>
+                <Input type="text" value={form.current_value} onChange={update('current_value')} />
               </Field>
-
               <Field label="Threshold / Limit">
                 <Input type="text" value={form.threshold} onChange={update('threshold')} />
               </Field>
-
-              <Field label="Duration">
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <Input type="text" value={form.duration} onChange={update('duration')} style={{ flex: 1 }} />
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>min</span>
-                </div>
+              <Field label="Duration (calculated)">
+                <Input type="text" value={durationDisplay} readOnly />
               </Field>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '12px' }}>
-              <Field label="Action Taken *">
+              <Field label="Action Taken" required>
                 <Select value={form.action_taken} onChange={update('action_taken')}>
-                  <option value="Reduced BFR">Reduced BFR</option>
-                  <option value="Adjusted Needle Position">Adjusted Needle Position</option>
-                  <option value="Cleared Air, Restarted Pump">Cleared Air, Restarted Pump</option>
-                  <option value="Checked Dialysate Concentrate">Checked Dialysate Concentrate</option>
-                  <option value="Flushed Line">Flushed Line</option>
+                  <option value="">Select action</option>
+                  {ALARM_ACTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </Select>
               </Field>
-
               <Field label="Additional Actions">
                 <Input type="text" value={form.additional_actions} onChange={update('additional_actions')} />
               </Field>
-
-              <Field label="Resolved By *">
-                <Select value={form.resolved_by} onChange={update('resolved_by')}>
-                  <option value="Rahul Singh (Technician)">Rahul Singh (Technician)</option>
-                  <option value="Dr. Neha Sharma">Dr. Neha Sharma</option>
-                </Select>
+              <Field label="Resolved By" required>
+                <Input type="text" placeholder="Technician / nurse ID or name" value={form.resolved_by} onChange={update('resolved_by')} />
               </Field>
-
-              <Field label="Resolution Time" icon={AccessTimeOutlinedIcon}>
-                <Input type="text" value={form.resolution_time} onChange={update('resolution_time')} />
+              <Field label="Resolution Time" icon={AccessTimeOutlinedIcon} required={isResolved}>
+                <Input type="datetime-local" value={form.resolution_time} onChange={update('resolution_time')} disabled={!isResolved} />
               </Field>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '12px' }}>
-              <Field label="Resolution Status *">
+              <Field label="Resolution Status" required>
                 <Select value={form.resolution_status} onChange={update('resolution_status')}>
-                  <option value="Resolved">✔ Resolved</option>
-                  <option value="Pending">⏱ Pending</option>
-                  <option value="Escalated">⚠️ Escalated</option>
+                  <option value="">Select status</option>
+                  <option value="Resolved">Resolved</option>
+                  <option value="Ongoing/Unresolved">Ongoing/Unresolved</option>
+                  <option value="Escalated">Escalated</option>
                 </Select>
               </Field>
-
               <Field label="Patient Impact">
                 <Select value={form.patient_impact} onChange={update('patient_impact')}>
-                  <option value="No adverse effect">No adverse effect</option>
-                  <option value="Mild discomfort">Mild discomfort</option>
-                  <option value="Treatment delayed">Treatment delayed</option>
+                  <option value="">Select impact</option>
+                  <option value="No Adverse Effect">No Adverse Effect</option>
+                  <option value="Mild Discomfort">Mild Discomfort</option>
+                  <option value="Treatment Interrupted">Treatment Interrupted</option>
+                  <option value="Treatment Terminated Early">Treatment Terminated Early</option>
+                  <option value="Other">Other</option>
                 </Select>
               </Field>
-
-              <Field label="Escalated To">
-                <Select value={form.escalated_to} onChange={update('escalated_to')}>
-                  <option value="-">-</option>
-                  <option value="Dr. Neha Sharma">Dr. Neha Sharma</option>
-                  <option value="Senior Nurse">Senior Nurse</option>
+              <Field label="Escalated To" required={!isResolved && Boolean(form.resolution_status)}>
+                <Select value={form.escalated_to} onChange={update('escalated_to')} disabled={isResolved}>
+                  <option value="">Select contact / role</option>
+                  {escalationOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </Select>
               </Field>
-
               <Field label="Escalation Time">
-                <Input type="text" placeholder="Select time" value={form.escalation_time} onChange={update('escalation_time')} />
+                <Input type="datetime-local" value={form.escalation_time} onChange={update('escalation_time')} disabled={isResolved} />
               </Field>
             </div>
 
             <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
                 <Field label="Comments">
-                  <Textarea placeholder="Venous pressure normalized after reducing BFR..." maxLength="300" value={form.comments} onChange={update('comments')} />
+                  <Textarea placeholder="Document cause identification and correction..." maxLength="300" value={form.comments} onChange={update('comments')} />
                 </Field>
               </div>
               <div style={{ width: '220px', paddingTop: '24px' }}>
@@ -3832,12 +4002,13 @@ function AlarmManagementView({ sessionId, go }) {
             {info && <div className="during-alert success" style={{ marginTop: '12px' }}>{info}</div>}
 
             <div className="during-form-actions" style={{ marginTop: '16px' }}>
-              <LibraryButton variant="outline" onClick={() => setForm({ alarm_time: nowTime(), alarm_type: 'High Venous Pressure', severity: 'High', related_parameter: 'Venous Pressure (VP)', alarm_code: 'A-204', description: '', current_value: '', threshold: '', duration: '', action_taken: '', additional_actions: '', resolved_by: 'Rahul Singh (Technician)', resolution_time: '', resolution_status: 'Resolved', patient_impact: 'No adverse effect', escalated_to: '-', escalation_time: '', comments: '', notify: false })}>Reset</LibraryButton>
-              <LibraryButton variant="primary" onClick={handleSaveOnly} disabled={saving}>{saving ? 'Saving...' : 'Save Alarm'}</LibraryButton>
+              <LibraryButton type="button" variant="outline" onClick={resetForm}>Reset</LibraryButton>
+              <LibraryButton type="button" variant="primary" onClick={handleSaveOnly} disabled={saving || !canSave}>
+                {saving ? 'Saving...' : 'Save Alarm'}
+              </LibraryButton>
             </div>
           </Card>
 
-          {/* Alarm History Table */}
           <Card title="Alarm History (This Session)" style={{ marginTop: '16px' }}>
             <div className="during-overdue-table-wrap">
               <table className="during-overdue-table">
@@ -3851,73 +4022,79 @@ function AlarmManagementView({ sessionId, go }) {
                     <th>Action Taken</th>
                     <th>Status</th>
                     <th>Resolved By</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {history.length === 0 ? (
                     <tr>
-                      <td colSpan="9" style={{ textAlign: 'center', color: '#64748b', padding: '16px', fontSize: '12px' }}>
+                      <td colSpan="8" style={{ textAlign: 'center', color: '#64748b', padding: '16px', fontSize: '12px' }}>
                         No alarms recorded for this session.
                       </td>
                     </tr>
                   ) : (
                     history.map((row, idx) => (
                       <tr key={row.id || idx}>
-                        <td>{row.time || row.alarm_time || '—'}</td>
-                        <td><strong>{row.type || row.alarm_type || '—'}</strong></td>
+                        <td>{formatSymptomTime(row.alarm_time || row.recorded_at)}</td>
+                        <td><strong>{row.alarm_type || '—'}</strong></td>
                         <td>
                           <span style={{ fontSize: '11px', fontWeight: 700, color: (row.severity || '').toLowerCase() === 'high' ? '#dc2626' : (row.severity || '').toLowerCase() === 'moderate' ? '#d97706' : '#2563eb' }}>
-                            ● {row.severity || 'Medium'}
+                            ● {row.severity || '—'}
                           </span>
                         </td>
-                        <td>{row.parameter || row.related_parameter || '—'}</td>
-                        <td>{row.duration || '—'}</td>
-                        <td>{row.action || row.action_taken || '—'}</td>
-                        <td><span className="during-status-pill alert">{row.status || row.resolution_status || 'Resolved'}</span></td>
-                        <td>{row.by || row.resolved_by || '—'}</td>
-                        <td><VisibilityOutlinedIcon sx={{ fontSize: 16, color: '#64748b', cursor: 'pointer' }} /></td>
+                        <td>{row.related_parameter || '—'}</td>
+                        <td>{formatDurationSeconds(row.duration_seconds)}</td>
+                        <td>{row.action_taken || '—'}</td>
+                        <td><span className="during-status-pill alert">{row.resolution_status || '—'}</span></td>
+                        <td>{row.resolved_by || '—'}</td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
             </div>
-            <div style={{ textAlign: 'center', marginTop: '12px' }}>
-              <button type="button" className="during-card-action-link">View Full Alarm History →</button>
-            </div>
           </Card>
         </div>
 
-        {/* Right Column */}
         <div style={{ minWidth: 0 }}>
           <Card title="Alarm Overview">
             <div className="during-alarm-overview-grid">
               <div className="during-alarm-stat-tile" style={{ background: '#fef2f2', borderColor: '#fecaca' }}>
                 <WarningAmberOutlinedIcon sx={{ color: '#dc2626' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>3</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Total Alarms</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{overview.total}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Total Alarms</span></div>
               </div>
               <div className="during-alarm-stat-tile" style={{ background: '#f0fdf4', borderColor: '#dcfce7' }}>
                 <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>3</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Resolved</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{overview.resolved}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Resolved</span></div>
               </div>
               <div className="during-alarm-stat-tile" style={{ background: '#fffbeb', borderColor: '#fef3c7' }}>
                 <AccessTimeOutlinedIcon sx={{ color: '#d97706' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>0</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Active</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{overview.active}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Active</span></div>
               </div>
               <div className="during-alarm-stat-tile" style={{ background: '#eff6ff', borderColor: '#dbeafe' }}>
                 <TrendingUpOutlinedIcon sx={{ color: '#2563eb' }} />
-                <div><strong style={{ fontSize: '18px', display: 'block' }}>0</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Escalated</span></div>
+                <div><strong style={{ fontSize: '18px', display: 'block' }}>{overview.escalated}</strong><span style={{ fontSize: '10px', color: '#64748b' }}>Escalated</span></div>
               </div>
             </div>
           </Card>
 
           <Card title="Active Alarm (Now)" style={{ marginTop: '16px' }}>
-            <div style={{ textAlign: 'center', padding: '16px 0' }}>
-              <CheckCircleOutlinedIcon sx={{ fontSize: 40, color: '#16a34a', marginBottom: '8px' }} />
-              <div style={{ fontWeight: 800, fontSize: '13px', color: '#15803d' }}>No Active Alarms</div>
-              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>All parameters are within safe limits.</div>
-            </div>
+            {activeAlarms.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                <CheckCircleOutlinedIcon sx={{ fontSize: 40, color: '#16a34a', marginBottom: '8px' }} />
+                <div style={{ fontWeight: 800, fontSize: '13px', color: '#15803d' }}>No Active Alarms</div>
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>All parameters are within safe limits.</div>
+              </div>
+            ) : (
+              activeAlarms.map((alarm) => (
+                <div key={alarm.id} style={{ border: '1px solid #fecaca', background: '#fef2f2', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                  <strong>{alarm.alarm_type}</strong>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                    {formatSymptomTime(alarm.alarm_time)} · {alarm.severity || '—'} · {alarm.resolution_status || 'Ongoing'}
+                  </div>
+                  <div style={{ fontSize: 12, marginTop: 4 }}>{alarm.action_taken || '—'}</div>
+                </div>
+              ))
+            )}
           </Card>
 
           <div className="during-safety-guidance-card">
@@ -3926,9 +4103,8 @@ function AlarmManagementView({ sessionId, go }) {
               <span>Safety Guidance</span>
             </div>
             <div className="during-clinical-guidance-text" style={{ color: '#713f12' }}>
-              High venous pressure may indicate kinking, clotting, or improper needle position. Resolve promptly to prevent treatment interruption.
+              {safetyGuidanceForAlarm(form.alarm_type)}
             </div>
-            <button type="button" className="during-card-action-link">View Guidelines →</button>
           </div>
 
           <Card title="Quick Actions" style={{ marginTop: '16px' }}>
@@ -3955,10 +4131,12 @@ function AlarmManagementView({ sessionId, go }) {
       </div>
 
       <div className="during-bottom-nav-bar">
-        <LibraryButton variant="outline" onClick={() => go('P3-06')}>← Back</LibraryButton>
+        <LibraryButton type="button" variant="outline" onClick={() => go('P3-01')}>← Back</LibraryButton>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <LibraryButton variant="outline" onClick={handleSaveAndExit} disabled={saving}>Save as Draft</LibraryButton>
-          <LibraryButton variant="primary" onClick={handleSaveAndContinue} disabled={saving}>Save & Continue →</LibraryButton>
+          <LibraryButton type="button" variant="outline" onClick={handleSaveDraft} disabled={saving || !canSave}>Save as Draft</LibraryButton>
+          <LibraryButton type="button" variant="primary" onClick={handleSaveReturn} disabled={saving || !canSave}>
+            {saving ? 'Saving...' : 'Save & Return to Dashboard'}
+          </LibraryButton>
         </div>
       </div>
     </>
