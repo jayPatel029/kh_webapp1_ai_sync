@@ -1832,49 +1832,116 @@ function StepIndicatorBar({ activeStep = 4 }) {
   );
 }
 
-function SymptomForm({ sessionId, go }) {
-  const [form, setForm] = useState({
-    event_time: '10:15 AM',
+const SYMPTOM_INTERVENTIONS = [
+  'Positioned Patient/Trendelenburg',
+  'Reduced or Stopped UF Rate',
+  'Administered Saline Bolus',
+  'Administered Medication',
+  'Notified Nurse/Physician',
+  'Reassured Patient',
+  'Continued Monitoring',
+  'Other',
+];
+
+const QUICK_SYMPTOMS = [
+  { id: 'hypotension', name: 'Hypotension (Low BP)', icon: FavoriteBorderOutlinedIcon, color: '#ef4444' },
+  { id: 'cramps', name: 'Muscle Cramps', icon: HealingOutlinedIcon, color: '#f59e0b' },
+  { id: 'nausea', name: 'Nausea / Vomiting', icon: HealingOutlinedIcon, color: '#10b981' },
+  { id: 'chest_pain', name: 'Chest Pain', icon: MonitorHeartOutlinedIcon, color: '#ef4444' },
+  { id: 'shortness_breath', name: 'Shortness of Breath', icon: AirOutlinedIcon, color: '#2563eb' },
+  { id: 'chills', name: 'Chills / Rigors', icon: DeviceThermostatOutlinedIcon, color: '#06b6d4' },
+  { id: 'headache', name: 'Headache', icon: PsychologyOutlinedIcon, color: '#8b5cf6' },
+  { id: 'bleeding', name: 'Bleeding', icon: WaterDropOutlinedIcon, color: '#dc2626' },
+  { id: 'dizziness', name: 'Syncope / Dizziness', icon: WarningAmberOutlinedIcon, color: '#06b6d4' },
+  { id: 'itching', name: 'Itching', icon: HealingOutlinedIcon, color: '#f59e0b' },
+  { id: 'back_pain', name: 'Back Pain', icon: NoteAltOutlinedIcon, color: '#d97706' },
+  { id: 'other', name: 'Other', icon: SettingsOutlinedIcon, color: '#64748b' },
+];
+
+function emptySymptomForm() {
+  return {
+    event_time: nowTime(),
     symptom: '',
     severity: 'Moderate',
     status: 'Ongoing',
     details: '',
     intervention: '',
     additional_notes: '',
+    access_site_related: '',
     notify: false,
-  });
+  };
+}
+
+function formatSymptomTime(value) {
+  if (!value) return '—';
+  try {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+  } catch (_) { /* ignore */ }
+  return String(value);
+}
+
+function clinicalGuidanceForSymptom(symptom) {
+  const s = String(symptom || '').toLowerCase();
+  if (s.includes('hypotension')) {
+    return 'If hypotension persists, consider reducing UF rate, increasing Na+ and evaluate dry weight.';
+  }
+  if (s.includes('chest')) {
+    return 'For chest pain: stop UF if needed, give O₂ per protocol, notify nurse/physician immediately, and prepare for cardiac assessment.';
+  }
+  if (s.includes('syncope') || s.includes('dizziness')) {
+    return 'For syncope/dizziness: place patient Trendelenburg, check BP/pulse, pause UF, and notify nurse/physician.';
+  }
+  if (s.includes('bleed')) {
+    return 'For bleeding: apply firm pressure, reinforce dressing, assess access-site vs systemic source, and notify nurse if ongoing.';
+  }
+  if (s.includes('cramp')) {
+    return 'For muscle cramps: reduce UFR, consider saline bolus, stretch/massage limb, and reassess dry weight.';
+  }
+  if (s.includes('nausea') || s.includes('vomit')) {
+    return 'For nausea/vomiting: slow or pause UF, elevate head of bed, consider antiemetic per orders, monitor for IDH.';
+  }
+  if (s.includes('shortness') || s.includes('breath')) {
+    return 'For dyspnea: check for fluid overload or air embolism signs, adjust UF, give O₂ as ordered, escalate promptly.';
+  }
+  if (s.includes('chill') || s.includes('rigor')) {
+    return 'For chills/rigors: check dialysate temperature, rule out pyrogenic reaction/infection, notify nurse/physician.';
+  }
+  if (s.includes('headache')) {
+    return 'For headache: assess BP and disequilibrium risk; slow UF/BFR if indicated and notify nurse if severe.';
+  }
+  if (s.includes('itch')) {
+    return 'For itching: review dialysate composition and allergy history; consider antihistamine per orders.';
+  }
+  if (s.includes('back')) {
+    return 'For back pain: reposition patient, check for dialyzer reaction or hemolysis signs, and escalate if severe.';
+  }
+  return 'Document symptom details and intervention promptly. Escalate Severe hemodynamically significant events to nursing/physician review.';
+}
+
+function SymptomForm({ sessionId, go }) {
+  const [form, setForm] = useState(emptySymptomForm);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [incidentToast, setIncidentToast] = useState(null);
   const [saving, setSaving] = useState(false);
   const [symptomsList, setSymptomsList] = useState([]);
   const [selectedQuickTile, setSelectedQuickTile] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const [historyLimit, setHistoryLimit] = useState('4');
 
-  const quickSymptoms = [
-    { id: 'hypotension', name: 'Hypotension (Low BP)', icon: FavoriteBorderOutlinedIcon, color: '#ef4444', defaultIntervention: 'UF Paused, 100 mL NS given' },
-    { id: 'cramps', name: 'Muscle Cramps', icon: HealingOutlinedIcon, color: '#f59e0b', defaultIntervention: 'Saline 100 mL given' },
-    { id: 'nausea', name: 'Nausea / Vomiting', icon: HealingOutlinedIcon, color: '#10b981', defaultIntervention: 'Ondansetron 4 mg IV' },
-    { id: 'chest_pain', name: 'Chest Pain', icon: MonitorHeartOutlinedIcon, color: '#ef4444', defaultIntervention: 'O2 Therapy 2L/min, EKG requested' },
-    { id: 'shortness_breath', name: 'Shortness of Breath', icon: AirOutlinedIcon, color: '#2563eb', defaultIntervention: 'UF Rate reduced, O2 2L/min' },
-    { id: 'chills', name: 'Chills / Rigors', icon: DeviceThermostatOutlinedIcon, color: '#06b6d4', defaultIntervention: 'Blanket provided, Temp monitored' },
-    { id: 'headache', name: 'Headache', icon: PsychologyOutlinedIcon, color: '#8b5cf6', defaultIntervention: 'Paracetamol 500 mg' },
-    { id: 'bleeding', name: 'Bleeding', icon: WaterDropOutlinedIcon, color: '#dc2626', defaultIntervention: 'Pressure applied, Gauze reinforced' },
-    { id: 'dizziness', name: 'Syncope / Dizziness', icon: WarningAmberOutlinedIcon, color: '#06b6d4', defaultIntervention: 'Trendelenburg position, BP checked' },
-    { id: 'itching', name: 'Itching', icon: HealingOutlinedIcon, color: '#f59e0b', defaultIntervention: 'Antihistamine administered' },
-    { id: 'back_pain', name: 'Back Pain', icon: NoteAltOutlinedIcon, color: '#d97706', defaultIntervention: 'Repositioned, Pillow support' },
-    { id: 'other', name: 'Other', icon: SettingsOutlinedIcon, color: '#64748b', defaultIntervention: 'Technician review' },
-  ];
+  const activeSessionId = getValidSessionId(sessionId);
+  const isBleeding = String(form.symptom || '').toLowerCase().includes('bleed');
 
-  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
-
-  // Fetch session symptoms on load
   const fetchSymptoms = useCallback(async () => {
-    if (!activeSessionId || activeSessionId === 'demo') return;
+    if (!activeSessionId) return;
     try {
       const res = await getSymptoms(activeSessionId);
       if (res?.success) {
         const d = responseData(res);
-        const items = Array.isArray(d) ? d : d.items || d.symptoms || [];
+        const items = Array.isArray(d) ? d : (d.items || d.symptoms || []);
         setSymptomsList(items);
       }
     } catch (_) { /* ignore */ }
@@ -1884,23 +1951,46 @@ function SymptomForm({ sessionId, go }) {
     fetchSymptoms();
   }, [fetchSymptoms]);
 
+  useEffect(() => {
+    if (!incidentToast) return undefined;
+    const timer = setTimeout(() => setIncidentToast(null), 8000);
+    return () => clearTimeout(timer);
+  }, [incidentToast]);
+
   const handleTileClick = (item) => {
     setSelectedQuickTile(item.id);
     setForm((prev) => ({
       ...prev,
       symptom: item.name,
-      intervention: item.defaultIntervention,
+      access_site_related: String(item.name).toLowerCase().includes('bleed') ? prev.access_site_related : '',
+    }));
+    setError('');
+  };
+
+  const updateField = (key) => (e) => {
+    const value = e.target.value;
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+      ...(key === 'symptom' && !String(value).toLowerCase().includes('bleed')
+        ? { access_site_related: '' }
+        : {}),
     }));
   };
 
-  const updateField = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
+  const resetForm = () => {
+    setForm(emptySymptomForm());
+    setSelectedQuickTile(null);
+    setError('');
+  };
 
   const executeSaveSymptom = async () => {
-    const activeSessionId = getValidSessionId(sessionId);
     if (!activeSessionId) {
-      const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before recording symptoms.';
-      setError(alertMsg);
-      alert(alertMsg);
+      setError('No active dialysis session ID found. Please start a session from Patient Profile before recording symptoms.');
+      return false;
+    }
+    if (!form.event_time) {
+      setError('Event Time is required.');
       return false;
     }
     if (!form.symptom) {
@@ -1915,25 +2005,26 @@ function SymptomForm({ sessionId, go }) {
       setError('Please select an intervention or action taken.');
       return false;
     }
+    if (isBleeding && (form.access_site_related === '' || form.access_site_related == null)) {
+      setError('Is this access-site related? is required when Symptom is Bleeding.');
+      return false;
+    }
 
     setSaving(true);
     setError('');
-    const recorded_at = new Date().toISOString();
-    const recorded_by = getTechnicianId() || 'Rahul Singh';
+    setInfo('');
 
     const payload = {
       symptom: form.symptom,
-      symptom_type: form.symptom,
-      symptom_name: form.symptom,
       event_time: form.event_time,
       severity: form.severity,
-      status: form.status,
-      details: form.details,
+      status: form.status || 'Ongoing',
+      details: form.details || null,
       intervention: form.intervention,
-      additional_notes: form.additional_notes,
-      notify_flag: form.notify,
-      recorded_by,
-      recorded_at,
+      additional_notes: form.additional_notes || null,
+      notify_flag: Boolean(form.notify),
+      access_site_related: isBleeding ? form.access_site_related === 'Yes' : null,
+      recorded_at: new Date().toISOString(),
     };
 
     const res = await createSymptom(activeSessionId, payload);
@@ -1947,11 +2038,16 @@ function SymptomForm({ sessionId, go }) {
 
     const d = responseData(res);
     if (d?.auto_incident_created) {
-      setInfo(`Incident logged automatically — ID ${d.incident_id}. Review on P3-09.`);
+      setIncidentToast({
+        incidentId: d.incident_id,
+        message: `Incident logged — ID ${d.incident_id}. Review on P3-09.`,
+      });
+      setInfo(`Incident logged automatically — ID ${d.incident_id}.`);
     } else {
       setInfo('Symptom recorded successfully.');
     }
 
+    resetForm();
     fetchSymptoms();
     return true;
   };
@@ -1960,17 +2056,18 @@ function SymptomForm({ sessionId, go }) {
     await executeSaveSymptom();
   };
 
-  const handleSaveAndExit = async () => {
+  const handleSaveDraft = async () => {
     const ok = await executeSaveSymptom();
     if (ok) go('P3-01');
   };
 
-  const handleSaveAndContinue = async () => {
+  const handleSaveReturn = async () => {
     const ok = await executeSaveSymptom();
-    if (ok) go('P3-05');
+    if (ok) go('P3-01');
   };
 
   const handleResolveSymptom = async (symptomId) => {
+    if (!activeSessionId || !symptomId) return;
     setUpdatingId(symptomId);
     const res = await updateSymptom(activeSessionId, symptomId, { status: 'Resolved' });
     setUpdatingId(null);
@@ -1982,35 +2079,50 @@ function SymptomForm({ sessionId, go }) {
     fetchSymptoms();
   };
 
-  const activeSymptomItem = symptomsList.find((s) => (s.status || 'Ongoing').toLowerCase() === 'ongoing') || null;
+  const activeSymptoms = useMemo(
+    () => (symptomsList || []).filter((s) => String(s.status || 'Ongoing').toLowerCase() === 'ongoing'),
+    [symptomsList],
+  );
 
   const historyItems = useMemo(() => {
-    if (!symptomsList || symptomsList.length === 0) return [];
-    return symptomsList.slice(-4).reverse().map((s, idx) => ({
+    if (!symptomsList?.length) return [];
+    const mapped = symptomsList.map((s, idx) => ({
       id: s.id || `symp-${idx}`,
-      symptom_type: s.symptom_type || s.symptom || 'Symptom',
-      time: s.event_time || (s.recorded_at ? new Date(s.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'),
+      symptom_type: s.symptom || s.symptom_type || 'Symptom',
+      time: formatSymptomTime(s.event_time || s.recorded_at),
       status: s.status || 'Resolved',
-      intervention: s.intervention || 'Monitored',
+      intervention: s.intervention || '—',
       severity: s.severity || 'Mild',
     }));
-  }, [symptomsList]);
+    if (historyLimit === 'all') return mapped;
+    return mapped.slice(0, 4);
+  }, [symptomsList, historyLimit]);
+
+  const guidance = clinicalGuidanceForSymptom(form.symptom);
 
   return (
     <>
+      {incidentToast && (
+        <div className="during-alert warning" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          <span>{incidentToast.message}</span>
+          <button type="button" className="during-card-action-link" onClick={() => go('P3-09')}>
+            View Incident →
+          </button>
+        </div>
+      )}
+
       <div className="during-symptoms-layout-grid">
-        {/* Left Column: Form Card */}
         <div style={{ minWidth: 0 }}>
           <Card title="Record New Symptom / Complication">
             <div className="during-form-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
               <Field label="Event Time" icon={AccessTimeOutlinedIcon} required>
-                <Input type="text" value={form.event_time} onChange={updateField('event_time')} />
+                <Input type="datetime-local" value={form.event_time} onChange={updateField('event_time')} />
               </Field>
 
               <Field label="Symptom / Complication" icon={HealingOutlinedIcon} required>
                 <Select value={form.symptom} onChange={updateField('symptom')}>
                   <option value="">Select symptom</option>
-                  {quickSymptoms.map((qs) => (
+                  {QUICK_SYMPTOMS.map((qs) => (
                     <option key={qs.id} value={qs.name}>
                       {qs.name}
                     </option>
@@ -2037,19 +2149,16 @@ function SymptomForm({ sessionId, go }) {
                 <Select value={form.status} onChange={updateField('status')}>
                   <option value="Ongoing">Ongoing</option>
                   <option value="Resolved">Resolved</option>
-                  <option value="Improving">Improving</option>
-                  <option value="Worsening">Worsening</option>
                 </Select>
               </Field>
             </div>
 
-            {/* Common Symptoms Quick Selection Grid */}
             <div style={{ marginTop: '16px' }}>
               <label style={{ fontSize: '12px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '8px' }}>
                 Common Symptoms
               </label>
               <div className="during-symptoms-quick-grid">
-                {quickSymptoms.map((tile) => {
+                {QUICK_SYMPTOMS.map((tile) => {
                   const Icon = tile.icon;
                   const isSelected = form.symptom === tile.name || selectedQuickTile === tile.id;
                   return (
@@ -2069,7 +2178,18 @@ function SymptomForm({ sessionId, go }) {
               </div>
             </div>
 
-            {/* Row 2: Details & Intervention */}
+            {isBleeding && (
+              <div style={{ marginTop: 12 }}>
+                <Field label="Is this access-site related?" required>
+                  <Select value={form.access_site_related} onChange={updateField('access_site_related')}>
+                    <option value="">Select Yes / No</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </Select>
+                </Field>
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '12px' }}>
               <Field label="Details" icon={NoteAltOutlinedIcon}>
                 <Textarea
@@ -2088,14 +2208,9 @@ function SymptomForm({ sessionId, go }) {
                 <Field label="Intervention / Action Taken" icon={HealingOutlinedIcon} required>
                   <Select value={form.intervention} onChange={updateField('intervention')}>
                     <option value="">Select intervention</option>
-                    <option value="UF Paused, 100 mL NS given">UF Paused, 100 mL NS given</option>
-                    <option value="Saline 100 mL given">Saline 100 mL given</option>
-                    <option value="Ondansetron 4 mg IV">Ondansetron 4 mg IV</option>
-                    <option value="UF Paused, NS 200 mL">UF Paused, NS 200 mL</option>
-                    <option value="Paracetamol 500 mg">Paracetamol 500 mg</option>
-                    <option value="O2 therapy 2L/min">O2 therapy 2L/min</option>
-                    <option value="Trendelenburg position">Trendelenburg position</option>
-                    <option value="Continued monitoring">Continued monitoring</option>
+                    {SYMPTOM_INTERVENTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
                   </Select>
                 </Field>
 
@@ -2126,24 +2241,10 @@ function SymptomForm({ sessionId, go }) {
               </LibraryCheckbox>
 
               <div className="during-form-actions">
-                <LibraryButton
-                  variant="outline"
-                  onClick={() =>
-                    setForm({
-                      event_time: '10:15 AM',
-                      symptom: '',
-                      severity: 'Moderate',
-                      status: 'Ongoing',
-                      details: '',
-                      intervention: '',
-                      additional_notes: '',
-                      notify: false,
-                    })
-                  }
-                >
+                <LibraryButton type="button" variant="outline" onClick={resetForm}>
                   Reset
                 </LibraryButton>
-                <LibraryButton variant="primary" onClick={handleSaveOnly} disabled={saving}>
+                <LibraryButton type="button" variant="primary" onClick={handleSaveOnly} disabled={saving}>
                   {saving ? 'Saving...' : 'Save Symptom'}
                 </LibraryButton>
               </div>
@@ -2151,53 +2252,49 @@ function SymptomForm({ sessionId, go }) {
           </Card>
         </div>
 
-        {/* Right Column: Active Symptoms + Symptom History + Clinical Guidance */}
         <div style={{ minWidth: 0 }}>
-          {/* Card 1: Active Symptoms */}
-          <Card title={<span style={{ color: activeSymptomItem ? '#dc2626' : '#64748b' }}>Active Symptoms ({activeSymptomItem ? 1 : 0})</span>}>
-            <div className="during-card-header" style={{ marginTop: '-24px' }}>
-              <span />
-              <button type="button" className="during-card-action-link">
-                View All
-              </button>
-            </div>
-
-            {activeSymptomItem ? (
-              <div className="during-active-symptom-box">
-                <div className="during-active-symptom-header">
-                  <div className="during-active-symptom-title">
-                    <FavoriteBorderOutlinedIcon sx={{ color: '#ef4444' }} fontSize="small" />
-                    <span>{activeSymptomItem.symptom_type}</span>
-                  </div>
-                  <span className={`during-severity-badge ${(activeSymptomItem.severity || 'moderate').toLowerCase()}`}>
-                    {activeSymptomItem.severity || 'Moderate'}
-                  </span>
-                </div>
-                <div className="during-active-symptom-details">
-                  <div>Started: <strong>{activeSymptomItem.event_time || '10:00 AM'}</strong></div>
-                  {activeSymptomItem.bp && <div>BP: <strong>{activeSymptomItem.bp}</strong></div>}
-                  <div>Intervention: <strong>{activeSymptomItem.intervention}</strong></div>
-                  <div>Status: <strong>{activeSymptomItem.status}</strong></div>
-                </div>
-                <button
-                  type="button"
-                  className="during-active-symptom-update-btn"
-                  onClick={() => handleResolveSymptom(activeSymptomItem.id)}
-                  disabled={updatingId === activeSymptomItem.id}
-                >
-                  {updatingId === activeSymptomItem.id ? 'Updating...' : 'Update'}
-                </button>
-              </div>
+          <Card title={<span style={{ color: activeSymptoms.length ? '#dc2626' : '#64748b' }}>Active Symptoms ({activeSymptoms.length})</span>}>
+            {activeSymptoms.length === 0 ? (
+              <div className="during-empty">No active symptoms this session.</div>
             ) : (
-              <div className="during-empty">No active ongoing symptoms recorded.</div>
+              activeSymptoms.map((item) => (
+                <div className="during-active-symptom-box" key={item.id} style={{ marginBottom: 10 }}>
+                  <div className="during-active-symptom-header">
+                    <div className="during-active-symptom-title">
+                      <FavoriteBorderOutlinedIcon sx={{ color: '#ef4444' }} fontSize="small" />
+                      <span>{item.symptom || item.symptom_type || 'Symptom'}</span>
+                    </div>
+                    <span className={`during-severity-badge ${(item.severity || 'moderate').toLowerCase()}`}>
+                      {item.severity || 'Moderate'}
+                    </span>
+                  </div>
+                  <div className="during-active-symptom-details">
+                    <div>Started: <strong>{formatSymptomTime(item.event_time || item.recorded_at)}</strong></div>
+                    <div>Intervention: <strong>{item.intervention || '—'}</strong></div>
+                    <div>Status: <strong>{item.status || 'Ongoing'}</strong></div>
+                  </div>
+                  <button
+                    type="button"
+                    className="during-active-symptom-update-btn"
+                    onClick={() => handleResolveSymptom(item.id)}
+                    disabled={updatingId === item.id}
+                  >
+                    {updatingId === item.id ? 'Updating...' : 'Update → Resolved'}
+                  </button>
+                </div>
+              ))
             )}
           </Card>
 
-          {/* Card 2: Symptom History */}
           <Card title="Symptom History">
             <div className="during-card-header" style={{ marginTop: '-24px' }}>
               <span />
-              <Select size="sm" style={{ width: '130px' }} defaultValue="4">
+              <Select
+                size="sm"
+                style={{ width: '130px' }}
+                value={historyLimit}
+                onChange={(e) => setHistoryLimit(e.target.value)}
+              >
                 <option value="4">Last 4 Events</option>
                 <option value="all">All Events</option>
               </Select>
@@ -2229,41 +2326,28 @@ function SymptomForm({ sessionId, go }) {
                 ))}
               </div>
             )}
-
-            <div style={{ textAlign: 'center', marginTop: '12px' }}>
-              <button type="button" className="during-card-action-link">
-                View Full History →
-              </button>
-            </div>
           </Card>
 
-          {/* Card 3: Clinical Guidance */}
           <div className="during-clinical-guidance-card">
             <div className="during-clinical-guidance-header">
               <SettingsOutlinedIcon fontSize="small" />
               <span>Clinical Guidance</span>
             </div>
-            <div className="during-clinical-guidance-text">
-              If hypotension persists, consider reducing UF rate, increasing Na+ and evaluate dry weight.
-            </div>
-            <button type="button" className="during-card-action-link">
-              View Guidelines →
-            </button>
+            <div className="during-clinical-guidance-text">{guidance}</div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Navigation Bar */}
       <div className="during-bottom-nav-bar">
-        <LibraryButton variant="outline" onClick={() => go('P3-03')}>
+        <LibraryButton type="button" variant="outline" onClick={() => go('P3-01')}>
           ← Back
         </LibraryButton>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <LibraryButton variant="outline" onClick={handleSaveAndExit} disabled={saving}>
+          <LibraryButton type="button" variant="outline" onClick={handleSaveDraft} disabled={saving}>
             Save as Draft
           </LibraryButton>
-          <LibraryButton variant="primary" onClick={handleSaveAndContinue} disabled={saving}>
-            Save & Continue →
+          <LibraryButton type="button" variant="primary" onClick={handleSaveReturn} disabled={saving}>
+            {saving ? 'Saving...' : 'Save & Return to Dashboard'}
           </LibraryButton>
         </div>
       </div>
