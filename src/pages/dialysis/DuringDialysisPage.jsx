@@ -28,10 +28,17 @@ import {
   skipOverdueVital,
   skipAllOverdueVitals,
 } from '../../ApiCalls/dialysisSessionApis';
-import { getVitalsThresholds } from '../../config/vitalsThresholds';
 import { getDialysisSystolicIdByTitle, getSystolicIdByTitle } from '../../ApiCalls/readingsApis';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import { calculateAge } from '../../hooks/usePatientSummary';
+import {
+  evaluateBp,
+  evaluatePulse,
+  evaluateTemp,
+  evaluateSpo2,
+  evaluateRespRate,
+  VITAL_SEVERITY,
+} from '../../hooks/useVitalsMeasurements';
 import P303MachineParameters from './P303MachineParameters';
 import { ParameterDetailView } from '../userprofile2/UserProfile';
 import LineChartDialysis from '../../components/Linechart/Linechart_Dialysis/LineChartDialysis';
@@ -93,7 +100,11 @@ const SCREENS = [
 const writeDraft = (sessionId, value) => {
   try { localStorage.setItem(`during-dialysis-draft:${sessionId}`, JSON.stringify(value)); } catch (_) { /* storage may be unavailable */ }
 };
-const nowTime = () => new Date().toISOString().slice(0, 16);
+const nowTime = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 const initialPatient = { name: '', pid: '', bed: '', access: '', nephrologist: '', targetWeight: '', dryWeight: '' };
 const responseData = (result) => result?.data?.data ?? result?.data ?? {};
 const getValidSessionId = (sessionId, currentPatientId) => {
@@ -923,38 +934,33 @@ function Dashboard({ go, session, readings, sessionId, patient, onDashboardMeta 
 
 function VitalsTrendMultiLineChart({ readings }) {
   const points = useMemo(() => {
-    const defaultTimes = ['08:00 AM', '08:30 AM', '09:00 AM', '09:30 AM', '10:00 AM'];
-    const defaultSbp = [124, 120, 118, 126, 122];
-    const defaultDbp = [80, 76, 74, 78, 78];
-    const defaultPulse = [82, 80, 76, 79, 78];
-    const defaultSpo2 = [97, 97, 98, 98, 98];
-
-    if (!readings || readings.length === 0) {
-      return defaultTimes.map((time, idx) => ({
-        time,
-        sbp: defaultSbp[idx],
-        dbp: defaultDbp[idx],
-        pulse: defaultPulse[idx],
-        spo2: defaultSpo2[idx],
-      }));
-    }
-
-    const rows = readings.slice(-5);
-    return rows.map((r, idx) => {
+    if (!readings || readings.length === 0) return [];
+    const rows = [...readings].reverse().slice(-8);
+    return rows.map((r) => {
       const timeStr = r.observation_time
-        ? (r.observation_time.includes(':') && !r.observation_time.includes('T') ? r.observation_time : new Date(r.observation_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+        ? (String(r.observation_time).includes(':') && !String(r.observation_time).includes('T')
+          ? r.observation_time
+          : new Date(r.observation_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
         : r.recorded_at
-        ? new Date(r.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : defaultTimes[idx] || '—';
+          ? new Date(r.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : '—';
       return {
         time: timeStr,
-        sbp: Number((r.bp_systolic ?? r.systolic_bp ?? defaultSbp[idx]) || 120),
-        dbp: Number((r.bp_diastolic ?? r.diastolic_bp ?? defaultDbp[idx]) || 76),
-        pulse: Number((r.pulse ?? defaultPulse[idx]) || 78),
-        spo2: Number((r.spo2 ?? defaultSpo2[idx]) || 98),
+        sbp: Number(r.bp_systolic ?? r.systolic_bp),
+        dbp: Number(r.bp_diastolic ?? r.diastolic_bp),
+        pulse: Number(r.pulse),
+        spo2: Number(r.spo2),
       };
-    });
+    }).filter((p) => Number.isFinite(p.sbp) || Number.isFinite(p.pulse) || Number.isFinite(p.spo2));
   }, [readings]);
+
+  if (!points.length) {
+    return (
+      <div className="during-empty" style={{ padding: '24px 12px', textAlign: 'center', color: '#64748b', fontSize: 12 }}>
+        No vitals recorded yet in this window. Save a reading to populate the trend chart.
+      </div>
+    );
+  }
 
   const width = 380;
   const height = 170;
@@ -1067,46 +1073,83 @@ function VitalsTrendMultiLineChart({ readings }) {
   );
 }
 
-function VitalsForm({ sessionId, readings, onSaved, go }) {
-  const [form, setForm] = useState({
-    observation_time: '10:00 AM',
-    systolic_bp: '122',
-    diastolic_bp: '78',
-    pulse: '78',
-    respiration: '18',
-    temperature: '36.6',
-    spo2: '98',
+function emptyVitalsForm() {
+  return {
+    observation_time: nowTime(),
+    systolic_bp: '',
+    diastolic_bp: '',
+    pulse: '',
+    respiration: '',
+    temperature: '',
+    spo2: '',
     pain_score: 0,
     consciousness: 'Alert',
     symptoms: 'None',
     remarks: '',
     notify: false,
-  });
+  };
+}
+
+function FieldSeverityTag({ evaluation }) {
+  if (!evaluation || evaluation.severity === VITAL_SEVERITY.NORMAL) return null;
+  const critical = evaluation.severity === VITAL_SEVERITY.CRITICAL;
+  return (
+    <span
+      style={{
+        marginLeft: 6,
+        fontSize: 10,
+        fontWeight: 700,
+        padding: '1px 6px',
+        borderRadius: 999,
+        background: critical ? '#fee2e2' : '#fef3c7',
+        color: critical ? '#b91c1c' : '#b45309',
+        border: `1px solid ${critical ? '#fecaca' : '#fde68a'}`,
+      }}
+    >
+      {critical ? 'Critical' : 'Warning'}
+    </span>
+  );
+}
+
+function formatNextDueLabel(nextDue, intervalMinutes = 30) {
+  if (!nextDue) return `Next Due: — (Every ${intervalMinutes} min)`;
+  try {
+    const t = new Date(nextDue).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `Next Due: ${t} (Every ${intervalMinutes} min)`;
+  } catch (_) {
+    return `Next Due: ${String(nextDue)} (Every ${intervalMinutes} min)`;
+  }
+}
+
+function VitalsForm({ sessionId, readings, onSaved, go }) {
+  const [form, setForm] = useState(emptyVitalsForm);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const thresholds = useMemo(() => getVitalsThresholds(), []);
+  const [trendRange, setTrendRange] = useState('2h');
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [monitoringMeta, setMonitoringMeta] = useState({
+    next_due: null,
+    compliance_pct: 100,
+    monitoring_interval_minutes: 30,
+    active_vital_alerts: [],
+  });
+
+  const fieldEvals = useMemo(() => ({
+    bp: evaluateBp(form.systolic_bp, form.diastolic_bp),
+    pulse: evaluatePulse(form.pulse),
+    temp: evaluateTemp(form.temperature),
+    spo2: evaluateSpo2(form.spo2),
+    resp: form.respiration === '' ? null : evaluateRespRate(form.respiration),
+  }), [form]);
 
   const severity = useMemo(() => {
-    const sys = Number(form.systolic_bp);
-    const dia = Number(form.diastolic_bp);
-    const pulse = Number(form.pulse);
-    const spo2 = Number(form.spo2);
-    if (
-      (sys && (sys < thresholds.systolic.criticalLow || sys > thresholds.systolic.criticalHigh)) ||
-      (dia && (dia < thresholds.diastolic.criticalLow || dia > thresholds.diastolic.criticalHigh)) ||
-      (pulse && (pulse < thresholds.pulse.criticalLow || pulse > thresholds.pulse.criticalHigh)) ||
-      (spo2 && spo2 < thresholds.spo2.criticalLow)
-    )
-      return 'Critical';
-    if (
-      (sys && (sys <= 100 || sys >= 160)) ||
-      (dia && (dia <= 55 || dia >= 100)) ||
-      (pulse && (pulse <= 59 || pulse >= 101)) ||
-      (spo2 && spo2 <= 94)
-    )
-      return 'Warning';
+    const ranks = [fieldEvals.bp, fieldEvals.pulse, fieldEvals.temp, fieldEvals.spo2, fieldEvals.resp]
+      .filter(Boolean)
+      .map((e) => e.severity);
+    if (ranks.includes(VITAL_SEVERITY.CRITICAL)) return 'Critical';
+    if (ranks.includes(VITAL_SEVERITY.WARNING)) return 'Warning';
     return '';
-  }, [form, thresholds]);
+  }, [fieldEvals]);
 
   useEffect(() => {
     if (severity === 'Critical') {
@@ -1121,7 +1164,6 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
     if (!activeSessionId) {
       const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before saving vitals.';
       setError(alertMsg);
-      alert(alertMsg);
       return false;
     }
     if (!form.systolic_bp || !form.diastolic_bp || !form.pulse || !form.temperature || !form.spo2) {
@@ -1130,21 +1172,28 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
     }
     setSaving(true);
     setError('');
-    const recorded_by = getTechnicianId() || 'Rahul Singh';
+    const recorded_by = getTechnicianId() || null;
     const recorded_at = new Date().toISOString();
+    const observationTime = form.observation_time
+      ? (String(form.observation_time).includes('T')
+        ? new Date(form.observation_time).toISOString()
+        : form.observation_time)
+      : recorded_at;
     const payload = {
-      ...form,
-      observation_time: form.observation_time,
+      observation_time: observationTime,
       bp_systolic: Number(form.systolic_bp),
       bp_diastolic: Number(form.diastolic_bp),
       pulse: Number(form.pulse),
-      resp_rate: Number(form.respiration),
+      resp_rate: form.respiration === '' ? null : Number(form.respiration),
       temperature: Number(form.temperature),
       spo2: Number(form.spo2),
       pain_score: Number(form.pain_score),
-      symptoms_ref: form.symptoms,
+      consciousness: form.consciousness,
+      // DB column is FK/bigint; free-text symptom choice is carried as symptoms_label for remarks/cross-link.
+      symptoms_ref: null,
+      symptoms_label: form.symptoms,
+      remarks: form.remarks,
       notify_flag: form.notify || severity === 'Critical',
-      recorded_by,
       recorded_at,
     };
 
@@ -1156,54 +1205,106 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
       return false;
     }
     const saved = responseData(result);
-    onSaved({ ...form, ...saved, recorded_by, recorded_at });
-    return true;
+    if (saved?.compliance_pct != null || saved?.next_due) {
+      setMonitoringMeta((prev) => ({
+        ...prev,
+        compliance_pct: saved.compliance_pct ?? prev.compliance_pct,
+        next_due: saved.next_due ?? prev.next_due,
+        monitoring_interval_minutes: saved.monitoring_interval_minutes ?? prev.monitoring_interval_minutes,
+      }));
+    }
+    onSaved({
+      ...form,
+      ...saved,
+      bp_systolic: payload.bp_systolic,
+      bp_diastolic: payload.bp_diastolic,
+      resp_rate: payload.resp_rate,
+      observation_time: observationTime,
+      recorded_by: recorded_by || '—',
+      recorded_at,
+    });
+    return { saved, symptoms: form.symptoms };
   };
 
+  const resetForm = () => setForm(emptyVitalsForm());
+
   const handleSaveOnly = async () => {
-    await executeSave();
+    const result = await executeSave();
+    if (result) resetForm();
   };
 
   const handleSaveAndExit = async () => {
-    const ok = await executeSave();
-    if (ok) go('P3-01');
+    const result = await executeSave();
+    if (result) go('P3-01');
   };
 
   const handleSaveAndContinue = async () => {
-    const ok = await executeSave();
-    if (ok) go('P3-03');
+    const result = await executeSave();
+    if (!result) return;
+    // Non-linear hub: stay on P3-02 for the next interval entry, or jump to P3-04 when a symptom was logged.
+    if (result.symptoms && result.symptoms !== 'None') {
+      go('P3-04');
+      return;
+    }
+    resetForm();
   };
 
   const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
   const [fetchedVitals, setFetchedVitals] = useState([]);
-  const [overdueSlots, setOverdueSlots] = useState([]);
+  const [loadingVitals, setLoadingVitals] = useState(false);
+
+  const loadVitals = useCallback(async (range = trendRange) => {
+    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
+    setLoadingVitals(true);
+    const res = await getIntradialyticVitals(activeSessionId, range);
+    setLoadingVitals(false);
+    if (res?.success) {
+      const d = responseData(res);
+      const items = Array.isArray(d) ? d : (d.readings || d.items || d.vitals || []);
+      setFetchedVitals(items);
+      setMonitoringMeta((prev) => ({
+        ...prev,
+        next_due: d.next_due ?? prev.next_due,
+        compliance_pct: d.compliance_pct ?? prev.compliance_pct,
+        monitoring_interval_minutes: d.monitoring_interval_minutes ?? prev.monitoring_interval_minutes,
+        active_vital_alerts: d.active_vital_alerts || prev.active_vital_alerts || [],
+      }));
+    }
+  }, [activeSessionId, trendRange]);
 
   useEffect(() => {
-    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
-    getIntradialyticVitals(activeSessionId, '2h').then((res) => {
-      if (res?.success) {
-        const d = responseData(res);
-        const items = Array.isArray(d) ? d : d.items || d.vitals || [];
-        setFetchedVitals(items);
-      }
-    });
-    const techId = getTechnicianId();
-    if (techId) {
-      getOverdueVitals(techId).then((res) => {
-        if (res?.success) {
-          const d = responseData(res);
-          const slots = Array.isArray(d) ? d : d.items || d.slots || [];
-          setOverdueSlots(slots);
-        }
-      });
-    }
-  }, [activeSessionId]);
+    loadVitals(trendRange);
+  }, [loadVitals, trendRange]);
 
-  const historyRows = useMemo(() => {
-    const list = (readings && readings.length > 0) ? readings : fetchedVitals;
-    if (list && list.length > 0) return list.slice(-5).reverse();
+  // Offline draft for this screen (Part 3 draft-save convention).
+  useEffect(() => {
+    if (!activeSessionId) return;
+    writeDraft(`${activeSessionId}:p302-vitals`, form);
+  }, [activeSessionId, form]);
+
+  const historySource = useMemo(() => {
+    if (fetchedVitals.length > 0) return fetchedVitals;
+    if (readings && readings.length > 0) return readings;
     return [];
   }, [readings, fetchedVitals]);
+
+  const historyRows = useMemo(() => {
+    if (!historySource.length) return [];
+    const sorted = [...historySource].sort((a, b) => {
+      const ta = new Date(a.observation_time || a.recorded_at || 0).getTime();
+      const tb = new Date(b.observation_time || b.recorded_at || 0).getTime();
+      return tb - ta;
+    });
+    return showAllHistory ? sorted : sorted.slice(0, 5);
+  }, [historySource, showAllHistory]);
+
+  const chartReadings = historySource;
+  const vitalAlerts = monitoringMeta.active_vital_alerts || [];
+  const nextDueLabel = formatNextDueLabel(
+    monitoringMeta.next_due,
+    monitoringMeta.monitoring_interval_minutes || 30,
+  );
+  const complianceLabel = `${Number.isFinite(Number(monitoringMeta.compliance_pct)) ? Math.round(Number(monitoringMeta.compliance_pct)) : 100}%`;
 
   return (
     <>
@@ -1221,38 +1322,57 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '-24px', marginBottom: '16px' }}>
               <span />
               <span style={{ fontSize: '12px', fontWeight: 700, color: '#2563eb' }}>
-                Next Due: 10:30 AM (Every 30 min)
+                {nextDueLabel}
               </span>
             </div>
 
             <div className="during-form-grid">
               {/* Row 1: Time, BP, Pulse, Resp Rate */}
               <Field label="Observation Time" icon={AccessTimeOutlinedIcon} required>
-                <Input type="text" value={form.observation_time} onChange={update('observation_time')} />
+                <Input type="datetime-local" value={form.observation_time} onChange={update('observation_time')} />
               </Field>
 
-              <Field label="BP (mmHg)" icon={FavoriteBorderOutlinedIcon} required>
+              <Field
+                label={<span>BP (mmHg) <FieldSeverityTag evaluation={fieldEvals.bp} /></span>}
+                icon={FavoriteBorderOutlinedIcon}
+                required
+              >
                 <div className="during-bp-split-container">
-                  <Input type="number" placeholder="122" value={form.systolic_bp} onChange={update('systolic_bp')} />
+                  <Input type="number" placeholder="Systolic" value={form.systolic_bp} onChange={update('systolic_bp')} />
                   <span className="during-bp-separator">/</span>
-                  <Input type="number" placeholder="78" value={form.diastolic_bp} onChange={update('diastolic_bp')} />
+                  <Input type="number" placeholder="Diastolic" value={form.diastolic_bp} onChange={update('diastolic_bp')} />
                 </div>
               </Field>
 
-              <Field label="Pulse (bpm)" icon={MonitorHeartOutlinedIcon} required>
+              <Field
+                label={<span>Pulse (bpm) <FieldSeverityTag evaluation={fieldEvals.pulse} /></span>}
+                icon={MonitorHeartOutlinedIcon}
+                required
+              >
                 <Input type="number" value={form.pulse} onChange={update('pulse')} />
               </Field>
 
-              <Field label="Respiratory Rate (/min)" icon={AirOutlinedIcon}>
+              <Field
+                label={<span>Respiratory Rate (/min) <FieldSeverityTag evaluation={fieldEvals.resp} /></span>}
+                icon={AirOutlinedIcon}
+              >
                 <Input type="number" value={form.respiration} onChange={update('respiration')} />
               </Field>
 
               {/* Row 2: Temp, SpO2, Pain Score, Consciousness */}
-              <Field label="Temperature (°C)" icon={DeviceThermostatOutlinedIcon} required>
+              <Field
+                label={<span>Temperature (°C) <FieldSeverityTag evaluation={fieldEvals.temp} /></span>}
+                icon={DeviceThermostatOutlinedIcon}
+                required
+              >
                 <Input type="number" step="0.1" value={form.temperature} onChange={update('temperature')} />
               </Field>
 
-              <Field label="SpO₂ (%)" icon={WaterDropOutlinedIcon} required>
+              <Field
+                label={<span>SpO₂ (%) <FieldSeverityTag evaluation={fieldEvals.spo2} /></span>}
+                icon={WaterDropOutlinedIcon}
+                required
+              >
                 <Input type="number" value={form.spo2} onChange={update('spo2')} />
               </Field>
 
@@ -1281,10 +1401,11 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
                   <option value="Muscle Cramps">Muscle Cramps</option>
                   <option value="Nausea/Vomiting">Nausea/Vomiting</option>
                   <option value="Shortness of Breath">Shortness of Breath</option>
+                  <option value="Other">Other</option>
                 </Select>
               </Field>
 
-              <Field label="Remarks" icon={NoteAltOutlinedIcon}>
+              <Field label={`Remarks (${String(form.remarks || '').length}/200)`} icon={NoteAltOutlinedIcon}>
                 <Textarea
                   placeholder="Enter remarks (if any)"
                   maxLength="200"
@@ -1296,7 +1417,10 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
 
             {severity && (
               <div className={`during-alert ${severity.toLowerCase()}`}>
-                <strong>{severity}:</strong> Review entered vital signs. High-risk finding flagged.
+                <strong>{severity}:</strong>
+                {severity === 'Critical'
+                  ? ' High-risk finding flagged. Notify Nurse/Doctor is required and cannot be unchecked.'
+                  : ' Review entered vital signs. Warning-tier values are outside the quick-reference range.'}
               </div>
             )}
             {error && <div className="during-error">{error}</div>}
@@ -1311,25 +1435,7 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
               </LibraryCheckbox>
 
               <div className="during-form-actions">
-                <LibraryButton
-                  variant="outline"
-                  onClick={() =>
-                    setForm({
-                      observation_time: nowTime(),
-                      systolic_bp: '',
-                      diastolic_bp: '',
-                      pulse: '',
-                      respiration: '',
-                      temperature: '',
-                      spo2: '',
-                      pain_score: 0,
-                      consciousness: 'Alert',
-                      symptoms: 'None',
-                      remarks: '',
-                      notify: false,
-                    })
-                  }
-                >
+                <LibraryButton variant="outline" onClick={resetForm}>
                   Reset
                 </LibraryButton>
                 <LibraryButton variant="primary" onClick={handleSaveOnly} disabled={saving}>
@@ -1367,10 +1473,10 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
                       ? (r.observation_time.includes(':') && !r.observation_time.includes('T') ? r.observation_time : new Date(r.observation_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
                       : '—';
                     const consciousText = r.consciousness || 'Alert';
-                    const recorder = r.recorded_by || r.recordedBy || 'Rahul Singh';
+                    const recorder = r.recorded_by || r.recordedBy || '—';
 
                     return (
-                      <tr key={i} className={isTop ? 'during-vitals-row-latest' : ''}>
+                      <tr key={r.id || i} className={isTop ? 'during-vitals-row-latest' : ''}>
                         <td style={{ fontWeight: isTop ? 700 : 500 }}>{timeText}</td>
                         <td>{bpText}</td>
                         <td>{r.pulse ?? '—'}</td>
@@ -1384,11 +1490,28 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
                           </span>
                         </td>
                         <td>{recorder}</td>
-                        <td style={{ textStyle: 'right' }}>
+                        <td style={{ textAlign: 'right' }}>
                           <button
                             type="button"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb' }}
-                            title="Edit entry"
+                            title="Load into form"
+                            onClick={() => setForm((prev) => ({
+                              ...prev,
+                              observation_time: r.observation_time
+                                ? String(r.observation_time).slice(0, 16)
+                                : prev.observation_time,
+                              systolic_bp: String(r.bp_systolic ?? r.systolic_bp ?? ''),
+                              diastolic_bp: String(r.bp_diastolic ?? r.diastolic_bp ?? ''),
+                              pulse: String(r.pulse ?? ''),
+                              respiration: String(r.resp_rate ?? r.respiration ?? ''),
+                              temperature: String(r.temperature ?? ''),
+                              spo2: String(r.spo2 ?? ''),
+                              pain_score: Number(r.pain_score ?? 0),
+                              consciousness: r.consciousness || 'Alert',
+                              symptoms: r.symptoms_ref || 'None',
+                              remarks: r.remarks || '',
+                              notify: Boolean(r.notify_flag),
+                            }))}
                           >
                             <EditOutlinedIcon fontSize="small" />
                           </button>
@@ -1396,12 +1519,30 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
                       </tr>
                     );
                   })}
+                  {!historyRows.length && (
+                    <tr>
+                      <td colSpan={10} style={{ textAlign: 'center', color: '#64748b', padding: 16 }}>
+                        {loadingVitals ? 'Loading vitals history…' : 'No vitals recorded yet for this session.'}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
             <div style={{ textAlign: 'center', marginTop: '12px' }}>
-              <button type="button" className="during-card-action-link" onClick={() => {}}>
-                View All Vitals History →
+              <button
+                type="button"
+                className="during-card-action-link"
+                onClick={() => {
+                  const next = !showAllHistory;
+                  setShowAllHistory(next);
+                  if (next) {
+                    setTrendRange('all');
+                    loadVitals('all');
+                  }
+                }}
+              >
+                {showAllHistory ? 'Show Recent Vitals ↑' : 'View All Vitals History →'}
               </button>
             </div>
           </Card>
@@ -1413,13 +1554,19 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
           <Card title="Vitals Trend">
             <div className="during-vitals-trend-card-header" style={{ marginTop: '-24px' }}>
               <span />
-              <Select size="sm" style={{ width: '130px' }} defaultValue="2h">
+              <Select
+                size="sm"
+                style={{ width: '130px' }}
+                value={trendRange}
+                onChange={(e) => setTrendRange(e.target.value)}
+              >
                 <option value="2h">Last 2 Hours</option>
                 <option value="4h">Last 4 Hours</option>
+                <option value="all">Session</option>
               </Select>
             </div>
 
-            <VitalsTrendMultiLineChart readings={readings} />
+            <VitalsTrendMultiLineChart readings={chartReadings} />
 
             <div className="during-vitals-mini-cards-grid">
               <div className="during-vitals-mini-card interval">
@@ -1428,7 +1575,7 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
                 </div>
                 <div className="during-vitals-mini-card-info">
                   <small>Monitoring Interval</small>
-                  <strong>Every 30 min</strong>
+                  <strong>Every {monitoringMeta.monitoring_interval_minutes || 30} min</strong>
                 </div>
               </div>
 
@@ -1438,7 +1585,7 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
                 </div>
                 <div className="during-vitals-mini-card-info">
                   <small>Compliance</small>
-                  <strong>100%</strong>
+                  <strong>{complianceLabel}</strong>
                 </div>
               </div>
             </div>
@@ -1451,8 +1598,23 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
               <span>Alerts & Notifications</span>
             </div>
             <div className="during-vital-alerts-content">
-              <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} fontSize="small" />
-              <span>No active vital alerts. All parameters are within acceptable range.</span>
+              {vitalAlerts.length === 0 ? (
+                <>
+                  <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} fontSize="small" />
+                  <span>No active vital alerts. All parameters are within acceptable range.</span>
+                </>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {vitalAlerts.slice(0, 4).map((alert, idx) => (
+                    <div key={`${alert.reading_id || idx}-${alert.field}`} style={{ fontSize: 12, color: alert.severity === 'critical' ? '#b91c1c' : '#92400e' }}>
+                      <strong>{String(alert.field || 'vital').replace(/_/g, ' ')}</strong>
+                      {': '}
+                      {alert.severity}
+                      {alert.value != null ? ` (${alert.value})` : ''}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
