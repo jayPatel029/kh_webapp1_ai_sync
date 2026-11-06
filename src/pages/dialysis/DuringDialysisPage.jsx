@@ -231,11 +231,11 @@ function PatientBanner({ patient = {}, session = {} }) {
 
 function Metric({ label, value, hint }) { return <div className="during-metric"><small>{label}</small><strong>{value}</strong>{hint && <span>{hint}</span>}</div>; }
 
-function TreatmentProgressRingSVG({ percent = 66, elapsedTime = '01:32', remainingTime = '00:48', totalTime = '04:00' }) {
+function TreatmentProgressRingSVG({ percent = 0, elapsedTime = '—', remainingTime = '—', totalTime = '—' }) {
   const radius = 42;
   const strokeWidth = 10;
   const circumference = 2 * Math.PI * radius;
-  const validPercent = Math.max(0, Math.min(100, Number(percent) || 66));
+  const validPercent = Math.max(0, Math.min(100, Number.isFinite(Number(percent)) ? Number(percent) : 0));
   const offset = circumference - (validPercent / 100) * circumference;
 
   return (
@@ -280,12 +280,14 @@ function TreatmentProgressRingSVG({ percent = 66, elapsedTime = '01:32', remaini
   );
 }
 
-function UfProgressRingSVG({ removed = 1.60, target = 2.40, remaining = 0.80, rate = 500 }) {
-  const numRemoved = Number(removed) || 1.60;
-  const numTarget = Math.max(0.1, Number(target) || 2.40);
-  const ratio = Math.max(0, Math.min(1, numRemoved / numTarget));
+function UfProgressRingSVG({ removed = 0, target = 0, remaining = 0, rate = '—' }) {
+  const numRemoved = Number.isFinite(Number(removed)) ? Number(removed) : 0;
+  const numTarget = Number.isFinite(Number(target)) ? Math.max(0, Number(target)) : 0;
+  const ratio = numTarget > 0 ? Math.max(0, Math.min(1, numRemoved / numTarget)) : 0;
   const arcLength = Math.PI * 45;
   const strokeDashoffset = arcLength - ratio * arcLength;
+  const remainingDisplay = Number.isFinite(Number(remaining)) ? Number(remaining).toFixed(2) : '—';
+  const rateDisplay = rate === undefined || rate === null || rate === '' ? '—' : rate;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -311,19 +313,36 @@ function UfProgressRingSVG({ removed = 1.60, target = 2.40, remaining = 0.80, ra
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', width: '100%', borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginBottom: '6px' }}>
         <div style={{ textAlign: 'center' }}>
           <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>Target UF</span>
-          <strong style={{ fontSize: '13px', color: '#0f172a' }}>{numTarget.toFixed(2)} L</strong>
+          <strong style={{ fontSize: '13px', color: '#0f172a' }}>{numTarget > 0 ? `${numTarget.toFixed(2)} L` : '—'}</strong>
         </div>
         <div style={{ textAlign: 'center', borderLeft: '1px solid #f1f5f9' }}>
           <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>Remaining UF</span>
-          <strong style={{ fontSize: '13px', color: '#0f172a' }}>{(Number(remaining) || 0.80).toFixed(2)} L</strong>
+          <strong style={{ fontSize: '13px', color: '#0f172a' }}>{remainingDisplay === '—' ? '—' : `${remainingDisplay} L`}</strong>
         </div>
       </div>
 
       <div style={{ fontSize: '11px', color: '#64748b', textAlign: 'center' }}>
-        UF Rate: <strong style={{ color: '#0f172a' }}>{rate} mL/hr</strong>
+        UF Rate: <strong style={{ color: '#0f172a' }}>{rateDisplay === '—' ? '—' : `${rateDisplay} mL/hr`}</strong>
       </div>
     </div>
   );
+}
+
+function trendFromValues(current, previous) {
+  if (current === undefined || current === null || previous === undefined || previous === null) return null;
+  const a = Number(current);
+  const b = Number(previous);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  if (a > b) return 'up';
+  if (a < b) return 'down';
+  return 'stable';
+}
+
+function TrendMark({ trend }) {
+  if (trend === 'up') return <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>;
+  if (trend === 'down') return <span style={{ color: '#dc2626', fontWeight: 800 }}>↘</span>;
+  if (trend === 'stable') return <span style={{ color: '#64748b', fontWeight: 800 }}>→</span>;
+  return null;
 }
 
 function DialysisMachineIllustrationSVG() {
@@ -386,42 +405,50 @@ function TrendBadge({ trend }) {
   return <span className="during-trend stable">→</span>;
 }
 
-function Dashboard({ go, session, readings, sessionId, patient }) {
+function Dashboard({ go, session, readings, sessionId, patient, onDashboardMeta }) {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+  const [stale, setStale] = useState(false);
 
-  const fetchDashboard = useCallback(async () => {
+  const fetchDashboard = useCallback(async ({ silent = false } = {}) => {
     if (!sessionId || sessionId === 'demo') {
       setLoading(false);
       return;
     }
+    if (!silent) setLoading((prev) => (dashboardData ? prev : true));
     try {
       const res = await getDuringDialysisDashboard(sessionId);
       if (res?.success) {
-        setDashboardData(responseData(res));
+        const payload = responseData(res);
+        setDashboardData(payload);
         setFetchError(null);
+        setStale(false);
+        setLastUpdatedAt(payload.fetched_at || new Date().toISOString());
       } else {
         setFetchError(res?.data?.message || 'Unable to fetch dashboard update');
+        setStale(Boolean(dashboardData));
       }
     } catch (err) {
       setFetchError(err?.message || 'Network error');
+      setStale(Boolean(dashboardData));
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, dashboardData]);
 
   useEffect(() => {
     let isMounted = true;
     fetchDashboard();
     const interval = setInterval(() => {
-      if (isMounted) fetchDashboard();
+      if (isMounted) fetchDashboard({ silent: true });
     }, 15000);
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [fetchDashboard]);
+  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const latest = readings[readings.length - 1] || {};
   const startedAtDate = session?.started_at ? new Date(session.started_at) : (session?.created_at ? new Date(session.created_at) : null);
@@ -444,25 +471,50 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
   const latestMachineParams = dashboardData?.latest_machine_params || dashboardData?.machine_latest || {};
   const deferredConsent = dashboardData?.deferred_consent || false;
 
-  const rawElapsed = progressData.elapsed;
-  const parsedElapsedMins = typeof rawElapsed === 'number'
-    ? (rawElapsed < 10 ? Math.round(rawElapsed * 60) : Math.round(rawElapsed))
-    : elapsedMinutes;
-  const totalMins = Number(progressData.total || totalMinutes);
-  const remainingMins = Number(progressData.remaining ?? Math.max(0, totalMins - parsedElapsedMins));
-  const percent = progressData.percent ?? (totalMins > 0 ? Math.min(100, Math.round((parsedElapsedMins / totalMins) * 100)) : calcPercent);
+  // API progress.elapsed/remaining/total are hours; prefer formatted fields from API.
+  const elapsedHours = typeof progressData.elapsed === 'number' ? progressData.elapsed : (elapsedMinutes / 60);
+  const totalHours = typeof progressData.total === 'number'
+    ? progressData.total
+    : (Number(session?.prescribed_duration_mins || session?.prescribed_duration_minutes) > 0
+      ? Number(session.prescribed_duration_mins || session.prescribed_duration_minutes) / 60
+      : (totalMinutes / 60));
+  const remainingHours = typeof progressData.remaining === 'number'
+    ? progressData.remaining
+    : Math.max(0, totalHours - elapsedHours);
+  const percent = progressData.percent ?? (totalHours > 0 ? Math.min(100, Math.round((elapsedHours / totalHours) * 100)) : calcPercent);
+  const formatFromHours = (hours) => {
+    if (hours === null || hours === undefined || Number.isNaN(Number(hours))) return '—';
+    return formatHoursMins(Math.round(Number(hours) * 60));
+  };
 
-  const elapsedTimeStr = progressData.elapsed_formatted || (startedAtDate ? formatHoursMins(parsedElapsedMins) : '—');
-  const remainingTimeStr = progressData.remaining_formatted || (startedAtDate ? formatHoursMins(remainingMins) : '—');
-  const totalTimeStr = progressData.total_formatted || (totalMins ? formatHoursMins(totalMins) : '—');
+  const elapsedTimeStr = progressData.elapsed_formatted || (startedAtDate ? formatFromHours(elapsedHours) : '—');
+  const remainingTimeStr = progressData.remaining_formatted || (startedAtDate ? formatFromHours(remainingHours) : '—');
+  const totalTimeStr = progressData.total_formatted || (totalHours ? formatFromHours(totalHours) : '—');
   const startedAtStr = progressData.started_at ? new Date(progressData.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (startedAtDate ? startedAtDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—');
-  const expectedEndStr = progressData.expected_end ? new Date(progressData.expected_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (startedAtDate ? new Date(startedAtDate.getTime() + totalMins * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—');
+  const expectedEndStr = progressData.expected_end ? new Date(progressData.expected_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (startedAtDate && totalHours ? new Date(startedAtDate.getTime() + totalHours * 3600000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—');
 
-  const ufRemoved = Number(ufData.removed ?? machineLatest.uf_removed ?? latest.uf_removed ?? session?.uf_removed ?? 0.0);
-  const rawTarget = ufData.target ?? session?.target_uf ?? session?.uf_target ?? 0.0;
-  const ufTarget = Number(rawTarget) > 50 ? Number(rawTarget) / 1000 : Number(rawTarget);
-  const ufRemaining = Number(ufData.remaining ?? Math.max(0, ufTarget - ufRemoved));
+  const ufRemovedRaw = ufData.removed ?? machineLatest.uf_removed ?? latest.uf_removed ?? session?.uf_removed;
+  const ufRemoved = ufRemovedRaw === undefined || ufRemovedRaw === null || ufRemovedRaw === ''
+    ? 0
+    : (Number(ufRemovedRaw) > 50 ? Number(ufRemovedRaw) / 1000 : Number(ufRemovedRaw));
+  const rawTarget = ufData.target ?? session?.target_uf ?? session?.uf_target ?? session?.uf_goal_ml;
+  const parsedTarget = rawTarget === undefined || rawTarget === null || rawTarget === ''
+    ? 0
+    : (Number(rawTarget) > 50 ? Number(rawTarget) / 1000 : Number(rawTarget));
+  const ufTarget = parsedTarget > 0 ? parsedTarget : 0;
+  const ufRemaining = ufData.remaining != null && Number(ufData.remaining) >= 0
+    ? Number(ufData.remaining)
+    : Math.max(0, ufTarget - ufRemoved);
   const ufRate = ufData.rate ?? machineLatest.ufr ?? latest.uf_rate ?? session?.uf_rate ?? '—';
+
+  useEffect(() => {
+    if (!onDashboardMeta) return;
+    onDashboardMeta({
+      elapsedFormatted: elapsedTimeStr,
+      alertCount: (dashboardData?.active_alerts || dashboardData?.unresolved?.alarms || []).length,
+      lastUpdatedAt,
+    });
+  }, [onDashboardMeta, elapsedTimeStr, dashboardData, lastUpdatedAt]);
 
   const bfr = machineLatest.bfr ?? machineStatus.bfr ?? latest.bfr ?? session?.bfr ?? '—';
   const dfr = machineLatest.dfr ?? machineStatus.dfr ?? latest.dfr ?? session?.dfr ?? '—';
@@ -516,11 +568,51 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
     ? new Date(machineLatest.reading_time || machineLatest.recorded_at || latestMachineParams.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '—';
 
+  const prevVitals = latestVitals.previous || {};
+  const bpTrend = trendFromValues(vitalsSys, prevVitals.systolic_bp);
+  const pulseTrend = trendFromValues(latestVitals.pulse ?? latest.pulse, prevVitals.pulse);
+  const respTrend = trendFromValues(latestVitals.resp_rate ?? latest.respiration ?? latest.resp_rate, prevVitals.resp_rate);
+  const tempTrend = trendFromValues(latestVitals.temp ?? latest.temperature, prevVitals.temp);
+  const spo2Trend = trendFromValues(latestVitals.spo2 ?? latest.spo2, prevVitals.spo2);
+  const painTrend = trendFromValues(latestVitals.pain_score ?? latest.pain_score, prevVitals.pain_score);
+  const lastUpdatedLabel = lastUpdatedAt
+    ? new Date(lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+
+  if (loading && !dashboardData) {
+    return (
+      <div className="during-dashboard-row" aria-busy="true">
+        {[1, 2, 3, 4].map((n) => (
+          <Card key={n} title=" ">
+            <div style={{ height: 140, background: '#f1f5f9', borderRadius: 8 }} />
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <>
       {deferredConsent && (
         <div className="during-alert warning" style={{ marginBottom: '16px' }}>
           <strong>Deferred Consent Notice:</strong> Organization consent for this patient was updated mid-session. Care continues uninterrupted until treatment completion (P3-10).
+        </div>
+      )}
+
+      {(fetchError || stale) && (
+        <div className="during-alert warning" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+          <div>
+            <strong>{stale ? 'Showing last-known dashboard values.' : 'Dashboard refresh failed.'}</strong>
+            <span style={{ marginLeft: 8 }}>{fetchError}</span>
+            {lastUpdatedLabel && <span style={{ marginLeft: 8, color: '#92400e' }}>Last updated {lastUpdatedLabel}</span>}
+          </div>
+          <LibraryButton size="sm" variant="outline" onClick={() => fetchDashboard()}>Refresh</LibraryButton>
+        </div>
+      )}
+
+      {!fetchError && lastUpdatedLabel && (
+        <div style={{ marginBottom: 8, fontSize: 11, color: '#64748b', textAlign: 'right' }}>
+          Last updated {lastUpdatedLabel}
         </div>
       )}
 
@@ -635,7 +727,7 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{bpVal}</strong>
-                {bpVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+                <TrendMark trend={bpTrend} />
               </div>
             </div>
 
@@ -646,7 +738,7 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{pulseVal}</strong>
-                {pulseVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+                <TrendMark trend={pulseTrend} />
               </div>
             </div>
 
@@ -657,7 +749,7 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{respVal}</strong>
-                {respVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+                <TrendMark trend={respTrend} />
               </div>
             </div>
 
@@ -668,7 +760,7 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{tempVal}</strong>
-                {tempVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+                <TrendMark trend={tempTrend} />
               </div>
             </div>
 
@@ -679,7 +771,7 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{spo2Val}</strong>
-                {spo2Val !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+                <TrendMark trend={spo2Trend} />
               </div>
             </div>
 
@@ -690,7 +782,7 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{painVal}</strong>
-                {painVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
+                <TrendMark trend={painTrend} />
               </div>
             </div>
           </div>
@@ -713,7 +805,6 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               <span style={{ color: '#475569' }}>Arterial Pressure</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{apVal}</strong>
-                {apVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
               </div>
             </div>
 
@@ -721,7 +812,6 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               <span style={{ color: '#475569' }}>Venous Pressure</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{vpVal}</strong>
-                {vpVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
               </div>
             </div>
 
@@ -729,7 +819,6 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               <span style={{ color: '#475569' }}>Transmembrane Pressure (TMP)</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{tmpVal}</strong>
-                {tmpVal !== '—' && <span style={{ color: '#d97706', fontWeight: 800 }}>↗</span>}
               </div>
             </div>
 
@@ -737,7 +826,6 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               <span style={{ color: '#475569' }}>Dialysate Conductivity</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{condVal}</strong>
-                {condVal !== '—' && <span style={{ color: '#16a34a', fontWeight: 800 }}>↗</span>}
               </div>
             </div>
 
@@ -745,7 +833,6 @@ function Dashboard({ go, session, readings, sessionId, patient }) {
               <span style={{ color: '#475569' }}>Dialysate Temperature</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <strong>{dialTempVal}</strong>
-                {dialTempVal !== '—' && <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 14 }} />}
               </div>
             </div>
           </div>
@@ -4321,6 +4408,17 @@ function DuringDialysisPage({ embedded = false, sessionId: embeddedSessionId, pa
   const [session, setSession] = useState({}); const [readings, setReadings] = useState([]); const patient = useMemo(() => ({ ...initialPatient, ...(patientData || location.state?.patient || {}), name: patientData?.name || patientData?.patient_name || location.state?.patient?.name || location.state?.patient?.patient_name || initialPatient.name }), [patientData, location.state]);
   const technicianId = useMemo(() => getTechnicianId(), []);
   const [overdue, setOverdue] = useState([]); const [overdueOpen, setOverdueOpen] = useState(false);
+  const [dashboardMeta, setDashboardMeta] = useState({ elapsedFormatted: '—', alertCount: 0, lastUpdatedAt: null });
+  const handleDashboardMeta = useCallback((meta) => {
+    setDashboardMeta((prev) => ({ ...prev, ...meta }));
+  }, []);
+  const activeScreenLabel = useMemo(() => {
+    const found = SCREENS.find(([id]) => id === active);
+    return found ? `${found[0]} – ${found[1]}` : 'P3-01 – Treatment Dashboard';
+  }, [active]);
+  const activeScreenSubtitle = active === 'P3-01'
+    ? 'Real-time overview of patient status and treatment progress.'
+    : 'During-dialysis monitoring — return to the dashboard anytime from Quick Actions or the screen rail.';
   useEffect(() => {
     let mounted = true;
     if (!hasSession) return () => { mounted = false; };
@@ -4378,36 +4476,44 @@ function DuringDialysisPage({ embedded = false, sessionId: embeddedSessionId, pa
   };
   const go = (id) => { setActive(id); if (!embedded && hasSession) navigate(`/dialysis/during/${sessionId}/${id}`, { replace: true, state: { sessionId, patient } }); else if (!embedded) setActive(id); };
   const missingBanner = missingSession ? <div className="during-card" style={{borderColor:'#f59e0b',background:'#fffbeb'}}><h2 style={{color:'#92400e',margin:'0 0 6px'}}>No active session</h2><p className="during-muted">No session ID in URL (<code>/dialysis/during/:sessionId/:screenId</code>), state, or <code>?sessionId=</code>. P3-02…P3-10 are still navigable for preview, but saves will be disabled until a session is opened from <code>/dialysis/patients</code> → Start Dialysis. Stale localStorage is no longer used to silently load a previous patient's session.</p><p className="during-muted">Tried: embedded={String(embedded)}, route :sessionId={String(routeSessionId||'')}, query ?sessionId={String(querySessionId||'')}, state {String(location.state?.sessionId||'')}</p></div> : null;
-  const content = active === 'P3-01' ? <Dashboard go={go} session={session} readings={readings} sessionId={sessionId} patient={patient} /> : active === 'P3-02' ? <VitalsForm sessionId={sessionId} readings={readings} onSaved={(entry) => setReadings((v) => [...v, entry])} go={go} /> : active === 'P3-03' ? <P303MachineParameters sessionId={sessionId} session={session} patient={patient} parameterQuestions={parameterQuestions} onSave={() => go('P3-04')} onSaveDraft={() => {}} onBack={() => go('P3-02')} /> : active === 'P3-04' ? <SymptomForm sessionId={sessionId} go={go} /> : active === 'P3-05' ? <VascularAccessMonitoringView sessionId={sessionId} go={go} /> : active === 'P3-06' ? <MedicationAdministrationView sessionId={sessionId} go={go} patientId={patientId || patient.id} /> : active === 'P3-07' ? <AlarmManagementView sessionId={sessionId} go={go} /> : active === 'P3-08' ? <TreatmentProgressView sessionId={sessionId} go={go} /> : active === 'P3-09' ? <IncidentReportingView sessionId={sessionId} go={go} /> : <TreatmentCompletionView sessionId={sessionId} go={go} onCompleted={onCompleted} patient={patient} />;
+  const content = active === 'P3-01' ? <Dashboard go={go} session={session} readings={readings} sessionId={sessionId} patient={patient} onDashboardMeta={handleDashboardMeta} /> : active === 'P3-02' ? <VitalsForm sessionId={sessionId} readings={readings} onSaved={(entry) => setReadings((v) => [...v, entry])} go={go} /> : active === 'P3-03' ? <P303MachineParameters sessionId={sessionId} session={session} patient={patient} parameterQuestions={parameterQuestions} onSave={() => go('P3-01')} onSaveDraft={() => {}} onBack={() => go('P3-01')} /> : active === 'P3-04' ? <SymptomForm sessionId={sessionId} go={go} /> : active === 'P3-05' ? <VascularAccessMonitoringView sessionId={sessionId} go={go} /> : active === 'P3-06' ? <MedicationAdministrationView sessionId={sessionId} go={go} patientId={patientId || patient.id} /> : active === 'P3-07' ? <AlarmManagementView sessionId={sessionId} go={go} /> : active === 'P3-08' ? <TreatmentProgressView sessionId={sessionId} go={go} /> : active === 'P3-09' ? <IncidentReportingView sessionId={sessionId} go={go} /> : <TreatmentCompletionView sessionId={sessionId} go={go} onCompleted={onCompleted} patient={patient} />;
+  const alertBadgeCount = Number(dashboardMeta.alertCount) || 0;
   return <div className={`during-page ${embedded ? 'during-page--embedded' : ''}`}>
     {missingBanner}
     <header className="during-page-header">
       <div>
-        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>P3-01 – Treatment Dashboard</h1>
-        <p className="during-muted" style={{ margin: '2px 0 0', fontSize: '12px' }}>Real-time overview of patient status and treatment progress.</p>
+        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>{activeScreenLabel}</h1>
+        <p className="during-muted" style={{ margin: '2px 0 0', fontSize: '12px' }}>{activeScreenSubtitle}</p>
       </div>
       <div className="during-page-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <Select size="sm" style={{ width: '130px', background: '#f8fafc' }} defaultValue="Main Center">
           <option value="Main Center">📍 Main Center</option>
         </Select>
-        <div style={{ position: 'relative', cursor: 'pointer', padding: '6px' }}>
+        <button
+          type="button"
+          style={{ position: 'relative', cursor: 'pointer', padding: '6px', border: 'none', background: 'transparent' }}
+          onClick={() => go('P3-07')}
+          aria-label="Open alarm management"
+        >
           <NotificationsNoneOutlinedIcon sx={{ color: '#475569', fontSize: 22 }} />
-          <span style={{ position: 'absolute', top: 2, right: 2, background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, borderRadius: '50%', width: '15px', height: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>5</span>
-        </div>
+          {alertBadgeCount > 0 && (
+            <span style={{ position: 'absolute', top: 2, right: 2, background: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 800, borderRadius: '50%', width: '15px', height: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{alertBadgeCount > 9 ? '9+' : alertBadgeCount}</span>
+          )}
+        </button>
         <div className="during-session-time-card">
           <AccessTimeOutlinedIcon sx={{ color: '#2563eb', fontSize: 20 }} />
           <div>
             <span style={{ fontSize: '9px', color: '#64748b', display: 'block', lineHeight: 1 }}>Session Time</span>
-            <strong style={{ fontSize: '14px', color: '#0f172a', lineHeight: 1.2 }}>01:32</strong>
+            <strong style={{ fontSize: '14px', color: '#0f172a', lineHeight: 1.2 }}>{dashboardMeta.elapsedFormatted || '—'}</strong>
             <span style={{ fontSize: '9px', color: '#64748b', display: 'block', lineHeight: 1 }}>Elapsed</span>
           </div>
         </div>
         <LibraryButton variant="outline" size="sm" onClick={() => go('P3-10')} style={{ color: '#2563eb', borderColor: '#cbd5e1', fontWeight: 600 }}>End Treatment</LibraryButton>
       </div>
     </header>
-    <nav className="during-stepper" aria-label="Session Monitoring screens">
+    <nav className="during-stepper" aria-label="During Dialysis screens (you are here indicator)">
       {SCREENS.map(([id, label], index) => <React.Fragment key={id}>
-        <button type="button" className={active === id ? 'active' : ''} onClick={() => go(id)} aria-current={active === id ? 'step' : undefined}>
+        <button type="button" className={active === id ? 'active' : ''} onClick={() => go(id)} aria-current={active === id ? 'page' : undefined}>
           <span className="during-step-number">{index + 1}</span><span>{label}</span>
         </button>
         {index < SCREENS.length - 1 && <span className="during-step-line" aria-hidden="true" />}
