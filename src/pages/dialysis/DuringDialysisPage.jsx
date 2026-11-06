@@ -2971,77 +2971,227 @@ function VascularAccessMonitoringView({ sessionId, go }) {
   );
 }
 
-function MedicationAdministrationView({ sessionId, go, patientId }) {
-  const [form, setForm] = useState({
+const MED_INDICATIONS = [
+  'Anemia Management (ESA/Iron)',
+  'Anticoagulation',
+  'Hypotension/IDH Management',
+  'Muscle Cramps',
+  'Nausea/Vomiting',
+  'Infection/Prophylaxis',
+  'Pain Management',
+  'Other',
+];
+
+const MED_ROUTES = [
+  'IV',
+  'IV Push',
+  'IV Infusion',
+  'Subcutaneous (SC)',
+  'Oral (PO)',
+  'Intradialytic — via dialysate',
+];
+
+function emptyMedForm(technicianLabel) {
+  return {
     medication: '',
     indication: '',
     dose: '',
     unit: 'mg',
-    route: 'IV',
+    route: '',
     administered_at: nowTime(),
-    administered_by: 'Rahul Singh (Technician)',
-    lot_number: '',
+    administered_by: technicianLabel || '',
+    quantity_used: '',
+    quantity_unit: 'vial',
     expiry_date: '',
     adverse_reaction: 'No',
     reaction_details: '',
     notes: '',
-  });
+    allergy_override_confirmed: false,
+    allergy_override_reason: '',
+  };
+}
 
-  const [preVitals, setPreVitals] = useState({ sbp: '—', dbp: '—', pulse: '—', spo2: '—' });
+function isExpiryPast(value) {
+  if (!value) return false;
+  const exp = new Date(value);
+  if (Number.isNaN(exp.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return exp < today;
+}
+
+function matchAllergy(allergies, medication) {
+  const med = String(medication || '').toLowerCase().trim();
+  if (!med) return null;
+  return (allergies || []).find((a) => {
+    const allergen = String(a.allergen || a.name || a.medication || a.allergy || '').toLowerCase().trim();
+    if (!allergen) return false;
+    return med.includes(allergen) || allergen.includes(med);
+  }) || null;
+}
+
+function MedicationAdministrationView({ sessionId, go, patientId }) {
+  const technicianId = getTechnicianId();
+  const technicianLabel = technicianId || '';
+  const [form, setForm] = useState(() => emptyMedForm(technicianLabel));
+  const [preVitals, setPreVitals] = useState({ sbp: '', dbp: '', pulse: '', spo2: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
-  const [dueMeds, setDueMeds] = useState([]);
+  const [incidentToast, setIncidentToast] = useState(null);
+  const [reminders, setReminders] = useState([]);
+  const [summary, setSummary] = useState({
+    total_prescribed: 0,
+    administered: 0,
+    pending: 0,
+    missed: 0,
+  });
   const [allergies, setAllergies] = useState([]);
   const [history, setHistory] = useState([]);
 
-  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+  const activeSessionId = getValidSessionId(sessionId);
+
+  const refreshLists = useCallback(async () => {
+    if (!activeSessionId) return;
+    const dueRes = await getDueMedications(activeSessionId);
+    if (dueRes?.success) {
+      const d = responseData(dueRes);
+      setReminders(Array.isArray(d.reminders) ? d.reminders : []);
+      if (d.summary) {
+        setSummary({
+          total_prescribed: Number(d.summary.total_prescribed) || 0,
+          administered: Number(d.summary.administered) || 0,
+          pending: Number(d.summary.pending) || 0,
+          missed: Number(d.summary.missed) || 0,
+        });
+      }
+      if (Array.isArray(d.administered) && d.administered.length) {
+        setHistory(d.administered);
+      }
+    }
+    const histRes = await getMedications(activeSessionId);
+    if (histRes?.success) {
+      const d = responseData(histRes);
+      const items = Array.isArray(d) ? d : (d.items || d.medications || d.administered || []);
+      setHistory(items);
+      setSummary((prev) => ({
+        ...prev,
+        administered: items.length || prev.administered,
+      }));
+    }
+  }, [activeSessionId]);
 
   useEffect(() => {
-    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
-    getDueMedications(activeSessionId).then((res) => {
-      if (res?.success) {
-        const d = responseData(res);
-        setDueMeds(Array.isArray(d) ? d : d.items || d.medications || []);
-      }
-    });
-    getMedications(activeSessionId).then((res) => {
-      if (res?.success) {
-        const d = responseData(res);
-        const items = Array.isArray(d) ? d : d.items || d.medications || [];
-        setHistory(items);
-      }
-    });
-    if (patientId) {
-      getPatientAllergies(patientId).then((res) => {
-        if (res?.success) {
-          const d = responseData(res);
-          setAllergies(Array.isArray(d) ? d : d.items || d.allergies || []);
-        }
-      });
-    }
-  }, [activeSessionId, patientId]);
+    refreshLists();
+  }, [refreshLists]);
 
-  const update = (key) => (e) => setForm((v) => ({ ...v, [key]: e.target.value }));
+  useEffect(() => {
+    if (!patientId) return;
+    getPatientAllergies(patientId).then((res) => {
+      if (res?.success) {
+        const d = responseData(res);
+        setAllergies(Array.isArray(d) ? d : (d.items || d.allergies || []));
+      }
+    });
+  }, [patientId]);
+
+  useEffect(() => {
+    if (!incidentToast) return undefined;
+    const t = setTimeout(() => setIncidentToast(null), 8000);
+    return () => clearTimeout(t);
+  }, [incidentToast]);
+
+  const allergyHit = useMemo(
+    () => matchAllergy(allergies, form.medication),
+    [allergies, form.medication],
+  );
+  const expiryBlocked = isExpiryPast(form.expiry_date);
+  const adverseYes = form.adverse_reaction === 'Yes';
+
+  const update = (key) => (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setForm((v) => ({
+      ...v,
+      [key]: value,
+      ...(key === 'medication'
+        ? { allergy_override_confirmed: false, allergy_override_reason: '' }
+        : {}),
+    }));
+  };
+
+  const applyReminder = (rem) => {
+    setForm((prev) => ({
+      ...prev,
+      medication: rem.medication || prev.medication,
+      dose: rem.dose != null ? String(rem.dose) : prev.dose,
+      unit: rem.dose_unit || prev.unit,
+      route: rem.route || prev.route,
+      allergy_override_confirmed: false,
+      allergy_override_reason: '',
+    }));
+  };
+
+  const resetForm = () => {
+    setForm(emptyMedForm(technicianLabel));
+    setPreVitals({ sbp: '', dbp: '', pulse: '', spo2: '' });
+    setError('');
+    setInfo('');
+  };
 
   const executeSave = async () => {
-    const activeSessionId = getValidSessionId(sessionId);
     if (!activeSessionId) {
-      const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before recording medication administration.';
-      setError(alertMsg);
-      alert(alertMsg);
+      setError('No active dialysis session ID found. Please start a session from Patient Profile before recording medication administration.');
       return false;
     }
-    if (!form.medication || !form.dose || !form.route) {
-      setError('Medication, dose, and route are required.');
+    if (!form.medication || !form.dose || !form.route || !form.administered_at || !form.administered_by || !form.quantity_used) {
+      setError('Medication, Dose, Route, Administration Time, Administered By, and Quantity Used are required.');
       return false;
     }
+    if (expiryBlocked) {
+      setError(`Expiry date ${form.expiry_date} is in the past — select a non-expired unit.`);
+      return false;
+    }
+    if (allergyHit && (!form.allergy_override_confirmed || !String(form.allergy_override_reason || '').trim())) {
+      setError('Allergy match found — confirm override and provide a reason before saving.');
+      return false;
+    }
+    if (adverseYes && !String(form.reaction_details || '').trim()) {
+      setError('Reaction details are required when Any Adverse Reaction is Yes.');
+      return false;
+    }
+
     setSaving(true);
     setError('');
+    setInfo('');
 
     const payload = {
-      ...form,
-      pre_vitals: preVitals,
+      medication: form.medication,
+      indication: form.indication || null,
+      dose: form.dose,
+      dose_unit: form.unit,
+      route: form.route,
+      administration_time: form.administered_at,
+      administered_by: form.administered_by,
+      quantity_used: form.quantity_used,
+      quantity_unit: form.quantity_unit,
+      expiry_date: form.expiry_date || null,
+      pre_vitals: {
+        bp_systolic: preVitals.sbp || null,
+        bp_diastolic: preVitals.dbp || null,
+        pulse: preVitals.pulse || null,
+        spo2: preVitals.spo2 || null,
+      },
+      adverse_reaction: adverseYes,
+      reaction_details: adverseYes ? form.reaction_details : null,
+      notes: form.notes || null,
+      allergy_override: allergyHit
+        ? {
+            confirmed: true,
+            matched: true,
+            reason: form.allergy_override_reason,
+          }
+        : undefined,
+      allergy_override_reason: allergyHit ? form.allergy_override_reason : null,
       recorded_at: new Date().toISOString(),
     };
 
@@ -3049,109 +3199,172 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
     setSaving(false);
 
     if (!res.success) {
-      const errMsg = responseData(res)?.message || res?.error || res?.message || 'Failed to record medication administration.';
+      const d = responseData(res);
+      const errMsg = d?.message || res?.error || res?.message || 'Failed to record medication administration.';
       setError(errMsg);
+      if (d?.allergy_alert?.matched) {
+        setInfo(`Allergy alert: ${d.allergy_alert.allergen || 'documented allergen'}`);
+      }
       return false;
     }
 
-    setInfo('Medication administration recorded successfully.');
-    setHistory((prev) => [
-      {
-        id: Date.now(),
-        time: form.administered_at,
-        medication: form.medication,
-        dose: `${form.dose} ${form.unit}`,
-        route: form.route,
-        indication: form.indication || '—',
-        by: form.administered_by,
-        status: 'Administered',
-        notes: form.notes || (form.adverse_reaction === 'Yes' ? form.reaction_details : 'No adverse reaction'),
-      },
-      ...prev,
-    ]);
+    const d = responseData(res);
+    if (d?.auto_incident_created) {
+      setIncidentToast({
+        incidentId: d.incident_id,
+        message: `Incident logged — ID ${d.incident_id}. Review on P3-09.`,
+      });
+      setInfo(`Adverse reaction flagged. Incident draft ${d.incident_id} created.`);
+    } else {
+      setInfo('Medication administration recorded successfully.');
+    }
+    resetForm();
+    await refreshLists();
     return true;
   };
 
   const handleSaveOnly = async () => { await executeSave(); };
-  const handleSaveAndExit = async () => { const ok = await executeSave(); if (ok) go('P3-01'); };
-  const handleSaveAndContinue = async () => { const ok = await executeSave(); if (ok) go('P3-07'); };
+  const handleSaveDraft = async () => { const ok = await executeSave(); if (ok) go('P3-01'); };
+  const handleSaveReturn = async () => { const ok = await executeSave(); if (ok) go('P3-01'); };
+
+  const saveBlocked = expiryBlocked
+    || (Boolean(allergyHit) && (!form.allergy_override_confirmed || !String(form.allergy_override_reason || '').trim()));
+
+  const medOptions = useMemo(() => {
+    const names = reminders.map((r) => r.medication).filter(Boolean);
+    return [...new Set(names)];
+  }, [reminders]);
 
   return (
     <>
+      {incidentToast && (
+        <div className="during-alert warning" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          <span>{incidentToast.message}</span>
+          <button type="button" className="during-card-action-link" onClick={() => go('P3-09')}>
+            View Incident →
+          </button>
+        </div>
+      )}
+
       <div className="during-symptoms-layout-grid">
         <div style={{ minWidth: 0 }}>
           <Card title="Add Medication Administration">
-            {/* Form grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
-              <Field label="Medication *" icon={MedicationOutlinedIcon}>
-                <Select value={form.medication} onChange={update('medication')}>
-                  <option value="">Search medication</option>
-                  <option value="Heparin (Loading Dose)">Heparin (Loading Dose)</option>
-                  <option value="Iron Sucrose">Iron Sucrose</option>
-                  <option value="Epoetin Alfa">Epoetin Alfa</option>
-                  <option value="Normal Saline 0.9%">Normal Saline 0.9%</option>
-                  <option value="Ondansetron">Ondansetron</option>
-                  <option value="Paracetamol">Paracetamol</option>
-                </Select>
+              <Field label="Medication" icon={MedicationOutlinedIcon} required>
+                <Input
+                  list="p306-med-options"
+                  placeholder="Search / enter medication"
+                  value={form.medication}
+                  onChange={update('medication')}
+                />
+                <datalist id="p306-med-options">
+                  {medOptions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
               </Field>
 
               <Field label="Indication">
                 <Select value={form.indication} onChange={update('indication')}>
                   <option value="">Select indication</option>
-                  <option value="Anticoagulation">Anticoagulation</option>
-                  <option value="Iron Deficiency">Iron Deficiency</option>
-                  <option value="Anemia (CKD)">Anemia (CKD)</option>
-                  <option value="Volume Expansion">Volume Expansion</option>
-                  <option value="Nausea / Vomiting">Nausea / Vomiting</option>
+                  {MED_INDICATIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </Select>
               </Field>
 
               <div>
-                <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '4px' }}>Dose *</label>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '4px' }}>
+                  Dose <em style={{ color: '#ef4444' }}>*</em>
+                </label>
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <Input type="text" placeholder="e.g. 500" value={form.dose} onChange={update('dose')} style={{ flex: 1 }} />
-                  <Select value={form.unit} onChange={update('unit')} style={{ width: '80px' }}>
+                  <Input type="number" placeholder="e.g. 500" value={form.dose} onChange={update('dose')} style={{ flex: 1 }} />
+                  <Select value={form.unit} onChange={update('unit')} style={{ width: '90px' }}>
                     <option value="mg">mg</option>
-                    <option value="Units">Units</option>
+                    <option value="units">units</option>
                     <option value="mL">mL</option>
                     <option value="mcg">mcg</option>
                   </Select>
                 </div>
               </div>
 
-              <Field label="Route *">
+              <Field label="Route" required>
                 <Select value={form.route} onChange={update('route')}>
-                  <option value="IV">IV</option>
-                  <option value="IV Bolus">IV Bolus</option>
-                  <option value="IV Infusion">IV Infusion</option>
-                  <option value="Subcutaneous">Subcutaneous</option>
-                  <option value="Oral">Oral</option>
+                  <option value="">Select route</option>
+                  {MED_ROUTES.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </Select>
               </Field>
             </div>
+
+            {allergyHit && (
+              <div className="during-alert warning" style={{ marginBottom: 12, borderColor: '#fecaca', background: '#fef2f2', color: '#b91c1c' }}>
+                <strong>⚠ ALLERGY ALERT</strong>
+                {' — '}
+                Patient has a documented allergy to {allergyHit.allergen || allergyHit.name || 'this medication'}
+                {allergyHit.severity || allergyHit.reaction ? `. Reaction: ${allergyHit.severity || allergyHit.reaction}` : '.'}
+                <div style={{ marginTop: 8 }}>
+                  <LibraryCheckbox
+                    isChecked={form.allergy_override_confirmed}
+                    onChange={(e) => setForm((prev) => ({ ...prev, allergy_override_confirmed: e.target.checked }))}
+                  >
+                    I have verified this with the patient/prescriber and confirm this medication should still be given.
+                  </LibraryCheckbox>
+                  <Field label="Override Reason" required>
+                    <Textarea
+                      maxLength="300"
+                      placeholder="Mandatory reason to proceed despite allergy match"
+                      value={form.allergy_override_reason}
+                      onChange={update('allergy_override_reason')}
+                      disabled={!form.allergy_override_confirmed}
+                    />
+                  </Field>
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
-              <Field label="Administration Time *" icon={AccessTimeOutlinedIcon}>
-                <Input type="text" value={form.administered_at} onChange={update('administered_at')} />
+              <Field label="Administration Time" icon={AccessTimeOutlinedIcon} required>
+                <Input type="datetime-local" value={form.administered_at} onChange={update('administered_at')} />
               </Field>
 
-              <Field label="Administered By *" icon={PersonOutlinedIcon}>
-                <Select value={form.administered_by} onChange={update('administered_by')}>
-                  <option value="Rahul Singh (Technician)">Rahul Singh (Technician)</option>
-                  <option value="Dr. Neha Sharma">Dr. Neha Sharma</option>
-                </Select>
+              <Field label="Administered By" icon={PersonOutlinedIcon} required>
+                <Input
+                  type="text"
+                  placeholder="Technician / nurse ID or name"
+                  value={form.administered_by}
+                  onChange={update('administered_by')}
+                />
               </Field>
 
-              <Field label="Lot / Batch No.">
-                <Input type="text" placeholder="Enter lot / batch no." value={form.lot_number} onChange={update('lot_number')} />
-              </Field>
+              <div>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '4px' }}>
+                  Quantity Used <em style={{ color: '#ef4444' }}>*</em>
+                </label>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <Input type="number" placeholder="e.g. 1" value={form.quantity_used} onChange={update('quantity_used')} style={{ flex: 1 }} />
+                  <Select value={form.quantity_unit} onChange={update('quantity_unit')} style={{ width: '110px' }}>
+                    <option value="vial">vial</option>
+                    <option value="ampoule">ampoule</option>
+                    <option value="mL">mL</option>
+                  </Select>
+                </div>
+              </div>
 
               <Field label="Expiry Date">
-                <Input type="text" placeholder="DD MMM YYYY" value={form.expiry_date} onChange={update('expiry_date')} />
+                <Input
+                  type="date"
+                  value={form.expiry_date}
+                  onChange={update('expiry_date')}
+                  style={expiryBlocked ? { borderColor: '#ef4444' } : undefined}
+                />
+                {expiryBlocked && (
+                  <span style={{ color: '#dc2626', fontSize: 11 }}>Expired — save blocked</span>
+                )}
               </Field>
             </div>
 
-            {/* Sub-panels Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
               <div className="during-med-vitals-box">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#2563eb', marginBottom: '8px' }}>
@@ -3162,37 +3375,47 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
                   <div>
                     <label style={{ fontSize: '10px', color: '#64748b' }}>BP (mmHg)</label>
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                      <Input type="text" value={preVitals.sbp} onChange={(e) => setPreVitals((v) => ({ ...v, sbp: e.target.value }))} style={{ width: '45px', textAlign: 'center' }} />
+                      <Input type="number" value={preVitals.sbp} onChange={(e) => setPreVitals((v) => ({ ...v, sbp: e.target.value }))} style={{ width: '55px', textAlign: 'center' }} />
                       <span>/</span>
-                      <Input type="text" value={preVitals.dbp} onChange={(e) => setPreVitals((v) => ({ ...v, dbp: e.target.value }))} style={{ width: '45px', textAlign: 'center' }} />
+                      <Input type="number" value={preVitals.dbp} onChange={(e) => setPreVitals((v) => ({ ...v, dbp: e.target.value }))} style={{ width: '55px', textAlign: 'center' }} />
                     </div>
                   </div>
                   <div>
                     <label style={{ fontSize: '10px', color: '#64748b' }}>Pulse (bpm)</label>
-                    <Input type="text" value={preVitals.pulse} onChange={(e) => setPreVitals((v) => ({ ...v, pulse: e.target.value }))} style={{ width: '60px', textAlign: 'center' }} />
+                    <Input type="number" value={preVitals.pulse} onChange={(e) => setPreVitals((v) => ({ ...v, pulse: e.target.value }))} style={{ width: '70px', textAlign: 'center' }} />
                   </div>
                   <div>
                     <label style={{ fontSize: '10px', color: '#64748b' }}>SpO₂ (%)</label>
-                    <Input type="text" value={preVitals.spo2} onChange={(e) => setPreVitals((v) => ({ ...v, spo2: e.target.value }))} style={{ width: '60px', textAlign: 'center' }} />
+                    <Input type="number" value={preVitals.spo2} onChange={(e) => setPreVitals((v) => ({ ...v, spo2: e.target.value }))} style={{ width: '70px', textAlign: 'center' }} />
                   </div>
                 </div>
               </div>
 
-              <div className="during-med-observation-box">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#16a34a', marginBottom: '8px' }}>
+              <div
+                className="during-med-observation-box"
+                style={adverseYes ? { borderColor: '#fecaca', background: '#fef2f2' } : undefined}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: adverseYes ? '#dc2626' : '#16a34a', marginBottom: '8px' }}>
                   <HealingOutlinedIcon fontSize="small" />
                   <span>Post Medication Observation</span>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                   <div>
                     <label style={{ fontSize: '10px', color: '#64748b', display: 'block', marginBottom: '4px' }}>Any Adverse Reaction?</label>
                     <div style={{ display: 'flex', gap: '4px' }}>
-                      <button type="button" className={`during-severity-btn ${form.adverse_reaction === 'No' ? 'active-green' : ''}`} onClick={() => setForm((v) => ({ ...v, adverse_reaction: 'No' }))} style={{ padding: '4px 12px', fontSize: '11px' }}>No</button>
+                      <button type="button" className={`during-severity-btn ${form.adverse_reaction === 'No' ? 'active-green' : ''}`} onClick={() => setForm((v) => ({ ...v, adverse_reaction: 'No', reaction_details: '' }))} style={{ padding: '4px 12px', fontSize: '11px' }}>No</button>
                       <button type="button" className={`during-severity-btn ${form.adverse_reaction === 'Yes' ? 'active-red' : ''}`} onClick={() => setForm((v) => ({ ...v, adverse_reaction: 'Yes' }))} style={{ padding: '4px 12px', fontSize: '11px' }}>Yes</button>
                     </div>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <Input type="text" placeholder="Describe reaction (if any)" value={form.reaction_details} onChange={update('reaction_details')} />
+                    <Textarea
+                      placeholder="Reaction details (required if Yes)"
+                      maxLength="250"
+                      value={form.reaction_details}
+                      onChange={update('reaction_details')}
+                      disabled={!adverseYes}
+                      style={{ minHeight: 60 }}
+                    />
                   </div>
                 </div>
               </div>
@@ -3206,12 +3429,13 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
             {info && <div className="during-alert success" style={{ marginTop: '12px' }}>{info}</div>}
 
             <div className="during-form-actions" style={{ marginTop: '16px' }}>
-              <LibraryButton variant="outline" onClick={() => setForm({ medication: '', indication: '', dose: '', unit: 'mg', route: 'IV', administered_at: nowTime(), administered_by: 'Rahul Singh (Technician)', lot_number: '', expiry_date: '', adverse_reaction: 'No', reaction_details: '', notes: '' })}>Reset</LibraryButton>
-              <LibraryButton variant="primary" onClick={handleSaveOnly} disabled={saving}>{saving ? 'Saving...' : 'Save Medication'}</LibraryButton>
+              <LibraryButton type="button" variant="outline" onClick={resetForm}>Reset</LibraryButton>
+              <LibraryButton type="button" variant="primary" onClick={handleSaveOnly} disabled={saving || saveBlocked}>
+                {saving ? 'Saving...' : 'Save Medication'}
+              </LibraryButton>
             </div>
           </Card>
 
-          {/* History Card */}
           <Card title="Medication Administration History" style={{ marginTop: '16px' }}>
             <div className="during-overdue-table-wrap">
               <table className="during-overdue-table">
@@ -3225,73 +3449,67 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
                     <th>Administered By</th>
                     <th>Status</th>
                     <th>Notes</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {history.length === 0 ? (
                     <tr>
-                      <td colSpan="9" style={{ textAlign: 'center', color: '#64748b', padding: '16px', fontSize: '12px' }}>
+                      <td colSpan="8" style={{ textAlign: 'center', color: '#64748b', padding: '16px', fontSize: '12px' }}>
                         No medication administrations recorded yet for this session.
                       </td>
                     </tr>
                   ) : (
                     history.map((row, idx) => (
                       <tr key={row.id || idx}>
-                        <td>{row.time || row.administered_at || '—'}</td>
+                        <td>{formatSymptomTime(row.administration_time || row.administered_at || row.recorded_at)}</td>
                         <td><strong>{row.medication || row.medication_name || '—'}</strong></td>
-                        <td>{row.dose ? `${row.dose} ${row.unit || ''}` : '—'}</td>
+                        <td>{row.dose != null ? `${row.dose} ${row.dose_unit || row.unit || ''}`.trim() : '—'}</td>
                         <td>{row.route || '—'}</td>
                         <td>{row.indication || '—'}</td>
-                        <td>{row.by || row.administered_by || '—'}</td>
+                        <td>{row.administered_by || '—'}</td>
                         <td>
                           <span className="during-status-pill alert">
-                            {row.status || 'Administered'}
+                            {Number(row.adverse_reaction) ? 'Adverse Reaction' : 'Administered'}
                           </span>
                         </td>
-                        <td>{row.notes || row.additional_notes || '—'}</td>
-                        <td><EditOutlinedIcon sx={{ fontSize: 16, color: '#64748b', cursor: 'pointer' }} /></td>
+                        <td>{row.notes || row.reaction_details || '—'}</td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
             </div>
-            <div style={{ textAlign: 'center', marginTop: '12px' }}>
-              <button type="button" className="during-card-action-link">View Full Medication History →</button>
-            </div>
           </Card>
         </div>
 
-        {/* Right Column */}
         <div style={{ minWidth: 0 }}>
           <Card title="Today's Medications Summary">
             <div className="during-med-summary-grid">
               <div className="during-med-stat-tile prescribed">
                 <MedicationOutlinedIcon sx={{ color: '#2563eb' }} />
                 <div>
-                  <strong style={{ fontSize: '18px', display: 'block' }}>3</strong>
+                  <strong style={{ fontSize: '18px', display: 'block' }}>{summary.total_prescribed}</strong>
                   <span style={{ fontSize: '10px', color: '#64748b' }}>Total Prescribed</span>
                 </div>
               </div>
               <div className="during-med-stat-tile administered">
                 <CheckCircleOutlinedIcon sx={{ color: '#16a34a' }} />
                 <div>
-                  <strong style={{ fontSize: '18px', display: 'block' }}>2</strong>
+                  <strong style={{ fontSize: '18px', display: 'block' }}>{summary.administered}</strong>
                   <span style={{ fontSize: '10px', color: '#64748b' }}>Administered</span>
                 </div>
               </div>
               <div className="during-med-stat-tile pending">
                 <AccessTimeOutlinedIcon sx={{ color: '#d97706' }} />
                 <div>
-                  <strong style={{ fontSize: '18px', display: 'block' }}>1</strong>
+                  <strong style={{ fontSize: '18px', display: 'block' }}>{summary.pending}</strong>
                   <span style={{ fontSize: '10px', color: '#64748b' }}>Pending</span>
                 </div>
               </div>
               <div className="during-med-stat-tile missed">
                 <WarningAmberOutlinedIcon sx={{ color: '#dc2626' }} />
                 <div>
-                  <strong style={{ fontSize: '18px', display: 'block' }}>0</strong>
+                  <strong style={{ fontSize: '18px', display: 'block' }}>{summary.missed}</strong>
                   <span style={{ fontSize: '10px', color: '#64748b' }}>Missed</span>
                 </div>
               </div>
@@ -3300,41 +3518,34 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
 
           <Card title="Medication Reminders" style={{ marginTop: '16px' }}>
             <div className="during-med-reminders-list">
-              <div className="during-med-reminder-item">
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '12px' }}>Heparin (Loading Dose)</div>
-                  <div style={{ fontSize: '10px', color: '#64748b' }}>Dose: 1,000 Units | Route: IV</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="during-due-badge">Due at 10:30 AM</span>
-                  <ChevronRightOutlinedIcon sx={{ color: '#94a3b8', fontSize: 16 }} />
-                </div>
-              </div>
-
-              <div className="during-med-reminder-item">
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '12px' }}>Epoetin Alfa</div>
-                  <div style={{ fontSize: '10px', color: '#64748b' }}>Dose: 4,000 Units | Route: IV</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="during-due-badge">Due at 11:30 AM</span>
-                  <ChevronRightOutlinedIcon sx={{ color: '#94a3b8', fontSize: 16 }} />
-                </div>
-              </div>
-
-              <div className="during-med-reminder-item">
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '12px' }}>Iron Sucrose</div>
-                  <div style={{ fontSize: '10px', color: '#64748b' }}>Dose: 100 mg | Route: IV</div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="during-due-badge">Due at 12:00 PM</span>
-                  <ChevronRightOutlinedIcon sx={{ color: '#94a3b8', fontSize: 16 }} />
-                </div>
-              </div>
-            </div>
-            <div style={{ textAlign: 'center', marginTop: '12px' }}>
-              <button type="button" className="during-card-action-link">View All Reminders →</button>
+              {reminders.length === 0 ? (
+                <div className="during-empty" style={{ padding: 12 }}>No medication reminders for this session.</div>
+              ) : (
+                reminders.map((rem) => (
+                  <button
+                    type="button"
+                    key={rem.id || rem.medication}
+                    className="during-med-reminder-item"
+                    onClick={() => applyReminder(rem)}
+                    style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'transparent', border: 'none' }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '12px' }}>{rem.medication}</div>
+                      <div style={{ fontSize: '10px', color: '#64748b' }}>
+                        Dose: {rem.dose != null ? `${rem.dose} ${rem.dose_unit || ''}`.trim() : '—'}
+                        {' | '}
+                        Route: {rem.route || '—'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="during-due-badge">
+                        {rem.due_at ? `Due ${formatSymptomTime(rem.due_at)}` : 'Scheduled'}
+                      </span>
+                      <ChevronRightOutlinedIcon sx={{ color: '#94a3b8', fontSize: 16 }} />
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </Card>
 
@@ -3346,15 +3557,10 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
             <div className="during-clinical-guidance-text" style={{ color: '#581c87' }}>
               Ensure correct medication, dose, route and time. Monitor for any adverse reactions during and after administration.
             </div>
-            <button type="button" className="during-card-action-link">View Guidelines →</button>
           </div>
 
           <Card title="Quick Actions" style={{ marginTop: '16px' }}>
             <div className="during-vitals-qa-2x2-grid">
-              <button type="button" className="during-vitals-qa-tile">
-                <div className="during-vitals-qa-tile-left"><NoteAltOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" /><span>View Prescription</span></div>
-                <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
-              </button>
               <button type="button" className="during-vitals-qa-tile" onClick={() => go('P3-02')}>
                 <div className="during-vitals-qa-tile-left"><MonitorHeartOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" /><span>Record Vitals</span></div>
                 <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
@@ -3367,16 +3573,22 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
                 <div className="during-vitals-qa-tile-left"><ChecklistOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" /><span>Treatment Progress</span></div>
                 <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
               </button>
+              <button type="button" className="during-vitals-qa-tile" onClick={() => go('P3-09')}>
+                <div className="during-vitals-qa-tile-left"><WarningAmberOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" /><span>Incidents</span></div>
+                <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
+              </button>
             </div>
           </Card>
         </div>
       </div>
 
       <div className="during-bottom-nav-bar">
-        <LibraryButton variant="outline" onClick={() => go('P3-05')}>← Back</LibraryButton>
+        <LibraryButton type="button" variant="outline" onClick={() => go('P3-01')}>← Back</LibraryButton>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <LibraryButton variant="outline" onClick={handleSaveAndExit} disabled={saving}>Save as Draft</LibraryButton>
-          <LibraryButton variant="primary" onClick={handleSaveAndContinue} disabled={saving}>Save & Continue →</LibraryButton>
+          <LibraryButton type="button" variant="outline" onClick={handleSaveDraft} disabled={saving || saveBlocked}>Save as Draft</LibraryButton>
+          <LibraryButton type="button" variant="primary" onClick={handleSaveReturn} disabled={saving || saveBlocked}>
+            {saving ? 'Saving...' : 'Save & Return to Dashboard'}
+          </LibraryButton>
         </div>
       </div>
     </>
