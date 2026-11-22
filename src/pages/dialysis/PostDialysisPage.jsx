@@ -179,8 +179,8 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
     return () => { mounted = false; };
   }, [active, patient?.machine_id, session?.machine_id, sessionId]);
 
-  const persistCurrent = async () => {
-    const payload = { ...data, session_id: sessionId };
+  const persistCurrent = async (overridePayload) => {
+    const payload = { ...(overridePayload && typeof overridePayload === 'object' ? overridePayload : data), session_id: sessionId };
     if (active === 'P4-01') return terminateSession(sessionId, payload);
     if (active === 'P4-02') return saveHemostasis(sessionId, payload);
     if (active === 'P4-03') return savePostDialysisVitals(sessionId, payload);
@@ -201,32 +201,40 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
     if (!result.success) { setApiError(result.data?.message || 'Unable to close the session.'); return; }
     onCompletedProp ? onCompletedProp(result.data) : navigate('/dialysis/sessions');
   };
-  const go = (id) => {
+  const go = async (id, overridePayload) => {
     try { localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data)); } catch (_) { /* offline storage is optional */ }
     const next = SCREENS[Math.min(9, SCREENS.findIndex(([screen]) => screen === active) + 1)]?.[0];
     if (sessionId !== 'demo' && id === next) {
-      persistCurrent().then((result) => {
-        if (!result.success) { setApiError(result.data?.message || 'Unable to save this Post-Session record.'); return; }
-        setActive(id);
-        if (!embedded) navigate(`/dialysis/post/${sessionId}/${id}`, { replace: true, state: { sessionId, patient } });
-      });
-      return;
+      const result = await persistCurrent(overridePayload);
+      if (!result?.success) {
+        setApiError(result?.data?.message || result?.data?.error || 'Unable to save this Post-Session record.');
+        return false;
+      }
+      setApiError('');
+      setActive(id);
+      if (!embedded) navigate(`/dialysis/post/${sessionId}/${id}`, { replace: true, state: { sessionId, patient } });
+      return true;
     }
     setActive(id);
     if (!embedded) navigate(`/dialysis/post/${sessionId}/${id}`, { replace: true, state: { sessionId, patient } });
+    return true;
   };
   const index = SCREENS.findIndex(([id]) => id === active);
   const hasBpSummary = data.systolic !== '' && data.diastolic !== '';
   if (active === 'P4-01') {
     return (
       <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        {apiError && (
+          <div className="during-error" style={{ margin: '12px 16px' }}>{apiError}</div>
+        )}
         <P401BloodReturnTermination
           data={data}
           setData={setData}
           session={session}
           readings={readings}
           patient={patient}
-          onSave={() => go('P4-02')}
+          apiError={apiError}
+          onSave={(payload) => go('P4-02', payload)}
           onSaveDraft={() => {
             try {
               localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
@@ -427,13 +435,17 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
 
   return (
     <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+      {apiError && (
+        <div className="during-error" style={{ margin: '12px 16px' }}>{apiError}</div>
+      )}
       <P401BloodReturnTermination
         data={data}
         setData={setData}
         session={session}
         readings={readings}
         patient={patient}
-        onSave={() => go('P4-02')}
+        apiError={apiError}
+        onSave={(payload) => go('P4-02', payload)}
         onSaveDraft={() => {
           try {
             localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));

@@ -63,6 +63,67 @@ const SCREENS_STEPPER = [
   { step: 10, label: 'Session Complete' },
 ];
 
+function nowDatetimeLocal() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function parseClockToIso(clock) {
+  if (!clock) return null;
+  const raw = String(clock).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+  const m = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (!m) return null;
+  let h = Number(m[1]);
+  const min = Number(m[2]);
+  const ap = (m[3] || '').toUpperCase();
+  if (ap === 'PM' && h < 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  const d = new Date();
+  d.setHours(h, min, 0, 0);
+  return d.toISOString();
+}
+
+function parseDurationMins(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (Number.isFinite(Number(value)) && !String(value).includes(':')) return Number(value);
+  const m = String(value).match(/(\d+)\s*:\s*(\d+)/);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+function buildP401ApiPayload(form) {
+  const stepAts = {};
+  TERMINATION_STEPS.forEach((s) => {
+    const step = form.completedSteps?.[s.id];
+    stepAts[`step${s.id}_at`] = step?.completed
+      ? (parseClockToIso(step.timestamp) || new Date().toISOString())
+      : null;
+  });
+  return {
+    ...stepAts,
+    end_time: parseClockToIso(form.endTime) || new Date().toISOString(),
+    status: form.status,
+    duration_mins: parseDurationMins(form.treatmentDuration),
+    dialyzer_clearance: form.dialyzerClearance || null,
+    total_uf_removed: form.totalUfRemoved === '' ? null : Number(form.totalUfRemoved),
+    rinse_back_volume_ml: form.rinseBackVolume === '' ? null : Number(form.rinseBackVolume),
+    blood_volume_processed: form.bloodVolumeProcessed === '' ? null : Number(form.bloodVolumeProcessed),
+    physician_notified: form.physicianNotified === 'Yes',
+    heparin_used: form.heparinUsed === '' ? null : Number(form.heparinUsed),
+    early_termination_reason: form.status === 'Early Termination' ? (form.earlyReason || null) : null,
+    early_termination_time: form.status === 'Early Termination'
+      ? (parseClockToIso(form.earlyTime) || null)
+      : null,
+    physician_order: form.status === 'Early Termination' ? (form.physicianOrder || null) : null,
+    notes: form.terminationNotes || null,
+  };
+}
+
 export default function P401BloodReturnTermination({
   data = {},
   setData,
@@ -72,6 +133,7 @@ export default function P401BloodReturnTermination({
   onSave,
   onSaveDraft,
   onBack,
+  apiError = '',
 }) {
   // Extraction of session & patient details for dynamic pre-fill
   const p = patient.patient || patient;
@@ -112,28 +174,41 @@ export default function P401BloodReturnTermination({
     bfr: session.bfr ? `${session.bfr} mL/min` : '100 mL/min',
   };
 
-  // Checklist Step State
+  // Checklist Step State — start incomplete; hard-block Save until all 7 are done.
   const [completedSteps, setCompletedSteps] = useState(() => {
     const initial = {};
     TERMINATION_STEPS.forEach((s) => {
+      const prior = data.steps?.[s.id] || data.steps?.[s.title] || {};
       initial[s.id] = {
-        completed: data.steps?.[s.title]?.completed ?? true,
-        timestamp: data.steps?.[s.title]?.timestamp || s.defaultTime,
+        completed: Boolean(prior.completed),
+        timestamp: prior.timestamp || '',
       };
     });
     return initial;
   });
 
-  // Form Fields State
-  const [endTime, setEndTime] = useState(data.endTime || '07:27 AM');
+  // Form Fields State — prefer live session data; no fabricated clinical defaults.
+  const [endTime, setEndTime] = useState(data.endTime || nowDatetimeLocal());
   const [status, setStatus] = useState(data.status || 'Completed');
-  const [treatmentDuration, setTreatmentDuration] = useState(data.treatmentDuration || '03:42 hr');
-  const [dialyzerClearance, setDialyzerClearance] = useState(data.dialyzerClearance || 'Moderately Clear');
-  const [totalUfRemoved, setTotalUfRemoved] = useState(data.totalUfRemoved || '1.65');
-  const [rinseBackVolume, setRinseBackVolume] = useState(data.rinseBackVolume || '200');
-  const [bloodVolumeProcessed, setBloodVolumeProcessed] = useState(data.bloodVolumeProcessed || '58.2');
-  const [physicianNotified, setPhysicianNotified] = useState(data.physicianNotified || 'Yes');
-  const [heparinUsed, setHeparinUsed] = useState(data.heparinUsed || '2.0');
+  const [treatmentDuration, setTreatmentDuration] = useState(data.treatmentDuration || '');
+  const [dialyzerClearance, setDialyzerClearance] = useState(data.dialyzerClearance || '');
+  const [totalUfRemoved, setTotalUfRemoved] = useState(
+    data.totalUfRemoved != null && data.totalUfRemoved !== ''
+      ? String(data.totalUfRemoved)
+      : (session.totalUfRemoved != null ? String(session.totalUfRemoved) : ''),
+  );
+  const [rinseBackVolume, setRinseBackVolume] = useState(
+    data.rinseBackVolume != null && data.rinseBackVolume !== '' ? String(data.rinseBackVolume) : '',
+  );
+  const [bloodVolumeProcessed, setBloodVolumeProcessed] = useState(
+    data.bloodVolumeProcessed != null && data.bloodVolumeProcessed !== ''
+      ? String(data.bloodVolumeProcessed)
+      : '',
+  );
+  const [physicianNotified, setPhysicianNotified] = useState(data.physicianNotified || 'No');
+  const [heparinUsed, setHeparinUsed] = useState(
+    data.heparinUsed != null && data.heparinUsed !== '' ? String(data.heparinUsed) : '',
+  );
 
   // Early Termination Panel State
   const [earlyReason, setEarlyReason] = useState(data.earlyReason || '');
@@ -142,27 +217,27 @@ export default function P401BloodReturnTermination({
 
   // Notes
   const [terminationNotes, setTerminationNotes] = useState(data.terminationNotes || '');
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Toggle checklist step completion
-  const handleToggleStep = (stepId, title) => {
+  const handleToggleStep = (stepId) => {
     const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
     setCompletedSteps((prev) => {
       const current = prev[stepId];
+      const willComplete = !current?.completed;
       const updated = {
-        completed: !current?.completed,
-        timestamp: !current?.completed ? nowStr : current.timestamp || '07:27 AM',
+        completed: willComplete,
+        timestamp: willComplete ? nowStr : '',
       };
       const nextState = { ...prev, [stepId]: updated };
 
       if (setData) {
-        const stepsMap = {};
-        TERMINATION_STEPS.forEach((s) => {
-          stepsMap[s.title] = nextState[s.id];
-        });
-        setData((old) => ({ ...old, steps: stepsMap }));
+        setData((old) => ({ ...old, steps: nextState }));
       }
       return nextState;
     });
+    setFormError('');
   };
 
   // Sync component form state up to parent data state
@@ -173,9 +248,24 @@ export default function P401BloodReturnTermination({
   };
 
   const allStepsDone = TERMINATION_STEPS.every((s) => completedSteps[s.id]?.completed);
+  const rinseNum = Number(rinseBackVolume);
+  const rinseWarning = Number.isFinite(rinseNum) && rinseBackVolume !== '' && (rinseNum < 200 || rinseNum > 500);
 
-  const handleFormSubmit = () => {
-    const payload = {
+  const handleFormSubmit = async () => {
+    if (!allStepsDone) {
+      setFormError('Complete all 7 termination steps before continuing.');
+      return;
+    }
+    if (!endTime || !status) {
+      setFormError('Treatment end time and status are required.');
+      return;
+    }
+    if (status === 'Early Termination' && (!earlyReason || !earlyTime || !physicianOrder)) {
+      setFormError('Early termination requires Reason, Time, and Physician Order.');
+      return;
+    }
+
+    const uiPayload = {
       endTime,
       status,
       treatmentDuration,
@@ -191,8 +281,15 @@ export default function P401BloodReturnTermination({
       terminationNotes,
       steps: completedSteps,
     };
-    updateParentState(payload);
-    if (onSave) onSave(payload);
+    const apiPayload = buildP401ApiPayload({ ...uiPayload, completedSteps });
+    updateParentState(uiPayload);
+    setFormError('');
+    setSaving(true);
+    try {
+      if (onSave) await onSave(apiPayload);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -311,7 +408,7 @@ export default function P401BloodReturnTermination({
                     <div
                       key={step.id}
                       className={`p401-step-item ${isDone ? 'checked' : ''}`}
-                      onClick={() => handleToggleStep(step.id, step.title)}
+                      onClick={() => handleToggleStep(step.id)}
                     >
                       <div className="p401-step-circle-badge">{step.id}</div>
                       <div className="p401-step-text">
@@ -368,7 +465,7 @@ export default function P401BloodReturnTermination({
                   <label>Treatment End Time <span className="p401-req">*</span></label>
                   <div className="p401-input-icon-wrap">
                     <input
-                      type="text"
+                      type="datetime-local"
                       value={endTime}
                       onChange={(e) => {
                         setEndTime(e.target.value);
@@ -553,11 +650,10 @@ export default function P401BloodReturnTermination({
 
               {/* Early Field 2: Time Stopped */}
               <div className="p401-form-field">
-                <label>Time Treatment Stopped</label>
+                <label>Time Treatment Stopped <span className="p401-req">*</span></label>
                 <div className="p401-input-icon-wrap">
                   <input
-                    type="text"
-                    placeholder="Select time"
+                    type="datetime-local"
                     value={earlyTime}
                     onChange={(e) => {
                       setEarlyTime(e.target.value);
@@ -719,6 +815,18 @@ export default function P401BloodReturnTermination({
         </div>
       </div>
 
+      {(formError || apiError || rinseWarning) && (
+        <div style={{ maxWidth: 1100, margin: '0 auto 12px', padding: '0 16px' }}>
+          {formError && <div className="during-error" style={{ marginBottom: 8 }}>{formError}</div>}
+          {apiError && <div className="during-error" style={{ marginBottom: 8 }}>{apiError}</div>}
+          {rinseWarning && (
+            <div className="during-alert warning">
+              Rinse-back volume {rinseBackVolume} mL is outside the usual 200–500 mL range (warning only).
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Footer Action Bar */}
       <footer className="p401-footer-bar">
         <div className="p401-footer-left">
@@ -730,8 +838,13 @@ export default function P401BloodReturnTermination({
           <Button type="button" variant="outline" onClick={onSaveDraft}>
             Save as Draft
           </Button>
-          <Button type="button" variant="primary" onClick={handleFormSubmit}>
-            Save &amp; Continue <ArrowForwardOutlinedIcon sx={{ fontSize: 16 }} />
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleFormSubmit}
+            disabled={!allStepsDone || saving}
+          >
+            {saving ? 'Saving…' : 'Save & Continue'} <ArrowForwardOutlinedIcon sx={{ fontSize: 16 }} />
           </Button>
         </div>
       </footer>
