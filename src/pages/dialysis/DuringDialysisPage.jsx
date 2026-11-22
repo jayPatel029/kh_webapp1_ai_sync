@@ -5200,307 +5200,219 @@ function IncidentReportingView({ sessionId, go }) {
   );
 }
 
+function formatUfLitersDisplay(raw) {
+  if (raw === undefined || raw === null || raw === '') return '—';
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return '—';
+  const liters = n > 50 ? n / 1000 : n;
+  return `${liters.toFixed(2)} L`;
+}
+
+function formatDurationFromHours(hours) {
+  if (hours === undefined || hours === null || Number.isNaN(Number(hours))) return '—';
+  const totalMins = Math.max(0, Math.round(Number(hours) * 60));
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} hr`;
+}
+
 function TreatmentCompletionView({ sessionId, go, onCompleted, patient }) {
   const navigate = useNavigate();
-  const [disposition, setDisposition] = useState('Discharged');
-  const [dischargeTime, setDischargeTime] = useState(nowTime());
-  const [dischargedBy, setDischargedBy] = useState('Rahul Singh (Technician)');
-  const [comments, setComments] = useState('Patient stable. No complaints.');
-  const [sessionDate, setSessionDate] = useState(new Date().toLocaleDateString());
+  const [confirmed, setConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [fetchError, setFetchError] = useState('');
   const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
+  const activeSessionId = getValidSessionId(sessionId);
 
   useEffect(() => {
-    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
-    getDuringDialysisDashboard(activeSessionId).then((res) => {
-      if (res?.success) {
-        setDashboardData(responseData(res));
-      }
-    });
+    let mounted = true;
+    if (!activeSessionId) {
+      setLoading(false);
+      return undefined;
+    }
+    setLoading(true);
+    getDuringDialysisDashboard(activeSessionId)
+      .then((res) => {
+        if (!mounted) return;
+        if (res?.success) {
+          setDashboardData(responseData(res));
+          setFetchError('');
+        } else {
+          setFetchError(responseData(res)?.message || res?.error || 'Unable to load end-treatment summary.');
+        }
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setFetchError(err?.message || 'Unable to load end-treatment summary.');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
   }, [activeSessionId]);
 
-  const checklistItems = [
-    'Blood returned to patient',
-    'Dialyzer cleared',
-    'Needles removed & hemostasis achieved',
-    'Access site dressed',
-    'Post dialysis vitals recorded',
-    'Patient education / instructions given',
-    'Machine & station sanitized',
-  ];
-
-  const ufData = dashboardData?.uf || {};
-  const machineStatus = dashboardData?.machine_status || {};
-  const machineLatest = dashboardData?.machine_latest || {};
   const progressData = dashboardData?.progress || {};
+  const ufData = dashboardData?.uf || {};
+  const unresolved = dashboardData?.unresolved || { alarms: [], incidents: [], symptoms: [] };
+  const unresolvedAlarms = Array.isArray(unresolved.alarms) ? unresolved.alarms : [];
+  const unresolvedIncidents = Array.isArray(unresolved.incidents) ? unresolved.incidents : [];
+  const unresolvedSymptoms = Array.isArray(unresolved.symptoms) ? unresolved.symptoms : [];
+  const hasUnresolved = unresolvedAlarms.length + unresolvedIncidents.length + unresolvedSymptoms.length > 0;
 
-  const ufRemoved = ufData.removed !== undefined && ufData.removed !== null ? `${Number(ufData.removed).toFixed(2)} L` : '—';
-  const ufTarget = ufData.target ? `${(Number(ufData.target) > 50 ? Number(ufData.target) / 1000 : Number(ufData.target)).toFixed(2)} L` : '—';
-  const rawBloodProcessed = machineLatest.blood_volume_processed || machineStatus.blood_processed || progressData.blood_processed || progressData.blood_volume;
-  const bloodProcessed = rawBloodProcessed !== undefined && rawBloodProcessed !== null && rawBloodProcessed !== '' ? `${rawBloodProcessed} L` : '—';
+  const durationSoFar = progressData.elapsed_formatted
+    || (typeof progressData.elapsed === 'number'
+      ? formatDurationFromHours(progressData.elapsed)
+      : '—');
+  const ufRemovedSoFar = formatUfLitersDisplay(
+    ufData.removed ?? dashboardData?.machine_latest?.uf_removed ?? dashboardData?.machine_status?.uf_removed,
+  );
 
-  const rawKtV = progressData.kt_v || dashboardData?.kt_v;
-  const ktVVal = typeof rawKtV === 'object' && rawKtV !== null
-    ? (rawKtV.display || (rawKtV.value !== null && rawKtV.value !== undefined ? String(rawKtV.value) : 'Not available'))
-    : (rawKtV !== undefined && rawKtV !== null ? String(rawKtV) : 'Not available');
-
-  const rawBfr = machineLatest.bfr || machineStatus.bfr;
-  const avgBfr = rawBfr ? `${rawBfr} mL/min` : '—';
-
-  const outcomes = [
-    { label: 'UF Achieved', value: ufRemoved, sub: ufTarget !== '—' ? `Target: ${ufTarget}` : 'Target: —', color: '#8b5cf6', icon: WaterDropOutlinedIcon },
-    { label: 'Blood Processed', value: bloodProcessed, sub: 'Adequate', color: '#dc2626', icon: WaterDropOutlinedIcon },
-    { label: 'Kt/V (Estimated)', value: ktVVal, sub: 'Read-only', color: '#2563eb', icon: MonitorHeartOutlinedIcon },
-    { label: 'Avg Blood Flow (BFR)', value: avgBfr, sub: 'Within range', color: '#d97706', icon: AirOutlinedIcon },
-    { label: 'Treatment Efficiency', value: 'Good', sub: 'No issues', color: '#0d9488', icon: CheckCircleOutlinedIcon },
-  ];
-
-  const handleCompleteSession = async () => {
-    const activeSessionId = getValidSessionId(sessionId);
+  const handleEndTreatment = async () => {
     if (!activeSessionId) {
-      const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before completing treatment.';
-      setError(alertMsg);
-      alert(alertMsg);
+      setError('No active dialysis session ID found. Please start a session from Patient Profile before ending treatment.');
       return;
     }
+    if (!confirmed) {
+      setError('Confirmation checkbox must be checked to end treatment.');
+      return;
+    }
+
     setSaving(true);
     setError('');
+    setInfo('');
 
+    const technicianId = getTechnicianId() || null;
     const payload = {
       confirmed: true,
-      disposition,
-      discharge_time: dischargeTime,
-      discharged_by: dischargedBy,
-      comments,
-      recorded_at: new Date().toISOString(),
+      confirmed_by: technicianId || undefined,
+      confirmed_at: new Date().toISOString(),
     };
 
     const res = await endDuringDialysisTreatment(activeSessionId, payload);
     setSaving(false);
 
     if (!res.success) {
-      const errMsg = responseData(res)?.message || res?.error || res?.message || 'Failed to complete treatment session.';
+      const d = responseData(res);
+      const errMsg = d?.message || res?.error || res?.message || 'Failed to end treatment.';
       setError(errMsg);
       return;
     }
 
-    setInfo('Treatment Session completed successfully!');
+    const d = responseData(res);
+    setInfo('Treatment ending confirmed. Proceeding to post-dialysis documentation.');
     if (onCompleted) {
-      onCompleted(responseData(res));
+      onCompleted(d);
       return;
     }
-    // Workflow handoff: P3-10 Completion -> P4-01 Blood Return & Termination
-    navigate(`/dialysis/post/${sessionId}/P4-01`, { state: { sessionId, patient } });
-  };
-
-  const handleSaveAndExit = () => {
-    writeDraft(sessionId, {
-      completion_draft: {
-        disposition,
-        discharge_time: dischargeTime,
-        discharged_by: dischargedBy,
-        comments,
-      },
+    const redirectScreen = d?.redirect_target || 'P4-01';
+    const nextSessionId = d?.session_id || activeSessionId;
+    navigate(`/dialysis/post/${nextSessionId}/${redirectScreen}`, {
+      state: { sessionId: nextSessionId, patient },
     });
-    go('P3-01');
   };
 
   return (
     <>
-      <div className="during-symptoms-layout-grid">
-        <div style={{ minWidth: 0 }}>
-          {/* Overview Banner Card */}
-          <Card title="Treatment Completion Overview">
-            <div className="during-completion-banner">
-              <div className="during-completion-banner-left">
-                <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 32 }} />
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: '14px', color: '#15803d' }}>
-                    Treatment Completed Successfully
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#166534' }}>
-                    Session completed as per prescription.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginTop: '12px' }}>
-              <div>
-                <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>Session Start Time</span>
-                <strong style={{ fontSize: '13px', color: '#0f172a' }}>07:45 AM</strong>
-              </div>
-              <div>
-                <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>Session End Time</span>
-                <strong style={{ fontSize: '13px', color: '#0f172a' }}>11:20 AM</strong>
-              </div>
-              <div>
-                <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>Total Duration</span>
-                <strong style={{ fontSize: '13px', color: '#0f172a' }}>03:35 hr</strong>
-              </div>
-              <div>
-                <Field label="Session Date" icon={AccessTimeOutlinedIcon}>
-                  <Input type="text" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} />
-                </Field>
-              </div>
-            </div>
-          </Card>
-
-          {/* Key Outcome Summary 5 Cards Row */}
-          <Card title="Key Outcome Summary" style={{ marginTop: '16px' }}>
-            <div className="during-completion-outcomes-row">
-              {outcomes.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.label} className="during-completion-outcome-card">
-                    <Icon sx={{ color: item.color, fontSize: 24 }} />
-                    <div>
-                      <span style={{ fontSize: '10px', color: '#64748b', display: 'block' }}>{item.label}</span>
-                      <strong style={{ fontSize: '14px', color: '#0f172a' }}>{item.value}</strong>
-                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#16a34a' }}>{item.sub}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-
-          {/* Lower Section 3 Columns */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginTop: '16px' }}>
-            {/* Col 1: Completion Checklist */}
-            <Card title="Completion Checklist">
-              <div style={{ marginTop: '-12px' }}>
-                {checklistItems.map((item) => (
-                  <div key={item} className="during-checklist-item">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 14 }} />
-                      <span style={{ fontWeight: 600, color: '#1e293b' }}>{item}</span>
-                    </div>
-                    <span className="during-status-pill alert" style={{ background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '1px 6px' }}>
-                      Completed
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Col 2: Post Dialysis Vitals & Comments */}
-            <Card title="Post Dialysis Vitals & Comments">
-              <div style={{ fontSize: '11px', marginBottom: '12px' }}>
-                <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>BP</span><strong>118 / 74 mmHg</strong></div>
-                <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Pulse</span><strong>78 bpm</strong></div>
-                <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>SpO₂</span><strong>98 %</strong></div>
-                <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Temperature</span><strong>36.6 °C</strong></div>
-                <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>Weight</span><strong>66.4 kg</strong></div>
-              </div>
-              <Field label="Comments">
-                <Textarea placeholder="Patient stable. No complaints." maxLength="300" value={comments} onChange={(e) => setComments(e.target.value)} />
-              </Field>
-            </Card>
-
-            {/* Col 3: Patient Disposition */}
-            <Card title="Patient Disposition">
-              <div className="during-disposition-radio-group">
-                {['Discharged', 'Referred to Doctor', 'Admitted', 'Others'].map((opt) => (
-                  <label key={opt} className="during-finding-radio-item" style={{ fontSize: '12px' }}>
-                    <input
-                      type="radio"
-                      name="patientDispositionRadio"
-                      checked={disposition === opt}
-                      onChange={() => setDisposition(opt)}
-                    />
-                    <span>{opt}</span>
-                  </label>
-                ))}
-              </div>
-
-              <Field label="Discharge Time" icon={AccessTimeOutlinedIcon}>
-                <Input type="text" value={dischargeTime} onChange={(e) => setDischargeTime(e.target.value)} />
-              </Field>
-
-              <div style={{ marginTop: '10px' }}>
-                <Field label="Discharged By" icon={PersonOutlinedIcon}>
-                  <Select value={dischargedBy} onChange={(e) => setDischargedBy(e.target.value)}>
-                    <option value="Rahul Singh (Technician)">Rahul Singh (Technician)</option>
-                    <option value="Dr. Neha Sharma">Dr. Neha Sharma</option>
-                  </Select>
-                </Field>
-              </div>
-            </Card>
-          </div>
-
-          {error && <div className="during-error" style={{ marginTop: '14px' }}>{error}</div>}
-          {info && <div className="during-alert success" style={{ marginTop: '14px' }}>{info}</div>}
-        </div>
-
-        {/* Right Column */}
-        <div style={{ minWidth: 0 }}>
-          <Card title="Session Summary">
-            <div style={{ fontSize: '12px' }}>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>⏱ Planned Duration</span><strong>04:00 hr</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>⏱ Actual Duration</span><strong>03:35 hr (89%)</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>💧 UF Goal</span><strong>2.5 L</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>📈 UF Achieved</span><strong>1.65 L (66%)</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>⚙ Blood Processed</span><strong>58.2 L</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>📊 Kt/V (Estimated)</span><strong>1.32</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>⚠️ Alarms</span><strong>3 (Resolved)</strong></div>
-              <div className="during-access-summary-row"><span style={{ color: '#64748b' }}>⚠️ Incidents</span><strong>2 (1 Resolved)</strong></div>
-            </div>
-            <div style={{ textAlign: 'center', marginTop: '12px' }}>
-              <button type="button" className="during-card-action-link">View Full Session Report →</button>
-            </div>
-          </Card>
-
-          <div className="during-clinical-guidance-card" style={{ background: '#fffdf0', borderColor: '#fef08a' }}>
-            <div className="during-clinical-guidance-header" style={{ color: '#ca8a04' }}>
-              <SettingsOutlinedIcon fontSize="small" />
-              <span>Post Dialysis Guidance</span>
-            </div>
-            <div className="during-guidance-bullet-list">
-              <div className="during-guidance-bullet-item"><CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 14 }} /><span>Drink advised fluids as recommended.</span></div>
-              <div className="during-guidance-bullet-item"><CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 14 }} /><span>Monitor BP and weight daily.</span></div>
-              <div className="during-guidance-bullet-item"><CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 14 }} /><span>Report any dizziness, swelling or breathlessness.</span></div>
-              <div className="during-guidance-bullet-item"><CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 14 }} /><span>Next dialysis on: 28 May 2025 (Wed)</span></div>
-            </div>
-            <button type="button" className="during-card-action-link">View Patient Instructions →</button>
-          </div>
-
-          <Card title="Quick Actions" style={{ marginTop: '16px' }}>
-            <div className="during-vitals-qa-2x2-grid">
-              <button type="button" className="during-vitals-qa-tile">
-                <div className="during-vitals-qa-tile-left"><NoteAltOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" /><span>Print Summary</span></div>
-                <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
-              </button>
-              <button type="button" className="during-vitals-qa-tile">
-                <div className="during-vitals-qa-tile-left"><ChecklistOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" /><span>Share Report</span></div>
-                <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
-              </button>
-              <button type="button" className="during-vitals-qa-tile">
-                <div className="during-vitals-qa-tile-left"><AccessTimeOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" /><span>Schedule Next Session</span></div>
-                <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
-              </button>
-              <button type="button" className="during-vitals-qa-tile">
-                <div className="during-vitals-qa-tile-left"><HealingOutlinedIcon sx={{ color: '#2563eb' }} fontSize="small" /><span>Add Follow-up Note</span></div>
-                <ChevronRightOutlinedIcon sx={{ color: '#94a3b8' }} fontSize="small" />
-              </button>
-            </div>
-          </Card>
-        </div>
+      <div className="during-breadcrumb">
+        <span>During Dialysis</span>
+        <span>&gt;</span>
+        <span className="current">P3-10 End Treatment</span>
       </div>
 
-      {/* Bottom Navigation Bar */}
-      <div className="during-bottom-nav-bar">
-        <LibraryButton variant="outline" onClick={() => go('P3-09')}>← Back</LibraryButton>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <LibraryButton variant="outline" onClick={handleSaveAndExit}>Save as Draft</LibraryButton>
-          <LibraryButton variant="primary" onClick={handleCompleteSession} disabled={saving} style={{ background: '#2563eb', borderColor: '#2563eb' }}>
-            ✔ Complete Session
-          </LibraryButton>
+      <Card title="P3-10 – End Treatment">
+        <p className="during-muted" style={{ marginTop: '-8px', marginBottom: '16px' }}>
+          Confirm treatment is ending and proceed to post-dialysis documentation.
+        </p>
+
+        {loading && <p className="during-muted">Loading live session summary…</p>}
+
+        {fetchError && (
+          <div className="during-alert warning" style={{ marginBottom: 12 }}>
+            {fetchError} Unresolved-item summary may be incomplete — you can still proceed after confirming.
+          </div>
+        )}
+
+        {hasUnresolved && (
+          <div className="during-alert warning" style={{ marginBottom: 16 }}>
+            <strong>Before ending treatment, review:</strong>
+            <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12 }}>
+              {unresolvedAlarms.map((row) => (
+                <li key={`alarm-${row.id}`}>
+                  Alarm: {row.alarm_type || 'Unresolved alarm'}
+                  {' — '}
+                  <button type="button" className="during-card-action-link" onClick={() => go('P3-07')}>
+                    Open Alarm Management →
+                  </button>
+                </li>
+              ))}
+              {unresolvedIncidents.map((row) => (
+                <li key={`incident-${row.id}`}>
+                  Incident: {row.incident_type || 'Open / draft incident'}
+                  {' — '}
+                  <button type="button" className="during-card-action-link" onClick={() => go('P3-09')}>
+                    Open Incident Reporting →
+                  </button>
+                </li>
+              ))}
+              {unresolvedSymptoms.map((row) => (
+                <li key={`symptom-${row.id}`}>
+                  Symptom: {row.symptom || 'Ongoing symptom'}
+                  {' — '}
+                  <button type="button" className="during-card-action-link" onClick={() => go('P3-04')}>
+                    Open Symptoms →
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div style={{ marginTop: 8, fontSize: 11, color: '#92400e' }}>
+              Informational only — unresolved items do not block ending treatment.
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#0f172a' }}>Ready to End Treatment?</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div className="during-metric">
+              <small>Session Duration So Far</small>
+              <strong>{durationSoFar}</strong>
+            </div>
+            <div className="during-metric">
+              <small>UF Removed So Far</small>
+              <strong>{ufRemovedSoFar}</strong>
+            </div>
+          </div>
+
+          <LibraryCheckbox
+            isChecked={confirmed}
+            onChange={(e) => {
+              setConfirmed(Boolean(e.target.checked));
+              if (e.target.checked) setError('');
+            }}
+          >
+            I confirm the patient&apos;s blood return and treatment termination are ready to begin.
+          </LibraryCheckbox>
         </div>
+
+        {error && <div className="during-error" style={{ marginBottom: 12 }}>{error}</div>}
+        {info && <div className="during-alert success" style={{ marginBottom: 12 }}>{info}</div>}
+      </Card>
+
+      <div className="during-bottom-nav-bar">
+        <LibraryButton type="button" variant="outline" onClick={() => go('P3-01')}>← Back</LibraryButton>
+        <LibraryButton
+          type="button"
+          variant="primary"
+          onClick={handleEndTreatment}
+          disabled={saving || !confirmed || !activeSessionId}
+          style={{ background: '#2563eb', borderColor: '#2563eb' }}
+        >
+          {saving ? 'Ending…' : 'End Treatment & Proceed to Post-Dialysis →'}
+        </LibraryButton>
       </div>
     </>
   );
