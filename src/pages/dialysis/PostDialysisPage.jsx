@@ -7,6 +7,7 @@ import {
   getCompleteSummary,
   getDischargeReadiness,
   getMachineReadinessSummary,
+  getSessionDocumentation,
   getSessionMedications,
   getTreatmentOutcome,
   saveDischarge,
@@ -163,7 +164,7 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
     }).catch(() => {});
 
     const machineIdForRead = patient?.machine_id || session?.machine_id || session?.machineId || null;
-    const read = active === 'P4-04' ? getTreatmentOutcome(sessionId) : active === 'P4-05' ? getSessionMedications(sessionId) : active === 'P4-06' && machineIdForRead ? getMachineReadinessSummary(machineIdForRead) : active === 'P4-08' ? getDischargeReadiness(sessionId) : active === 'P4-10' ? getCompleteSummary(sessionId) : null;
+    const read = active === 'P4-04' ? getTreatmentOutcome(sessionId) : active === 'P4-05' ? getSessionMedications(sessionId) : active === 'P4-06' && machineIdForRead ? getMachineReadinessSummary(machineIdForRead) : active === 'P4-08' ? getDischargeReadiness(sessionId) : active === 'P4-09' ? getSessionDocumentation(sessionId) : active === 'P4-10' ? getCompleteSummary(sessionId) : null;
     if (!read) return () => { mounted = false; };
     read.then((result) => {
       if (mounted) {
@@ -426,16 +427,29 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
   if (active === 'P4-09') {
     return (
       <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        {apiError && (
+          <div className="during-error" style={{ margin: '12px 16px' }}>{apiError}</div>
+        )}
         <P409DocumentationSignOff
           data={data}
           setData={setData}
           session={session}
           patient={patient}
-          onSave={() => go('P4-10')}
-          onSaveDraft={() => {
+          apiError={apiError}
+          onSave={(payload) => go('P4-10', payload)}
+          onSaveDraft={(payload) => {
             try {
-              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify({ ...data, ...(payload || {}) }));
             } catch (_) {}
+            if (sessionId !== 'demo' && payload) {
+              saveSessionDocumentation(sessionId, { ...payload, draft: true }).then((result) => {
+                if (!result?.success) {
+                  setApiError(result?.data?.message || 'Unable to save documentation draft.');
+                } else {
+                  setApiError('');
+                }
+              });
+            }
           }}
           onBack={() => go('P4-08')}
         />

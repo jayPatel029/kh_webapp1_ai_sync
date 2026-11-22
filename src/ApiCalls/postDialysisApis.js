@@ -25,6 +25,7 @@ export const getMachineReadinessSummary = (machineId, config) => p4Request('get'
 export const saveInfectionControlPost = (sessionId, payload, config) => p4Request('post', `/sessions/${sessionId}/infection-control-post`, payload, config);
 export const getDischargeReadiness = (sessionId, config) => p4Request('get', `/sessions/${sessionId}/discharge-readiness`, undefined, config);
 export const saveDischarge = (sessionId, payload, config) => p4Request('post', `/sessions/${sessionId}/discharge`, payload, config);
+export const getSessionDocumentation = (sessionId, config) => p4Request('get', `/sessions/${sessionId}/documentation`, undefined, config);
 export const saveSessionDocumentation = (sessionId, payload, config) => p4Request('post', `/sessions/${sessionId}/documentation`, payload, config);
 export const saveSessionSignoff = (sessionId, payload, config) => p4Request('post', `/sessions/${sessionId}/signoff`, payload, config);
 export const sendPhysicianNotification = (sessionId, payload = {}, config) => p4Request('post', `/sessions/${sessionId}/notify-physician/send`, payload, config);
@@ -46,6 +47,7 @@ export default {
   saveInfectionControlPost,
   getDischargeReadiness,
   saveDischarge,
+  getSessionDocumentation,
   saveSessionDocumentation,
   saveSessionSignoff,
   sendPhysicianNotification,

@@ -5870,6 +5870,123 @@
   place-items: center;
 }
 
+.p409-sig-canvas--auth {
+  height: auto;
+  min-height: 70px;
+  padding: 10px;
+  gap: 8px;
+  place-items: stretch;
+  align-content: start;
+}
+
+.p409-sig-prompt {
+  margin: 0;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.35;
+}
+
+.p409-sign-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.p409-sign-yes,
+.p409-sign-no {
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #fff;
+  color: #0f172a;
+}
+
+.p409-sign-yes {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.p409-sign-yes:disabled,
+.p409-sign-no:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.p409-sign-error {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #b91c1c;
+}
+
+.p409-sign-box--done .p409-sig-canvas--auth {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.p409-empty-incidents {
+  font-size: 12px;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.p409-notify-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.p409-notify-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.p409-notify-row strong {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.p409-notify-critical {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.p409-notify-important {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.p409-notify-notable {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.p409-patient-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: #e2e8f0;
+  color: #334155;
+  font-weight: 700;
+  font-size: 22px;
+}
+
 .p409-sig-script {
   font-family: 'Brush Script MT', 'Dancing Script', cursive;
   font-size: 22px;
