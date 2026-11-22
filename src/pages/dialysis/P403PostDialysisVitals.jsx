@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button, Card, CardBody, Checkbox, Input, Select, Textarea } from '../../component-library';
 
 // Material UI Icons for Vitals, Assessment & Rail
@@ -45,7 +45,52 @@ const SYMPTOMS_LIST = [
   { id: 'cramps', name: 'Muscle Cramps', icon: HealingOutlinedIcon },
   { id: 'headache', name: 'Headache', icon: PsychologyOutlinedIcon },
   { id: 'shortness_breath', name: 'Shortness of Breath', icon: AirOutlinedIcon },
+  { id: 'chest_pain', name: 'Chest Pain', icon: FavoriteBorderOutlinedIcon },
 ];
+
+const CRITICAL_SYMPTOM_NAMES = new Set([
+  'Dizziness / Lightheadedness',
+  'Shortness of Breath',
+  'Chest Pain',
+]);
+
+function toKgDisplay(raw) {
+  if (raw === undefined || raw === null || raw === '') return '';
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return '';
+  return String(n > 50 ? Math.round((n / 1000) * 1000) / 1000 : n);
+}
+
+function buildP403ApiPayload(form) {
+  const symptomsPayload = {};
+  SYMPTOMS_LIST.forEach((s) => {
+    symptomsPayload[s.id] = form.symptoms?.[s.name] || form.symptoms?.[s.id] || 'No';
+    symptomsPayload[s.name] = symptomsPayload[s.id];
+  });
+  return {
+    bp_systolic: form.systolic === '' ? null : Number(form.systolic),
+    bp_diastolic: form.diastolic === '' ? null : Number(form.diastolic),
+    pulse: form.pulse === '' ? null : Number(form.pulse),
+    resp_rate: form.rr === '' ? null : Number(form.rr),
+    spo2: form.spo2 === '' ? null : Number(form.spo2),
+    map: form.map,
+    access_site_pain: form.accessSitePain || null,
+    pre_weight: form.preWeight === '' ? null : Number(form.preWeight),
+    post_weight: form.postWeight === '' ? null : Number(form.postWeight),
+    net_uf_removed: form.netUfRemoved === '' || form.netUfRemoved == null ? null : Number(form.netUfRemoved),
+    uf_goal: form.ufGoal === '' || form.ufGoal == null ? null : Number(form.ufGoal),
+    uf_variance: form.ufVarianceNum,
+    dry_weight: form.dryWeight === '' ? null : Number(form.dryWeight),
+    weight_variance_vs_dry_weight: form.weightVarNum,
+    symptoms: symptomsPayload,
+    consciousness: form.consciousness || null,
+    orientation: form.orientation || null,
+    ambulation: form.ambulation || null,
+    tolerance_to_activity: form.tolerance || null,
+    overall_condition: form.condition || null,
+    notes: form.vitalsNotes || null,
+  };
+}
 
 export default function P403PostDialysisVitals({
   data = {},
@@ -56,6 +101,7 @@ export default function P403PostDialysisVitals({
   onSave,
   onSaveDraft,
   onBack,
+  apiError = '',
 }) {
   // Extract patient & session metadata
   const p = patient.patient || patient;
@@ -69,52 +115,82 @@ export default function P403PostDialysisVitals({
   const accessDetail = p.vascular_access || p.access || session.access || '—';
   const nephrologist = p.primary_doctor_name || p.nephrologist || session.nephrologist || p.doctor_name || '—';
 
-  const startTimeStr = session.started_at || session.start_time || '07:45 AM';
-  const endTimeStr = session.endTime || '11:20 AM';
-  const durationStr = session.treatmentDuration || '03:35 hr';
-  const ufRemovedStr = session.totalUfRemoved ? `${session.totalUfRemoved} L` : '1.65 L';
-  const dryWeightStr = patient.dryWeight ? `${patient.dryWeight} kg` : '67.0 kg';
+  const startTimeStr = session.started_at || session.start_time || '—';
+  const endTimeStr = session.endTime || session.ended_at || '—';
+  const durationStr = session.treatmentDuration || session.duration || '—';
+  const ufRemovedStr = session.totalUfRemoved != null && session.totalUfRemoved !== ''
+    ? `${session.totalUfRemoved} L`
+    : '—';
+  const dryWeight = toKgDisplay(
+    data.dryWeight
+      || p.dry_weight
+      || p.dryWeight
+      || session.dry_weight
+      || session.dry_weight_kg,
+  );
+  const dryWeightStr = dryWeight !== '' ? `${dryWeight} kg` : '—';
 
-  // Section 1: Vital Signs Form States
-  const [systolic, setSystolic] = useState(data.systolic || '124');
-  const [diastolic, setDiastolic] = useState(data.diastolic || '78');
-  const [pulse, setPulse] = useState(data.pulse || '82');
-  const [rr, setRr] = useState(data.rr || '18');
-  const [spo2, setSpo2] = useState(data.spo2 || '98');
-  const [accessSitePain, setAccessSitePain] = useState(data.accessSitePain || 'No');
+  // Section 1: Vital Signs — no fabricated clinical defaults.
+  const [systolic, setSystolic] = useState(data.systolic != null && data.systolic !== '' ? String(data.systolic) : (data.bp_systolic != null ? String(data.bp_systolic) : ''));
+  const [diastolic, setDiastolic] = useState(data.diastolic != null && data.diastolic !== '' ? String(data.diastolic) : (data.bp_diastolic != null ? String(data.bp_diastolic) : ''));
+  const [pulse, setPulse] = useState(data.pulse != null && data.pulse !== '' ? String(data.pulse) : '');
+  const [rr, setRr] = useState(data.rr != null && data.rr !== '' ? String(data.rr) : (data.resp_rate != null ? String(data.resp_rate) : ''));
+  const [spo2, setSpo2] = useState(data.spo2 != null && data.spo2 !== '' ? String(data.spo2) : '');
+  const [accessSitePain, setAccessSitePain] = useState(data.accessSitePain || '');
 
-  // MAP Auto-Calculation
   const calculatedMap = (() => {
     const sysNum = parseFloat(systolic);
     const diaNum = parseFloat(diastolic);
-    if (!isNaN(sysNum) && !isNaN(diaNum)) {
+    if (!Number.isNaN(sysNum) && !Number.isNaN(diaNum)) {
       return Math.round((sysNum + 2 * diaNum) / 3);
     }
-    return 93;
+    return null;
   })();
 
-  // Section 2: Weight States
-  const preWeight = data.preWeight || '66.8';
-  const [postWeight, setPostWeight] = useState(data.postWeight || '65.3');
-  const ufGoal = session.ufGoal ? parseFloat(session.ufGoal) : 1.6;
+  // Section 2: Weight — pre-weight + UF goal carried from session/Part 2 when available.
+  const preWeight = toKgDisplay(
+    data.preWeight || data.pre_weight || session.pre_weight_kg || session.pre_weight || '',
+  );
+  const [postWeight, setPostWeight] = useState(
+    data.postWeight != null && data.postWeight !== ''
+      ? String(data.postWeight)
+      : (data.post_weight != null ? String(data.post_weight) : ''),
+  );
+  const ufGoalRaw = session.uf_goal_ml ?? session.ufGoal ?? session.uf_goal ?? data.ufGoal;
+  const ufGoal = (() => {
+    const n = Number(ufGoalRaw);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return n > 50 ? n / 1000 : n;
+  })();
 
-  const netUfRemoved = (() => {
+  const netUfRemovedNum = (() => {
     const preNum = parseFloat(preWeight);
     const postNum = parseFloat(postWeight);
-    if (!isNaN(preNum) && !isNaN(postNum)) {
-      return (preNum - postNum).toFixed(1);
+    if (!Number.isNaN(preNum) && !Number.isNaN(postNum)) {
+      return Math.round((preNum - postNum) * 1000) / 1000;
     }
-    return '1.5';
+    return null;
   })();
+  const netUfRemoved = netUfRemovedNum == null ? '—' : netUfRemovedNum.toFixed(2);
 
   const ufVarianceObj = (() => {
-    const netNum = parseFloat(netUfRemoved);
-    if (!isNaN(netNum) && ufGoal > 0) {
-      const diff = (netNum - ufGoal).toFixed(1);
-      const pct = Math.round(((netNum - ufGoal) / ufGoal) * 100);
-      return { diff: diff > 0 ? `+${diff}` : diff, pct: pct > 0 ? `+${pct}` : pct };
+    if (netUfRemovedNum == null || ufGoal == null || ufGoal <= 0) {
+      return { diff: '—', pct: '—', num: null };
     }
-    return { diff: '-0.1', pct: '-6' };
+    const diffNum = Math.round((netUfRemovedNum - ufGoal) * 1000) / 1000;
+    const pct = Math.round(((netUfRemovedNum - ufGoal) / ufGoal) * 100);
+    return {
+      diff: diffNum > 0 ? `+${diffNum}` : String(diffNum),
+      pct: pct > 0 ? `+${pct}` : String(pct),
+      num: diffNum,
+    };
+  })();
+
+  const weightVarNum = (() => {
+    const postNum = parseFloat(postWeight);
+    const dryNum = parseFloat(dryWeight);
+    if (Number.isNaN(postNum) || Number.isNaN(dryNum)) return null;
+    return Math.round((postNum - dryNum) * 100) / 100;
   })();
 
   // Section 3: Patient Symptoms State
@@ -122,18 +198,20 @@ export default function P403PostDialysisVitals({
     if (data.symptoms && Object.keys(data.symptoms).length > 0) return data.symptoms;
     const initial = {};
     SYMPTOMS_LIST.forEach((s) => {
-      initial[s.name] = 'No';
+      initial[s.name] = '';
     });
     return initial;
   });
 
-  // Section 4: Clinical Assessment States
-  const [consciousness, setConsciousness] = useState(data.consciousness || 'Alert');
-  const [orientation, setOrientation] = useState(data.orientation || 'Oriented');
-  const [ambulation, setAmbulation] = useState(data.ambulation || 'Independent');
-  const [tolerance, setTolerance] = useState(data.tolerance || 'Good');
-  const [condition, setCondition] = useState(data.condition || 'Stable');
-  const [vitalsNotes, setVitalsNotes] = useState(data.vitalsNotes || '');
+  // Section 4: Clinical Assessment — required condition starts empty.
+  const [consciousness, setConsciousness] = useState(data.consciousness || '');
+  const [orientation, setOrientation] = useState(data.orientation || '');
+  const [ambulation, setAmbulation] = useState(data.ambulation || '');
+  const [tolerance, setTolerance] = useState(data.tolerance || data.tolerance_to_activity || '');
+  const [condition, setCondition] = useState(data.condition || data.overall_condition || '');
+  const [vitalsNotes, setVitalsNotes] = useState(data.vitalsNotes || data.notes || '');
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const updateParentState = (updates) => {
     if (setData) {
@@ -149,23 +227,56 @@ export default function P403PostDialysisVitals({
     });
   };
 
+  const criticalSymptomPresent = SYMPTOMS_LIST.some(
+    (s) => CRITICAL_SYMPTOM_NAMES.has(s.name) && symptoms[s.name] === 'Yes',
+  );
+  const criticalBp = systolic !== '' && Number(systolic) < 90;
   const isReadyForDischarge =
-    condition === 'Stable' && ambulation !== 'Unable' && parseFloat(systolic) >= 90;
+    condition === 'Stable'
+    && ambulation !== 'Unable'
+    && !criticalBp
+    && !criticalSymptomPresent
+    && systolic !== ''
+    && diastolic !== ''
+    && pulse !== ''
+    && spo2 !== '';
 
-  const handleFormSubmit = () => {
-    const payload = {
+  const handleFormSubmit = async () => {
+    if (!systolic || !diastolic || !pulse || !spo2) {
+      setFormError('BP, Heart Rate, and SpO₂ are required.');
+      return;
+    }
+    if (!postWeight) {
+      setFormError('Post-dialysis weight is required.');
+      return;
+    }
+    if (!condition) {
+      setFormError('Overall Condition is required.');
+      return;
+    }
+    // Critical threat symptoms must be explicitly answered.
+    for (const name of CRITICAL_SYMPTOM_NAMES) {
+      if (!symptoms[name]) {
+        setFormError(`${name} must be answered (Yes / Mild / No).`);
+        return;
+      }
+    }
+
+    const uiPayload = {
       systolic,
       diastolic,
       pulse,
       rr,
       spo2,
-      map: calculatedMap.toString(),
+      map: calculatedMap,
       accessSitePain,
       preWeight,
       postWeight,
-      netUfRemoved,
-      ufGoal: ufGoal.toString(),
-      ufVariance: `${ufVarianceObj.diff} kg (${ufVarianceObj.pct}%)`,
+      netUfRemoved: netUfRemovedNum,
+      ufGoal,
+      ufVariance: ufVarianceObj.num,
+      dryWeight,
+      weightVarianceVsDryWeight: weightVarNum,
       symptoms,
       consciousness,
       orientation,
@@ -174,10 +285,21 @@ export default function P403PostDialysisVitals({
       condition,
       isReadyForDischarge,
       vitalsNotes,
+      discharge_readiness: isReadyForDischarge,
     };
-
-    updateParentState(payload);
-    if (onSave) onSave(payload);
+    const apiPayload = buildP403ApiPayload({
+      ...uiPayload,
+      ufVarianceNum: ufVarianceObj.num,
+      weightVarNum,
+    });
+    updateParentState(uiPayload);
+    setFormError('');
+    setSaving(true);
+    try {
+      if (onSave) await onSave(apiPayload);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -353,7 +475,7 @@ export default function P403PostDialysisVitals({
                   <SpeedOutlinedIcon sx={{ color: '#8b5cf6', fontSize: 20 }} />
                   <span>MAP (mmHg)</span>
                 </div>
-                <div className="p403-vital-value">{calculatedMap}</div>
+                <div className="p403-vital-value">{calculatedMap != null ? calculatedMap : '—'}</div>
                 <div className="p403-vital-card-foot">
                   <span>65 - 105</span>
                   <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} />
@@ -409,7 +531,7 @@ export default function P403PostDialysisVitals({
 
                 <div className="p403-weight-field">
                   <label>UF Goal</label>
-                  <div className="p403-weight-display">{ufGoal} kg</div>
+                  <div className="p403-weight-display">{ufGoal != null ? `${ufGoal} kg` : '—'}</div>
                 </div>
               </div>
 
@@ -714,6 +836,13 @@ export default function P403PostDialysisVitals({
         </div>
       </div>
 
+      {(formError || apiError) && (
+        <div style={{ maxWidth: 1100, margin: '0 auto 12px', padding: '0 16px' }}>
+          {formError && <div className="during-error" style={{ marginBottom: 8 }}>{formError}</div>}
+          {apiError && <div className="during-error" style={{ marginBottom: 8 }}>{apiError}</div>}
+        </div>
+      )}
+
       {/* Footer Action Bar */}
       <footer className="p403-footer-bar">
         <div className="p403-footer-left">
@@ -725,8 +854,8 @@ export default function P403PostDialysisVitals({
           <Button type="button" variant="outline" onClick={onSaveDraft}>
             Save as Draft
           </Button>
-          <Button type="button" variant="primary" onClick={handleFormSubmit}>
-            Save &amp; Continue <ArrowForwardOutlinedIcon sx={{ fontSize: 16 }} />
+          <Button type="button" variant="primary" onClick={handleFormSubmit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save & Continue'} <ArrowForwardOutlinedIcon sx={{ fontSize: 16 }} />
           </Button>
         </div>
       </footer>

@@ -273,13 +273,17 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
   if (active === 'P4-03') {
     return (
       <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        {apiError && (
+          <div className="during-error" style={{ margin: '12px 16px' }}>{apiError}</div>
+        )}
         <P403PostDialysisVitals
           data={data}
           setData={setData}
           session={session}
           readings={readings}
           patient={patient}
-          onSave={() => go('P4-04')}
+          apiError={apiError}
+          onSave={(payload) => go('P4-04', payload)}
           onSaveDraft={() => {
             try {
               localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
