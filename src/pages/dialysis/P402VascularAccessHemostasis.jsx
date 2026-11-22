@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button, Card, CardBody, Checkbox, Input, Select, Textarea } from '../../component-library';
 
 // Material UI Icons
@@ -36,6 +36,54 @@ const SCREENS_STEPPER = [
   { step: 10, label: 'Session Complete' },
 ];
 
+const BLEED_WARNING_MINUTES = 20;
+
+function inferAccessType(raw) {
+  const s = String(raw || '').toLowerCase();
+  if (s.includes('cvc') || s.includes('catheter')) return 'CVC';
+  if (s.includes('avf') || s.includes('avg') || s.includes('fistula') || s.includes('graft')) return 'AVF/AVG';
+  return '';
+}
+
+function buildP402ApiPayload(form) {
+  const accessType = form.accessType;
+  if (accessType === 'CVC') {
+    return {
+      access_type: 'CVC',
+      catheter_flushed: form.catheterFlushed,
+      lock_solution: form.lockSolution || null,
+      volume_instilled: form.volumeInstilled === '' ? null : Number(form.volumeInstilled),
+      catheter_clamped: form.catheterClamped,
+      dressing_integrity: form.dressingIntegrity || null,
+      exit_site_condition: form.exitSiteCondition || null,
+      exit_site_cleaned: form.exitSiteCleaned || null,
+      antimicrobial_dressing: form.antimicrobialDressing || null,
+      notes: form.cvcComments || null,
+      photo_url: form.photoUrl || null,
+    };
+  }
+  return {
+    access_type: 'AVF/AVG',
+    arterial_needle_removed: form.arterialNeedleRemoved || null,
+    arterial_time_removed: form.arterialTimeRemoved || null,
+    arterial_bleeding_duration_min: form.arterialBleedDuration === '' ? null : Number(form.arterialBleedDuration),
+    arterial_hemostasis_achieved: form.arterialHemostasis,
+    arterial_dressing_applied: form.arterialDressing || null,
+    venous_needle_removed: form.venousNeedleRemoved || null,
+    venous_time_removed: form.venousTimeRemoved || null,
+    venous_bleeding_duration_min: form.venousBleedDuration === '' ? null : Number(form.venousBleedDuration),
+    venous_hemostasis_achieved: form.venousHemostasis,
+    venous_dressing_applied: form.venousDressing || null,
+    thrill: form.thrill || null,
+    bruit: form.bruit || null,
+    swelling: form.swelling || null,
+    redness: form.redness || null,
+    pain_tenderness: form.painTenderness || null,
+    notes: form.avfComments || null,
+    photo_url: form.photoUrl || null,
+  };
+}
+
 export default function P402VascularAccessHemostasis({
   data = {},
   setData,
@@ -44,6 +92,7 @@ export default function P402VascularAccessHemostasis({
   onSave,
   onSaveDraft,
   onBack,
+  apiError = '',
 }) {
   // Extract patient & session details
   const p = patient.patient || patient;
@@ -54,56 +103,60 @@ export default function P402VascularAccessHemostasis({
   const ageVal = p.age ? String(p.age) : '—';
   const ageGender = ageVal !== '—' && gender !== '—' ? `${ageVal} Years, ${gender}` : (ageVal !== '—' ? `${ageVal} Years` : gender);
   const bloodGroup = p.bloodGroup || p.blood_group || '—';
-  const accessDetail = p.vascular_access || p.access || session.access || '—';
+  const accessDetail = p.vascular_access || p.access || session.access_type || session.access || data.access || '';
   const nephrologist = p.primary_doctor_name || p.nephrologist || session.nephrologist || p.doctor_name || '—';
 
-  const startTimeStr = session.started_at || session.start_time || '07:45 AM';
-  const endTimeStr = session.endTime || '11:20 AM';
-  const durationStr = session.treatmentDuration || '03:35 hr';
-  const ufRemovedStr = session.totalUfRemoved ? `${session.totalUfRemoved} L` : '1.65 L';
-  const machineModel = session.machine || patient.machine || 'Fresenius 4008S';
-  const bedStr = session.bed || patient.bed || 'B-02';
+  const startTimeStr = session.started_at || session.start_time || '—';
+  const endTimeStr = session.endTime || session.ended_at || '—';
+  const durationStr = session.treatmentDuration || session.duration || '—';
+  const ufRemovedStr = session.totalUfRemoved != null && session.totalUfRemoved !== ''
+    ? `${session.totalUfRemoved} L`
+    : '—';
+  const machineModel = session.machine || patient.machine || '—';
+  const bedStr = session.bed || patient.bed || '—';
 
-  // Access Type state (AVF/AVG vs CVC)
+  // Access Type state (AVF/AVG vs CVC) — prefer carried session/patient access, not fake defaults.
   const [accessType, setAccessType] = useState(() => {
     if (data.accessType) return data.accessType;
-    if (accessDetail.toLowerCase().includes('cvc') || accessDetail.toLowerCase().includes('catheter')) return 'CVC';
-    return 'AVF/AVG';
+    if (data.access_type) return inferAccessType(data.access_type) || data.access_type;
+    return inferAccessType(accessDetail) || 'AVF/AVG';
   });
 
-  // AVF/AVG Form States
-  const [arterialNeedleRemoved, setArterialNeedleRemoved] = useState(data.arterialNeedleRemoved || 'Yes');
-  const [arterialTimeRemoved, setArterialTimeRemoved] = useState(data.arterialTimeRemoved || '11:18 AM');
-  const [arterialBleedDuration, setArterialBleedDuration] = useState(data.arterialBleedDuration || '5');
-  const [arterialHemostasis, setArterialHemostasis] = useState(data.arterialHemostasis || 'Yes');
-  const [arterialDressing, setArterialDressing] = useState(data.arterialDressing || 'Yes');
+  // AVF/AVG Form States — critical fields start empty (no pre-checked "pass").
+  const [arterialNeedleRemoved, setArterialNeedleRemoved] = useState(data.arterialNeedleRemoved || '');
+  const [arterialTimeRemoved, setArterialTimeRemoved] = useState(data.arterialTimeRemoved || '');
+  const [arterialBleedDuration, setArterialBleedDuration] = useState(data.arterialBleedDuration || '');
+  const [arterialHemostasis, setArterialHemostasis] = useState(data.arterialHemostasis || '');
+  const [arterialDressing, setArterialDressing] = useState(data.arterialDressing || '');
 
-  const [venousNeedleRemoved, setVenousNeedleRemoved] = useState(data.venousNeedleRemoved || 'Yes');
-  const [venousTimeRemoved, setVenousTimeRemoved] = useState(data.venousTimeRemoved || '11:19 AM');
-  const [venousBleedDuration, setVenousBleedDuration] = useState(data.venousBleedDuration || '4');
-  const [venousHemostasis, setVenousHemostasis] = useState(data.venousHemostasis || 'Yes');
-  const [venousDressing, setVenousDressing] = useState(data.venousDressing || 'Yes');
+  const [venousNeedleRemoved, setVenousNeedleRemoved] = useState(data.venousNeedleRemoved || '');
+  const [venousTimeRemoved, setVenousTimeRemoved] = useState(data.venousTimeRemoved || '');
+  const [venousBleedDuration, setVenousBleedDuration] = useState(data.venousBleedDuration || '');
+  const [venousHemostasis, setVenousHemostasis] = useState(data.venousHemostasis || '');
+  const [venousDressing, setVenousDressing] = useState(data.venousDressing || '');
 
-  const [thrill, setThrill] = useState(data.thrill || 'Present');
-  const [bruit, setBruit] = useState(data.bruit || 'Present');
-  const [swelling, setSwelling] = useState(data.swelling || 'No');
-  const [redness, setRedness] = useState(data.redness || 'No');
-  const [painTenderness, setPainTenderness] = useState(data.painTenderness || 'No');
+  const [thrill, setThrill] = useState(data.thrill || '');
+  const [bruit, setBruit] = useState(data.bruit || '');
+  const [swelling, setSwelling] = useState(data.swelling || '');
+  const [redness, setRedness] = useState(data.redness || '');
+  const [painTenderness, setPainTenderness] = useState(data.painTenderness || '');
   const [avfComments, setAvfComments] = useState(data.avfComments || '');
 
   // CVC Form States
-  const [catheterFlushed, setCatheterFlushed] = useState(data.catheterFlushed || 'Yes');
-  const [lockSolution, setLockSolution] = useState(data.lockSolution || 'Heparin (1000 units/mL)');
-  const [volumeInstilled, setVolumeInstilled] = useState(data.volumeInstilled || '1.8');
-  const [catheterClamped, setCatheterClamped] = useState(data.catheterClamped || 'Yes');
-  const [dressingIntegrity, setDressingIntegrity] = useState(data.dressingIntegrity || 'Intact');
-  const [exitSiteCondition, setExitSiteCondition] = useState(data.exitSiteCondition || 'Clean');
-  const [exitSiteCleaned, setExitSiteCleaned] = useState(data.exitSiteCleaned || 'Yes');
-  const [antimicrobialDressing, setAntimicrobialDressing] = useState(data.antimicrobialDressing || 'Yes');
+  const [catheterFlushed, setCatheterFlushed] = useState(data.catheterFlushed || '');
+  const [lockSolution, setLockSolution] = useState(data.lockSolution || '');
+  const [volumeInstilled, setVolumeInstilled] = useState(data.volumeInstilled || '');
+  const [catheterClamped, setCatheterClamped] = useState(data.catheterClamped || '');
+  const [dressingIntegrity, setDressingIntegrity] = useState(data.dressingIntegrity || '');
+  const [exitSiteCondition, setExitSiteCondition] = useState(data.exitSiteCondition || '');
+  const [exitSiteCleaned, setExitSiteCleaned] = useState(data.exitSiteCleaned || '');
+  const [antimicrobialDressing, setAntimicrobialDressing] = useState(data.antimicrobialDressing || '');
   const [cvcComments, setCvcComments] = useState(data.cvcComments || '');
 
-  // Photo State
-  const [photoAdded, setPhotoAdded] = useState(data.photoAdded || false);
+  // Photo State (optional — URL only when a real upload exists)
+  const [photoUrl, setPhotoUrl] = useState(data.photoUrl || data.photo_url || '');
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const updateParentState = (updates) => {
     if (setData) {
@@ -111,10 +164,40 @@ export default function P402VascularAccessHemostasis({
     }
   };
 
-  const handleSaveContinue = () => {
-    const payload = {
+  const bleedWarning =
+    accessType === 'AVF/AVG'
+    && (
+      (Number(arterialBleedDuration) > BLEED_WARNING_MINUTES)
+      || (Number(venousBleedDuration) > BLEED_WARNING_MINUTES)
+    );
+
+  const hemostasisBlocked = accessType === 'AVF/AVG'
+    ? (arterialHemostasis === 'No' || venousHemostasis === 'No')
+    : (catheterClamped === 'No' || ['Redness', 'Swelling', 'Discharge'].includes(exitSiteCondition));
+
+  const handleSaveContinue = async () => {
+    if (accessType === 'AVF/AVG') {
+      if (!arterialHemostasis || !venousHemostasis || arterialBleedDuration === '' || venousBleedDuration === '' || !thrill || !bruit) {
+        setFormError('Hemostasis Achieved, Bleeding Duration, Thrill, and Bruit are required for AVF/AVG.');
+        return;
+      }
+    } else {
+      if (!catheterFlushed || !lockSolution || volumeInstilled === '' || !catheterClamped || !exitSiteCondition) {
+        setFormError('Catheter Flushed, Lock Solution, Volume Instilled, Catheter Clamped, and Exit Site Condition are required for CVC.');
+        return;
+      }
+    }
+    if (hemostasisBlocked) {
+      setFormError(
+        accessType === 'CVC'
+          ? 'Catheter not clamped or exit-site infection signs — hard block. Resolve before continuing.'
+          : 'Hemostasis not achieved — hard block. Resolve before continuing.',
+      );
+      return;
+    }
+
+    const uiPayload = {
       accessType,
-      // AVF/AVG
       arterialNeedleRemoved,
       arterialTimeRemoved,
       arterialBleedDuration,
@@ -131,7 +214,6 @@ export default function P402VascularAccessHemostasis({
       redness,
       painTenderness,
       avfComments,
-      // CVC
       catheterFlushed,
       lockSolution,
       volumeInstilled,
@@ -141,11 +223,17 @@ export default function P402VascularAccessHemostasis({
       exitSiteCleaned,
       antimicrobialDressing,
       cvcComments,
-      photoAdded,
+      photoUrl,
     };
-
-    updateParentState(payload);
-    if (onSave) onSave(payload);
+    const apiPayload = buildP402ApiPayload(uiPayload);
+    updateParentState(uiPayload);
+    setFormError('');
+    setSaving(true);
+    try {
+      if (onSave) await onSave(apiPayload);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const isAvfHemostasisSuccess =
@@ -960,15 +1048,31 @@ export default function P402VascularAccessHemostasis({
               <h3>Access Site Photo (Optional)</h3>
             </div>
             <div className="p402-photo-box">
-              <button
-                type="button"
-                className="p402-photo-btn"
-                onClick={() => setPhotoAdded((prev) => !prev)}
-              >
+              <label className="p402-photo-btn" style={{ cursor: 'pointer' }}>
                 <AddAPhotoOutlinedIcon sx={{ fontSize: 18, color: '#2563eb' }} />
-                <span>{photoAdded ? 'Photo Added (Click to change)' : 'Add photo'}</span>
-              </button>
-              <span className="p402-photo-hint">JPG, PNG up to 5MB</span>
+                <span>{photoUrl ? 'Photo selected' : 'Add photo'}</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) {
+                      setPhotoUrl('');
+                      return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      setFormError('Photo must be JPG/PNG up to 5MB.');
+                      setPhotoUrl('');
+                      return;
+                    }
+                    // Upload endpoint not wired yet — do not invent a URL; photo remains optional and non-blocking.
+                    setPhotoUrl('');
+                    setFormError('');
+                  }}
+                />
+              </label>
+              <span className="p402-photo-hint">JPG, PNG up to 5MB — optional, does not block save</span>
             </div>
           </div>
 
@@ -1025,6 +1129,25 @@ export default function P402VascularAccessHemostasis({
         </div>
       </div>
 
+      {(formError || apiError || bleedWarning || hemostasisBlocked) && (
+        <div style={{ maxWidth: 1100, margin: '0 auto 12px', padding: '0 16px' }}>
+          {formError && <div className="during-error" style={{ marginBottom: 8 }}>{formError}</div>}
+          {apiError && <div className="during-error" style={{ marginBottom: 8 }}>{apiError}</div>}
+          {hemostasisBlocked && !formError && (
+            <div className="during-error" style={{ marginBottom: 8 }}>
+              {accessType === 'CVC'
+                ? 'Hard block: Catheter Clamped = No or exit-site infection signs. Cannot proceed.'
+                : 'Hard block: Hemostasis Achieved = No on one or both sites. Cannot proceed.'}
+            </div>
+          )}
+          {bleedWarning && (
+            <div className="during-alert warning">
+              Bleeding duration exceeds {BLEED_WARNING_MINUTES} minutes — warning only; document and monitor closely.
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Footer Action Bar */}
       <footer className="p402-footer-bar">
         <div className="p402-footer-left">
@@ -1036,8 +1159,13 @@ export default function P402VascularAccessHemostasis({
           <Button type="button" variant="outline" onClick={onSaveDraft}>
             Save as Draft
           </Button>
-          <Button type="button" variant="primary" onClick={handleSaveContinue}>
-            Save &amp; Continue <ArrowForwardOutlinedIcon sx={{ fontSize: 16 }} />
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleSaveContinue}
+            disabled={saving || hemostasisBlocked}
+          >
+            {saving ? 'Saving…' : 'Save & Continue'} <ArrowForwardOutlinedIcon sx={{ fontSize: 16 }} />
           </Button>
         </div>
       </footer>
