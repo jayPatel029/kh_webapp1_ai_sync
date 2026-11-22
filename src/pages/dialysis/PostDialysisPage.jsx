@@ -201,13 +201,22 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
     if (active === 'P4-10') return closeSession(sessionId, payload);
     return { success: true };
   };
-  const onCompleted = async () => {
-    if (sessionId === 'demo') { onCompletedProp?.(); return; }
-    const feedback = await savePatientFeedback(sessionId, data);
-    if (!feedback.success) { setApiError(feedback.data?.message || 'Unable to save patient feedback.'); return; }
+  const onCompleted = async (overridePayload) => {
+    if (sessionId === 'demo') { onCompletedProp?.(); return true; }
+    const feedbackPayload = overridePayload && typeof overridePayload === 'object' ? overridePayload : data;
+    const feedback = await savePatientFeedback(sessionId, feedbackPayload);
+    if (!feedback.success) {
+      setApiError(feedback.data?.message || 'Unable to save patient feedback.');
+      return false;
+    }
     const result = await closeSession(sessionId);
-    if (!result.success) { setApiError(result.data?.message || 'Unable to close the session.'); return; }
+    if (!result.success) {
+      setApiError(result.data?.message || result.data?.error || 'Unable to close the session.');
+      return false;
+    }
+    setApiError('');
     onCompletedProp ? onCompletedProp(result.data) : navigate('/dialysis/sessions');
+    return true;
   };
   const go = async (id, overridePayload) => {
     try { localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data)); } catch (_) { /* offline storage is optional */ }
@@ -460,24 +469,32 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
   if (active === 'P4-10') {
     return (
       <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        {apiError && (
+          <div className="during-error" style={{ margin: '12px 16px' }}>{apiError}</div>
+        )}
         <P410SessionComplete
           data={data}
           setData={setData}
           session={session}
           patient={patient}
-          onSave={() => {
-            if (onCompleted) {
-              onCompleted();
-            } else {
-              navigate('/dialysis/sessions');
+          apiError={apiError}
+          onSave={(payload) => onCompleted(payload)}
+          onSaveDraft={(payload) => {
+            try {
+              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify({ ...data, ...(payload || {}) }));
+            } catch (_) {}
+            if (sessionId !== 'demo' && payload) {
+              savePatientFeedback(sessionId, payload).then((result) => {
+                if (!result?.success) {
+                  setApiError(result?.data?.message || 'Unable to save feedback draft.');
+                } else {
+                  setApiError('');
+                }
+              });
             }
           }}
-          onSaveDraft={() => {
-            try {
-              localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));
-            } catch (_) {}
-          }}
           onBack={() => go('P4-09')}
+          onViewAssessment={() => go('P4-03')}
         />
       </div>
     );
