@@ -1128,12 +1128,16 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
   const [saving, setSaving] = useState(false);
   const [trendRange, setTrendRange] = useState('2h');
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [fetchedVitals, setFetchedVitals] = useState([]);
+  const [loadingVitals, setLoadingVitals] = useState(false);
   const [monitoringMeta, setMonitoringMeta] = useState({
     next_due: null,
     compliance_pct: 100,
     monitoring_interval_minutes: 30,
     active_vital_alerts: [],
   });
+
+  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
 
   const fieldEvals = useMemo(() => ({
     bp: evaluateBp(form.systolic_bp, form.diastolic_bp),
@@ -1160,9 +1164,42 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
+  // Spec: Vitals History + Trend must update immediately after Save (reload from GET, not parent readings alone).
+  const loadVitals = useCallback(async (range = trendRange, { silent = false } = {}) => {
+    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
+    if (!silent) setLoadingVitals(true);
+    try {
+      const res = await getIntradialyticVitals(activeSessionId, range);
+      if (res?.success) {
+        const d = responseData(res);
+        const items = Array.isArray(d) ? d : (d.readings || d.items || d.vitals || []);
+        setFetchedVitals(items);
+        setMonitoringMeta((prev) => ({
+          ...prev,
+          next_due: d.next_due ?? prev.next_due,
+          compliance_pct: d.compliance_pct ?? prev.compliance_pct,
+          monitoring_interval_minutes: d.monitoring_interval_minutes ?? prev.monitoring_interval_minutes,
+          active_vital_alerts: d.active_vital_alerts || prev.active_vital_alerts || [],
+        }));
+      }
+    } finally {
+      if (!silent) setLoadingVitals(false);
+    }
+  }, [activeSessionId, trendRange]);
+
+  useEffect(() => {
+    loadVitals(trendRange);
+  }, [loadVitals, trendRange]);
+
+  // Offline draft for this screen (Part 3 draft-save convention).
+  useEffect(() => {
+    if (!activeSessionId) return;
+    writeDraft(`${activeSessionId}:p302-vitals`, form);
+  }, [activeSessionId, form]);
+
   const executeSave = async () => {
-    const activeSessionId = getValidSessionId(sessionId);
-    if (!activeSessionId) {
+    const validSessionId = getValidSessionId(sessionId);
+    if (!validSessionId) {
       const alertMsg = 'No active dialysis session ID found. Please start a session from Patient Profile before saving vitals.';
       setError(alertMsg);
       return false;
@@ -1198,9 +1235,9 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
       recorded_at,
     };
 
-    const result = await createIntradialyticVitals(activeSessionId, payload);
-    setSaving(false);
+    const result = await createIntradialyticVitals(validSessionId, payload);
     if (!result.success) {
+      setSaving(false);
       const errMsg = responseData(result)?.message || result?.error || result?.message || 'Failed to save vitals entry.';
       setError(errMsg);
       return false;
@@ -1224,6 +1261,9 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
       recorded_by: recorded_by || '—',
       recorded_at,
     });
+    // Reload history/trend from server so charts update immediately (Part 3 test case).
+    await loadVitals(trendRange, { silent: true });
+    setSaving(false);
     return { saved, symptoms: form.symptoms };
   };
 
@@ -1249,39 +1289,6 @@ function VitalsForm({ sessionId, readings, onSaved, go }) {
     }
     resetForm();
   };
-
-  const activeSessionId = sessionId || localStorage.getItem('lastDialysisSessionId') || sessionStorage.getItem('lastDialysisSessionId') || '';
-  const [fetchedVitals, setFetchedVitals] = useState([]);
-  const [loadingVitals, setLoadingVitals] = useState(false);
-
-  const loadVitals = useCallback(async (range = trendRange) => {
-    if (!activeSessionId || activeSessionId === 'preview' || activeSessionId === 'demo') return;
-    setLoadingVitals(true);
-    const res = await getIntradialyticVitals(activeSessionId, range);
-    setLoadingVitals(false);
-    if (res?.success) {
-      const d = responseData(res);
-      const items = Array.isArray(d) ? d : (d.readings || d.items || d.vitals || []);
-      setFetchedVitals(items);
-      setMonitoringMeta((prev) => ({
-        ...prev,
-        next_due: d.next_due ?? prev.next_due,
-        compliance_pct: d.compliance_pct ?? prev.compliance_pct,
-        monitoring_interval_minutes: d.monitoring_interval_minutes ?? prev.monitoring_interval_minutes,
-        active_vital_alerts: d.active_vital_alerts || prev.active_vital_alerts || [],
-      }));
-    }
-  }, [activeSessionId, trendRange]);
-
-  useEffect(() => {
-    loadVitals(trendRange);
-  }, [loadVitals, trendRange]);
-
-  // Offline draft for this screen (Part 3 draft-save convention).
-  useEffect(() => {
-    if (!activeSessionId) return;
-    writeDraft(`${activeSessionId}:p302-vitals`, form);
-  }, [activeSessionId, form]);
 
   const historySource = useMemo(() => {
     if (fetchedVitals.length > 0) return fetchedVitals;
