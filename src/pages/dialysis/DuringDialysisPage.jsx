@@ -30,6 +30,7 @@ import {
   skipAllOverdueVitals,
 } from '../../ApiCalls/dialysisSessionApis';
 import { getDialysisSystolicIdByTitle, getSystolicIdByTitle } from '../../ApiCalls/readingsApis';
+import { getUsersByRole } from '../../ApiCalls/authapis';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
 import { calculateAge } from '../../hooks/usePatientSummary';
 import {
@@ -2999,7 +3000,18 @@ const MED_ROUTES = [
   'Intradialytic — via dialysate',
 ];
 
-function emptyMedForm(technicianLabel) {
+const MED_ADMIN_ROLES = ['Dialysis Technician', 'Nurse', 'Medical Staff'];
+
+function formatStaffOptionLabel(user) {
+  const name = [user?.firstname, user?.lastname].filter(Boolean).join(' ').trim()
+    || user?.name
+    || user?.email
+    || (user?.id != null ? `User #${user.id}` : 'Unknown');
+  const role = user?.role || user?.role_name || '';
+  return role ? `${name} (${role})` : name;
+}
+
+function emptyMedForm(technicianId) {
   return {
     medication: '',
     indication: '',
@@ -3007,7 +3019,7 @@ function emptyMedForm(technicianLabel) {
     unit: 'mg',
     route: '',
     administered_at: nowTime(),
-    administered_by: technicianLabel || '',
+    administered_by: technicianId ? String(technicianId) : '',
     quantity_used: '',
     quantity_unit: 'vial',
     expiry_date: '',
@@ -3040,8 +3052,7 @@ function matchAllergy(allergies, medication) {
 
 function MedicationAdministrationView({ sessionId, go, patientId }) {
   const technicianId = getTechnicianId();
-  const technicianLabel = technicianId || '';
-  const [form, setForm] = useState(() => emptyMedForm(technicianLabel));
+  const [form, setForm] = useState(() => emptyMedForm(technicianId));
   const [preVitals, setPreVitals] = useState({ sbp: '', dbp: '', pulse: '', spo2: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -3056,6 +3067,7 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
   });
   const [allergies, setAllergies] = useState([]);
   const [history, setHistory] = useState([]);
+  const [staffOptions, setStaffOptions] = useState([]);
 
   const activeSessionId = getValidSessionId(sessionId);
 
@@ -3092,6 +3104,36 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
   useEffect(() => {
     refreshLists();
   }, [refreshLists]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const results = await Promise.all(MED_ADMIN_ROLES.map((role) => getUsersByRole(role)));
+      if (!mounted) return;
+      const byId = new Map();
+      results.forEach((res) => {
+        if (!res?.success) return;
+        const raw = responseData(res);
+        const list = Array.isArray(raw) ? raw : (raw?.users || raw?.items || raw?.data || []);
+        (list || []).forEach((user) => {
+          if (user?.id == null) return;
+          byId.set(String(user.id), {
+            id: String(user.id),
+            label: formatStaffOptionLabel(user),
+          });
+        });
+      });
+      // Always include the signed-in technician so the required dropdown can default safely.
+      if (technicianId && !byId.has(String(technicianId))) {
+        byId.set(String(technicianId), {
+          id: String(technicianId),
+          label: `Current user (#${technicianId})`,
+        });
+      }
+      setStaffOptions(Array.from(byId.values()));
+    })();
+    return () => { mounted = false; };
+  }, [technicianId]);
 
   useEffect(() => {
     if (!patientId) return;
@@ -3140,10 +3182,26 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
   };
 
   const resetForm = () => {
-    setForm(emptyMedForm(technicianLabel));
+    setForm(emptyMedForm(technicianId));
     setPreVitals({ sbp: '', dbp: '', pulse: '', spo2: '' });
     setError('');
     setInfo('');
+  };
+
+  const staffLabelById = useMemo(() => {
+    const map = {};
+    staffOptions.forEach((opt) => { map[String(opt.id)] = opt.label; });
+    return map;
+  }, [staffOptions]);
+
+  const resolveAdministeredByLabel = (row) => {
+    if (row?.administered_by_name) {
+      const role = row.administered_by_role ? ` (${row.administered_by_role})` : '';
+      return `${row.administered_by_name}${role}`;
+    }
+    const id = row?.administered_by;
+    if (id == null || id === '') return '—';
+    return staffLabelById[String(id)] || `User #${id}`;
   };
 
   const executeSave = async () => {
@@ -3153,6 +3211,11 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
     }
     if (!form.medication || !form.dose || !form.route || !form.administered_at || !form.administered_by || !form.quantity_used) {
       setError('Medication, Dose, Route, Administration Time, Administered By, and Quantity Used are required.');
+      return false;
+    }
+    const administeredById = Number(form.administered_by);
+    if (!Number.isFinite(administeredById)) {
+      setError('Administered By must be a technician or nurse from the staff list.');
       return false;
     }
     if (expiryBlocked) {
@@ -3179,7 +3242,7 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
       dose_unit: form.unit,
       route: form.route,
       administration_time: form.administered_at,
-      administered_by: form.administered_by,
+      administered_by: administeredById,
       quantity_used: form.quantity_used,
       quantity_unit: form.quantity_unit,
       expiry_date: form.expiry_date || null,
@@ -3338,12 +3401,12 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
               </Field>
 
               <Field label="Administered By" icon={PersonOutlinedIcon} required>
-                <Input
-                  type="text"
-                  placeholder="Technician / nurse ID or name"
-                  value={form.administered_by}
-                  onChange={update('administered_by')}
-                />
+                <Select value={form.administered_by} onChange={update('administered_by')}>
+                  <option value="">Select technician / nurse</option>
+                  {staffOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </Select>
               </Field>
 
               <div>
@@ -3474,7 +3537,7 @@ function MedicationAdministrationView({ sessionId, go, patientId }) {
                         <td>{row.dose != null ? `${row.dose} ${row.dose_unit || row.unit || ''}`.trim() : '—'}</td>
                         <td>{row.route || '—'}</td>
                         <td>{row.indication || '—'}</td>
-                        <td>{row.administered_by || '—'}</td>
+                        <td>{resolveAdministeredByLabel(row)}</td>
                         <td>
                           <span className="during-status-pill alert">
                             {Number(row.adverse_reaction) ? 'Adverse Reaction' : 'Administered'}
