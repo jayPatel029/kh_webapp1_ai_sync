@@ -162,7 +162,8 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
       }
     }).catch(() => {});
 
-    const read = active === 'P4-04' ? getTreatmentOutcome(sessionId) : active === 'P4-05' ? getSessionMedications(sessionId) : active === 'P4-06' && (patient?.machine_id || session?.machine_id) ? getMachineReadinessSummary(patient?.machine_id || session?.machine_id || 'machine-01') : active === 'P4-08' ? getDischargeReadiness(sessionId) : active === 'P4-10' ? getCompleteSummary(sessionId) : null;
+    const machineIdForRead = patient?.machine_id || session?.machine_id || session?.machineId || null;
+    const read = active === 'P4-04' ? getTreatmentOutcome(sessionId) : active === 'P4-05' ? getSessionMedications(sessionId) : active === 'P4-06' && machineIdForRead ? getMachineReadinessSummary(machineIdForRead) : active === 'P4-08' ? getDischargeReadiness(sessionId) : active === 'P4-10' ? getCompleteSummary(sessionId) : null;
     if (!read) return () => { mounted = false; };
     read.then((result) => {
       if (mounted) {
@@ -186,7 +187,13 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
     if (active === 'P4-03') return savePostDialysisVitals(sessionId, payload);
     if (active === 'P4-04') return saveTreatmentOutcome(sessionId, payload);
     if (active === 'P4-05') return saveFollowUp(sessionId, payload);
-    if (active === 'P4-06') return saveMachineCleaning(patient?.machine_id || session?.machine_id || 'machine-01', { ...payload, session_id: sessionId });
+    if (active === 'P4-06') {
+      const machineId = payload.machine_id || patient?.machine_id || session?.machine_id || session?.machineId;
+      if (!machineId) {
+        return { success: false, data: { message: 'No machine is linked to this session — cannot record cleaning.' } };
+      }
+      return saveMachineCleaning(machineId, { ...payload, session_id: sessionId, machine_id: machineId });
+    }
     if (active === 'P4-07') return saveInfectionControlPost(sessionId, payload);
     if (active === 'P4-08') return saveDischarge(sessionId, payload);
     if (active === 'P4-09') return saveSessionDocumentation(sessionId, payload);
@@ -346,12 +353,16 @@ export default function PostDialysisPage({ embedded = false, sessionId: embedded
   if (active === 'P4-06') {
     return (
       <div className={`post-page ${embedded ? 'post-page--embedded' : ''}`}>
+        {apiError && (
+          <div className="during-error" style={{ margin: '12px 16px' }}>{apiError}</div>
+        )}
         <P406MachineDisinfectionTurnover
           data={data}
           setData={setData}
           session={session}
           patient={patient}
-          onSave={() => go('P4-07')}
+          apiError={apiError}
+          onSave={(payload) => go('P4-07', payload)}
           onSaveDraft={() => {
             try {
               localStorage.setItem(`${DRAFT_KEY}:${sessionId}`, JSON.stringify(data));

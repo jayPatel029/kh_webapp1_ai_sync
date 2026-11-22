@@ -1,7 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { Button, Card, CardBody, Checkbox, Input, Select, Textarea } from '../../component-library';
+import React, { useMemo, useState } from 'react';
+import { Button, Textarea } from '../../component-library';
 
-// Material UI Icons
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
@@ -11,8 +10,8 @@ import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined';
 import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import CleaningServicesOutlinedIcon from '@mui/icons-material/CleaningServicesOutlined';
-import LocalHospitalOutlinedIcon from '@mui/icons-material/LocalHospitalOutlined';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
+import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 
 const SCREENS_STEPPER = [
   { step: 1, label: 'Blood Return & Termination' },
@@ -27,6 +26,137 @@ const SCREENS_STEPPER = [
   { step: 10, label: 'Session Complete' },
 ];
 
+function yn(v, fallback = '') {
+  if (v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'yes') return 'Yes';
+  if (v === false || v === 0 || v === '0' || String(v).toLowerCase() === 'no') return 'No';
+  if (v === 'Completed' || v === 'Not Applicable') return v;
+  return v != null && v !== '' ? String(v) : fallback;
+}
+
+function isPositiveInfection(raw) {
+  const s = String(raw || '').toLowerCase();
+  return s.includes('pos') || s === 'reactive' || s === '1' || s === 'true' || s === 'yes';
+}
+
+function isIsolationPatient(patient = {}, data = {}) {
+  const p = patient.patient || patient;
+  const candidates = [
+    p.hiv_status, p.hiv, p.hivStatus,
+    p.hbsag, p.hbsag_status, p.hepatitis_b, p.hepatitisB, p.hep_b,
+    p.infection_status, p.isolation_required,
+    data.hiv_status, data.hbsag_status, data.isolation_required,
+  ];
+  return candidates.some(isPositiveInfection);
+}
+
+function resolveLoggedInUser() {
+  try {
+    const id = localStorage.getItem('id')
+      || localStorage.getItem('userId')
+      || localStorage.getItem('user_id')
+      || localStorage.getItem('technicianId')
+      || '';
+    const name = localStorage.getItem('name')
+      || localStorage.getItem('userName')
+      || localStorage.getItem('username')
+      || '';
+    let fromJson = {};
+    try {
+      fromJson = JSON.parse(localStorage.getItem('user') || '{}') || {};
+    } catch {
+      fromJson = {};
+    }
+    const display = name
+      || fromJson.name
+      || [fromJson.firstname, fromJson.lastname].filter(Boolean).join(' ')
+      || (id ? `User #${id}` : '');
+    return { id: id || fromJson.id || null, display: display || '—' };
+  } catch {
+    return { id: null, display: '—' };
+  }
+}
+
+function readinessLabel(entry) {
+  if (!entry) return { status: 'Unavailable', date: null };
+  if (typeof entry === 'string') return { status: entry, date: null };
+  return {
+    status: entry.status || entry.result || 'Unavailable',
+    date: entry.date || entry.checked_at || null,
+  };
+}
+
+function isDone(v) {
+  const s = String(v || '').toLowerCase();
+  return s === 'yes' || s === 'completed' || s === 'complete';
+}
+
+function isNaValue(v) {
+  const s = String(v || '').toLowerCase().replace(/\s+/g, ' ');
+  return s === 'n/a' || s === 'na' || s === 'not applicable';
+}
+
+function ToggleYesNo({ value, onChange, completedMode = false }) {
+  if (completedMode) {
+    return (
+      <div className="p406-toggle-pills">
+        <button type="button" className={`p401-pill-btn ${value === 'Completed' ? 'active' : ''}`} onClick={() => onChange('Completed')}>Completed</button>
+        <button type="button" className={`p401-pill-btn ${value === 'Not Applicable' ? 'active-no' : ''}`} onClick={() => onChange('Not Applicable')}>Not Applicable</button>
+      </div>
+    );
+  }
+  return (
+    <div className="p406-toggle-pills">
+      <button type="button" className={`p401-pill-btn ${value === 'Yes' ? 'active' : ''}`} onClick={() => onChange('Yes')}>Yes</button>
+      <button type="button" className={`p401-pill-btn ${value === 'No' ? 'active-no' : ''}`} onClick={() => onChange('No')}>No</button>
+    </div>
+  );
+}
+
+function buildP406ApiPayload(form, verified) {
+  const disposal = {
+    bloodline_disposed: form.bloodlineDisposed || null,
+    dialyzer_disposed: form.dialyzerDisposed || null,
+    tubing_set_disposed: form.tubingSetDisposed || null,
+    needles_disposed: form.needlesDisposed || null,
+    sharps_white_container: form.sharpsWhiteContainer || null,
+    yellow_bag: form.yellowBag || null,
+    red_bag: form.redBag || null,
+    comments: form.disposalComments || null,
+  };
+  const disinfection = {
+    heat_disinfection: form.heatDisinfection || null,
+    heat_start_time: form.heatStartTime || null,
+    heat_end_time: form.heatEndTime || null,
+    chemical_disinfection: form.chemicalDisinfection || null,
+    solution_used: form.chemicalSolution || null,
+    contact_time: form.chemicalContactTime || null,
+    rinse_completed: form.rinseCompleted || null,
+    rinse_time: form.rinseTime || null,
+  };
+  const surface_cleaning = {
+    exterior_surfaces_wiped: form.exteriorWiped || null,
+    touch_screen_cleaned: form.touchscreenCleaned || null,
+    alarms_controls_cleaned: form.controlsCleaned || null,
+    accessory_trays_cleaned: form.traysCleaned || null,
+    chair_bed_area_cleaned: form.chairCleaned || null,
+    floor_area_cleaned: form.floorCleaned || null,
+    sodium_hypochlorite: form.sodiumHypochlorite || null,
+    citric_acid: form.citricAcid || null,
+    peracetic_acid: form.peraceticAcid || null,
+    hydrogen_peroxide: form.hydrogenPeroxide || null,
+    comments: form.surfaceComments || null,
+  };
+  return {
+    disposal,
+    disinfection,
+    surface_cleaning,
+    verified_by: verified.id || verified.display || null,
+    verified_at: verified.at,
+    verifiedBy: verified.display,
+    verifiedAt: verified.at,
+  };
+}
+
 export default function P406MachineDisinfectionTurnover({
   data = {},
   setData,
@@ -35,8 +165,8 @@ export default function P406MachineDisinfectionTurnover({
   onSave,
   onSaveDraft,
   onBack,
+  apiError = '',
 }) {
-  // Extract patient & session metadata
   const p = patient.patient || patient;
   const patientName = p.name || p.patient_name || (p.id ? `Patient #${p.id}` : '—');
   const pid = p.patient_code || p.patientCode || p.pid || p.patient_id || (p.id ? `P${p.id}` : '—');
@@ -45,122 +175,180 @@ export default function P406MachineDisinfectionTurnover({
   const ageVal = p.age ? String(p.age) : '—';
   const ageGender = ageVal !== '—' && gender !== '—' ? `${ageVal} Years, ${gender}` : (ageVal !== '—' ? `${ageVal} Years` : gender);
   const bloodGroup = p.bloodGroup || p.blood_group || '—';
-  const accessDetail = p.vascular_access || p.access || session.access || '—';
+  const accessDetail = p.vascular_access || p.access || session.access || data.access || '—';
   const nephrologist = p.primary_doctor_name || p.nephrologist || session.nephrologist || p.doctor_name || '—';
 
-  const startTimeStr = session.started_at || session.start_time || '07:45 AM';
-  const endTimeStr = session.endTime || '11:20 AM';
-  const durationStr = session.treatmentDuration || '03:35 hr';
-  const ufRemovedStr = session.totalUfRemoved ? `${session.totalUfRemoved} L` : '1.65 L';
-  const machineModel = session.machine || patient.machine || 'Fresenius 4008S';
-  const bedStr = session.bed || patient.bed || 'B-02';
+  const startTimeStr = session.started_at || session.start_time || data.started_at || '—';
+  const endTimeStr = data.endTime || session.ended_at || session.end_time || '—';
+  const durationStr = data.treatmentDuration || session.treatmentDuration || session.duration || '—';
+  const ufRemovedStr = data.totalUfRemoved != null && data.totalUfRemoved !== ''
+    ? `${data.totalUfRemoved} L`
+    : (session.totalUfRemoved != null ? `${session.totalUfRemoved} L` : '—');
+  const bedStr = session.bed || session.bed_number || patient.bed || '—';
+  const machineId = patient.machine_id || session.machine_id || session.machineId || data.machine_id || null;
+  const machineModel = session.machine_name || session.machine || patient.machine || machineId || '—';
 
-  // Section 1: Post-Use Disposal State
-  const [bloodlineDisposed, setBloodlineDisposed] = useState(data.bloodlineDisposed || 'Yes');
-  const [dialyzerDisposed, setDialyzerDisposed] = useState(data.dialyzerDisposed || 'Yes');
-  const [tubingSetDisposed, setTubingSetDisposed] = useState(data.tubingSetDisposed || 'Yes');
-  const [needlesDisposed, setNeedlesDisposed] = useState(data.needlesDisposed || 'Yes');
-  const [sharpsContainer, setSharpsContainer] = useState(data.sharpsContainer || '');
-  const [biohazardBag, setBiohazardBag] = useState(data.biohazardBag || '');
-  const [disposalComments, setDisposalComments] = useState(data.disposalComments || '');
+  const isolation = isIsolationPatient(patient, data);
+  const readiness = data.readiness_summary || {};
+  const qc = readinessLabel(readiness.qc);
+  const selfTest = readinessLabel(readiness.self_test);
+  const ro = readinessLabel(readiness.ro_verification);
+  const maintenance = readinessLabel(readiness.maintenance);
 
-  // Section 2: Machine Disinfection State
-  const [heatDisinfection, setHeatDisinfection] = useState(data.heatDisinfection || 'Completed');
-  const [heatStartTime, setHeatStartTime] = useState(data.heatStartTime || '11:21 AM');
-  const [heatEndTime, setHeatEndTime] = useState(data.heatEndTime || '11:41 AM');
+  const loggedIn = resolveLoggedInUser();
+  const verifiedAtDefault = data.verifiedAt || data.verified_at || new Date().toISOString().slice(0, 16);
 
-  const [chemicalDisinfection, setChemicalDisinfection] = useState(data.chemicalDisinfection || 'Completed');
-  const [chemicalSolution, setChemicalSolution] = useState(data.chemicalSolution || 'Citric Acid 50%');
-  const [chemicalContactTime, setChemicalContactTime] = useState(data.chemicalContactTime || '30');
+  const priorDisposal = data.disposal || {};
+  const priorDisinfection = data.disinfection || {};
+  const priorSurface = data.surface_cleaning || data.surfaceCleaning || {};
 
-  const [rinseCompleted, setRinseCompleted] = useState(data.rinseCompleted || 'Yes');
-  const [rinseTime, setRinseTime] = useState(data.rinseTime || '5');
+  const [bloodlineDisposed, setBloodlineDisposed] = useState(yn(data.bloodlineDisposed ?? priorDisposal.bloodline_disposed));
+  const [dialyzerDisposed, setDialyzerDisposed] = useState(yn(data.dialyzerDisposed ?? priorDisposal.dialyzer_disposed));
+  const [tubingSetDisposed, setTubingSetDisposed] = useState(yn(data.tubingSetDisposed ?? priorDisposal.tubing_set_disposed));
+  const [needlesDisposed, setNeedlesDisposed] = useState(yn(data.needlesDisposed ?? priorDisposal.needles_disposed));
+  const [sharpsWhiteContainer, setSharpsWhiteContainer] = useState(yn(data.sharpsWhiteContainer ?? priorDisposal.sharps_white_container));
+  const [yellowBag, setYellowBag] = useState(yn(data.yellowBag ?? priorDisposal.yellow_bag));
+  const [redBag, setRedBag] = useState(yn(data.redBag ?? priorDisposal.red_bag));
+  const [disposalComments, setDisposalComments] = useState(data.disposalComments || priorDisposal.comments || '');
 
-  // Section 3: Surface Cleaning State
-  const [exteriorWiped, setExteriorWiped] = useState(data.exteriorWiped || 'Yes');
-  const [touchscreenCleaned, setTouchscreenCleaned] = useState(data.touchscreenCleaned || 'Yes');
-  const [controlsCleaned, setControlsCleaned] = useState(data.controlsCleaned || 'Yes');
-  const [traysCleaned, setTraysCleaned] = useState(data.traysCleaned || 'Yes');
-  const [chairCleaned, setChairCleaned] = useState(data.chairCleaned || 'Yes');
-  const [floorCleaned, setFloorCleaned] = useState(data.floorCleaned || 'Yes');
-  const [cleaningAgent, setCleaningAgent] = useState(data.cleaningAgent || '');
-  const [surfaceComments, setSurfaceComments] = useState(data.surfaceComments || '');
+  const [heatDisinfection, setHeatDisinfection] = useState(
+    yn(data.heatDisinfection ?? priorDisinfection.heat_disinfection),
+  );
+  const [heatStartTime, setHeatStartTime] = useState(data.heatStartTime || priorDisinfection.heat_start_time || '');
+  const [heatEndTime, setHeatEndTime] = useState(data.heatEndTime || priorDisinfection.heat_end_time || '');
+  const [chemicalDisinfection, setChemicalDisinfection] = useState(
+    yn(data.chemicalDisinfection ?? priorDisinfection.chemical_disinfection),
+  );
+  const [chemicalSolution, setChemicalSolution] = useState(data.chemicalSolution || priorDisinfection.solution_used || '');
+  const [chemicalContactTime, setChemicalContactTime] = useState(data.chemicalContactTime || priorDisinfection.contact_time || '');
+  const [rinseCompleted, setRinseCompleted] = useState(yn(data.rinseCompleted ?? priorDisinfection.rinse_completed));
+  const [rinseTime, setRinseTime] = useState(data.rinseTime || priorDisinfection.rinse_time || '');
 
-  // Section 4: Machine Inspection & Readiness State
-  const [allLinesRemoved, setAllLinesRemoved] = useState(data.allLinesRemoved || 'Yes');
-  const [noResidue, setNoResidue] = useState(data.noResidue || 'Yes');
-  const [componentsIntact, setComponentsIntact] = useState(data.componentsIntact || 'Yes');
-  const [waterSystemStatus, setWaterSystemStatus] = useState(data.waterSystemStatus || 'OK');
-  const [readyForNextPatient, setReadyForNextPatient] = useState(data.readyForNextPatient || 'Yes');
+  const [exteriorWiped, setExteriorWiped] = useState(yn(data.exteriorWiped ?? priorSurface.exterior_surfaces_wiped));
+  const [touchscreenCleaned, setTouchscreenCleaned] = useState(yn(data.touchscreenCleaned ?? priorSurface.touch_screen_cleaned));
+  const [controlsCleaned, setControlsCleaned] = useState(yn(data.controlsCleaned ?? priorSurface.alarms_controls_cleaned));
+  const [traysCleaned, setTraysCleaned] = useState(yn(data.traysCleaned ?? priorSurface.accessory_trays_cleaned));
+  const [chairCleaned, setChairCleaned] = useState(yn(data.chairCleaned ?? priorSurface.chair_bed_area_cleaned));
+  const [floorCleaned, setFloorCleaned] = useState(yn(data.floorCleaned ?? priorSurface.floor_area_cleaned));
+  const [sodiumHypochlorite, setSodiumHypochlorite] = useState(yn(data.sodiumHypochlorite ?? priorSurface.sodium_hypochlorite));
+  const [citricAcid, setCitricAcid] = useState(yn(data.citricAcid ?? priorSurface.citric_acid));
+  const [peraceticAcid, setPeraceticAcid] = useState(yn(data.peraceticAcid ?? priorSurface.peracetic_acid));
+  const [hydrogenPeroxide, setHydrogenPeroxide] = useState(yn(data.hydrogenPeroxide ?? priorSurface.hydrogen_peroxide));
+  const [surfaceComments, setSurfaceComments] = useState(data.surfaceComments || priorSurface.comments || '');
 
-  const [nextPatientDate, setNextPatientDate] = useState(data.nextPatientDate || '2025-05-28');
-  const [nextPatientTime, setNextPatientTime] = useState(data.nextPatientTime || '01:30 PM');
-  const [assignedPatient, setAssignedPatient] = useState(data.assignedPatient || '');
-
-  // Section 5: Technician Verification State
-  const [verifiedBy, setVerifiedBy] = useState(data.verifiedBy || 'Rahul Singh (Technician)');
-  const [verifiedAt, setVerifiedAt] = useState(data.verifiedAt || '28 May 2025, 11:45 AM');
-  const [hasSignature, setHasSignature] = useState(data.hasSignature || true);
+  const [authConfirmed, setAuthConfirmed] = useState(Boolean(data.hasSignature || data.authConfirmed));
+  const [formError, setFormError] = useState('');
 
   const updateParentState = (updates) => {
-    if (setData) {
-      setData((old) => ({ ...old, ...updates }));
+    if (setData) setData((old) => ({ ...old, ...updates }));
+  };
+
+  const checklistForPct = useMemo(() => ([
+    bloodlineDisposed, dialyzerDisposed, tubingSetDisposed, needlesDisposed,
+    sharpsWhiteContainer, yellowBag, redBag,
+    heatDisinfection, chemicalDisinfection, rinseCompleted,
+    exteriorWiped, touchscreenCleaned, controlsCleaned, traysCleaned, chairCleaned, floorCleaned,
+  ]), [
+    bloodlineDisposed, dialyzerDisposed, tubingSetDisposed, needlesDisposed,
+    sharpsWhiteContainer, yellowBag, redBag,
+    heatDisinfection, chemicalDisinfection, rinseCompleted,
+    exteriorWiped, touchscreenCleaned, controlsCleaned, traysCleaned, chairCleaned, floorCleaned,
+  ]);
+
+  const compliance = useMemo(() => {
+    const applicable = checklistForPct.filter((v) => v != null && v !== '' && !isNaValue(v));
+    if (!applicable.length) return { pct: 0, done: 0, total: 0 };
+    const done = applicable.filter((v) => isDone(v)).length;
+    return {
+      pct: Math.round((done / applicable.length) * 100),
+      done,
+      total: applicable.length,
+    };
+  }, [checklistForPct]);
+
+  const disinfectionOk = (isDone(heatDisinfection) || isNaValue(heatDisinfection))
+    && (isDone(chemicalDisinfection) || isNaValue(chemicalDisinfection))
+    && isDone(rinseCompleted)
+    && heatDisinfection !== ''
+    && chemicalDisinfection !== '';
+
+  const handleFormSubmit = async () => {
+    setFormError('');
+    if (!machineId) {
+      setFormError('No machine is linked to this session — cannot record cleaning.');
+      return;
+    }
+    const requiredYes = [
+      bloodlineDisposed, dialyzerDisposed, tubingSetDisposed, needlesDisposed,
+      sharpsWhiteContainer, yellowBag, redBag,
+      exteriorWiped, touchscreenCleaned, controlsCleaned, traysCleaned, chairCleaned, floorCleaned,
+    ];
+    if (requiredYes.some((v) => !isDone(v))) {
+      setFormError('Complete all Post-Use Disposal and Surface Cleaning items (Yes) before continuing.');
+      return;
+    }
+    if (!disinfectionOk) {
+      setFormError('Complete Machine Disinfection (Heat/Chemical Completed or N/A, Rinse = Yes).');
+      return;
+    }
+    const agents = [sodiumHypochlorite, citricAcid, peraceticAcid, hydrogenPeroxide];
+    if (agents.some((v) => v !== 'Yes' && v !== 'No')) {
+      setFormError('Answer all four cleaning-agent confirmations (Yes/No).');
+      return;
+    }
+    if (!agents.some((v) => v === 'Yes')) {
+      setFormError('Select at least one cleaning agent used.');
+      return;
+    }
+    if (!authConfirmed) {
+      setFormError('Confirm technician verification with your logged-in identity before continuing.');
+      return;
+    }
+
+    const form = {
+      bloodlineDisposed, dialyzerDisposed, tubingSetDisposed, needlesDisposed,
+      sharpsWhiteContainer, yellowBag, redBag, disposalComments,
+      heatDisinfection, heatStartTime, heatEndTime,
+      chemicalDisinfection, chemicalSolution, chemicalContactTime,
+      rinseCompleted, rinseTime,
+      exteriorWiped, touchscreenCleaned, controlsCleaned, traysCleaned, chairCleaned, floorCleaned,
+      sodiumHypochlorite, citricAcid, peraceticAcid, hydrogenPeroxide, surfaceComments,
+    };
+    const verified = {
+      id: loggedIn.id,
+      display: loggedIn.display,
+      at: new Date().toISOString(),
+    };
+    const apiPayload = buildP406ApiPayload(form, verified);
+    updateParentState({
+      ...form,
+      ...apiPayload,
+      authConfirmed: true,
+      disinfectionCompliancePct: compliance.pct,
+      machine_id: machineId,
+    });
+    if (onSave) {
+      const ok = await onSave({ ...apiPayload, session_id: session.id || session.session_id || data.session_id, machine_id: machineId });
+      if (ok === false) return;
     }
   };
 
-  const handleFormSubmit = () => {
-    const payload = {
-      bloodlineDisposed,
-      dialyzerDisposed,
-      tubingSetDisposed,
-      needlesDisposed,
-      sharpsContainer,
-      biohazardBag,
-      disposalComments,
-      heatDisinfection,
-      heatStartTime,
-      heatEndTime,
-      chemicalDisinfection,
-      chemicalSolution,
-      chemicalContactTime,
-      rinseCompleted,
-      rinseTime,
-      exteriorWiped,
-      touchscreenCleaned,
-      controlsCleaned,
-      traysCleaned,
-      chairCleaned,
-      floorCleaned,
-      cleaningAgent,
-      surfaceComments,
-      allLinesRemoved,
-      noResidue,
-      componentsIntact,
-      waterSystemStatus,
-      readyForNextPatient,
-      nextPatientDate,
-      nextPatientTime,
-      assignedPatient,
-      verifiedBy,
-      verifiedAt,
-      hasSignature,
-    };
-
-    updateParentState(payload);
-    if (onSave) onSave(payload);
+  const statusTone = (status) => {
+    const s = String(status || '').toLowerCase();
+    if (s.includes('pass') || s.includes('verif') || s.includes('up to date') || s.includes('ok')) return 'good';
+    if (s.includes('unavail') || s.includes('unknown')) return 'muted';
+    return 'warn';
   };
 
   return (
     <div className="p406-page-wrapper">
-      {/* Top Header Bar */}
       <header className="p406-top-bar">
         <div className="p406-top-bar-left">
           <h1>P4-06 – Machine Disinfection &amp; Turnover</h1>
-          <p>Ensure machine cleaned, disinfected and ready for next treatment.</p>
+          <p>Ensure machine cleaned and disinfected after treatment.</p>
         </div>
       </header>
 
-      {/* 10-Step Progress Stepper Bar */}
       <nav className="p406-stepper-bar" aria-label="Post-Dialysis 10-Step Progress">
         {SCREENS_STEPPER.map((s, idx) => {
           const isActive = s.step === 6;
@@ -168,9 +356,7 @@ export default function P406MachineDisinfectionTurnover({
           return (
             <React.Fragment key={s.step}>
               <div className={`p406-stepper-item ${isActive ? 'active' : isCompleted ? 'completed' : ''}`}>
-                <div className="p406-stepper-circle">
-                  {isCompleted ? '✓' : s.step}
-                </div>
+                <div className="p406-stepper-circle">{isCompleted ? '✓' : s.step}</div>
                 <span className="p406-stepper-label">{s.label}</span>
               </div>
               {idx < SCREENS_STEPPER.length - 1 && <div className="p406-stepper-line" />}
@@ -179,17 +365,15 @@ export default function P406MachineDisinfectionTurnover({
         })}
       </nav>
 
-      {/* Patient Profile Header Banner */}
       <div className="p406-patient-header-banner">
         <div className="p406-patient-left">
           <div className="p406-patient-avatar-box">
             {patient.avatarUrl ? (
               <img src={patient.avatarUrl} alt={patientName} />
             ) : (
-              <img
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
-                alt={patientName}
-              />
+              <div className="p406-patient-avatar-fallback" aria-hidden="true">
+                {(patientName || '?').slice(0, 1).toUpperCase()}
+              </div>
             )}
           </div>
           <div className="p406-patient-bio">
@@ -211,776 +395,280 @@ export default function P406MachineDisinfectionTurnover({
             </div>
           </div>
         </div>
-
-        {/* 5 Stat Boxes */}
         <div className="p406-patient-stats">
           <div className="p406-stat-box">
             <CalendarTodayOutlinedIcon className="p406-stat-icon" />
             <span className="p406-stat-lbl">Treatment Start</span>
             <strong className="p406-stat-val">{startTimeStr}</strong>
           </div>
-
           <div className="p406-stat-box">
             <AccessTimeOutlinedIcon className="p406-stat-icon" />
             <span className="p406-stat-lbl">Treatment End</span>
             <strong className="p406-stat-val">{endTimeStr}</strong>
           </div>
-
           <div className="p406-stat-box">
             <AccessTimeOutlinedIcon className="p406-stat-icon" />
             <span className="p406-stat-lbl">Duration</span>
             <strong className="p406-stat-val">{durationStr}</strong>
           </div>
-
           <div className="p406-stat-box">
             <WaterDropOutlinedIcon className="p406-stat-icon" />
             <span className="p406-stat-lbl">UF Removed</span>
             <strong className="p406-stat-val">{ufRemovedStr}</strong>
           </div>
-
           <div className="p406-stat-box">
             <HotelOutlinedIcon className="p406-stat-icon" />
-            <span className="p406-stat-lbl">Machine</span>
-            <strong className="p406-stat-val">{machineModel}</strong>
+            <span className="p406-stat-lbl">Machine / Bed</span>
+            <strong className="p406-stat-val">{machineModel} / {bedStr}</strong>
           </div>
         </div>
       </div>
 
-      {/* Main Workspace Layout Grid: 8/12 Main Left + 4/12 Right Rail */}
+      {isolation && (
+        <div className="during-error" style={{ margin: '0 16px 12px', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <WarningAmberOutlinedIcon sx={{ fontSize: 18 }} />
+          <span>
+            Isolation patient — use dedicated isolation-zone cleaning supplies and disposal containers only.
+            Do not return this machine to general rotation.
+          </span>
+        </div>
+      )}
+
       <div className="p406-workspace-grid">
-        {/* Left Column Content */}
         <div className="p406-main-form-column">
-          {/* Top 3-Column Split: Section 1, Section 2, Section 3 */}
           <div className="p406-top-3col-grid">
-            {/* Section 1: 1. Post-Use Disposal (Has Biohazard Icon) */}
             <div className="p406-card">
-              <div className="p406-card-title-row flex-between">
-                <h2>1. Post-Use Disposal</h2>
-                <span className="p406-biohazard-icon" title="Biohazard Hazard">☣️</span>
-              </div>
-
+              <div className="p406-card-title-row"><h2>1. Post-Use Disposal</h2></div>
               <div className="p406-checklist-grid">
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Bloodline Disposed
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${bloodlineDisposed === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setBloodlineDisposed('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${bloodlineDisposed === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setBloodlineDisposed('No')}
-                    >
-                      No
-                    </button>
+                {[
+                  ['Bloodline Disposed', bloodlineDisposed, setBloodlineDisposed],
+                  ['Dialyzer Disposed', dialyzerDisposed, setDialyzerDisposed],
+                  ['Tubing Set Disposed', tubingSetDisposed, setTubingSetDisposed],
+                  ['Needles Disposed (if any)', needlesDisposed, setNeedlesDisposed],
+                  ['Sharps discarded in white/translucent puncture-proof container?', sharpsWhiteContainer, setSharpsWhiteContainer],
+                  ['Infectious/biological waste discarded in yellow bag?', yellowBag, setYellowBag],
+                  ['Contaminated recyclable waste discarded in red bag?', redBag, setRedBag],
+                ].map(([label, value, setter]) => (
+                  <div className="p406-check-row" key={label}>
+                    <span className="p406-check-lbl">{label}</span>
+                    <ToggleYesNo value={value} onChange={(v) => { setter(v); updateParentState({ [label]: v }); }} />
                   </div>
-                </div>
-
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Dialyzer Disposed
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${dialyzerDisposed === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setDialyzerDisposed('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${dialyzerDisposed === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setDialyzerDisposed('No')}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Tubing Set Disposed
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${tubingSetDisposed === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setTubingSetDisposed('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${tubingSetDisposed === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setTubingSetDisposed('No')}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Needles Disposed (if any)
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${needlesDisposed === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setNeedlesDisposed('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${needlesDisposed === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setNeedlesDisposed('No')}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Sharps Container Used
-                  </span>
-                  <select
-                    value={sharpsContainer}
-                    onChange={(e) => setSharpsContainer(e.target.value)}
-                  >
-                    <option value="">Select container</option>
-                    <option value="Container A (Yellow)">Container A (Yellow)</option>
-                    <option value="Container B (Red)">Container B (Red)</option>
-                  </select>
-                </div>
-
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Biohazard Waste Bag Used
-                  </span>
-                  <select
-                    value={biohazardBag}
-                    onChange={(e) => setBiohazardBag(e.target.value)}
-                  >
-                    <option value="">Select bag</option>
-                    <option value="Yellow Biohazard Bag 50L">Yellow Biohazard Bag 50L</option>
-                    <option value="Red Biohazard Bag 30L">Red Biohazard Bag 30L</option>
-                  </select>
-                </div>
+                ))}
               </div>
-
               <div className="p406-form-field">
                 <div className="p406-notes-label">
                   <label>Comments</label>
                   <span className="p406-char-count">{disposalComments.length} / 200</span>
                 </div>
-                <Textarea
-                  maxLength={200}
-                  placeholder="Enter comments..."
-                  value={disposalComments}
-                  onChange={(e) => setDisposalComments(e.target.value)}
-                  style={{ minHeight: 45 }}
-                />
+                <Textarea maxLength={200} placeholder="Enter comments..." value={disposalComments} onChange={(e) => { setDisposalComments(e.target.value); updateParentState({ disposalComments: e.target.value }); }} style={{ minHeight: 45 }} />
               </div>
             </div>
 
-            {/* Section 2: 2. Machine Disinfection */}
             <div className="p406-card">
-              <div className="p406-card-title-row">
-                <h2>2. Machine Disinfection</h2>
-              </div>
-
-              {/* Heat Disinfection */}
+              <div className="p406-card-title-row"><h2>2. Machine Disinfection</h2></div>
               <div className="p406-disinfection-subblock">
                 <div className="p406-subhead-row">
-                  <span className="p406-subhead-title">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Heat Disinfection (Internal)
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${heatDisinfection === 'Completed' ? 'active' : ''}`}
-                      onClick={() => setHeatDisinfection('Completed')}
-                    >
-                      Completed
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${heatDisinfection === 'Not Applicable' ? 'active-no' : ''}`}
-                      onClick={() => setHeatDisinfection('Not Applicable')}
-                    >
-                      Not Applicable
-                    </button>
-                  </div>
+                  <span className="p406-subhead-title">Heat Disinfection (Internal)</span>
+                  <ToggleYesNo completedMode value={heatDisinfection} onChange={setHeatDisinfection} />
                 </div>
-
-                <div className="p406-2col-time">
-                  <div className="p406-form-field">
-                    <label>Start Time</label>
-                    <input
-                      type="text"
-                      value={heatStartTime}
-                      onChange={(e) => setHeatStartTime(e.target.value)}
-                    />
-                  </div>
-                  <div className="p406-form-field">
-                    <label>End Time</label>
-                    <input
-                      type="text"
-                      value={heatEndTime}
-                      onChange={(e) => setHeatEndTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Chemical Disinfection */}
-              <div className="p406-disinfection-subblock">
-                <div className="p406-subhead-row">
-                  <span className="p406-subhead-title">
-                    <span style={{ color: '#8b5cf6' }}>☤</span> Chemical Disinfection (If Applicable)
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${chemicalDisinfection === 'Completed' ? 'active' : ''}`}
-                      onClick={() => setChemicalDisinfection('Completed')}
-                    >
-                      Completed
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${chemicalDisinfection === 'Not Applicable' ? 'active-no' : ''}`}
-                      onClick={() => setChemicalDisinfection('Not Applicable')}
-                    >
-                      Not Applicable
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p406-2col-flex">
-                  <div className="p406-form-field flex-2">
-                    <label>Solution Used</label>
-                    <select
-                      value={chemicalSolution}
-                      onChange={(e) => setChemicalSolution(e.target.value)}
-                    >
-                      <option value="Citric Acid 50%">Citric Acid 50%</option>
-                      <option value="Peracetic Acid 3.5%">Peracetic Acid 3.5%</option>
-                      <option value="Sodium Hypochlorite">Sodium Hypochlorite</option>
-                    </select>
-                  </div>
-                  <div className="p406-form-field flex-1">
-                    <label>Contact Time</label>
-                    <div className="p406-addon-input">
-                      <input
-                        type="text"
-                        value={chemicalContactTime}
-                        onChange={(e) => setChemicalContactTime(e.target.value)}
-                      />
-                      <span className="p406-unit-addon">min</span>
+                {heatDisinfection === 'Completed' && (
+                  <div className="p406-2col-time">
+                    <div className="p406-form-field">
+                      <label>Start Time</label>
+                      <input type="time" value={heatStartTime} onChange={(e) => setHeatStartTime(e.target.value)} />
+                    </div>
+                    <div className="p406-form-field">
+                      <label>End Time</label>
+                      <input type="time" value={heatEndTime} onChange={(e) => setHeatEndTime(e.target.value)} />
                     </div>
                   </div>
-                </div>
+                )}
               </div>
-
-              {/* Rinse Completed */}
+              <div className="p406-disinfection-subblock">
+                <div className="p406-subhead-row">
+                  <span className="p406-subhead-title">Chemical Disinfection (If Applicable)</span>
+                  <ToggleYesNo completedMode value={chemicalDisinfection} onChange={setChemicalDisinfection} />
+                </div>
+                {chemicalDisinfection === 'Completed' && (
+                  <div className="p406-2col-flex">
+                    <div className="p406-form-field flex-2">
+                      <label>Solution Used</label>
+                      <select value={chemicalSolution} onChange={(e) => setChemicalSolution(e.target.value)}>
+                        <option value="">Select solution</option>
+                        <option value="Citric Acid 50%">Citric Acid 50%</option>
+                        <option value="Peracetic Acid 3.5%">Peracetic Acid 3.5%</option>
+                        <option value="Sodium Hypochlorite">Sodium Hypochlorite</option>
+                      </select>
+                    </div>
+                    <div className="p406-form-field flex-1">
+                      <label>Contact Time</label>
+                      <div className="p406-addon-input">
+                        <input type="number" value={chemicalContactTime} onChange={(e) => setChemicalContactTime(e.target.value)} />
+                        <span className="p406-unit-addon">min</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="p406-2col-flex">
                 <div className="p406-form-field flex-1">
                   <label>Rinse Completed</label>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${rinseCompleted === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setRinseCompleted('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${rinseCompleted === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setRinseCompleted('No')}
-                    >
-                      No
-                    </button>
-                  </div>
+                  <ToggleYesNo value={rinseCompleted} onChange={setRinseCompleted} />
                 </div>
-
                 <div className="p406-form-field flex-1">
                   <label>Rinse Time</label>
                   <div className="p406-addon-input">
-                    <input
-                      type="text"
-                      value={rinseTime}
-                      onChange={(e) => setRinseTime(e.target.value)}
-                    />
+                    <input type="number" value={rinseTime} onChange={(e) => setRinseTime(e.target.value)} />
                     <span className="p406-unit-addon">min</span>
                   </div>
                 </div>
               </div>
-
-              {/* Disinfection Status Banner */}
-              <div className="p406-success-disinfection-banner">
-                <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 18 }} />
-                <span>Disinfection cycle completed successfully.</span>
-              </div>
+              {disinfectionOk ? (
+                <div className="p406-success-disinfection-banner">
+                  <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 18 }} />
+                  <span>Disinfection cycle completed successfully.</span>
+                </div>
+              ) : (
+                <div className="during-error" style={{ marginTop: 8 }}>
+                  Disinfection incomplete — finish Heat/Chemical (or mark N/A) and Rinse = Yes.
+                </div>
+              )}
             </div>
 
-            {/* Section 3: 3. Surface Cleaning */}
             <div className="p406-card">
-              <div className="p406-card-title-row">
-                <h2>3. Surface Cleaning</h2>
-              </div>
-
+              <div className="p406-card-title-row"><h2>3. Surface Cleaning</h2></div>
               <div className="p406-checklist-grid">
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Exterior Surfaces Wiped
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${exteriorWiped === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setExteriorWiped('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${exteriorWiped === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setExteriorWiped('No')}
-                    >
-                      No
-                    </button>
+                {[
+                  ['Exterior Surfaces Wiped', exteriorWiped, setExteriorWiped],
+                  ['Touch Screen Cleaned', touchscreenCleaned, setTouchscreenCleaned],
+                  ['Alarms & Controls Cleaned', controlsCleaned, setControlsCleaned],
+                  ['Accessory Trays Cleaned', traysCleaned, setTraysCleaned],
+                  ['Chair / Bed Area Cleaned', chairCleaned, setChairCleaned],
+                  ['Floor Area Cleaned', floorCleaned, setFloorCleaned],
+                ].map(([label, value, setter]) => (
+                  <div className="p406-check-row" key={label}>
+                    <span className="p406-check-lbl">{label}</span>
+                    <ToggleYesNo value={value} onChange={setter} />
                   </div>
-                </div>
-
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Touch Screen Cleaned
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${touchscreenCleaned === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setTouchscreenCleaned('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${touchscreenCleaned === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setTouchscreenCleaned('No')}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Alarms &amp; Controls Cleaned
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${controlsCleaned === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setControlsCleaned('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${controlsCleaned === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setControlsCleaned('No')}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Accessory Trays Cleaned
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${traysCleaned === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setTraysCleaned('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${traysCleaned === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setTraysCleaned('No')}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Chair / Bed Area Cleaned
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${chairCleaned === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setChairCleaned('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${chairCleaned === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setChairCleaned('No')}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p406-check-row">
-                  <span className="p406-check-lbl">
-                    <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /> Floor Area Cleaned
-                  </span>
-                  <div className="p406-toggle-pills">
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${floorCleaned === 'Yes' ? 'active' : ''}`}
-                      onClick={() => setFloorCleaned('Yes')}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={`p401-pill-btn ${floorCleaned === 'No' ? 'active-no' : ''}`}
-                      onClick={() => setFloorCleaned('No')}
-                    >
-                      No
-                    </button>
-                  </div>
+                ))}
+              </div>
+              <div className="p406-form-field" style={{ marginTop: 12 }}>
+                <label>Have you cleaned the machine using:</label>
+                <div className="p406-checklist-grid">
+                  {[
+                    ['Sodium Hypochlorite?', sodiumHypochlorite, setSodiumHypochlorite],
+                    ['Citric Acid?', citricAcid, setCitricAcid],
+                    ['Peracetic Acid?', peraceticAcid, setPeraceticAcid],
+                    ['Hydrogen Peroxide?', hydrogenPeroxide, setHydrogenPeroxide],
+                  ].map(([label, value, setter]) => (
+                    <div className="p406-check-row" key={label}>
+                      <span className="p406-check-lbl">{label}</span>
+                      <ToggleYesNo value={value} onChange={setter} />
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              <div className="p406-form-field">
-                <label>Cleaning Agent Used</label>
-                <select
-                  value={cleaningAgent}
-                  onChange={(e) => setCleaningAgent(e.target.value)}
-                >
-                  <option value="">Select cleaning agent</option>
-                  <option value="70% Isopropyl Alcohol">70% Isopropyl Alcohol</option>
-                  <option value="Bleach Solution 1:10">Bleach Solution 1:10</option>
-                  <option value="Quaternary Ammonium Wipes">Quaternary Ammonium Wipes</option>
-                </select>
-              </div>
-
               <div className="p406-form-field">
                 <div className="p406-notes-label">
                   <label>Comments</label>
                   <span className="p406-char-count">{surfaceComments.length} / 200</span>
                 </div>
-                <Textarea
-                  maxLength={200}
-                  placeholder="Enter comments..."
-                  value={surfaceComments}
-                  onChange={(e) => setSurfaceComments(e.target.value)}
-                  style={{ minHeight: 45 }}
-                />
+                <Textarea maxLength={200} placeholder="Enter comments..." value={surfaceComments} onChange={(e) => setSurfaceComments(e.target.value)} style={{ minHeight: 45 }} />
               </div>
             </div>
           </div>
 
-          {/* Bottom 2-Column Split: Section 4 & Section 5 */}
           <div className="p406-bottom-2col-grid">
-            {/* Section 4: 4. Machine Inspection & Readiness */}
             <div className="p406-card">
-              <div className="p406-card-title-row">
-                <h2>4. Machine Inspection &amp; Readiness</h2>
+              <div className="p406-card-title-row"><h2>4. Current Readiness (Part 5)</h2></div>
+              <p style={{ color: '#64748b', fontSize: 13, marginTop: 0 }}>
+                Machine readiness for the next patient is determined automatically in Machine &amp; RO Management.
+                This screen documents cleaning only.
+              </p>
+              <div className="p406-checklist-grid">
+                {[
+                  ["Today's QC (P5-02)", qc],
+                  ['Self-Test (P5-04)', selfTest],
+                  ['RO Verification (P5-03)', ro],
+                  ['Maintenance (P5-06)', maintenance],
+                ].map(([label, entry]) => (
+                  <div className="p406-check-row" key={label}>
+                    <span className="p406-check-lbl">{label}</span>
+                    <strong className={`p406-status-pill ${statusTone(entry.status)}`}>
+                      {entry.status}{entry.date ? ` · ${entry.date}` : ''}
+                    </strong>
+                  </div>
+                ))}
               </div>
-
-              <div className="p406-inspection-2col">
-                {/* Left Toggle List */}
-                <div className="p406-inspection-left">
-                  <div className="p406-check-row">
-                    <span className="p406-check-lbl">All Lines Removed</span>
-                    <div className="p406-toggle-pills">
-                      <button
-                        type="button"
-                        className={`p401-pill-btn ${allLinesRemoved === 'Yes' ? 'active' : ''}`}
-                        onClick={() => setAllLinesRemoved('Yes')}
-                      >
-                        Yes
-                      </button>
-                      <button
-                        type="button"
-                        className={`p401-pill-btn ${allLinesRemoved === 'No' ? 'active-no' : ''}`}
-                        onClick={() => setAllLinesRemoved('No')}
-                      >
-                        No
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p406-check-row">
-                    <span className="p406-check-lbl">No Visible Residue / Stains</span>
-                    <div className="p406-toggle-pills">
-                      <button
-                        type="button"
-                        className={`p401-pill-btn ${noResidue === 'Yes' ? 'active' : ''}`}
-                        onClick={() => setNoResidue('Yes')}
-                      >
-                        Yes
-                      </button>
-                      <button
-                        type="button"
-                        className={`p401-pill-btn ${noResidue === 'No' ? 'active-no' : ''}`}
-                        onClick={() => setNoResidue('No')}
-                      >
-                        No
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p406-check-row">
-                    <span className="p406-check-lbl">Machine Components Intact</span>
-                    <div className="p406-toggle-pills">
-                      <button
-                        type="button"
-                        className={`p401-pill-btn ${componentsIntact === 'Yes' ? 'active' : ''}`}
-                        onClick={() => setComponentsIntact('Yes')}
-                      >
-                        Yes
-                      </button>
-                      <button
-                        type="button"
-                        className={`p401-pill-btn ${componentsIntact === 'No' ? 'active-no' : ''}`}
-                        onClick={() => setComponentsIntact('No')}
-                      >
-                        No
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p406-check-row">
-                    <span className="p406-check-lbl">Water System Status</span>
-                    <select
-                      value={waterSystemStatus}
-                      onChange={(e) => setWaterSystemStatus(e.target.value)}
-                    >
-                      <option value="OK">OK</option>
-                      <option value="Warning">Warning</option>
-                      <option value="Error">Error</option>
-                    </select>
-                  </div>
-
-                  <div className="p406-check-row">
-                    <span className="p406-check-lbl">Machine Ready for Next Patient</span>
-                    <div className="p406-toggle-pills">
-                      <button
-                        type="button"
-                        className={`p401-pill-btn ${readyForNextPatient === 'Yes' ? 'active' : ''}`}
-                        onClick={() => setReadyForNextPatient('Yes')}
-                      >
-                        Yes
-                      </button>
-                      <button
-                        type="button"
-                        className={`p401-pill-btn ${readyForNextPatient === 'No' ? 'active-no' : ''}`}
-                        onClick={() => setReadyForNextPatient('No')}
-                      >
-                        No
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Patient Assignment & Info Banner */}
-                <div className="p406-inspection-right">
-                  <div className="p406-form-field">
-                    <label>Next Patient Slot</label>
-                    <div className="p406-date-time-flex">
-                      <input
-                        type="date"
-                        value={nextPatientDate}
-                        onChange={(e) => setNextPatientDate(e.target.value)}
-                      />
-                      <input
-                        type="text"
-                        value={nextPatientTime}
-                        onChange={(e) => setNextPatientTime(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="p406-form-field">
-                    <label>Assigned To (If known)</label>
-                    <select
-                      value={assignedPatient}
-                      onChange={(e) => setAssignedPatient(e.target.value)}
-                    >
-                      <option value="">Select patient</option>
-                      <option value="P10024 - Suresh Patel">P10024 - Suresh Patel</option>
-                      <option value="P10025 - Anita Verma">P10025 - Anita Verma</option>
-                    </select>
-                  </div>
-
-                  <div className="p406-standby-info-box">
-                    <InfoOutlinedIcon sx={{ color: '#2563eb', fontSize: 18 }} />
-                    <span>Ensure machine is in standby mode until next treatment.</span>
-                  </div>
-                </div>
+              <div className="p406-standby-info-box" style={{ marginTop: 12 }}>
+                <InfoOutlinedIcon sx={{ color: '#2563eb', fontSize: 18 }} />
+                <span>Readiness never blocks this cleaning screen — assignment happens in Part 5 once cleaning is recorded.</span>
               </div>
             </div>
 
-            {/* Section 5: 5. Technician Verification (Cream/Gold Tinted Card) */}
             <div className="p406-card p406-card-verification">
-              <div className="p406-card-title-row">
-                <h2>5. Technician Verification</h2>
-              </div>
-
+              <div className="p406-card-title-row"><h2>5. Technician Verification</h2></div>
               <div className="p406-verification-grid">
                 <div className="p406-verification-inputs">
                   <div className="p406-form-field">
                     <label>Verified By</label>
-                    <input
-                      type="text"
-                      value={verifiedBy}
-                      onChange={(e) => setVerifiedBy(e.target.value)}
-                    />
+                    <input type="text" value={loggedIn.display} readOnly />
                   </div>
-
                   <div className="p406-form-field">
                     <label>Verified At</label>
-                    <input
-                      type="text"
-                      value={verifiedAt}
-                      onChange={(e) => setVerifiedAt(e.target.value)}
-                    />
+                    <input type="text" value={verifiedAtDefault} readOnly />
                   </div>
                 </div>
-
                 <div className="p406-signature-box">
-                  <label>Signature</label>
-                  <div className="p406-signature-pad">
-                    <span className="p406-signature-script">Rahul Singh</span>
-                    <button
-                      type="button"
-                      className="p406-sig-clear-btn"
-                      onClick={() => setHasSignature(false)}
-                    >
-                      Clear
-                    </button>
-                  </div>
+                  <label>Authentication</label>
+                  <label className="p406-edu-checkbox" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={authConfirmed}
+                      onChange={(e) => {
+                        setAuthConfirmed(e.target.checked);
+                        updateParentState({ authConfirmed: e.target.checked });
+                      }}
+                    />
+                    <span>
+                      <VerifiedUserOutlinedIcon sx={{ fontSize: 16, verticalAlign: 'middle', marginRight: 4 }} />
+                      I confirm cleaning documentation as the logged-in technician ({loggedIn.display}).
+                    </span>
+                  </label>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Rail Column (3 Stacked Cards) */}
         <div className="p406-right-rail">
-          {/* Card 1: Machine Readiness Status */}
-          <div className="p406-rail-card p406-readiness-summary-card">
-            <div className="p406-readiness-head">
-              <div className="p406-readiness-icon">
-                <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 26 }} />
-              </div>
-              <div className="p406-readiness-text">
-                <strong>Ready for Next Use</strong>
-                <span>All cleaning and disinfection steps completed.</span>
-              </div>
-            </div>
-
-            <div className="p406-readiness-meta">
-              <div className="p406-meta-row">
-                <span>Completed At</span>
-                <strong>11:45 AM</strong>
-              </div>
-              <div className="p406-meta-row">
-                <span>Completed By</span>
-                <strong>Rahul Singh (Technician)</strong>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Disinfection Compliance (Donut Progress SVG) */}
           <div className="p406-rail-card">
-            <div className="p406-rail-header">
-              <h3>Disinfection Compliance</h3>
-            </div>
-
-            <div className="p406-compliance-body">
-              <div className="p406-donut-wrap">
-                <svg viewBox="0 0 100 100" width="84" height="84">
-                  <circle cx="50" cy="50" r="40" stroke="#e2e8f0" strokeWidth="12" fill="none" />
-                  <circle cx="50" cy="50" r="40" stroke="#16a34a" strokeWidth="12" fill="none" strokeDasharray="251.2" strokeDashoffset="0" strokeLinecap="round" />
-                  <text x="50" y="55" textAnchor="middle" fontSize="16" fontWeight="800" fill="#0f172a">100%</text>
-                </svg>
-              </div>
-
-              <div className="p406-compliance-legend">
-                <div className="p406-comp-row">
-                  <span className="p406-dot-green" /> Completed
-                  <strong>5 / 5</strong>
-                </div>
-                <div className="p406-comp-row">
-                  <span className="p406-dot-amber" /> Pending
-                  <strong>0</strong>
-                </div>
-                <div className="p406-comp-row">
-                  <span className="p406-dot-gray" /> Not Applicable
-                  <strong>0</strong>
-                </div>
-              </div>
+            <div className="p406-rail-header"><h3>Disinfection Compliance</h3></div>
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <strong style={{ fontSize: 36 }}>{compliance.pct}%</strong>
+              <div style={{ color: '#64748b' }}>{compliance.done}/{compliance.total || 0} completed</div>
             </div>
           </div>
 
-          {/* Card 3: Key Reminders (Gold Tinted) */}
-          <div className="p406-rail-card p406-reminders-card">
+          <div className="p406-rail-card p406-pending-card">
             <div className="p406-rail-header">
               <LightbulbOutlinedIcon sx={{ color: '#b45309', fontSize: 18 }} />
               <h3 style={{ color: '#92400e' }}>Key Reminders</h3>
             </div>
-            <div className="p406-reminders-checklist">
-              <div className="p406-reminder-row">
-                <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} />
-                <span>Dispose all single-use items properly</span>
-              </div>
-              <div className="p406-reminder-row">
-                <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} />
-                <span>Complete disinfection cycle</span>
-              </div>
-              <div className="p406-reminder-row">
-                <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} />
-                <span>Wipe all external surfaces</span>
-              </div>
-              <div className="p406-reminder-row">
-                <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} />
-                <span>Ensure machine is dry and ready</span>
-              </div>
-              <div className="p406-reminder-row">
-                <CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} />
-                <span>Document any issues in comments</span>
-              </div>
+            <div className="p406-pending-list">
+              <div className="p406-pending-row"><CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /><span>Dispose bloodlines, dialyzer, tubing, needles</span></div>
+              <div className="p406-pending-row"><CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /><span>Complete heat or chemical disinfection + rinse</span></div>
+              <div className="p406-pending-row"><CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /><span>Wipe exterior, screen, controls, trays, chair, floor</span></div>
+              <div className="p406-pending-row"><CheckCircleOutlinedIcon sx={{ color: '#16a34a', fontSize: 16 }} /><span>Confirm cleaning agent(s) used</span></div>
+              {isolation && (
+                <div className="p406-pending-row"><WarningAmberOutlinedIcon sx={{ color: '#d97706', fontSize: 16 }} /><span>Isolation supplies only for this patient</span></div>
+              )}
+              <div className="p406-pending-row"><InfoOutlinedIcon sx={{ color: '#2563eb', fontSize: 16 }} /><span>Part 5 decides next-patient readiness</span></div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Footer Action Bar */}
       <footer className="p406-footer-bar">
         <div className="p406-footer-left">
           <Button type="button" variant="outline" onClick={onBack}>
@@ -988,9 +676,10 @@ export default function P406MachineDisinfectionTurnover({
           </Button>
         </div>
         <div className="p406-footer-right">
-          <Button type="button" variant="outline" onClick={onSaveDraft}>
-            Save as Draft
-          </Button>
+          {(formError || apiError) && (
+            <div className="during-error" style={{ marginRight: 12 }}>{formError || apiError}</div>
+          )}
+          <Button type="button" variant="outline" onClick={onSaveDraft}>Save as Draft</Button>
           <Button type="button" variant="primary" onClick={handleFormSubmit}>
             Save &amp; Continue <ArrowForwardOutlinedIcon sx={{ fontSize: 16 }} />
           </Button>
