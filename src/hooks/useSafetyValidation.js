@@ -151,14 +151,22 @@ export default function useSafetyValidation(patientId, rawSessionId) {
     setSaving(true);
     try {
       const res = await validateSafetyChecklist(activeSessionId, {
-        notes: notes ? String(notes).slice(0, 200) : '',
+        notes: notes ? String(notes).slice(0, 300) : '',
       });
       if (!res?.success) {
-        notifyError(res?.message || res?.error_code || 'Safety validation failed');
+        const code = res?.error_code;
+        const msg = res?.message
+          || (code === 'ERR_SAFETY_VALIDATION' ? 'One or more pre-dialysis steps are incomplete — open the blocking step and finish it.' : null)
+          || code
+          || 'Safety validation failed';
+        notifyError(msg);
+        if (Array.isArray(res?.details?.per_step) || Array.isArray(res?.data?.per_step)) {
+          await loadPage();
+        }
         return false;
       }
       if (res.data?.overall_pass === false) {
-        notifyError('One or more pre-dialysis steps are incomplete');
+        notifyError('One or more pre-dialysis steps are incomplete — open the blocking step and finish it.');
         await loadPage();
         return false;
       }

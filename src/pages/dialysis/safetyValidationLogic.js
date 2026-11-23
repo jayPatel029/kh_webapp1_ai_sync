@@ -22,7 +22,11 @@ export const SAFETY_STEP_CODES = {
 
 export const isStepCompleted = (status) => {
   const value = String(status || '').toLowerCase();
-  return value === 'complete' || value === 'completed' || value === 'passed';
+  return value === 'complete'
+    || value === 'completed'
+    || value === 'passed'
+    || value === 'done'
+    || value === 'ok';
 };
 
 export const normalizeSafetySteps = (steps = []) => {
