@@ -84,7 +84,7 @@ function normalizeFieldValue(fieldId, value) {
 function formFromRow(row) {
   if (!row) return {};
   return Object.entries(FIELD_API_KEYS).reduce((result, [fieldId, apiKey]) => {
-    const value = row[apiKey];
+    const value = row[apiKey] ?? row[fieldId];
     if (value !== undefined && value !== null && value !== '') {
       result[fieldId] = fieldId === 'accessFlow' ? String(value) : normalizeFieldValue(fieldId, value);
     }
@@ -207,10 +207,10 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
         setAccessType(savedAccessType);
         setFormData(formFromRow(savedRow));
         setDetailsData(parseDetails(savedRow));
-        setAdditionalObservations(savedRow.additional_observations || '');
+        setAdditionalObservations(savedRow.additional_observations || savedRow.additionalObservations || '');
         setAssessmentTime(formatIst(savedRow.recorded_at) || formatIst(new Date()));
       } else if (draft?.payload && typeof draft.payload === 'object') {
-        setAccessType(draft.payload.accessType || '');
+        setAccessType(draft.payload.accessType || sessionAccessType || '');
         setFormData(draft.payload.formData || {});
         setDetailsData(draft.payload.detailsData || {});
         setAdditionalObservations(draft.payload.additionalObservations || '');
@@ -218,7 +218,7 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
         if (draft.payload.skipReasons && typeof draft.payload.skipReasons === 'object') setSkipReasons(draft.payload.skipReasons);
         setAssessmentTime(formatIst(draft.savedAt) || formatIst(new Date()));
       } else {
-        setAccessType('');
+        setAccessType(sessionAccessType || '');
         setFormData({});
         setDetailsData({});
         setAdditionalObservations('');
@@ -273,15 +273,18 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
   }, [activeSessionId, accessType, formData, detailsData, additionalObservations, skippedFieldsList, skipReasons]);
 
   const buildPayload = useCallback((status, skips = []) => {
+    const allowedSkip = new Set(optionalFields.map((f) => f.field_name));
     const payload = {
       status,
       access_type: accessType,
       additional_observations: additionalObservations || '',
       details_json: detailsData,
-      skips: skips.map((skip) => ({
-        field_name: skip.field_name || skip,
-        reason: skip.reason || null,
-      })),
+      skips: skips
+        .map((skip) => ({
+          field_name: skip.field_name || skip,
+          reason: skip.reason || null,
+        }))
+        .filter((skip) => allowedSkip.has(String(skip.field_name))),
     };
 
     if (accessType === 'CVC') {
@@ -303,7 +306,7 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
     }
 
     return payload;
-  }, [accessType, additionalObservations, detailsData, formData]);
+  }, [accessType, additionalObservations, detailsData, formData, optionalFields]);
 
   const saveDraft = useCallback(async () => {
     if (!activeSessionId) {
@@ -342,7 +345,13 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
     try {
       const res = await submitVascularAccess(activeSessionId, buildPayload('final', skips));
       if (!res?.success) {
-        notifyError(res?.message || res?.error_code || 'Vascular access could not be saved');
+        const code = res?.error_code;
+        const msg = res?.message
+          || (code === 'ERR_ACCESS_NOT_SUITABLE' ? 'Critical access finding — do not cannulate; escalate before continuing.' : null)
+          || (code === 'ERR_CRITICAL_FIELD_REQUIRED' ? 'All critical vascular fields must be answered.' : null)
+          || code
+          || 'Vascular access could not be saved';
+        notifyError(msg);
         return false;
       }
       await persistLocalDraft({ skippedFieldsList: skips.map((skip) => skip.field_name || skip) });

@@ -26,40 +26,43 @@ export const validateVascularAccess = (accessType, currentConfig, formData) => {
 
     currentConfig.forEach((field) => {
       const val = formData[field.id];
-      // Check mandatory critical fields
-      if (field.critical && (val === undefined || val === '')) {
+      // Check mandatory critical fields (treat null the same as blank)
+      if (field.critical && (val === undefined || val === null || val === '')) {
         vErrors.push(`Required: ${field.label}`);
       }
 
       // Check Clinical Rules for failure state
       if (accessType === 'AVF' || accessType === 'AVG') {
-        if (field.id === 'signsOfInfection' && val === 'Yes') {
+        if (field.id === 'signsOfInfection' && String(val).toLowerCase() === 'yes') {
           failed = true; cErrors.push('Signs of Infection detected. Do not cannulate this access — escalate before proceeding.');
         }
-        if (field.id === 'bleedingDischarge' && val === 'Yes') {
+        if (field.id === 'bleedingDischarge' && String(val).toLowerCase() === 'yes') {
           failed = true; cErrors.push('Bleeding / Discharge detected. Escalate before proceeding.');
         }
-        if (field.id === 'thrillBruit' && val === 'Absent') {
+        if (field.id === 'thrillBruit' && String(val).toLowerCase() === 'absent') {
           failed = true; cErrors.push('AVF thrill absent. Escalate before proceeding.');
         }
-        if (field.id === 'accessFlow' && val !== undefined && val !== '') {
+        if (field.id === 'accessFlow' && val !== undefined && val !== null && val !== '') {
           const flow = Number(val);
           if (!Number.isFinite(flow) || flow < 500) {
             failed = true; cErrors.push('Access Flow < 500 mL/min. Escalate before proceeding.');
           }
         }
       } else if (accessType === 'CVC') {
-        if (field.id === 'signsOfInfectionCVC' && val === 'Yes') {
+        if (field.id === 'signsOfInfectionCVC' && String(val).toLowerCase() === 'yes') {
           failed = true; cErrors.push('Signs of infection/Erythema/Discharge detected. Escalate before proceeding.');
         }
-        if (field.id === 'catheterPatent' && val === 'No') {
+        if (field.id === 'catheterPatent' && String(val).toLowerCase() === 'no') {
           failed = true; cErrors.push('Catheter Patent is No. Escalate before proceeding.');
         }
       }
     });
 
     // Check if any critical field is missing
-    const missingCritical = currentConfig.some(f => f.critical && (formData[f.id] === undefined || formData[f.id] === ''));
+    const missingCritical = currentConfig.some((f) => {
+      const val = formData[f.id];
+      return f.critical && (val === undefined || val === null || val === '');
+    });
     if (missingCritical) {
       failed = true;
     }
