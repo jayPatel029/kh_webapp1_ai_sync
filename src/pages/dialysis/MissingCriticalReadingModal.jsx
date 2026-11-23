@@ -107,20 +107,54 @@ export default function MissingCriticalReadingModal({
                   </label>
                 </div>
                 {!isSkipped ? (
-                  <input
-                    type={field.inputType || 'number'}
-                    value={values[field.key] || ''}
-                    onChange={(e) => onChangeValue(field.key, e.target.value)}
-                    placeholder={`Enter ${field.label}`}
-                    style={{
-                      width: '100%',
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      border: '1px solid #cbd5e1',
-                      fontSize: 13,
-                      marginBottom: 8,
-                    }}
-                  />
+                  field.inputType === 'yn' ? (
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 8, fontSize: 13 }}>
+                      {['Yes', 'No'].map((opt) => (
+                        <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name={`critical-${field.key}`}
+                            checked={String(values[field.key] || '') === opt}
+                            onChange={() => onChangeValue(field.key, opt)}
+                          />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                  ) : Array.isArray(field.options) && field.options.length ? (
+                    <select
+                      value={values[field.key] || ''}
+                      onChange={(e) => onChangeValue(field.key, e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        border: '1px solid #cbd5e1',
+                        fontSize: 13,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <option value="">Select</option>
+                      {field.options.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={field.inputType || 'number'}
+                      value={values[field.key] || ''}
+                      onChange={(e) => onChangeValue(field.key, e.target.value)}
+                      placeholder={`Enter ${field.label}`}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        borderRadius: 8,
+                        border: '1px solid #cbd5e1',
+                        fontSize: 13,
+                        marginBottom: 8,
+                      }}
+                    />
+                  )
                 ) : null}
                 <input
                   type="text"

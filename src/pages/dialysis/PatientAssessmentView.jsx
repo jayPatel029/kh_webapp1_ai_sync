@@ -35,9 +35,14 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import usePatientAssessment, {
   KPS_DESCRIPTIONS,
   OPTIONAL_ASSESSMENT_FIELDS,
+  OBJECTIVE_OPTIONS,
+  OBJECTIVE_OTHER_FIELDS,
+  CRITICAL_ASSESSMENT_FIELDS,
 } from '../../hooks/usePatientAssessment';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { MISSING, resolveP2SessionId } from './p2Runtime';
+import MissingCriticalReadingModal from './MissingCriticalReadingModal';
+import { buildCriticalSkipsPayload } from './missingCriticalReading';
 import './duringDialysis.css';
 import { ROUTES } from '../../routes/routeConstants';
 
@@ -116,10 +121,12 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
     updateSubjectiveSymptom,
     updateSymptomDetail,
     updateObjectiveField,
+    updateObjectiveOtherDetail,
     updateFunctionalField,
     toggleAssistiveSupport,
     kpsDescription,
     canProceed,
+    blankCriticalFields,
     showSkipModal,
     setShowSkipModal,
     skippedFieldsList,
@@ -140,6 +147,12 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
   } = usePatientAssessment(patientId, effectiveSessionId);
 
   const [focusedSymptom, setFocusedSymptom] = useState(null);
+  const [showCriticalModal, setShowCriticalModal] = useState(false);
+  const [criticalDraftValues, setCriticalDraftValues] = useState({});
+  const [criticalSkipped, setCriticalSkipped] = useState({});
+  const [criticalReasons, setCriticalReasons] = useState({});
+  const [pendingCriticalSkips, setPendingCriticalSkips] = useState([]);
+  const [pendingOverrides, setPendingOverrides] = useState({});
 
   const handleBackClick = () => {
     if (onBack) {
@@ -180,23 +193,63 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
     };
   });
 
-  const handleSaveContinue = async () => {
-    if (!canProceed || saving) return;
+  const overridesFromCriticalDraft = (draftValues, skippedMap) => {
+    const subjective = {};
+    const objective = {};
+    CRITICAL_ASSESSMENT_FIELDS.forEach((field) => {
+      if (skippedMap[field.key]) return;
+      const val = draftValues[field.key];
+      if (val == null || String(val).trim() === '') return;
+      if (field.group === 'subjective') subjective[field.key] = val;
+      else objective[field.key] = val;
+    });
+    return { subjective, objective };
+  };
+
+  const continueAfterCriticalResolved = async (criticalSkips, overrides = {}) => {
     const skipped = checkSkippedNonMandatory();
     if (skipped.length > 0) {
+      setPendingCriticalSkips(criticalSkips || []);
+      setPendingOverrides(overrides);
       setSkippedFieldsList(skipped);
       setShowSkipModal(true);
       return;
     }
-    const saved = await submitFinal([]);
+    const saved = await submitFinal([], criticalSkips || [], overrides);
     if (saved) goNext();
+  };
+
+  const handleSaveContinue = async () => {
+    if (!canProceed || saving) return;
+    // v5 D8 — Critical blanks first (Missing Critical Reading popup).
+    if (blankCriticalFields.length > 0) {
+      setCriticalDraftValues({});
+      setCriticalSkipped({});
+      setCriticalReasons({});
+      setShowCriticalModal(true);
+      return;
+    }
+    await continueAfterCriticalResolved([]);
+  };
+
+  const confirmCriticalPopup = async () => {
+    const overrides = overridesFromCriticalDraft(criticalDraftValues, criticalSkipped);
+    const criticalSkips = buildCriticalSkipsPayload(blankCriticalFields, criticalSkipped, criticalReasons);
+    setShowCriticalModal(false);
+    await continueAfterCriticalResolved(criticalSkips, overrides);
   };
 
   const proceedToNext = async () => {
     if (!canProceed || saving) return;
-    const saved = await submitFinal(buildSkips(skippedFieldsList));
+    const saved = await submitFinal(
+      buildSkips(skippedFieldsList),
+      pendingCriticalSkips,
+      pendingOverrides,
+    );
     if (!saved) return;
     setShowSkipModal(false);
+    setPendingCriticalSkips([]);
+    setPendingOverrides({});
     goNext();
   };
 
@@ -398,160 +451,52 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                   </p>
                 </div>
 
-                {/* 9 Dropdowns Grid */}
+                {/* Objective dropdowns — v5 PC-1 option lists */}
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(5, 1fr)', gap: '14px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-                      General Appearance
-                    </label>
-                    <select
-                      value={objective.generalAppearance}
-                      onChange={(e) => updateObjectiveField('generalAppearance', e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                    >
-                      <option value="">Select</option>
-                      <option value="Alert">Alert</option>
-                      <option value="Drowsy">Drowsy</option>
-                      <option value="Lethargic">Lethargic</option>
-                      <option value="Distress">Distress</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-                      Consciousness*
-                    </label>
-                    <select
-                      value={objective.consciousness}
-                      onChange={(e) => updateObjectiveField('consciousness', e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                    >
-                      <option value="">Select</option>
-                      <option value="Oriented">Oriented</option>
-                      <option value="Confused">Confused</option>
-                      <option value="Unresponsive">Unresponsive</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-                      Edema
-                    </label>
-                    <select
-                      value={objective.edema}
-                      onChange={(e) => updateObjectiveField('edema', e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                    >
-                      <option value="">Select</option>
-                      <option value="None">None</option>
-                      <option value="Mild (1+)">Mild (1+)</option>
-                      <option value="Moderate (2+)">Moderate (2+)</option>
-                      <option value="Severe (3+/4+)">Severe (3+/4+)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-                      Hydration Status
-                    </label>
-                    <select
-                      value={objective.hydrationStatus}
-                      onChange={(e) => updateObjectiveField('hydrationStatus', e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                    >
-                      <option value="">Select</option>
-                      <option value="Euvolemic">Euvolemic</option>
-                      <option value="Dehydrated">Dehydrated</option>
-                      <option value="Fluid Overloaded">Fluid Overloaded</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-                      Skin Condition
-                    </label>
-                    <select
-                      value={objective.skinCondition}
-                      onChange={(e) => updateObjectiveField('skinCondition', e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                    >
-                      <option value="">Select</option>
-                      <option value="Normal">Normal</option>
-                      <option value="Dry">Dry</option>
-                      <option value="Pale">Pale</option>
-                      <option value="Jaundiced">Jaundiced</option>
-                      <option value="Lesions">Lesions</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(5, 1fr)', gap: '14px', marginBottom: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-                      JVP
-                    </label>
-                    <select
-                      value={objective.jvp}
-                      onChange={(e) => updateObjectiveField('jvp', e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                    >
-                      <option value="">Select</option>
-                      <option value="Normal">Normal</option>
-                      <option value="Elevated">Elevated</option>
-                      <option value="Not Visible">Not Visible</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-                      Lung Sounds*
-                    </label>
-                    <select
-                      value={objective.lungSounds}
-                      onChange={(e) => updateObjectiveField('lungSounds', e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                    >
-                      <option value="">Select</option>
-                      <option value="Clear">Clear</option>
-                      <option value="Crackles/Rales">Crackles/Rales</option>
-                      <option value="Wheezing">Wheezing</option>
-                      <option value="Diminished">Diminished</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-                      Heart Sounds*
-                    </label>
-                    <select
-                      value={objective.heartSounds}
-                      onChange={(e) => updateObjectiveField('heartSounds', e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                    >
-                      <option value="">Select</option>
-                      <option value="Normal">Normal</option>
-                      <option value="Murmur">Murmur</option>
-                      <option value="Gallop">Gallop</option>
-                      <option value="Distant">Distant</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
-                      Abdomen
-                    </label>
-                    <select
-                      value={objective.abdomen}
-                      onChange={(e) => updateObjectiveField('abdomen', e.target.value)}
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                    >
-                      <option value="">Select</option>
-                      <option value="Soft, Non-tender">Soft, Non-tender</option>
-                      <option value="Tender">Tender</option>
-                      <option value="Distended">Distended</option>
-                      <option value="Rigid">Rigid</option>
-                    </select>
-                  </div>
+                  {[
+                    ['generalAppearance', 'General Appearance'],
+                    ['consciousness', 'Consciousness*'],
+                    ['edema', 'Edema'],
+                    ['hydrationStatus', 'Hydration Status'],
+                    ['skinCondition', 'Skin Condition'],
+                    ['jvp', 'JVP'],
+                    ['lungSounds', 'Lung Sounds*'],
+                    ['heartSounds', 'Heart Sounds*'],
+                    ['abdomen', 'Abdomen'],
+                  ].map(([key, label]) => (
+                    <div key={key}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                        {label}
+                      </label>
+                      <select
+                        value={objective[key]}
+                        onChange={(e) => updateObjectiveField(key, e.target.value)}
+                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                      >
+                        <option value="">Select</option>
+                        {(OBJECTIVE_OPTIONS[key] || []).map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                      {OBJECTIVE_OTHER_FIELDS.has(key) && objective[key] === 'Other' ? (
+                        <input
+                          type="text"
+                          maxLength={200}
+                          placeholder="Describe (optional)"
+                          value={(objective.otherDetails && objective.otherDetails[key]) || ''}
+                          onChange={(e) => updateObjectiveOtherDetail(key, e.target.value)}
+                          style={{
+                            width: '100%',
+                            marginTop: '6px',
+                            padding: '6px 8px',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '12px',
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                  ))}
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
@@ -841,6 +786,29 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
             </div>
           </div>
         </div>
+
+        <MissingCriticalReadingModal
+          open={showCriticalModal}
+          fields={blankCriticalFields}
+          values={criticalDraftValues}
+          onChangeValue={(key, value) => setCriticalDraftValues((prev) => ({ ...prev, [key]: value }))}
+          skipped={criticalSkipped}
+          onToggleSkip={(key, next) => {
+            setCriticalSkipped((prev) => ({ ...prev, [key]: next }));
+            if (next) {
+              setCriticalDraftValues((prev) => {
+                const copy = { ...prev };
+                delete copy[key];
+                return copy;
+              });
+            }
+          }}
+          reasons={criticalReasons}
+          onChangeReason={(key, reason) => setCriticalReasons((prev) => ({ ...prev, [key]: reason }))}
+          onCancel={() => setShowCriticalModal(false)}
+          onConfirm={confirmCriticalPopup}
+          saving={saving}
+        />
 
         {/* Non-Mandatory Field Skip Popup Modal */}
         {showSkipModal && (

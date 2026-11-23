@@ -74,9 +74,9 @@ describe('P2-06 Patient Assessment Unit Logic & Validation Rules (Node environme
       expect(validateAssessmentState(validSubjective, validObjective)).toBe(true);
     });
 
-    it('returns false if a Critical Subjective symptom is missing', () => {
+    it('allows blank Critical fields (Missing Critical popup handles them)', () => {
       const invalidSub = { ...validSubjective, shortnessOfBreath: '' };
-      expect(validateAssessmentState(invalidSub, validObjective)).toBe(false);
+      expect(validateAssessmentState(invalidSub, validObjective)).toBe(true);
     });
 
     it('returns false if a symptom is "Yes" but description comment is empty', () => {

@@ -59,6 +59,39 @@ export const NON_CRITICAL_OBJECTIVE_FIELDS = [
   'abdomen',
 ];
 
+/** v5 PC-1 objective dropdown option lists. */
+export const OBJECTIVE_OPTIONS = {
+  generalAppearance: ['Alert', 'Well-appearing', 'Distressed', 'Lethargic', 'Uncomfortable', 'Other'],
+  consciousness: ['Alert', 'Oriented', 'Confused', 'Lethargic', 'Unresponsive'],
+  edema: ['None', 'Mild (1+)', 'Moderate (2+)', 'Moderate-Severe (3+)', 'Severe (4+)'],
+  hydrationStatus: ['Euvolemic', 'Hypovolemic/Dehydrated', 'Hypervolemic/Fluid Overloaded'],
+  skinCondition: ['Normal', 'Pale', 'Cyanotic', 'Jaundiced', 'Dry', 'Diaphoretic', 'Rash/Lesions Present', 'Other'],
+  jvp: ['Normal', 'Elevated', 'Not Assessable'],
+  lungSounds: ['Clear', 'Crackles/Rales', 'Wheezes', 'Diminished', 'Absent', 'Rhonchi'],
+  heartSounds: ['Normal (S1/S2)', 'Murmur', 'Irregular Rhythm', 'Muffled/Distant', 'Other'],
+  abdomen: ['Soft/Non-tender', 'Distended', 'Tender', 'Rigid', 'Other'],
+};
+
+/** Critical fields for Missing Critical Reading popup (v5 D8). */
+export const CRITICAL_ASSESSMENT_FIELDS = [
+  { key: 'shortnessOfBreath', field_name: 'shortness_of_breath', label: 'Shortness of Breath', group: 'subjective', inputType: 'yn' },
+  { key: 'chestPain', field_name: 'chest_pain', label: 'Chest Pain', group: 'subjective', inputType: 'yn' },
+  { key: 'feverChills', field_name: 'fever_chills', label: 'Fever / Chills', group: 'subjective', inputType: 'yn' },
+  { key: 'dizzinessGiddiness', field_name: 'dizziness_giddiness', label: 'Dizziness / Giddiness', group: 'subjective', inputType: 'yn' },
+  { key: 'bleedingBruising', field_name: 'bleeding_bruising', label: 'Bleeding / Bruising', group: 'subjective', inputType: 'yn' },
+  { key: 'consciousness', field_name: 'consciousness', label: 'Consciousness', group: 'objective', inputType: 'select', options: OBJECTIVE_OPTIONS.consciousness },
+  { key: 'lungSounds', field_name: 'lung_sounds', label: 'Lung Sounds', group: 'objective', inputType: 'select', options: OBJECTIVE_OPTIONS.lungSounds },
+  { key: 'heartSounds', field_name: 'heart_sounds', label: 'Heart Sounds', group: 'objective', inputType: 'select', options: OBJECTIVE_OPTIONS.heartSounds },
+  { key: 'anyAbnormalFinding', field_name: 'any_abnormal_finding', label: 'Any Abnormal Finding', group: 'objective', inputType: 'yn' },
+];
+
+export const OBJECTIVE_OTHER_FIELDS = new Set([
+  'generalAppearance',
+  'skinCondition',
+  'heartSounds',
+  'abdomen',
+]);
+
 export const KPS_DESCRIPTIONS = {
   '100': 'Normal; no complaints; no evidence of disease.',
   '90': 'Able to carry on normal activity; minor signs or symptoms of disease.',
@@ -110,6 +143,8 @@ const EMPTY_OBJECTIVE = {
   abdomen: '',
   anyAbnormalFinding: '',
   abnormalFindingDescription: '',
+  /** Optional free-text when dropdown = Other (D54). */
+  otherDetails: {},
 };
 
 const EMPTY_FUNCTIONAL = {
@@ -208,11 +243,15 @@ function assessmentFromApi(row) {
     subjective[camel] = normalizeYnUi(pickApiValue(source, camel, snake));
   });
   subjective.anyOtherSymptoms = pickApiValue(source, 'anyOtherSymptoms', 'any_other_symptoms');
-  const objective = { ...EMPTY_OBJECTIVE };
+  const objective = { ...EMPTY_OBJECTIVE, otherDetails: {} };
   Object.entries(OBJECTIVE_API_KEYS).forEach(([camel, snake]) => {
     const raw = pickApiValue(source, camel, snake);
     objective[camel] = camel === 'anyAbnormalFinding' ? normalizeYnUi(raw) : raw;
   });
+  const otherRaw = source.other_details || source.otherDetails || {};
+  if (otherRaw && typeof otherRaw === 'object') {
+    objective.otherDetails = { ...otherRaw };
+  }
   const support = source.assistive_support || source.assistiveSupport || {};
   return {
     subjective,
@@ -287,16 +326,11 @@ function hasSavedAssessment(row) {
 }
 
 /**
- * Validate that all Critical fields are selected and required conditional descriptions provided.
- * Any subjective "Yes" (critical or non-critical) requires a comment; Assistive Others needs qualifier.
+ * Soft gate for Save & Continue (v5 D8).
+ * Blank Critical fields no longer block — Missing Critical Reading popup handles them.
+ * Still require comments for answered Yes / Assistive Others qualifier.
  */
 export const validateAssessmentState = (subjective, objective, functional = null) => {
-  // Critical subjective must be answered
-  for (const symptom of CRITICAL_SUBJECTIVE_SYMPTOMS) {
-    if (!subjective[symptom]) return false;
-  }
-
-  // Any answered "Yes" subjective symptom requires a comment
   const allSubjective = [...CRITICAL_SUBJECTIVE_SYMPTOMS, ...NON_CRITICAL_SUBJECTIVE_SYMPTOMS];
   for (const symptom of allSubjective) {
     const val = subjective[symptom];
@@ -306,12 +340,6 @@ export const validateAssessmentState = (subjective, objective, functional = null
     }
   }
 
-  // Check Critical Objective Fields
-  if (!objective.consciousness || !objective.lungSounds || !objective.heartSounds || !objective.anyAbnormalFinding) {
-    return false;
-  }
-
-  // "Any Abnormal Finding = Yes" requires description
   if (
     String(objective.anyAbnormalFinding).toLowerCase() === 'yes'
     && (!objective.abnormalFindingDescription || !String(objective.abnormalFindingDescription).trim())
@@ -319,7 +347,6 @@ export const validateAssessmentState = (subjective, objective, functional = null
     return false;
   }
 
-  // Assistive Support "Others" requires qualifier text
   if (functional?.assistiveSupport?.others) {
     if (!functional.assistiveOthersText || !String(functional.assistiveOthersText).trim()) {
       return false;
@@ -359,7 +386,11 @@ export default function usePatientAssessment(patientId, rawSessionId) {
   const applySaved = useCallback((saved) => {
     if (!saved) return;
     setSubjective({ ...EMPTY_SUBJECTIVE, ...saved.subjective, symptomDetails: { ...(saved.subjective?.symptomDetails || {}) } });
-    setObjective({ ...EMPTY_OBJECTIVE, ...saved.objective });
+    setObjective({
+      ...EMPTY_OBJECTIVE,
+      ...saved.objective,
+      otherDetails: { ...(saved.objective?.otherDetails || {}) },
+    });
     setFunctional({
       ...EMPTY_FUNCTIONAL,
       ...saved.functional,
@@ -476,6 +507,16 @@ export default function usePatientAssessment(patientId, rawSessionId) {
     }));
   };
 
+  const updateObjectiveOtherDetail = (key, text) => {
+    setObjective((prev) => ({
+      ...prev,
+      otherDetails: {
+        ...(prev.otherDetails || {}),
+        [key]: String(text || '').slice(0, 200),
+      },
+    }));
+  };
+
   const updateFunctionalField = (key, value) => {
     setFunctional((prev) => ({
       ...prev,
@@ -502,6 +543,13 @@ export default function usePatientAssessment(patientId, rawSessionId) {
     [subjective, objective, functional]
   );
 
+  const blankCriticalFields = useMemo(() => (
+    CRITICAL_ASSESSMENT_FIELDS.filter((field) => {
+      const value = field.group === 'subjective' ? subjective[field.key] : objective[field.key];
+      return value === '' || value === null || value === undefined;
+    })
+  ), [subjective, objective]);
+
   const checkSkippedNonMandatory = () => OPTIONAL_ASSESSMENT_FIELDS
     .filter((field) => {
       const value = optionalFieldValue(field, subjective, objective, functional);
@@ -521,7 +569,22 @@ export default function usePatientAssessment(patientId, rawSessionId) {
     });
   }, [activeSessionId, subjective, objective, functional, skippedFieldsList, skipReasons]);
 
-  const buildPayload = useCallback((status, skips = []) => {
+  const buildPayload = useCallback((status, skips = [], criticalSkips = [], overrides = {}) => {
+    const subj = { ...subjective, ...(overrides.subjective || {}) };
+    if (overrides.subjective?.symptomDetails) {
+      subj.symptomDetails = {
+        ...(subjective.symptomDetails || {}),
+        ...overrides.subjective.symptomDetails,
+      };
+    }
+    const obj = {
+      ...objective,
+      ...(overrides.objective || {}),
+      otherDetails: {
+        ...(objective.otherDetails || {}),
+        ...((overrides.objective && overrides.objective.otherDetails) || {}),
+      },
+    };
     const ynApi = (value) => {
       const s = String(value || '').trim().toLowerCase();
       if (s === 'yes') return 'yes';
@@ -529,24 +592,25 @@ export default function usePatientAssessment(patientId, rawSessionId) {
       return value || '';
     };
     const symptomDetails = {};
-    Object.entries(subjective.symptomDetails || {}).forEach(([camel, text]) => {
+    Object.entries(subj.symptomDetails || {}).forEach(([camel, text]) => {
       const snake = SUBJECTIVE_API_KEYS[camel] || camel;
       if (text != null && String(text).trim() !== '') {
         symptomDetails[snake] = String(text).trim();
       }
     });
     const assessment = {
-      any_other_symptoms: subjective.anyOtherSymptoms || '',
+      any_other_symptoms: subj.anyOtherSymptoms || '',
       symptom_details: symptomDetails,
       kps: functional.kps || '',
       assistive_support: functional.assistiveSupport,
       assistive_others_text: functional.assistiveOthersText || '',
+      other_details: obj.otherDetails || {},
     };
     Object.entries(SUBJECTIVE_API_KEYS).forEach(([camel, snake]) => {
-      assessment[snake] = ynApi(subjective[camel]);
+      assessment[snake] = ynApi(subj[camel]);
     });
     Object.entries(OBJECTIVE_API_KEYS).forEach(([camel, snake]) => {
-      const raw = objective[camel] || '';
+      const raw = obj[camel] || '';
       assessment[snake] = camel === 'anyAbnormalFinding' ? ynApi(raw) : raw;
     });
     const allowedSkip = new Set(OPTIONAL_ASSESSMENT_FIELDS.map((f) => f.field_name));
@@ -560,6 +624,7 @@ export default function usePatientAssessment(patientId, rawSessionId) {
           reason: skip.reason || null,
         }))
         .filter((skip) => allowedSkip.has(String(skip.field_name))),
+      critical_skips: criticalSkips,
     };
   }, [subjective, objective, functional]);
 
@@ -586,7 +651,7 @@ export default function usePatientAssessment(patientId, rawSessionId) {
     }
   }, [activeSessionId, persistLocalDraft, buildPayload]);
 
-  const submitFinal = useCallback(async (skips = []) => {
+  const submitFinal = useCallback(async (skips = [], criticalSkips = [], overrides = {}) => {
     if (!canProceed) return false;
     if (!activeSessionId) {
       notifyError('No dialysis session to save against.');
@@ -594,12 +659,35 @@ export default function usePatientAssessment(patientId, rawSessionId) {
     }
     setSaving(true);
     try {
-      const res = await submitSessionAssessment(activeSessionId, buildPayload('final', skips));
+      if (overrides.subjective) {
+        setSubjective((prev) => ({
+          ...prev,
+          ...overrides.subjective,
+          symptomDetails: {
+            ...(prev.symptomDetails || {}),
+            ...(overrides.subjective.symptomDetails || {}),
+          },
+        }));
+      }
+      if (overrides.objective) {
+        setObjective((prev) => ({
+          ...prev,
+          ...overrides.objective,
+          otherDetails: {
+            ...(prev.otherDetails || {}),
+            ...(overrides.objective.otherDetails || {}),
+          },
+        }));
+      }
+      const res = await submitSessionAssessment(
+        activeSessionId,
+        buildPayload('final', skips, criticalSkips, overrides),
+      );
       if (!res?.success) {
         const code = res?.error_code;
         const msg = res?.message
           || (code === 'ERR_COMMENT_REQUIRED' ? 'A Yes answer needs a comment before continuing.' : null)
-          || (code === 'ERR_CRITICAL_FIELD_REQUIRED' ? 'All critical assessment fields must be answered.' : null)
+          || (code === 'ERR_CRITICAL_FIELD_REQUIRED' ? 'Enter or Skip each Critical field in the popup.' : null)
           || code
           || 'Assessment could not be saved';
         notifyError(msg);
@@ -624,10 +712,12 @@ export default function usePatientAssessment(patientId, rawSessionId) {
     updateSubjectiveSymptom,
     updateSymptomDetail,
     updateObjectiveField,
+    updateObjectiveOtherDetail,
     updateFunctionalField,
     toggleAssistiveSupport,
     kpsDescription: getKpsDescription(functional.kps),
     canProceed,
+    blankCriticalFields,
     showSkipModal,
     setShowSkipModal,
     skippedFieldsList,
