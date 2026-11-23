@@ -13,7 +13,7 @@
  * @file src/pages/dialysis/VitalsMeasurementsView.jsx
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Box, Button } from '../../component-library';
 import PreDialysisPatientProfileCard from '../../components/PreDialysisPatientProfileCard';
@@ -25,6 +25,8 @@ import useVitalsMeasurements, {
 } from '../../hooks/useVitalsMeasurements';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import { MISSING, formatIst, resolveP2SessionId } from './p2Runtime';
+import MissingCriticalReadingModal from './MissingCriticalReadingModal';
+import { buildCriticalSkipsPayload } from './missingCriticalReading';
 import './duringDialysis.css';
 import { ROUTES } from '../../routes/routeConstants';
 
@@ -112,7 +114,7 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
     glucoseEval,
     formSeverity,
     canProceed,
-    mandatoryFilled,
+    blankCriticalFields,
     showSkipModal,
     setShowSkipModal,
     skippedFieldsList,
@@ -130,6 +132,12 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
     submitFinal,
     plannedDurationHours,
   } = useVitalsMeasurements(patientId, effectiveSessionId);
+
+  const [showCriticalModal, setShowCriticalModal] = useState(false);
+  const [criticalDraftValues, setCriticalDraftValues] = useState({});
+  const [criticalSkipped, setCriticalSkipped] = useState({});
+  const [criticalReasons, setCriticalReasons] = useState({});
+  const [pendingNonCriticalSkips, setPendingNonCriticalSkips] = useState([]);
 
   const handleBackClick = () => {
     if (onBack) {
@@ -160,23 +168,56 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
     };
   });
 
-  const handleSaveContinue = async () => {
-    if (!canProceed || saving) return;
+  const continueAfterCriticalResolved = async (criticalSkips, formOverrides = {}) => {
+    // Recompute optional blanks after popup fills some criticals (optional set unchanged).
     const skipped = checkSkippedNonMandatory();
     if (skipped.length > 0) {
+      setPendingNonCriticalSkips(criticalSkips || []);
+      // stash overrides for the optional-skip confirm path
+      setCriticalDraftValues(formOverrides);
       setSkippedFieldsList(skipped);
       setShowSkipModal(true);
       return;
     }
-    const saved = await submitFinal([]);
+    const saved = await submitFinal([], criticalSkips || [], formOverrides);
     if (saved) goNext();
+  };
+
+  const handleSaveContinue = async () => {
+    if (!canProceed || saving) return;
+    // v5 D8 — Critical blanks first (Missing Critical Reading popup).
+    if (blankCriticalFields.length > 0) {
+      setCriticalDraftValues({});
+      setCriticalSkipped({});
+      setCriticalReasons({});
+      setShowCriticalModal(true);
+      return;
+    }
+    await continueAfterCriticalResolved([]);
+  };
+
+  const confirmCriticalPopup = async () => {
+    const formOverrides = {};
+    blankCriticalFields.forEach((field) => {
+      if (!criticalSkipped[field.key] && criticalDraftValues[field.key] != null && String(criticalDraftValues[field.key]).trim() !== '') {
+        formOverrides[field.key] = criticalDraftValues[field.key];
+      }
+    });
+    const criticalSkips = buildCriticalSkipsPayload(blankCriticalFields, criticalSkipped, criticalReasons);
+    setShowCriticalModal(false);
+    await continueAfterCriticalResolved(criticalSkips, formOverrides);
   };
 
   const proceedToNext = async () => {
     if (!canProceed || saving) return;
-    const saved = await submitFinal(buildSkips(skippedFieldsList));
+    const saved = await submitFinal(
+      buildSkips(skippedFieldsList),
+      pendingNonCriticalSkips,
+      criticalDraftValues,
+    );
     if (!saved) return;
     setShowSkipModal(false);
+    setPendingNonCriticalSkips([]);
     goNext();
   };
 
@@ -715,6 +756,29 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
             </div>
           </div>
         </div>
+
+        <MissingCriticalReadingModal
+          open={showCriticalModal}
+          fields={blankCriticalFields}
+          values={criticalDraftValues}
+          onChangeValue={(key, value) => setCriticalDraftValues((prev) => ({ ...prev, [key]: value }))}
+          skipped={criticalSkipped}
+          onToggleSkip={(key, next) => {
+            setCriticalSkipped((prev) => ({ ...prev, [key]: next }));
+            if (next) {
+              setCriticalDraftValues((prev) => {
+                const copy = { ...prev };
+                delete copy[key];
+                return copy;
+              });
+            }
+          }}
+          reasons={criticalReasons}
+          onChangeReason={(key, reason) => setCriticalReasons((prev) => ({ ...prev, [key]: reason }))}
+          onCancel={() => setShowCriticalModal(false)}
+          onConfirm={confirmCriticalPopup}
+          saving={saving}
+        />
 
         {/* Non-Mandatory Field Skip Popup Modal */}
         {showSkipModal && (

@@ -35,6 +35,17 @@ export const OPTIONAL_VITAL_FIELDS = [
   { key: 'glucose', field_name: 'glucose', label: 'Glucose' },
 ];
 
+/** Critical vitals for Missing Critical Reading popup (v5 D8). */
+export const CRITICAL_VITAL_FIELDS = [
+  { key: 'systolic', field_name: 'bp_systolic', label: 'BP Systolic', inputType: 'number' },
+  { key: 'diastolic', field_name: 'bp_diastolic', label: 'BP Diastolic', inputType: 'number' },
+  { key: 'pulse', field_name: 'pulse', label: 'Pulse', inputType: 'number' },
+  { key: 'temperature', field_name: 'temperature', label: 'Temperature', inputType: 'number' },
+  { key: 'spo2', field_name: 'spo2', label: 'SpO₂', inputType: 'number' },
+  { key: 'weightPre', field_name: 'weight_pre', label: 'Weight (Pre)', inputType: 'number' },
+  { key: 'edw', field_name: 'edw', label: 'EDW / Dry Weight', inputType: 'number' },
+];
+
 const EMPTY_FORM = {
   measurementTime: '',
   systolic: '',
@@ -232,8 +243,9 @@ export const evaluateUfRate = (ufRate) => {
   const v = parseFloat(ufRate);
   if (Number.isNaN(v)) return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal' };
   const t = getUfThresholds();
-  if (v >= t.critical) return { severity: VITAL_SEVERITY.CRITICAL, label: 'Critical ≥13 mL/kg/hr (hard block)' };
-  if (v >= t.warning) return { severity: VITAL_SEVERITY.WARNING, label: 'Warning ≥10 mL/kg/hr' };
+  // v5 D55 — until admin configures UF-rate behaviour, flag only (no hard block).
+  if (v >= t.critical) return { severity: VITAL_SEVERITY.CRITICAL, label: 'High ≥13 mL/kg/hr (alert)' };
+  if (v >= t.warning) return { severity: VITAL_SEVERITY.WARNING, label: 'High ≥10 mL/kg/hr (alert)' };
   return { severity: VITAL_SEVERITY.NORMAL, label: 'Normal' };
 };
 
@@ -425,34 +437,46 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
     (!formState.ktvChecked || formState.preDialysisBun)
   );
 
-  const canProceed = mandatoryFilled && formSeverity !== VITAL_SEVERITY.CRITICAL;
+  // v5 D1/D8 — out-of-range and blank Critical no longer disable Save & Continue.
+  // Blank Criticals go through Missing Critical Reading popup; OOR values save + alert.
+  const canProceed = !formState.ktvChecked || Boolean(formState.preDialysisBun);
+
+  const blankCriticalFields = useMemo(
+    () => CRITICAL_VITAL_FIELDS.filter((field) => {
+      const value = formState[field.key];
+      return value === '' || value === null || value === undefined;
+    }),
+    [formState]
+  );
 
   const checkSkippedNonMandatory = () => OPTIONAL_VITAL_FIELDS
     .filter((field) => formState[field.key] === '' || formState[field.key] === null || formState[field.key] === undefined)
     .map((field) => field.label);
 
-  const buildPayload = useCallback((status, skips = []) => {
+  const buildPayload = useCallback((status, skips = [], criticalSkips = [], formOverrides = {}) => {
+    const merged = { ...formState, ...formOverrides };
     const payload = {
       status,
-      bp_systolic: optionalNumber(formState.systolic),
-      bp_diastolic: optionalNumber(formState.diastolic),
-      pulse: optionalNumber(formState.pulse),
-      temperature: optionalNumber(formState.temperature),
-      spo2: optionalNumber(formState.spo2),
-      weight_pre: optionalNumber(formState.weightPre),
-      edw: optionalNumber(formState.edw),
-      last_post_weight: optionalNumber(formState.lastPostWeight),
-      respiratory_rate: optionalNumber(formState.respRate),
-      height_cm: optionalNumber(formState.height),
-      pain_score: optionalNumber(formState.painScore),
-      glucose: optionalNumber(formState.glucose),
-      notes: formState.notes ? String(formState.notes).slice(0, 200) : '',
-      kt_v_assessment_flag: Boolean(formState.ktvChecked),
-      pre_dialysis_bun: formState.ktvChecked ? optionalNumber(formState.preDialysisBun) : null,
+      bp_systolic: optionalNumber(merged.systolic),
+      bp_diastolic: optionalNumber(merged.diastolic),
+      pulse: optionalNumber(merged.pulse),
+      temperature: optionalNumber(merged.temperature),
+      spo2: optionalNumber(merged.spo2),
+      weight_pre: optionalNumber(merged.weightPre),
+      edw: optionalNumber(merged.edw),
+      last_post_weight: optionalNumber(merged.lastPostWeight),
+      respiratory_rate: optionalNumber(merged.respRate),
+      height_cm: optionalNumber(merged.height),
+      pain_score: optionalNumber(merged.painScore),
+      glucose: optionalNumber(merged.glucose),
+      notes: merged.notes ? String(merged.notes).slice(0, 200) : '',
+      kt_v_assessment_flag: Boolean(merged.ktvChecked),
+      pre_dialysis_bun: merged.ktvChecked ? optionalNumber(merged.preDialysisBun) : null,
       heparin_dose_units: heparinDoseUnits,
       heparin_concentration: heparinConcentration,
       treatment_duration_hours: plannedDurationHours,
       skips,
+      critical_skips: criticalSkips,
     };
     if (weightGain !== MISSING) payload.weight_gain = optionalNumber(weightGain);
     return payload;
@@ -481,7 +505,7 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
     }
   }, [activeSessionId, formState, buildPayload]);
 
-  const submitFinal = useCallback(async (skips = []) => {
+  const submitFinal = useCallback(async (skips = [], criticalSkips = [], formOverrides = {}) => {
     if (!canProceed) return false;
     if (!activeSessionId) {
       notifyError('No dialysis session to save against.');
@@ -489,19 +513,26 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
     }
     setSaving(true);
     try {
-      const res = await submitSessionVitals(activeSessionId, buildPayload('final', skips));
+      const mergedForm = { ...formState, ...formOverrides };
+      if (Object.keys(formOverrides).length) {
+        setFormState(mergedForm);
+      }
+      const res = await submitSessionVitals(
+        activeSessionId,
+        buildPayload('final', skips, criticalSkips, formOverrides),
+      );
       if (!res?.success) {
         notifyError(
           res?.message
           || (res?.error_code === 'ERR_UF_RATE_CEILING' ? 'UF rate exceeds safe ceiling — correct weight/EDW/duration.' : null)
-          || (res?.error_code === 'ERR_VITAL_CRITICAL' ? 'A critical vital is unresolved — correct before continuing.' : null)
+          || (res?.error_code === 'ERR_CRITICAL_FIELD_REQUIRED' ? 'Enter or Skip each Critical reading in the popup.' : null)
           || (res?.error_code === 'ERR_PRE_BUN_REQUIRED' ? 'Pre-Dialysis BUN is required when Kt/V Assessment is checked.' : null)
           || res?.error_code
           || 'Vitals could not be saved',
         );
         return false;
       }
-      await saveP2Draft(activeSessionId, 'P2-05', formState);
+      await saveP2Draft(activeSessionId, 'P2-05', mergedForm);
       notifySuccess('Vitals saved');
       return true;
     } catch (err) {
@@ -531,6 +562,7 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
     formSeverity,
     canProceed,
     mandatoryFilled,
+    blankCriticalFields,
     showSkipModal,
     setShowSkipModal,
     skippedFieldsList,
