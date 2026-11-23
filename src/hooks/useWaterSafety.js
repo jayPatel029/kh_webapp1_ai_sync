@@ -223,7 +223,13 @@ export default function useWaterSafety(patientId, rawSessionId) {
       if (shiftId != null && shiftId !== '') payload.shift_id = shiftId;
       const res = await reviewWaterSafety(activeSessionId, payload);
       if (!res?.success) {
-        notifyError(res?.message || res?.error_code || 'Water safety could not be confirmed');
+        const code = res?.error_code;
+        const msg = res?.message
+          || (code === 'ERR_WATER_SAFETY' ? 'Shift water check and today’s RO verification must both pass.' : null)
+          || (code === 'ERR_RO_PLANT_MISMATCH' ? 'Session RO plant does not match the submitted plant.' : null)
+          || code
+          || 'Water safety could not be confirmed';
+        notifyError(msg);
         return false;
       }
       await persistLocalDraft();

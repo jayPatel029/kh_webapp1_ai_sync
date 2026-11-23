@@ -1,13 +1,16 @@
 export const isTruthyFlag = (value) =>
-  value === 1 || value === true || value === '1' || String(value).toLowerCase() === 'true';
+  value === 1
+  || value === true
+  || value === '1'
+  || ['true', 'yes', 'pass', 'passed', 'ok', 'verified'].includes(String(value).toLowerCase());
 
 export const isShiftWaterPassed = (shiftCheck) =>
-  isTruthyFlag(shiftCheck?.shift_check_passed) || String(shiftCheck?.status || '').toLowerCase() === 'passed';
+  isTruthyFlag(shiftCheck?.shift_check_passed)
+  || ['passed', 'pass', 'ok'].includes(String(shiftCheck?.status || '').toLowerCase());
 
 export const isRoVerificationPassed = (verification) =>
   isTruthyFlag(verification?.daily_verification_passed)
-  || String(verification?.status || '').toLowerCase() === 'verified'
-  || String(verification?.status || '').toLowerCase() === 'passed';
+  || ['verified', 'passed', 'pass', 'ok'].includes(String(verification?.status || '').toLowerCase());
 
 export const canProceedWaterSafety = (shiftCheck, verification, roPlantId) => {
   if (!roPlantId || String(roPlantId).trim() === '') return false;

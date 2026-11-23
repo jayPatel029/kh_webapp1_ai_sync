@@ -27,6 +27,7 @@ import {
 } from './waterSafetyValidation';
 import { MISSING, resolveP2SessionId, liveValue, formatIst } from './p2Runtime';
 import { ROUTES } from '../../routes/routeConstants';
+import { notifyError } from '../../helpers/notify';
 import './duringDialysis.css';
 
 const CARD_STYLE = {
@@ -258,13 +259,26 @@ const WaterSafetyView = ({ patientId, sessionId: propSessionId, onBack, onNext, 
                 ) : (
                   <WarningAmberOutlinedIcon style={{ color: '#dc2626', marginTop: 2 }} />
                 )}
-                <div>
+                <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, color: banner.tone === 'ok' ? '#166534' : '#991b1b', fontSize: '14px' }}>
                     {banner.title}
                   </div>
                   <div style={{ color: banner.tone === 'ok' ? '#15803d' : '#b91c1c', fontSize: '13px', marginTop: 4 }}>
                     {banner.message}
                   </div>
+                  {banner.tone !== 'ok' && !isShiftWaterPassed(shiftCheck) && String(shiftCheck?.status || '').toLowerCase() !== 'failed' ? (
+                    <div style={{ marginTop: 10 }}>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          notifyError('Complete Part 5 Shift Water Check (P5-03a) for this plant, then refresh this page.');
+                          refresh();
+                        }}
+                      >
+                        Check Now →
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
