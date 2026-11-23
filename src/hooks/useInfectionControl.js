@@ -18,16 +18,17 @@ import { MISSING, unwrapRecord, formatIst } from '../pages/dialysis/p2Runtime';
 import { loadP2Draft, saveP2Draft } from '../pages/dialysis/p2DraftCache';
 import {
   INFECTION_ITEM_KEYS,
-  OPTIONAL_INFECTION_FIELDS,
   TRI_ITEM_KEYS,
   canProceedInfectionControl,
   computeInfectionCompliancePct,
   getCriticalInfectionIssues,
+  getOptionalInfectionFields,
   isInfectionItemCompliant,
   isNaInfectionValue,
   isScrubHubPassed,
   listSkippedInfectionFields,
   normalizeAccessType,
+  patientRequiresIsolationCritical,
 } from '../pages/dialysis/infectionControlValidation';
 
 export const EMPTY_ITEMS = INFECTION_ITEM_KEYS.reduce((acc, key) => {
@@ -71,15 +72,21 @@ export default function useInfectionControl(patientId, rawSessionId) {
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [skippedFieldsList, setSkippedFieldsList] = useState([]);
   const [skipReasons, setSkipReasons] = useState({});
+  const [isolationCritical, setIsolationCritical] = useState(false);
+
+  const optionalFields = useMemo(
+    () => getOptionalInfectionFields(isolationCritical),
+    [isolationCritical]
+  );
 
   const criticalInvalid = useMemo(
-    () => getCriticalInfectionIssues(items, accessType, scrubHub),
-    [items, accessType, scrubHub]
+    () => getCriticalInfectionIssues(items, accessType, scrubHub, isolationCritical),
+    [items, accessType, scrubHub, isolationCritical]
   );
 
   const canProceed = useMemo(
-    () => canProceedInfectionControl(items, accessType, scrubHub),
-    [items, accessType, scrubHub]
+    () => canProceedInfectionControl(items, accessType, scrubHub, isolationCritical),
+    [items, accessType, scrubHub, isolationCritical]
   );
 
   const compliancePct = useMemo(
@@ -114,13 +121,22 @@ export default function useInfectionControl(patientId, rawSessionId) {
         setPatientRaw(null);
         return;
       }
-      setPatientRaw(unwrapRecord(patientRes.data, ['patient']) || patientRes.data);
+      const patientData = unwrapRecord(patientRes.data, ['patient']) || patientRes.data;
+      setPatientRaw(patientData);
 
       if (safetyRes?.success && safetyRes.data) {
         const payload = safetyRes.data;
         const nextAccess = normalizeAccessType(payload.access_type || payload.session_access_type);
         setAccessType(nextAccess);
         setStepInfection(payload.step_infection || 'pending');
+        setIsolationCritical(
+          Boolean(payload.isolation_critical)
+          || patientRequiresIsolationCritical(patientData)
+          || patientRequiresIsolationCritical({
+            hiv_status: payload.hiv_status,
+            hepatitis_status: payload.hepatitis_status,
+          }),
+        );
 
         if (payload.checklist) {
           setItems(itemsFromChecklist(payload.checklist));
@@ -194,8 +210,8 @@ export default function useInfectionControl(patientId, rawSessionId) {
   }, [activeSessionId, accessType, items, scrubHub, notes, stepInfection, skippedFieldsList, skipReasons]);
 
   const checkSkippedNonMandatory = useCallback(
-    () => listSkippedInfectionFields(items),
-    [items]
+    () => listSkippedInfectionFields(items, isolationCritical),
+    [items, isolationCritical]
   );
 
   const buildPayload = useCallback((status, skips = []) => {
@@ -208,7 +224,11 @@ export default function useInfectionControl(patientId, rawSessionId) {
       if (v === 'not_applicable') return 'not_applicable';
       return !!v;
     };
-    const allowedSkip = new Set(OPTIONAL_INFECTION_FIELDS.map((f) => f.field_name));
+    const allowedSkip = new Set(optionalFields.map((f) => f.field_name));
+    // D35 — when Critical, store as boolean pass only (no N/A).
+    const isolationValue = isolationCritical
+      ? boolOrNull(items.isolation_precautions === 'not_applicable' ? null : items.isolation_precautions)
+      : triOrNull(items.isolation_precautions);
     return {
       status,
       access_type: accessType || undefined,
@@ -222,7 +242,7 @@ export default function useInfectionControl(patientId, rawSessionId) {
         ro_system_disinfection: triOrNull(items.ro_system_disinfection),
         dialyzer_reuse: triOrNull(items.dialyzer_reuse),
         biomedical_waste: boolOrNull(items.biomedical_waste),
-        isolation_precautions: triOrNull(items.isolation_precautions),
+        isolation_precautions: isolationValue,
       },
       scrub_the_hub_result: normalizeAccessType(accessType) === 'CVC'
         ? (scrubHub == null || scrubHub === ''
@@ -237,7 +257,7 @@ export default function useInfectionControl(patientId, rawSessionId) {
         }))
         .filter((skip) => allowedSkip.has(String(skip.field_name))),
     };
-  }, [accessType, items, scrubHub, notes]);
+  }, [accessType, items, scrubHub, notes, isolationCritical, optionalFields]);
 
   const saveDraft = useCallback(async () => {
     if (!activeSessionId) {
@@ -303,6 +323,8 @@ export default function useInfectionControl(patientId, rawSessionId) {
     recordedAt,
     recordedByName,
     loadedAt,
+    isolationCritical,
+    optionalFields,
     criticalInvalid,
     canProceed,
     compliancePct,

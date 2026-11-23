@@ -78,6 +78,7 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
     notes,
     recordedAt,
     recordedByName,
+    isolationCritical,
     criticalInvalid,
     canProceed,
     compliancePct,
@@ -98,6 +99,20 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
     saveDraft,
     submitFinal,
   } = useInfectionControl(patientId, effectiveSessionId);
+
+  const checklistMeta = useMemo(() => (
+    CHECKLIST_META.map((item) => {
+      if (item.key !== 'isolation_precautions') return item;
+      if (!isolationCritical) return item;
+      return {
+        ...item,
+        critical: true,
+        type: 'bool',
+        label: 'Isolation Precautions*',
+        helper: 'Required for HIV/Hepatitis-Positive patients — N/A not allowed',
+      };
+    })
+  ), [isolationCritical]);
 
   const handleBackClick = () => {
     if (onBack) {
@@ -165,7 +180,7 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
     goNext();
   };
 
-  const visibleChecklist = CHECKLIST_META.filter((meta) => !meta.cvcOnly || accessType === 'CVC');
+  const visibleChecklist = checklistMeta.filter((meta) => !meta.cvcOnly || accessType === 'CVC');
 
   const statusLabel = (value) => {
     if (value === null || value === undefined || value === '') return 'Unset';
@@ -312,6 +327,11 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
                 </CardHeader>
 
                 <CardBody className="p-4 bg-slate-50/50">
+                  {isolationCritical ? (
+                    <div className="mb-3.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+                      HIV/Hepatitis-Positive patient: Isolation Precautions is Critical — mark Yes (N/A not allowed).
+                    </div>
+                  ) : null}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                     {visibleChecklist.map((meta) => {
                       const Icon = meta.icon;
