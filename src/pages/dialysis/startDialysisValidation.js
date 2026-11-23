@@ -4,7 +4,12 @@ export const MAX_ATTEMPTS = 3;
 
 export const isStepCompleted = (status) => {
   const value = String(status || '').toLowerCase();
-  return value === 'complete' || value === 'completed' || value === 'passed' || status === true;
+  return value === 'complete'
+    || value === 'completed'
+    || value === 'passed'
+    || value === 'done'
+    || value === 'ok'
+    || status === true;
 };
 
 export const normalizeStartChecklist = (steps = []) => {

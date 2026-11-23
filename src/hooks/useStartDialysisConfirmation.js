@@ -161,17 +161,24 @@ export default function useStartDialysisConfirmation(patientId, rawSessionId, pr
       });
 
       if (!res?.success) {
-        if (res?.status === 423 || res?.error_code === 'ERR_START_LOCKED') {
+        const code = res?.error_code;
+        if (res?.status === 423 || code === 'ERR_START_LOCKED') {
           setLocked(true);
           setAttemptsRemaining(0);
-          setSubmitError(res.message || 'Start Dialysis is locked after 3 PIN failures. A nurse or nephrologist must unlock.');
+          setSubmitError(res.message || 'Too many failed attempts. Ask a nurse or nephrologist to unlock.');
           setPin('');
           return null;
         }
         if (res?.details?.attempts_remaining != null) {
           setAttemptsRemaining(Number(res.details.attempts_remaining));
         }
-        setSubmitError(res?.message || 'Incorrect PIN. Try again.');
+        const msg = res?.message
+          || (code === 'ERR_PIN_INVALID' ? 'Incorrect password. Try again.' : null)
+          || (code === 'ERR_STEPS_INCOMPLETE' ? 'All 8 pre-dialysis steps must be complete before start.' : null)
+          || (code === 'ERR_ATTESTATION_REQUIRED' ? 'Confirm the attestation checkbox before starting.' : null)
+          || (code === 'ERR_MACHINE_MISMATCH' ? 'Session machine does not match the submitted machine.' : null)
+          || 'Incorrect password. Try again.';
+        setSubmitError(msg);
         setPin('');
         return null;
       }
