@@ -4,7 +4,7 @@
  * @file src/pages/dialysis/VascularAccessAssessmentView.jsx
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Box, Button } from '../../component-library';
 import AutoCollapseTextarea from '../../components/AutoCollapseTextarea';
@@ -14,6 +14,8 @@ import { useIsMobile } from '../../components/mobile/useIsMobile';
 import { PRE_DIALYSIS_STEPS } from '../../hooks/usePreDialysisDashboard';
 import useVascularAccessAssessment from '../../hooks/useVascularAccessAssessment';
 import { MISSING, resolveP2SessionId } from './p2Runtime';
+import MissingCriticalReadingModal from './MissingCriticalReadingModal';
+import { buildCriticalSkipsPayload } from './missingCriticalReading';
 import { ROUTES } from '../../routes/routeConstants';
 import './duringDialysis.css';
 
@@ -81,7 +83,10 @@ const VascularAccessAssessmentView = ({ patientId, sessionId: propSessionId, onB
     additionalObservations,
     currentConfig,
     criticalErrors,
+    alwaysAlertWarnings,
+    blankCriticalFields,
     canProceed,
+    blockState,
     alerts,
     accessDetails,
     assessmentTime,
@@ -103,7 +108,18 @@ const VascularAccessAssessmentView = ({ patientId, sessionId: propSessionId, onB
     refresh,
     saveDraft,
     submitFinal,
+    clearBlock,
   } = useVascularAccessAssessment(patientId, effectiveSessionId);
+
+  const [showCriticalModal, setShowCriticalModal] = useState(false);
+  const [criticalDraftValues, setCriticalDraftValues] = useState({});
+  const [criticalSkipped, setCriticalSkipped] = useState({});
+  const [criticalReasons, setCriticalReasons] = useState({});
+  const [pendingCriticalSkips, setPendingCriticalSkips] = useState([]);
+  const [pendingOverrides, setPendingOverrides] = useState({});
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearPin, setClearPin] = useState('');
+  const [clearReason, setClearReason] = useState('');
 
   const handleBackClick = () => {
     if (onBack) {
@@ -144,23 +160,74 @@ const VascularAccessAssessmentView = ({ patientId, sessionId: propSessionId, onB
     };
   });
 
-  const handleSaveContinue = async () => {
-    if (!canProceed || saving) return;
+  const continueAfterCriticalResolved = async (criticalSkips, formOverrides = {}) => {
     const skipped = checkSkippedNonMandatory();
     if (skipped.length > 0) {
+      setPendingCriticalSkips(criticalSkips || []);
+      setPendingOverrides(formOverrides);
       setSkippedFieldsList(skipped);
       setShowSkipModal(true);
       return;
     }
-    const saved = await submitFinal([]);
-    if (saved) goNext();
+    const saved = await submitFinal([], criticalSkips || [], formOverrides);
+    if (saved === true) {
+      goNext();
+      return;
+    }
+    if (saved === 'blocked' || criticalErrors.length > 0) {
+      setShowClearModal(true);
+    }
+  };
+
+  const handleSaveContinue = async () => {
+    if (!canProceed || saving) return;
+    if (blankCriticalFields.length > 0) {
+      setCriticalDraftValues({});
+      setCriticalSkipped({});
+      setCriticalReasons({});
+      setShowCriticalModal(true);
+      return;
+    }
+    await continueAfterCriticalResolved([]);
+  };
+
+  const confirmCriticalPopup = async () => {
+    const formOverrides = {};
+    blankCriticalFields.forEach((field) => {
+      if (!criticalSkipped[field.key] && criticalDraftValues[field.key] != null && String(criticalDraftValues[field.key]).trim() !== '') {
+        formOverrides[field.key] = criticalDraftValues[field.key];
+      }
+    });
+    const criticalSkips = buildCriticalSkipsPayload(blankCriticalFields, criticalSkipped, criticalReasons);
+    setShowCriticalModal(false);
+    await continueAfterCriticalResolved(criticalSkips, formOverrides);
   };
 
   const proceedToNext = async () => {
     if (!canProceed || saving) return;
-    const saved = await submitFinal(buildSkips(skippedFieldsList));
-    if (!saved) return;
+    const saved = await submitFinal(
+      buildSkips(skippedFieldsList),
+      pendingCriticalSkips,
+      pendingOverrides,
+    );
     setShowSkipModal(false);
+    if (saved === true) {
+      setPendingCriticalSkips([]);
+      setPendingOverrides({});
+      goNext();
+      return;
+    }
+    if (saved === 'blocked' || criticalErrors.length > 0) {
+      setShowClearModal(true);
+    }
+  };
+
+  const handleClearBlock = async () => {
+    const ok = await clearBlock({ pin: clearPin, reason: clearReason });
+    if (!ok) return;
+    setShowClearModal(false);
+    setClearPin('');
+    setClearReason('');
     goNext();
   };
 
@@ -260,9 +327,27 @@ const VascularAccessAssessmentView = ({ patientId, sessionId: propSessionId, onB
 
                   {criticalErrors.length > 0 && (
                     <div style={{ margin: '0 24px 16px', padding: '14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px' }}>
-                      <p style={{ color: '#b91c1c', fontWeight: 700, fontSize: '13px', margin: '0 0 8px' }}>Action Required / Escalation</p>
+                      <p style={{ color: '#b91c1c', fontWeight: 700, fontSize: '13px', margin: '0 0 8px' }}>Blocking finding — clear required</p>
                       <ul style={{ margin: 0, paddingLeft: '20px', color: '#991b1b', fontSize: '12px' }}>
                         {criticalErrors.map((err, i) => <li key={i}>{err}</li>)}
+                      </ul>
+                      {(blockState.blocked || criticalErrors.length > 0) && (
+                        <Button
+                          variant="outline"
+                          style={{ marginTop: '10px' }}
+                          onClick={() => setShowClearModal(true)}
+                        >
+                          Clear block (Nurse PIN / Nephrologist)
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {alwaysAlertWarnings.length > 0 && (
+                    <div style={{ margin: '0 24px 16px', padding: '14px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '10px' }}>
+                      <p style={{ color: '#c2410c', fontWeight: 700, fontSize: '13px', margin: '0 0 8px' }}>Always-alert findings (non-blocking)</p>
+                      <ul style={{ margin: 0, paddingLeft: '20px', color: '#9a3412', fontSize: '12px' }}>
+                        {alwaysAlertWarnings.map((msg, i) => <li key={i}>{msg}</li>)}
                       </ul>
                     </div>
                   )}
@@ -356,7 +441,23 @@ const VascularAccessAssessmentView = ({ patientId, sessionId: propSessionId, onB
                 <div style={{ ...CARD_STYLE, padding: '24px', flex: 1 }}>
                   <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>Action Required</h4>
                   <p className="text-sm text-[#475569] mb-4">Based on assessment findings.</p>
-                  {canProceed ? (
+                  {criticalErrors.length > 0 && !blockState.cleared ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                      <WarningAmberIcon style={{ color: '#dc2626', marginTop: '2px' }} />
+                      <div>
+                        <p className="font-bold text-red-700 text-sm">Access blocked</p>
+                        <p className="text-red-600 text-sm mt-1">Clear with nurse PIN or nephrologist before continuing.</p>
+                      </div>
+                    </div>
+                  ) : alwaysAlertWarnings.length > 0 ? (
+                    <div className="bg-[#fff7ed] border border-[#fed7aa] rounded-lg p-4 flex items-start gap-3">
+                      <WarningAmberIcon style={{ color: '#c2410c', marginTop: '2px' }} />
+                      <div>
+                        <p className="font-bold text-[#9a3412] text-sm">Alert findings noted</p>
+                        <p className="text-[#c2410c] text-sm mt-1">Doctor will be alerted; you may still proceed.</p>
+                      </div>
+                    </div>
+                  ) : canProceed ? (
                     <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg p-4 flex items-start gap-3">
                       <CheckCircleIcon style={{ color: '#16a34a', marginTop: '2px' }} />
                       <div>
@@ -368,8 +469,8 @@ const VascularAccessAssessmentView = ({ patientId, sessionId: propSessionId, onB
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
                       <WarningAmberIcon style={{ color: '#dc2626', marginTop: '2px' }} />
                       <div>
-                        <p className="font-bold text-red-700 text-sm">Assessment Incomplete/Failed</p>
-                        <p className="text-red-600 text-sm mt-1">Please review the critical fields.</p>
+                        <p className="font-bold text-red-700 text-sm">Assessment Incomplete</p>
+                        <p className="text-red-600 text-sm mt-1">Select an access type to continue.</p>
                       </div>
                     </div>
                   )}
@@ -464,6 +565,75 @@ const VascularAccessAssessmentView = ({ patientId, sessionId: propSessionId, onB
             </div>
           </div>
         </div>
+
+        <MissingCriticalReadingModal
+          open={showCriticalModal}
+          fields={blankCriticalFields}
+          values={criticalDraftValues}
+          onChangeValue={(key, value) => setCriticalDraftValues((prev) => ({ ...prev, [key]: value }))}
+          skipped={criticalSkipped}
+          onToggleSkip={(key, next) => {
+            setCriticalSkipped((prev) => ({ ...prev, [key]: next }));
+            if (next) {
+              setCriticalDraftValues((prev) => {
+                const copy = { ...prev };
+                delete copy[key];
+                return copy;
+              });
+            }
+          }}
+          reasons={criticalReasons}
+          onChangeReason={(key, reason) => setCriticalReasons((prev) => ({ ...prev, [key]: reason }))}
+          onCancel={() => setShowCriticalModal(false)}
+          onConfirm={confirmCriticalPopup}
+          saving={saving}
+        />
+
+        {showClearModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: 16,
+            }}
+          >
+            <div style={{ background: '#fff', borderRadius: 12, padding: 20, maxWidth: 440, width: '100%' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>Clear access block</h3>
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: '#64748b' }}>
+                Nephrologist may clear remotely. Nurse on-site: enter your PIN and a mandatory reason.
+              </p>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Nurse PIN (if on-site)</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={clearPin}
+                onChange={(e) => setClearPin(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #cbd5e1', marginBottom: 10 }}
+              />
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Reason*</label>
+              <textarea
+                rows={3}
+                value={clearReason}
+                onChange={(e) => setClearReason(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #cbd5e1', marginBottom: 14 }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <Button variant="outline" onClick={() => setShowClearModal(false)} disabled={saving}>Cancel</Button>
+                <Button
+                  onClick={handleClearBlock}
+                  disabled={saving || !String(clearReason || '').trim()}
+                >
+                  {saving ? 'Clearing…' : 'Clear & Continue'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showSkipModal && (
           <div

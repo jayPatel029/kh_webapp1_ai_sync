@@ -10,6 +10,7 @@ import {
   getPatientAlerts,
   getSessionVascularAccess,
   submitVascularAccess,
+  clearVascularAccessBlock,
 } from '../ApiCalls/preDialysisApis';
 import { notifyError, notifySuccess } from '../helpers/notify';
 import { normalizeAlertsList } from './usePreDialysisDashboard';
@@ -136,6 +137,7 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [skippedFieldsList, setSkippedFieldsList] = useState([]);
   const [skipReasons, setSkipReasons] = useState({});
+  const [blockState, setBlockState] = useState({ blocked: false, cleared: false, flags: [] });
 
   const currentConfig = useMemo(() => {
     if (accessType === 'AVF' || accessType === 'AVG') return AVF_AVG_CONFIG;
@@ -149,12 +151,19 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
     return [];
   }, [accessType]);
 
-  const { isCriticalFailed, criticalErrors, validationErrors } = useMemo(
+  const {
+    isCriticalFailed,
+    criticalErrors,
+    alwaysAlertWarnings,
+    validationErrors,
+    blankCriticalFields,
+  } = useMemo(
     () => validateVascularAccess(accessType, currentConfig, formData),
     [accessType, currentConfig, formData]
   );
 
-  const canProceed = !isCriticalFailed && validationErrors.length === 0;
+  // v5 D8 — blank Criticals use popup (not a hard disable). Blocking findings save then require clear (D11).
+  const canProceed = Boolean(accessType) && validationErrors.length === 0;
 
   const loadPage = useCallback(async () => {
     if (!activeSessionId) {
@@ -209,6 +218,12 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
         setDetailsData(parseDetails(savedRow));
         setAdditionalObservations(savedRow.additional_observations || savedRow.additionalObservations || '');
         setAssessmentTime(formatIst(savedRow.recorded_at) || formatIst(new Date()));
+        const blockStatus = String(savedRow.block_status || '').toLowerCase();
+        setBlockState({
+          blocked: blockStatus === 'blocked' || (Number(savedRow.suitable) === 0 && blockStatus !== 'cleared'),
+          cleared: blockStatus === 'cleared',
+          flags: Array.isArray(savedRow.flags_json) ? savedRow.flags_json : [],
+        });
       } else if (draft?.payload && typeof draft.payload === 'object') {
         setAccessType(draft.payload.accessType || sessionAccessType || '');
         setFormData(draft.payload.formData || {});
@@ -272,7 +287,8 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
     });
   }, [activeSessionId, accessType, formData, detailsData, additionalObservations, skippedFieldsList, skipReasons]);
 
-  const buildPayload = useCallback((status, skips = []) => {
+  const buildPayload = useCallback((status, skips = [], criticalSkips = [], formOverrides = {}) => {
+    const merged = { ...formData, ...formOverrides };
     const allowedSkip = new Set(optionalFields.map((f) => f.field_name));
     const payload = {
       status,
@@ -285,24 +301,25 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
           reason: skip.reason || null,
         }))
         .filter((skip) => allowedSkip.has(String(skip.field_name))),
+      critical_skips: criticalSkips,
     };
 
     if (accessType === 'CVC') {
-      payload.dressing_intact = formData.dressingIntact ? String(formData.dressingIntact).toLowerCase() : null;
-      payload.tenderness_pain = formData.tendernessPain ? String(formData.tendernessPain).toLowerCase() : null;
-      payload.exit_site_clean = formData.exitSiteClean ? String(formData.exitSiteClean).toLowerCase() : null;
-      payload.cvc_signs_of_infection = formData.signsOfInfectionCVC ? String(formData.signsOfInfectionCVC).toLowerCase() : null;
-      payload.catheter_patent = formData.catheterPatent ? String(formData.catheterPatent).toLowerCase() : null;
+      payload.dressing_intact = merged.dressingIntact ? String(merged.dressingIntact).toLowerCase() : null;
+      payload.tenderness_pain = merged.tendernessPain ? String(merged.tendernessPain).toLowerCase() : null;
+      payload.exit_site_clean = merged.exitSiteClean ? String(merged.exitSiteClean).toLowerCase() : null;
+      payload.cvc_signs_of_infection = merged.signsOfInfectionCVC ? String(merged.signsOfInfectionCVC).toLowerCase() : null;
+      payload.catheter_patent = merged.catheterPatent ? String(merged.catheterPatent).toLowerCase() : null;
     } else {
-      payload.thrill_bruit = formData.thrillBruit ? String(formData.thrillBruit).toLowerCase() : null;
-      payload.access_site_appearance = formData.accessSiteAppearance ? String(formData.accessSiteAppearance).toLowerCase() : null;
-      payload.signs_of_infection = formData.signsOfInfection ? String(formData.signsOfInfection).toLowerCase() : null;
-      payload.bleeding_discharge = formData.bleedingDischarge ? String(formData.bleedingDischarge).toLowerCase() : null;
-      payload.aneurysm = formData.aneurysm ? String(formData.aneurysm).toLowerCase() : null;
-      payload.cannulation_zone = formData.cannulationZone === 'Good'
+      payload.thrill_bruit = merged.thrillBruit ? String(merged.thrillBruit).toLowerCase() : null;
+      payload.access_site_appearance = merged.accessSiteAppearance ? String(merged.accessSiteAppearance).toLowerCase() : null;
+      payload.signs_of_infection = merged.signsOfInfection ? String(merged.signsOfInfection).toLowerCase() : null;
+      payload.bleeding_discharge = merged.bleedingDischarge ? String(merged.bleedingDischarge).toLowerCase() : null;
+      payload.aneurysm = merged.aneurysm ? String(merged.aneurysm).toLowerCase() : null;
+      payload.cannulation_zone = merged.cannulationZone === 'Good'
         ? 'adequate'
-        : (formData.cannulationZone ? String(formData.cannulationZone).toLowerCase() : null);
-      payload.access_flow_ml_min = optionalNumber(formData.accessFlow);
+        : (merged.cannulationZone ? String(merged.cannulationZone).toLowerCase() : null);
+      payload.access_flow_ml_min = optionalNumber(merged.accessFlow);
     }
 
     return payload;
@@ -335,7 +352,7 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
     }
   }, [activeSessionId, accessType, persistLocalDraft, buildPayload]);
 
-  const submitFinal = useCallback(async (skips = []) => {
+  const submitFinal = useCallback(async (skips = [], criticalSkips = [], formOverrides = {}) => {
     if (!canProceed) return false;
     if (!activeSessionId) {
       notifyError('No dialysis session to save against.');
@@ -343,17 +360,33 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
     }
     setSaving(true);
     try {
-      const res = await submitVascularAccess(activeSessionId, buildPayload('final', skips));
+      if (Object.keys(formOverrides).length) {
+        setFormData((prev) => ({ ...prev, ...formOverrides }));
+      }
+      const res = await submitVascularAccess(
+        activeSessionId,
+        buildPayload('final', skips, criticalSkips, formOverrides),
+      );
       if (!res?.success) {
         const code = res?.error_code;
+        if (code === 'ERR_ACCESS_BLOCKED' || code === 'ERR_ACCESS_NOT_SUITABLE') {
+          const details = res?.details || res?.data || {};
+          setBlockState({
+            blocked: true,
+            cleared: false,
+            flags: details.blocking || details.flags || [],
+          });
+          notifyError(res?.message || 'Access finding blocks continue until cleared.');
+          return 'blocked';
+        }
         const msg = res?.message
-          || (code === 'ERR_ACCESS_NOT_SUITABLE' ? 'Critical access finding — do not cannulate; escalate before continuing.' : null)
-          || (code === 'ERR_CRITICAL_FIELD_REQUIRED' ? 'All critical vascular fields must be answered.' : null)
+          || (code === 'ERR_CRITICAL_FIELD_REQUIRED' ? 'Enter or Skip each Critical field in the popup.' : null)
           || code
           || 'Vascular access could not be saved';
         notifyError(msg);
         return false;
       }
+      setBlockState({ blocked: false, cleared: Boolean(res?.data?.suitable), flags: res?.data?.flags || [] });
       await persistLocalDraft({ skippedFieldsList: skips.map((skip) => skip.field_name || skip) });
       notifySuccess('Vascular access assessment saved');
       return true;
@@ -365,6 +398,29 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
     }
   }, [canProceed, activeSessionId, buildPayload, persistLocalDraft]);
 
+  const clearBlock = useCallback(async ({ pin, reason }) => {
+    if (!activeSessionId) {
+      notifyError('No dialysis session to clear against.');
+      return false;
+    }
+    setSaving(true);
+    try {
+      const res = await clearVascularAccessBlock(activeSessionId, { pin, reason });
+      if (!res?.success) {
+        notifyError(res?.message || 'Could not clear access block');
+        return false;
+      }
+      setBlockState({ blocked: false, cleared: true, flags: [] });
+      notifySuccess('Access block cleared — you may continue');
+      return true;
+    } catch (err) {
+      notifyError(err?.message || 'Could not clear access block');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [activeSessionId]);
+
   return {
     patientRaw,
     accessType,
@@ -374,8 +430,11 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
     currentConfig,
     isCriticalFailed,
     criticalErrors,
+    alwaysAlertWarnings,
+    blankCriticalFields,
     validationErrors,
     canProceed,
+    blockState,
     alerts,
     accessDetails,
     assessmentTime,
@@ -397,5 +456,6 @@ export default function useVascularAccessAssessment(patientId, rawSessionId) {
     refresh: loadPage,
     saveDraft,
     submitFinal,
+    clearBlock,
   };
 }

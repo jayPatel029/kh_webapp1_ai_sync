@@ -396,6 +396,23 @@ export async function submitVascularAccess(sessionId, payload, config = {}) {
 }
 
 /**
+ * P2-07: POST /api/dt/sessions/:id/vascular-access/clear-block
+ * Nurse on-site PIN + reason, or nephrologist remote clear.
+ */
+export async function clearVascularAccessBlock(sessionId, payload, config = {}) {
+  try {
+    const response = await axiosInstance.post(
+      `${server_url}/dt/sessions/${sessionId}/vascular-access/clear-block`,
+      payload,
+      config
+    );
+    return handleResponse(response);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
  * P2-08: GET /api/dt/machines/:id/qc/today
  */
 export async function getMachineQcToday(machineId, config = {}) {
@@ -666,6 +683,7 @@ export default {
   submitSessionAssessment,
   getSessionVascularAccess,
   submitVascularAccess,
+  clearVascularAccessBlock,
   getMachineQcToday,
   getMachineSelfTestToday,
   getSessionMachineSafety,

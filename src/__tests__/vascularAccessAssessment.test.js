@@ -18,13 +18,13 @@ describe('P2-07 Vascular Access Assessment Logic (Node Environment)', () => {
       accessFlow: '600',
     };
     const result = validateVascularAccess('AVF', AVF_AVG_CONFIG, formData);
-    
+
     expect(result.isCriticalFailed).toBe(false);
     expect(result.criticalErrors).toHaveLength(0);
-    expect(result.validationErrors).toHaveLength(0);
+    expect(result.alwaysAlertWarnings).toHaveLength(0);
   });
 
-  it('AVF Blocks progression when Signs of Infection is Yes', () => {
+  it('AVF Blocks when Signs of Infection is Yes (D11)', () => {
     const formData = {
       signsOfInfection: 'Yes',
       bleedingDischarge: 'No',
@@ -32,22 +32,22 @@ describe('P2-07 Vascular Access Assessment Logic (Node Environment)', () => {
       accessFlow: '600',
     };
     const result = validateVascularAccess('AVF', AVF_AVG_CONFIG, formData);
-    
+
     expect(result.isCriticalFailed).toBe(true);
-    expect(result.criticalErrors).toContain('Signs of Infection detected. Do not cannulate this access — escalate before proceeding.');
+    expect(result.criticalErrors[0]).toMatch(/Blocked until cleared/);
   });
 
-  it('AVF Access Flow shows Adequacy based on 500 mL/min threshold', () => {
+  it('AVF Access Flow < 500 is always-alert, not blocking (D13)', () => {
     const formData = {
       signsOfInfection: 'No',
       bleedingDischarge: 'No',
       thrillBruit: 'Present',
-      accessFlow: '450', // Low flow
+      accessFlow: '450',
     };
     const result = validateVascularAccess('AVF', AVF_AVG_CONFIG, formData);
-    
-    expect(result.isCriticalFailed).toBe(true);
-    expect(result.criticalErrors).toContain('Access Flow < 500 mL/min. Escalate before proceeding.');
+
+    expect(result.isCriticalFailed).toBe(false);
+    expect(result.alwaysAlertWarnings.some((w) => w.includes('Access Flow'))).toBe(true);
   });
 
   it('CVC validates perfectly when all critical fields are fine', () => {
@@ -57,34 +57,33 @@ describe('P2-07 Vascular Access Assessment Logic (Node Environment)', () => {
       tendernessPain: 'No',
     };
     const result = validateVascularAccess('CVC', CVC_CONFIG, formData);
-    
+
     expect(result.isCriticalFailed).toBe(false);
     expect(result.criticalErrors).toHaveLength(0);
-    expect(result.validationErrors).toHaveLength(0);
   });
 
-  it('CVC Blocks progression when Catheter Patent is No', () => {
+  it('CVC Blocks when Catheter Patent is No (D11)', () => {
     const formData = {
       signsOfInfectionCVC: 'No',
       catheterPatent: 'No',
       tendernessPain: 'No',
     };
     const result = validateVascularAccess('CVC', CVC_CONFIG, formData);
-    
+
     expect(result.isCriticalFailed).toBe(true);
-    expect(result.criticalErrors).toContain('Catheter Patent is No. Escalate before proceeding.');
+    expect(result.criticalErrors[0]).toMatch(/Blocked until cleared/);
   });
 
-  it('Fails validation if a critical field is completely missing', () => {
+  it('Blank Critical fields are listed for popup, not hard-failed (D8)', () => {
     const formData = {
       signsOfInfectionCVC: 'No',
-      // catheterPatent is missing
       tendernessPain: 'No',
     };
     const result = validateVascularAccess('CVC', CVC_CONFIG, formData);
-    
-    expect(result.isCriticalFailed).toBe(true); // Missing critical fails
-    expect(result.validationErrors).toContain('Required: Catheter Patent');
+
+    expect(result.isCriticalFailed).toBe(false);
+    expect(result.blankCriticalFields.some((f) => f.key === 'catheterPatent')).toBe(true);
+    expect(result.validationErrors).toHaveLength(0);
   });
 
 });
