@@ -675,9 +675,16 @@ const PatientAssessmentView = ({ patientId, sessionId: propSessionId, onBack, on
                       {functional.assistiveSupport.others && (
                         <input
                           type="text"
+                          placeholder="Describe others*"
                           value={functional.assistiveOthersText}
                           onChange={(e) => updateFunctionalField('assistiveOthersText', e.target.value)}
-                          style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', width: '120px' }}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            border: `1px solid ${functional.assistiveOthersText?.trim() ? '#cbd5e1' : '#ef4444'}`,
+                            fontSize: '12px',
+                            width: '140px',
+                          }}
                         />
                       )}
 

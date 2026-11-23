@@ -174,19 +174,44 @@ function pickApiValue(row, camelKey, snakeKey) {
   return value == null ? '' : String(value);
 }
 
+/** Map stored yes/no (any casing) back to UI radio values. */
+function normalizeYnUi(value) {
+  if (value === true || value === 1) return 'Yes';
+  if (value === false || value === 0) return 'No';
+  const s = String(value == null ? '' : value).trim().toLowerCase();
+  if (s === 'yes' || s === 'true' || s === '1') return 'Yes';
+  if (s === 'no' || s === 'false' || s === '0') return 'No';
+  return value == null || value === '' ? '' : String(value);
+}
+
+function normalizeSymptomDetails(raw = {}) {
+  const reverse = Object.fromEntries(
+    Object.entries(SUBJECTIVE_API_KEYS).map(([camel, snake]) => [snake, camel]),
+  );
+  const out = {};
+  Object.entries(raw || {}).forEach(([key, value]) => {
+    out[reverse[key] || key] = value == null ? '' : String(value);
+  });
+  return out;
+}
+
 function assessmentFromApi(row) {
   if (!row) return null;
   const source = row.assessment_json && typeof row.assessment_json === 'object'
     ? row.assessment_json
     : row;
-  const subjective = { ...EMPTY_SUBJECTIVE, symptomDetails: { ...(source.symptom_details || source.symptomDetails || {}) } };
+  const subjective = {
+    ...EMPTY_SUBJECTIVE,
+    symptomDetails: normalizeSymptomDetails(source.symptom_details || source.symptomDetails || {}),
+  };
   Object.entries(SUBJECTIVE_API_KEYS).forEach(([camel, snake]) => {
-    subjective[camel] = pickApiValue(source, camel, snake);
+    subjective[camel] = normalizeYnUi(pickApiValue(source, camel, snake));
   });
   subjective.anyOtherSymptoms = pickApiValue(source, 'anyOtherSymptoms', 'any_other_symptoms');
   const objective = { ...EMPTY_OBJECTIVE };
   Object.entries(OBJECTIVE_API_KEYS).forEach(([camel, snake]) => {
-    objective[camel] = pickApiValue(source, camel, snake);
+    const raw = pickApiValue(source, camel, snake);
+    objective[camel] = camel === 'anyAbnormalFinding' ? normalizeYnUi(raw) : raw;
   });
   const support = source.assistive_support || source.assistiveSupport || {};
   return {
@@ -263,14 +288,21 @@ function hasSavedAssessment(row) {
 
 /**
  * Validate that all Critical fields are selected and required conditional descriptions provided.
+ * Any subjective "Yes" (critical or non-critical) requires a comment; Assistive Others needs qualifier.
  */
-export const validateAssessmentState = (subjective, objective) => {
-  // Check Critical Subjective Symptoms
+export const validateAssessmentState = (subjective, objective, functional = null) => {
+  // Critical subjective must be answered
   for (const symptom of CRITICAL_SUBJECTIVE_SYMPTOMS) {
+    if (!subjective[symptom]) return false;
+  }
+
+  // Any answered "Yes" subjective symptom requires a comment
+  const allSubjective = [...CRITICAL_SUBJECTIVE_SYMPTOMS, ...NON_CRITICAL_SUBJECTIVE_SYMPTOMS];
+  for (const symptom of allSubjective) {
     const val = subjective[symptom];
-    if (!val) return false; // missing selection
-    if (val === 'Yes' && (!subjective.symptomDetails?.[symptom] || !subjective.symptomDetails[symptom].trim())) {
-      return false; // "Yes" requires comment
+    if (String(val).toLowerCase() === 'yes') {
+      const detail = subjective.symptomDetails?.[symptom];
+      if (!detail || !String(detail).trim()) return false;
     }
   }
 
@@ -280,8 +312,18 @@ export const validateAssessmentState = (subjective, objective) => {
   }
 
   // "Any Abnormal Finding = Yes" requires description
-  if (objective.anyAbnormalFinding === 'Yes' && (!objective.abnormalFindingDescription || !objective.abnormalFindingDescription.trim())) {
+  if (
+    String(objective.anyAbnormalFinding).toLowerCase() === 'yes'
+    && (!objective.abnormalFindingDescription || !String(objective.abnormalFindingDescription).trim())
+  ) {
     return false;
+  }
+
+  // Assistive Support "Others" requires qualifier text
+  if (functional?.assistiveSupport?.others) {
+    if (!functional.assistiveOthersText || !String(functional.assistiveOthersText).trim()) {
+      return false;
+    }
   }
 
   return true;
@@ -456,8 +498,8 @@ export default function usePatientAssessment(patientId, rawSessionId) {
   };
 
   const canProceed = useMemo(
-    () => validateAssessmentState(subjective, objective),
-    [subjective, objective]
+    () => validateAssessmentState(subjective, objective, functional),
+    [subjective, objective, functional]
   );
 
   const checkSkippedNonMandatory = () => OPTIONAL_ASSESSMENT_FIELDS
@@ -480,27 +522,44 @@ export default function usePatientAssessment(patientId, rawSessionId) {
   }, [activeSessionId, subjective, objective, functional, skippedFieldsList, skipReasons]);
 
   const buildPayload = useCallback((status, skips = []) => {
+    const ynApi = (value) => {
+      const s = String(value || '').trim().toLowerCase();
+      if (s === 'yes') return 'yes';
+      if (s === 'no') return 'no';
+      return value || '';
+    };
+    const symptomDetails = {};
+    Object.entries(subjective.symptomDetails || {}).forEach(([camel, text]) => {
+      const snake = SUBJECTIVE_API_KEYS[camel] || camel;
+      if (text != null && String(text).trim() !== '') {
+        symptomDetails[snake] = String(text).trim();
+      }
+    });
     const assessment = {
       any_other_symptoms: subjective.anyOtherSymptoms || '',
-      symptom_details: subjective.symptomDetails || {},
+      symptom_details: symptomDetails,
       kps: functional.kps || '',
       assistive_support: functional.assistiveSupport,
       assistive_others_text: functional.assistiveOthersText || '',
     };
     Object.entries(SUBJECTIVE_API_KEYS).forEach(([camel, snake]) => {
-      assessment[snake] = subjective[camel] || '';
+      assessment[snake] = ynApi(subjective[camel]);
     });
     Object.entries(OBJECTIVE_API_KEYS).forEach(([camel, snake]) => {
-      assessment[snake] = objective[camel] || '';
+      const raw = objective[camel] || '';
+      assessment[snake] = camel === 'anyAbnormalFinding' ? ynApi(raw) : raw;
     });
+    const allowedSkip = new Set(OPTIONAL_ASSESSMENT_FIELDS.map((f) => f.field_name));
     return {
       status,
       section: 'Patient Assessment',
       assessment,
-      skips: skips.map((skip) => ({
-        field_name: skip.field_name || skip,
-        reason: skip.reason || null,
-      })),
+      skips: skips
+        .map((skip) => ({
+          field_name: skip.field_name || skip,
+          reason: skip.reason || null,
+        }))
+        .filter((skip) => allowedSkip.has(String(skip.field_name))),
     };
   }, [subjective, objective, functional]);
 
@@ -537,7 +596,13 @@ export default function usePatientAssessment(patientId, rawSessionId) {
     try {
       const res = await submitSessionAssessment(activeSessionId, buildPayload('final', skips));
       if (!res?.success) {
-        notifyError(res?.message || res?.error_code || 'Assessment could not be saved');
+        const code = res?.error_code;
+        const msg = res?.message
+          || (code === 'ERR_COMMENT_REQUIRED' ? 'A Yes answer needs a comment before continuing.' : null)
+          || (code === 'ERR_CRITICAL_FIELD_REQUIRED' ? 'All critical assessment fields must be answered.' : null)
+          || code
+          || 'Assessment could not be saved';
+        notifyError(msg);
         return false;
       }
       await persistLocalDraft({ skippedFieldsList: skips.map((skip) => skip.field_name || skip) });
