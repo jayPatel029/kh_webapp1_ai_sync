@@ -18,6 +18,7 @@ import { MISSING, unwrapRecord, formatIst } from '../pages/dialysis/p2Runtime';
 import { loadP2Draft, saveP2Draft } from '../pages/dialysis/p2DraftCache';
 import {
   INFECTION_ITEM_KEYS,
+  OPTIONAL_INFECTION_FIELDS,
   TRI_ITEM_KEYS,
   canProceedInfectionControl,
   computeInfectionCompliancePct,
@@ -25,6 +26,7 @@ import {
   isInfectionItemCompliant,
   isNaInfectionValue,
   isScrubHubPassed,
+  listSkippedInfectionFields,
   normalizeAccessType,
 } from '../pages/dialysis/infectionControlValidation';
 
@@ -66,6 +68,9 @@ export default function useInfectionControl(patientId, rawSessionId) {
   const [recordedAt, setRecordedAt] = useState(null);
   const [recordedByName, setRecordedByName] = useState('');
   const [loadedAt, setLoadedAt] = useState(MISSING);
+  const [showSkipModal, setShowSkipModal] = useState(false);
+  const [skippedFieldsList, setSkippedFieldsList] = useState([]);
+  const [skipReasons, setSkipReasons] = useState({});
 
   const criticalInvalid = useMemo(
     () => getCriticalInfectionIssues(items, accessType, scrubHub),
@@ -174,7 +179,7 @@ export default function useInfectionControl(patientId, rawSessionId) {
     setItems((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  const persistLocalDraft = useCallback(async () => {
+  const persistLocalDraft = useCallback(async (extra = {}) => {
     if (!activeSessionId) return;
     await saveP2Draft(activeSessionId, 'P2-10', {
       accessType,
@@ -182,10 +187,18 @@ export default function useInfectionControl(patientId, rawSessionId) {
       scrubHub,
       notes,
       stepInfection,
+      skippedFieldsList,
+      skipReasons,
+      ...extra,
     });
-  }, [activeSessionId, accessType, items, scrubHub, notes, stepInfection]);
+  }, [activeSessionId, accessType, items, scrubHub, notes, stepInfection, skippedFieldsList, skipReasons]);
 
-  const buildPayload = useCallback((status) => {
+  const checkSkippedNonMandatory = useCallback(
+    () => listSkippedInfectionFields(items),
+    [items]
+  );
+
+  const buildPayload = useCallback((status, skips = []) => {
     const boolOrNull = (v) => {
       if (v === null || v === undefined || v === '') return null;
       return !!v;
@@ -195,6 +208,7 @@ export default function useInfectionControl(patientId, rawSessionId) {
       if (v === 'not_applicable') return 'not_applicable';
       return !!v;
     };
+    const allowedSkip = new Set(OPTIONAL_INFECTION_FIELDS.map((f) => f.field_name));
     return {
       status,
       access_type: accessType || undefined,
@@ -215,8 +229,13 @@ export default function useInfectionControl(patientId, rawSessionId) {
           ? null
           : (isScrubHubPassed(scrubHub) ? 'yes' : 'no'))
         : null,
-      notes: notes ? String(notes).slice(0, 200) : '',
-      skips: [],
+      notes: notes ? String(notes).slice(0, 300) : '',
+      skips: skips
+        .map((skip) => ({
+          field_name: skip.field_name || skip,
+          reason: skip.reason || null,
+        }))
+        .filter((skip) => allowedSkip.has(String(skip.field_name))),
     };
   }, [accessType, items, scrubHub, notes]);
 
@@ -227,7 +246,7 @@ export default function useInfectionControl(patientId, rawSessionId) {
     }
     setSaving(true);
     try {
-      const res = await submitInfectionControl(activeSessionId, buildPayload('draft'));
+      const res = await submitInfectionControl(activeSessionId, buildPayload('draft', []));
       if (!res?.success) {
         notifyError(res?.message || 'Could not save infection control draft');
         return false;
@@ -243,7 +262,7 @@ export default function useInfectionControl(patientId, rawSessionId) {
     }
   }, [activeSessionId, buildPayload, persistLocalDraft]);
 
-  const submitFinal = useCallback(async () => {
+  const submitFinal = useCallback(async (skips = []) => {
     if (!canProceed) return false;
     if (!activeSessionId) {
       notifyError('No dialysis session to save against.');
@@ -251,12 +270,17 @@ export default function useInfectionControl(patientId, rawSessionId) {
     }
     setSaving(true);
     try {
-      const res = await submitInfectionControl(activeSessionId, buildPayload('final'));
+      const res = await submitInfectionControl(activeSessionId, buildPayload('final', skips));
       if (!res?.success) {
-        notifyError(res?.message || res?.error_code || 'Infection control could not be saved');
+        const code = res?.error_code;
+        const msg = res?.message
+          || (code === 'ERR_INFECTION_CRITICAL' ? 'Critical infection-control items are unresolved.' : null)
+          || code
+          || 'Infection control could not be saved';
+        notifyError(msg);
         return false;
       }
-      await persistLocalDraft();
+      await persistLocalDraft({ skippedFieldsList: skips.map((skip) => skip.field_name || skip) });
       setStepInfection('complete');
       setRecordedAt(new Date().toISOString());
       notifySuccess('Infection control saved');
@@ -282,6 +306,14 @@ export default function useInfectionControl(patientId, rawSessionId) {
     criticalInvalid,
     canProceed,
     compliancePct,
+    showSkipModal,
+    setShowSkipModal,
+    skippedFieldsList,
+    setSkippedFieldsList,
+    skipReasons,
+    setSkipReasons,
+    checkSkippedNonMandatory,
+    optionalFields: OPTIONAL_INFECTION_FIELDS,
     loading,
     saving,
     error,

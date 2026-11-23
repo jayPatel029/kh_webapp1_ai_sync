@@ -6,17 +6,29 @@ export const INFECTION_CRITICAL_KEYS = [
   'sharps_handling',
 ];
 
-export const INFECTION_ITEM_KEYS = [
-  'hand_hygiene',
+export const INFECTION_NON_CRITICAL_KEYS = [
   'ppe',
   'work_area_clean',
   'dialysis_machine_disinfected',
   'ro_system_disinfection',
   'dialyzer_reuse',
-  'aseptic_technique',
-  'sharps_handling',
   'biomedical_waste',
   'isolation_precautions',
+];
+
+export const INFECTION_ITEM_KEYS = [
+  ...INFECTION_CRITICAL_KEYS,
+  ...INFECTION_NON_CRITICAL_KEYS,
+];
+
+export const OPTIONAL_INFECTION_FIELDS = [
+  { key: 'ppe', field_name: 'ppe', label: 'PPE' },
+  { key: 'work_area_clean', field_name: 'work_area_clean', label: 'Work Area Clean & Disinfected' },
+  { key: 'dialysis_machine_disinfected', field_name: 'dialysis_machine_disinfected', label: 'Dialysis Machine Disinfected' },
+  { key: 'ro_system_disinfection', field_name: 'ro_system_disinfection', label: 'RO System Disinfection' },
+  { key: 'dialyzer_reuse', field_name: 'dialyzer_reuse', label: 'Dialyzer Reuse' },
+  { key: 'biomedical_waste', field_name: 'biomedical_waste', label: 'Bio-medical Waste Disposal' },
+  { key: 'isolation_precautions', field_name: 'isolation_precautions', label: 'Isolation Precautions' },
 ];
 
 export const TRI_ITEM_KEYS = [
@@ -79,9 +91,14 @@ export const getCriticalInfectionIssues = (items = {}, accessType = '', scrubHub
 
 export const canProceedInfectionControl = (items = {}, accessType = '', scrubHub = null) => {
   if (!normalizeAccessType(accessType)) return false;
-  if (getCriticalInfectionIssues(items, accessType, scrubHub).length > 0) return false;
-  return INFECTION_ITEM_KEYS.every((key) => isInfectionItemResolved(items[key]));
+  // Critical items hard-gate; non-critical blanks use the skip workflow at Save & Continue.
+  return getCriticalInfectionIssues(items, accessType, scrubHub).length === 0;
 };
+
+export const listSkippedInfectionFields = (items = {}) =>
+  OPTIONAL_INFECTION_FIELDS
+    .filter((field) => !isInfectionItemResolved(items[field.key]))
+    .map((field) => field.label);
 
 export const computeInfectionCompliancePct = (items = {}, accessType = '', scrubHub = null) => {
   const keys = [...INFECTION_ITEM_KEYS];

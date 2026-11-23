@@ -81,6 +81,14 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
     criticalInvalid,
     canProceed,
     compliancePct,
+    showSkipModal,
+    setShowSkipModal,
+    skippedFieldsList,
+    setSkippedFieldsList,
+    skipReasons,
+    setSkipReasons,
+    checkSkippedNonMandatory,
+    optionalFields,
     loading,
     saving,
     error,
@@ -128,10 +136,33 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
     setItem(key, value);
   };
 
+  const buildSkips = (labels) => labels.map((label) => {
+    const field = optionalFields.find((item) => item.label === label);
+    const reason = skipReasons[label];
+    return {
+      field_name: field?.field_name || label,
+      reason: reason && String(reason).trim() ? String(reason).trim() : null,
+    };
+  });
+
   const handleSaveContinue = async () => {
     if (!canProceed || saving) return;
-    const saved = await submitFinal();
+    const skipped = checkSkippedNonMandatory();
+    if (skipped.length > 0) {
+      setSkippedFieldsList(skipped);
+      setShowSkipModal(true);
+      return;
+    }
+    const saved = await submitFinal([]);
     if (saved) goNext();
+  };
+
+  const proceedToNext = async () => {
+    if (!canProceed || saving) return;
+    const saved = await submitFinal(buildSkips(skippedFieldsList));
+    if (!saved) return;
+    setShowSkipModal(false);
+    goNext();
   };
 
   const visibleChecklist = CHECKLIST_META.filter((meta) => !meta.cvcOnly || accessType === 'CVC');
@@ -592,6 +623,50 @@ const InfectionControlView = ({ patientId, sessionId: sessionIdProp, onBack, onN
             </Button>
           </div>
         </div>
+
+        {showSkipModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.45)',
+              zIndex: 60,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+            }}
+          >
+            <div style={{ background: '#fff', borderRadius: 12, maxWidth: 480, width: '100%', padding: 20, boxShadow: '0 10px 40px rgba(0,0,0,0.15)' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700, color: '#0f172a' }}>Non-mandatory fields skipped</h3>
+              <p style={{ margin: '0 0 14px', fontSize: 13, color: '#64748b' }}>
+                Optional infection-control items are blank. Add a reason (optional) and continue, or go back to complete them.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 240, overflowY: 'auto' }}>
+                {skippedFieldsList.map((field) => (
+                  <div key={field}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 4 }}>{field}</div>
+                    <input
+                      type="text"
+                      placeholder="Reason (optional)"
+                      value={skipReasons[field] || ''}
+                      onChange={(e) => setSkipReasons((prev) => ({ ...prev, [field]: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+                <Button variant="outline" onClick={() => setShowSkipModal(false)} disabled={saving}>
+                  Cancel
+                </Button>
+                <Button variant="solid" onClick={proceedToNext} disabled={saving} style={{ background: '#2563eb', color: '#fff' }}>
+                  {saving ? 'Saving…' : 'Skip & Proceed'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Box>
     </ThemeProvider>
   );
