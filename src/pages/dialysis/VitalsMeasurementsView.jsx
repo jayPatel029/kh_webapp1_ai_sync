@@ -102,6 +102,8 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
     bmi,
     map,
     ufGoal,
+    ufRateMlKgHr,
+    ufRateEval,
     bpEval,
     pulseEval,
     tempEval,
@@ -474,8 +476,22 @@ const VitalsMeasurementsView = ({ patientId, sessionId: propSessionId, onBack, o
                         type="text"
                         readOnly
                         value={ufGoal}
-                        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #2563eb', background: '#eff6ff', fontSize: '15px', fontWeight: 800, color: '#1e40af' }}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          borderRadius: '6px',
+                          border: `1px solid ${ufRateEval.severity === VITAL_SEVERITY.CRITICAL ? '#ef4444' : ufRateEval.severity === VITAL_SEVERITY.WARNING ? '#f59e0b' : '#2563eb'}`,
+                          background: ufRateEval.severity === VITAL_SEVERITY.CRITICAL ? '#fef2f2' : ufRateEval.severity === VITAL_SEVERITY.WARNING ? '#fffbeb' : '#eff6ff',
+                          fontSize: '15px',
+                          fontWeight: 800,
+                          color: '#1e40af',
+                        }}
                       />
+                      <span style={BADGE_STYLE(ufRateEval.severity)}>
+                        {ufRateMlKgHr != null
+                          ? `UF rate ${ufRateMlKgHr} mL/kg/hr — ${ufRateEval.label}`
+                          : 'UF rate — enter weight, EDW, and duration'}
+                      </span>
                     </div>
 
                     <div>

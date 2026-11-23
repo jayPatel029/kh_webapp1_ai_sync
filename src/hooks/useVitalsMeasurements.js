@@ -356,10 +356,33 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
     return String(calculateMAP(formState.systolic, formState.diastolic));
   }, [formState.systolic, formState.diastolic]);
 
+  const heparinVolumeL = useMemo(() => {
+    const dose = Number(heparinDoseUnits);
+    const conc = Number(heparinConcentration);
+    if (!Number.isFinite(dose) || !Number.isFinite(conc) || conc <= 0) return 0;
+    return dose / conc / 1000; // mL → L for UF Goal display
+  }, [heparinDoseUnits, heparinConcentration]);
+
   const ufGoal = useMemo(() => {
     if (!formState.weightPre || !formState.edw) return MISSING;
-    return calculateUFGoal(formState.weightPre, formState.edw, 0);
-  }, [formState.weightPre, formState.edw]);
+    return calculateUFGoal(formState.weightPre, formState.edw, heparinVolumeL);
+  }, [formState.weightPre, formState.edw, heparinVolumeL]);
+
+  const ufRateMlKgHr = useMemo(() => {
+    const goalL = parseFloat(ufGoal);
+    const hours = Number(plannedDurationHours);
+    const pre = parseFloat(formState.weightPre);
+    if (Number.isNaN(goalL) || !Number.isFinite(hours) || hours <= 0 || !Number.isFinite(pre) || pre <= 0) {
+      return null;
+    }
+    // UF goal L → mL, then mL/hr/kg
+    return Math.round(((goalL * 1000) / hours / pre) * 100) / 100;
+  }, [ufGoal, plannedDurationHours, formState.weightPre]);
+
+  const ufRateEval = useMemo(
+    () => (ufRateMlKgHr == null ? { severity: VITAL_SEVERITY.NORMAL, label: '—' } : evaluateUfRate(ufRateMlKgHr)),
+    [ufRateMlKgHr],
+  );
 
   const bpEval = useMemo(
     () => evaluateBp(formState.systolic, formState.diastolic),
@@ -379,8 +402,9 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
       spo2Eval.severity,
       formState.respRate ? respEval.severity : VITAL_SEVERITY.NORMAL,
       formState.glucose ? glucoseEval.severity : VITAL_SEVERITY.NORMAL,
+      ufRateEval.severity,
     ]),
-    [bpEval, pulseEval, tempEval, spo2Eval, respEval, glucoseEval, formState.respRate, formState.glucose]
+    [bpEval, pulseEval, tempEval, spo2Eval, respEval, glucoseEval, formState.respRate, formState.glucose, ufRateEval]
   );
 
   const updateField = (field, value) => {
@@ -417,13 +441,14 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
       spo2: optionalNumber(formState.spo2),
       weight_pre: optionalNumber(formState.weightPre),
       edw: optionalNumber(formState.edw),
+      last_post_weight: optionalNumber(formState.lastPostWeight),
       respiratory_rate: optionalNumber(formState.respRate),
       height_cm: optionalNumber(formState.height),
       pain_score: optionalNumber(formState.painScore),
       glucose: optionalNumber(formState.glucose),
       notes: formState.notes ? String(formState.notes).slice(0, 200) : '',
       kt_v_assessment_flag: Boolean(formState.ktvChecked),
-      pre_dialysis_bun: formState.ktvChecked ? optionalNumber(formState.preDialysisBun) : undefined,
+      pre_dialysis_bun: formState.ktvChecked ? optionalNumber(formState.preDialysisBun) : null,
       heparin_dose_units: heparinDoseUnits,
       heparin_concentration: heparinConcentration,
       treatment_duration_hours: plannedDurationHours,
@@ -466,7 +491,14 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
     try {
       const res = await submitSessionVitals(activeSessionId, buildPayload('final', skips));
       if (!res?.success) {
-        notifyError(res?.message || res?.error_code || 'Vitals could not be saved');
+        notifyError(
+          res?.message
+          || (res?.error_code === 'ERR_UF_RATE_CEILING' ? 'UF rate exceeds safe ceiling — correct weight/EDW/duration.' : null)
+          || (res?.error_code === 'ERR_VITAL_CRITICAL' ? 'A critical vital is unresolved — correct before continuing.' : null)
+          || (res?.error_code === 'ERR_PRE_BUN_REQUIRED' ? 'Pre-Dialysis BUN is required when Kt/V Assessment is checked.' : null)
+          || res?.error_code
+          || 'Vitals could not be saved',
+        );
         return false;
       }
       await saveP2Draft(activeSessionId, 'P2-05', formState);
@@ -488,6 +520,8 @@ export default function useVitalsMeasurements(patientId, rawSessionId) {
     bmi,
     map,
     ufGoal,
+    ufRateMlKgHr,
+    ufRateEval,
     bpEval,
     pulseEval,
     tempEval,
