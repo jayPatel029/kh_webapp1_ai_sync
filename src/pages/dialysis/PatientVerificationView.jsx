@@ -208,6 +208,7 @@ const PatientVerificationView = ({
     heparinLabel,
     dryWeightInput,
     setDryWeightInput,
+    dryWeightProvisional,
     todaySettings,
     updateTodaySettings,
     identityMatches,
@@ -690,7 +691,24 @@ const PatientVerificationView = ({
               }}
             >
               <div>
-                <label style={{ display: 'block', color: '#64748b', marginBottom: '4px' }}>Dry Weight (kg)*</label>
+                <label style={{ display: 'block', color: '#64748b', marginBottom: '4px' }}>
+                  Dry Weight (kg)*
+                  {dryWeightProvisional ? (
+                    <span
+                      style={{
+                        marginLeft: '8px',
+                        background: '#fef3c7',
+                        color: '#b45309',
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      Provisional — doctor to verify
+                    </span>
+                  ) : null}
+                </label>
                 <input
                   type="number"
                   step="0.1"
@@ -701,21 +719,21 @@ const PatientVerificationView = ({
                 />
               </div>
               <div>
-                <div style={{ color: '#64748b', marginBottom: '4px' }}>Heparin</div>
+                <div style={{ color: '#64748b', marginBottom: '4px' }}>Heparin (bolus + hourly)</div>
                 <strong>{heparinLabel}</strong>
               </div>
             </div>
           </div>
 
           {/* ----------------------------------------------------------------- */}
-          {/* Card 4: Today's Settings                                          */}
+          {/* Card 4: Today's Settings (D63/D64 — no dialyzer; no range warn)   */}
           {/* ----------------------------------------------------------------- */}
           <div style={{ ...CARD_STYLE, marginBottom: '24px' }}>
             <div style={SECTION_HEADER_STYLE}>4. Today&apos;s Settings</div>
             <div style={SECTION_SUBTITLE_STYLE}>
               {todaySettings.source === 'last_session'
-                ? 'Pre-filled from the last session. Edit if today is different.'
-                : 'Planned machine settings for this session.'}
+                ? 'Pre-filled from the last session. Edit if today is different. Dialyzer is set under Consumables.'
+                : 'Planned machine settings for this session. Dialyzer is set under Consumables.'}
             </div>
             <div
               style={{
@@ -729,11 +747,11 @@ const PatientVerificationView = ({
                 ['duration_hours', 'Duration (hours)*', 'number', '0.1'],
                 ['bfr_ml_min', 'BFR (mL/min)', 'number', '1'],
                 ['dfr_ml_min', 'DFR (mL/min)', 'number', '1'],
-                ['dialyzer', 'Dialyzer', 'text', null],
-                ['dialysate_temp', 'Dialysate Temp (°C)', 'number', '0.1'],
                 ['na', 'Na+', 'number', '0.1'],
                 ['k', 'K+', 'number', '0.1'],
+                ['calcium', 'Calcium', 'number', '0.1'],
                 ['bicarbonate', 'HCO3-', 'number', '0.1'],
+                ['sodium_profile', 'Sodium profile', 'text', null],
               ].map(([key, label, type, step]) => (
                 <div key={key}>
                   <label style={{ display: 'block', color: '#64748b', marginBottom: '4px' }}>{label}</label>
@@ -746,6 +764,28 @@ const PatientVerificationView = ({
                   />
                 </div>
               ))}
+              <div>
+                <label style={{ display: 'block', color: '#64748b', marginBottom: '4px' }}>
+                  Dialysate Temp (°{todaySettings.dialysate_temp_unit === 'F' ? 'F' : 'C'})
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={todaySettings.dialysate_temp}
+                    onChange={(e) => updateTodaySettings({ dialysate_temp: e.target.value })}
+                    style={{ flex: 1, padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700 }}
+                  />
+                  <select
+                    value={todaySettings.dialysate_temp_unit || 'C'}
+                    onChange={(e) => updateTodaySettings({ dialysate_temp_unit: e.target.value })}
+                    style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700 }}
+                  >
+                    <option value="C">°C</option>
+                    <option value="F">°F</option>
+                  </select>
+                </div>
+              </div>
             </div>
             {!durationValid ? (
               <div style={{ marginTop: '12px', fontSize: '13px', color: '#b45309' }}>Enter planned duration.</div>

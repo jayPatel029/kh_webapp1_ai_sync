@@ -24,15 +24,16 @@ import { MISSING, unwrapList, unwrapRecord, formatIst } from '../pages/dialysis/
 import { loadP2Draft, saveP2Draft } from '../pages/dialysis/p2DraftCache';
 
 const EMPTY_TODAY_SETTINGS = {
-  dialyzer: '',
   bfr_ml_min: '',
   dfr_ml_min: '',
   duration_hours: '',
   dialysate_temp: '',
+  dialysate_temp_unit: 'C',
   na: '',
   k: '',
+  calcium: '',
+  sodium_profile: '',
   bicarbonate: '',
-  out_of_range_reason: '',
   source: 'manual',
 };
 
@@ -44,15 +45,16 @@ function asInput(value) {
 function settingsFromRow(row) {
   if (!row) return { ...EMPTY_TODAY_SETTINGS };
   return {
-    dialyzer: asInput(row.dialyzer),
     bfr_ml_min: asInput(row.bfr_ml_min),
     dfr_ml_min: asInput(row.dfr_ml_min),
     duration_hours: asInput(row.duration_hours),
     dialysate_temp: asInput(row.dialysate_temp),
+    dialysate_temp_unit: row.dialysate_temp_unit === 'F' ? 'F' : 'C',
     na: asInput(row.na),
     k: asInput(row.k),
+    calcium: asInput(row.calcium),
+    sodium_profile: asInput(row.sodium_profile),
     bicarbonate: asInput(row.bicarbonate),
-    out_of_range_reason: asInput(row.out_of_range_reason),
     source: row.source || 'manual',
   };
 }
@@ -480,9 +482,18 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     }
     setSaving(true);
     try {
+      const existingDw = standingOrder?.dry_weight;
+      const valueChanged = existingDw == null || Number(existingDw) !== Number(dryWeightInput);
+      const alreadyProvisional = Boolean(
+        standingOrder?.dry_weight_provisional
+        || standingOrder?.dry_weight_source === 'provisional',
+      );
+      // v5 D61/D62 — tech-entered or changed dry weight stays provisional until doctor verifies.
+      const provisional = valueChanged || alreadyProvisional;
       const dryRes = await putPatientDryWeight(patientId, {
         dry_weight: Number(dryWeightInput),
         session_id: activeSessionId,
+        provisional,
       });
       if (!dryRes?.success) {
         notifyError(dryRes?.message || 'Dry weight could not be saved');
@@ -491,14 +502,17 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
       setStandingOrder(dryRes.data || standingOrder);
 
       const settingsRes = await putSessionSettings(activeSessionId, {
-        ...todaySettings,
         duration_hours: Number(todaySettings.duration_hours),
         bfr_ml_min: todaySettings.bfr_ml_min === '' ? null : Number(todaySettings.bfr_ml_min),
         dfr_ml_min: todaySettings.dfr_ml_min === '' ? null : Number(todaySettings.dfr_ml_min),
         dialysate_temp: todaySettings.dialysate_temp === '' ? null : Number(todaySettings.dialysate_temp),
+        dialysate_temp_unit: todaySettings.dialysate_temp_unit || 'C',
         na: todaySettings.na === '' ? null : Number(todaySettings.na),
         k: todaySettings.k === '' ? null : Number(todaySettings.k),
+        calcium: todaySettings.calcium === '' ? null : Number(todaySettings.calcium),
+        sodium_profile: todaySettings.sodium_profile || null,
         bicarbonate: todaySettings.bicarbonate === '' ? null : Number(todaySettings.bicarbonate),
+        source: todaySettings.source || 'manual',
       });
       if (!settingsRes?.success) {
         notifyError(settingsRes?.message || 'Today\'s settings could not be saved');
@@ -558,12 +572,18 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     prescriptionValid,
   ]);
 
+  const dryWeightProvisional = Boolean(
+    standingOrder?.dry_weight_provisional
+    || standingOrder?.dry_weight_source === 'provisional',
+  );
+
   return {
     patientDetails,
     standingOrder,
     heparinLabel,
     dryWeightInput,
     setDryWeightInput,
+    dryWeightProvisional,
     todaySettings,
     updateTodaySettings,
     identityMatches,
