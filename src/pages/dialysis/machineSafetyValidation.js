@@ -1,5 +1,7 @@
-export const isMachineCheckPassed = (status) =>
-  String(status || '').toLowerCase() === 'passed';
+export const isMachineCheckPassed = (status) => {
+  const s = String(status || '').trim().toLowerCase();
+  return s === 'passed' || s === 'pass' || s === 'ok' || s === 'complete' || s === 'completed';
+};
 
 export const canProceedMachineSafety = (qc, selfTest, machineId) => {
   if (!machineId || String(machineId).trim() === '') return false;

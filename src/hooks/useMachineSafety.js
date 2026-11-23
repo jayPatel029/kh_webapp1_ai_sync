@@ -40,8 +40,10 @@ function normalizeCheck(row) {
 export function formatCheckStatus(status) {
   const raw = String(status || '').trim();
   if (!raw) return 'Not Yet Performed';
-  if (raw.toLowerCase() === 'passed') return 'Passed';
-  if (raw.toLowerCase() === 'failed') return 'Failed';
+  const lower = raw.toLowerCase();
+  if (isMachineCheckPassed(raw)) return 'Passed';
+  if (lower === 'failed' || lower === 'fail') return 'Failed';
+  if (lower.includes('not') && lower.includes('perform')) return 'Not Yet Performed';
   return raw;
 }
 
@@ -209,7 +211,13 @@ export default function useMachineSafety(patientId, rawSessionId) {
     try {
       const res = await reviewMachineSafety(activeSessionId, { machine_id: machineId });
       if (!res?.success) {
-        notifyError(res?.message || res?.error_code || 'Machine safety could not be confirmed');
+        const code = res?.error_code;
+        const msg = res?.message
+          || (code === 'ERR_MACHINE_SAFETY' ? 'Today’s QC and Self-Test must both be Passed before continuing.' : null)
+          || (code === 'ERR_MACHINE_MISMATCH' ? 'Session machine does not match the submitted machine.' : null)
+          || code
+          || 'Machine safety could not be confirmed';
+        notifyError(msg);
         return false;
       }
       await persistLocalDraft();
