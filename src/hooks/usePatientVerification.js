@@ -405,7 +405,26 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     infectionState.actioned
   );
   const consumablesValid = checkConsumablesValid(consumablesState);
-  const canProceed = identityValid && methodValid && infectionValid && consumablesValid && dryWeightValid && durationValid;
+  // Standing-order model (dry weight + planned duration) replaces the old HD prescription table gate.
+  const prescriptionValid = dryWeightValid && durationValid;
+  const gatesExceptInfection = identityValid && methodValid && consumablesValid && prescriptionValid;
+  const canProceed = gatesExceptInfection && infectionValid;
+
+  const buildVerificationPayload = (status) => ({
+    status,
+    identity_matched: identityValid,
+    identity_name_match: identityMatches.nameMatched,
+    identity_dob_match: identityMatches.dobMatched,
+    identity_pid_match: identityMatches.pidMatched,
+    identity_phone_match: identityMatches.phoneMatched,
+    wristband_scan_result: verificationMethods.wristbandVerified ? 'matched' : null,
+    prescription_valid: prescriptionValid,
+    hiv_status: infectionState.hivStatus,
+    hepatitis_status: infectionState.hepatitisStatus,
+    hiv_skipped: Boolean(infectionState.skipped),
+    hepatitis_skipped: Boolean(infectionState.skipped),
+    notes: notesText,
+  });
 
   const currentDraft = useMemo(() => ({
     identityMatches,
@@ -429,19 +448,7 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     setSaving(true);
     try {
       await saveP2Draft(activeSessionId, 'P2-04', currentDraft);
-      const res = await submitSessionVerification(activeSessionId, {
-        status: 'draft',
-        identity_matched: identityValid,
-        identity_name_match: identityMatches.nameMatched,
-        identity_dob_match: identityMatches.dobMatched,
-        identity_pid_match: identityMatches.pidMatched,
-        identity_phone_match: identityMatches.phoneMatched,
-        hiv_status: infectionState.hivStatus,
-        hepatitis_status: infectionState.hepatitisStatus,
-        hiv_skipped: infectionState.skipped,
-        hepatitis_skipped: infectionState.skipped,
-        notes: notesText,
-      });
+      const res = await submitSessionVerification(activeSessionId, buildVerificationPayload('draft'));
       if (!res?.success) {
         notifyError(res?.message || 'Could not save verification draft');
         return false;
@@ -454,7 +461,16 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     } finally {
       setSaving(false);
     }
-  }, [activeSessionId, currentDraft, identityValid, identityMatches, infectionState, notesText]);
+  }, [
+    activeSessionId,
+    currentDraft,
+    identityValid,
+    identityMatches,
+    verificationMethods.wristbandVerified,
+    infectionState,
+    notesText,
+    prescriptionValid,
+  ]);
 
   const submitFinal = useCallback(async () => {
     if (!canProceed) return false;
@@ -489,19 +505,10 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
         return false;
       }
 
-      const verificationRes = await submitSessionVerification(activeSessionId, {
-        status: 'final',
-        identity_matched: identityValid,
-        identity_name_match: identityMatches.nameMatched,
-        identity_dob_match: identityMatches.dobMatched,
-        identity_pid_match: identityMatches.pidMatched,
-        identity_phone_match: identityMatches.phoneMatched,
-        hiv_status: infectionState.hivStatus,
-        hepatitis_status: infectionState.hepatitisStatus,
-        hiv_skipped: infectionState.skipped,
-        hepatitis_skipped: infectionState.skipped,
-        notes: notesText,
-      });
+      const verificationRes = await submitSessionVerification(
+        activeSessionId,
+        buildVerificationPayload('final'),
+      );
       if (!verificationRes?.success) {
         notifyError(verificationRes?.message || 'Verification could not be saved');
         return false;
@@ -539,6 +546,7 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     activeSessionId,
     identityValid,
     identityMatches,
+    verificationMethods.wristbandVerified,
     infectionState,
     notesText,
     consumablesState,
@@ -547,6 +555,7 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     dryWeightInput,
     todaySettings,
     standingOrder,
+    prescriptionValid,
   ]);
 
   return {
@@ -573,6 +582,8 @@ export default function usePatientVerification(patientId, rawSessionId, assignme
     consumablesValid,
     dryWeightValid,
     durationValid,
+    prescriptionValid,
+    gatesExceptInfection,
     canProceed,
     loading,
     saving,

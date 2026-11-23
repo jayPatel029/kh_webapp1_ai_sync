@@ -221,10 +221,11 @@ const PatientVerificationView = ({
     handleInfectionSkip,
     notesText,
     setNotesText,
-    identityValid,
+    infectionValid,
     dryWeightValid,
     durationValid,
-    canProceed,
+    prescriptionValid,
+    gatesExceptInfection,
     loading,
     saving,
     error,
@@ -234,6 +235,7 @@ const PatientVerificationView = ({
   } = usePatientVerification(patientId, effectiveSessionId, assignment);
 
   const [showInfectionEdit, setShowInfectionEdit] = useState(false);
+  const [showInfectionGateModal, setShowInfectionGateModal] = useState(false);
   const [editHiv, setEditHiv] = useState(INFECTION_STATUS.TEST_NOT_DONE);
   const [editHep, setEditHep] = useState(INFECTION_STATUS.TEST_NOT_DONE);
 
@@ -252,10 +254,7 @@ const PatientVerificationView = ({
     }
   };
 
-  const handleContinueClick = async () => {
-    if (!canProceed || saving) return;
-    const saved = await submitFinal();
-    if (!saved) return;
+  const proceedAfterSave = () => {
     if (onNext) {
       onNext();
       return;
@@ -263,6 +262,19 @@ const PatientVerificationView = ({
     navigate(ROUTES.DIALYSIS_PATIENTS, {
       state: { patientId, sessionId: effectiveSessionId, step: 'P2-05' },
     });
+  };
+
+  const handleContinueClick = async () => {
+    if (saving) return;
+    if (!gatesExceptInfection) return;
+    // Spec: Continue while HIV/Hep Pending opens a blocking modal (Enter Now / Skip), never silent.
+    if (!infectionValid) {
+      setShowInfectionGateModal(true);
+      return;
+    }
+    const saved = await submitFinal();
+    if (!saved) return;
+    proceedAfterSave();
   };
 
   if (loading) {
@@ -649,20 +661,22 @@ const PatientVerificationView = ({
           <div style={{ ...CARD_STYLE, marginBottom: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={SECTION_HEADER_STYLE}>3. Prescription</div>
-                <div style={SECTION_SUBTITLE_STYLE}>Dry weight and heparin for this patient.</div>
+                <div style={SECTION_HEADER_STYLE}>3. Verify Prescription</div>
+                <div style={SECTION_SUBTITLE_STYLE}>
+                  Standing order dry weight / heparin, plus today&apos;s planned settings below.
+                </div>
               </div>
               <span
                 style={{
-                  background: dryWeightValid ? '#dcfce7' : '#fef3c7',
-                  color: dryWeightValid ? '#15803d' : '#b45309',
+                  background: prescriptionValid ? '#dcfce7' : '#fef3c7',
+                  color: prescriptionValid ? '#15803d' : '#b45309',
                   padding: '4px 12px',
                   borderRadius: '9999px',
                   fontSize: '12px',
                   fontWeight: 700,
                 }}
               >
-                {dryWeightValid ? 'On record' : 'Dry weight not on record'}
+                {prescriptionValid ? 'Valid' : (!dryWeightValid ? 'Dry weight required' : 'Duration required')}
               </span>
             </div>
 
@@ -982,9 +996,13 @@ const PatientVerificationView = ({
             </Button>
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-              {!canProceed ? (
+              {!gatesExceptInfection ? (
                 <div style={{ fontSize: '12px', color: '#b45309' }}>
-                  Continue stays disabled until identity (2 matches), a verification method, infection check, consumables, dry weight, and planned duration are resolved.
+                  Continue stays disabled until identity (2 matches), a verification method, consumables, dry weight, and planned duration are resolved.
+                </div>
+              ) : !infectionValid ? (
+                <div style={{ fontSize: '12px', color: '#b45309' }}>
+                  HIV / Hepatitis status still pending — Continue opens the required Enter Now / Skip gate.
                 </div>
               ) : null}
               <div style={{ display: 'flex', gap: '12px' }}>
@@ -994,10 +1012,10 @@ const PatientVerificationView = ({
                 <Button
                   variant="brand"
                   onClick={handleContinueClick}
-                  disabled={!canProceed || saving}
+                  disabled={!gatesExceptInfection || saving}
                   style={{
-                    opacity: canProceed ? 1 : 0.5,
-                    cursor: canProceed ? 'pointer' : 'not-allowed',
+                    opacity: gatesExceptInfection ? 1 : 0.5,
+                    cursor: gatesExceptInfection ? 'pointer' : 'not-allowed',
                   }}
                 >
                   Save & Continue →
@@ -1006,6 +1024,69 @@ const PatientVerificationView = ({
             </div>
           </div>
         </div>
+
+        {showInfectionGateModal && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="p204-infection-gate-title"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.45)',
+              display: 'grid',
+              placeItems: 'center',
+              zIndex: 80,
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                maxWidth: 440,
+                background: '#fff',
+                borderRadius: 16,
+                border: '1px solid #e2e8f0',
+                padding: 20,
+                boxShadow: '0 20px 40px rgba(15,23,42,0.18)',
+              }}
+            >
+              <h3 id="p204-infection-gate-title" style={{ margin: '0 0 8px', fontSize: 18, color: '#0f172a' }}>
+                HIV / Hepatitis status required
+              </h3>
+              <p style={{ margin: '0 0 16px', fontSize: 14, color: '#475569', lineHeight: 1.45 }}>
+                Status must be recorded or explicitly skipped before verification can complete.
+                Skip always alerts the nephrologist — it is never silent.
+              </p>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <Button size="sm" variant="outline" onClick={() => setShowInfectionGateModal(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    handleInfectionSkip();
+                    setShowInfectionGateModal(false);
+                  }}
+                >
+                  Skip (Log Alert)
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditHiv(infectionState.hivStatus);
+                    setEditHep(infectionState.hepatitisStatus);
+                    setShowInfectionGateModal(false);
+                    setShowInfectionEdit(true);
+                  }}
+                >
+                  Enter Now
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Box>
     </ThemeProvider>
   );
