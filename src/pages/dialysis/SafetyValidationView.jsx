@@ -245,17 +245,32 @@ const SafetyValidationView = ({ patientId, sessionId: propSessionId, onBack, onN
                   <p className="text-sm text-[#475569] mb-3">Informational only — does not block Validate & Continue.</p>
                   <div className="w-full text-sm">
                     <div className="flex border-b border-[#e2e8f0] py-2 text-[#64748b] font-semibold text-xs uppercase tracking-wider">
-                      <div className="w-[25%]">Screen</div>
-                      <div className="w-[35%]">Field</div>
-                      <div className="w-[40%]">Reason</div>
+                      <div className="w-[20%]">Screen</div>
+                      <div className="w-[30%]">Field</div>
+                      <div className="w-[20%]">Criticality</div>
+                      <div className="w-[30%]">Reason</div>
                     </div>
-                    {itemsSkipped.map((row, idx) => (
-                      <div key={`${row.screen}-${row.field}-${idx}`} className="flex py-2.5 border-b border-[#f1f5f9] last:border-0">
-                        <div className="w-[25%] text-[#334155] font-medium">{liveValue(row.screen)}</div>
-                        <div className="w-[35%] text-[#475569]">{liveValue(row.field)}</div>
-                        <div className="w-[40%] text-[#64748b]">{liveValue(row.reason)}</div>
-                      </div>
-                    ))}
+                    {itemsSkipped.map((row, idx) => {
+                      const critical = String(row.criticality || '').toLowerCase() === 'critical' || Boolean(row.doctor_alerted);
+                      return (
+                        <div key={`${row.screen}-${row.field}-${idx}`} className="flex py-2.5 border-b border-[#f1f5f9] last:border-0 items-start">
+                          <div className="w-[20%] text-[#334155] font-medium">{liveValue(row.screen)}</div>
+                          <div className="w-[30%] text-[#475569]">{liveValue(row.field)}</div>
+                          <div className="w-[20%]">
+                            {critical ? (
+                              <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                                Critical — doctor alerted
+                              </span>
+                            ) : (
+                              <span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                Non-Critical
+                              </span>
+                            )}
+                          </div>
+                          <div className="w-[30%] text-[#64748b]">{liveValue(row.reason)}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}

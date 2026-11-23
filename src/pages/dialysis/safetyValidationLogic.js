@@ -36,13 +36,17 @@ export const normalizeSafetySteps = (steps = []) => {
     .slice(0, 7)
     .map((step, index) => {
       const key = step.key || SAFETY_PRIOR_STEP_KEYS[index];
-      const complete = Boolean(step.complete) || isStepCompleted(step.status);
+      // Uncleared P2-07 block forces incomplete even if rollup was previously complete (D17).
+      const forcedIncomplete = Boolean(step.reason) && String(step.status || '').toLowerCase() === 'blocked';
+      const complete = !forcedIncomplete && (Boolean(step.complete) || isStepCompleted(step.status));
       return {
         id: step.step || step.id || index + 1,
         key,
         code: step.code || SAFETY_STEP_CODES[key] || null,
         name: step.name || step.key || `Step ${index + 1}`,
-        status: complete ? 'Completed' : (step.status_label || step.status || 'Not started'),
+        status: complete
+          ? 'Completed'
+          : (forcedIncomplete ? 'Blocked' : (step.status_label || step.status || 'Not started')),
         complete,
         completedBy: step.completed_by_name || step.completedBy || null,
         completedAt: step.completed_at || step.completedAt || step.time || null,
@@ -51,7 +55,16 @@ export const normalizeSafetySteps = (steps = []) => {
     });
 };
 
-export const buildBlockingIssues = (steps = []) => {
+export const buildBlockingIssues = (steps = [], apiBlockingIssues = null) => {
+  if (Array.isArray(apiBlockingIssues) && apiBlockingIssues.length) {
+    return apiBlockingIssues.map((issue) => ({
+      step: issue.step,
+      key: issue.key,
+      code: issue.code,
+      name: issue.name,
+      reason: issue.reason || `${issue.name || 'Step'} is incomplete.`,
+    }));
+  }
   const normalized = normalizeSafetySteps(steps);
   return normalized
     .filter((step) => !step.complete && step.status !== 'Completed')
@@ -62,6 +75,11 @@ export const buildBlockingIssues = (steps = []) => {
       name: step.name,
       reason: step.reason || `${step.name} is incomplete.`,
     }));
+};
+
+export const isCriticalSkip = (row = {}) => {
+  const c = String(row.criticality || '').toLowerCase();
+  return c === 'critical' || Boolean(row.doctor_alerted);
 };
 
 export const canProceedSafetyValidation = (steps = []) => {

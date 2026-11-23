@@ -32,16 +32,20 @@ export default function useSafetyValidation(patientId, rawSessionId) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [steps, setSteps] = useState([]);
+  const [apiBlockingIssues, setApiBlockingIssues] = useState(null);
   const [itemsSkipped, setItemsSkipped] = useState([]);
   const [notes, setNotes] = useState('');
   const [stepSafety, setStepSafety] = useState('pending');
   const [loadedAt, setLoadedAt] = useState(MISSING);
 
   const normalizedSteps = useMemo(() => normalizeSafetySteps(steps), [steps]);
-  const blockingIssues = useMemo(() => buildBlockingIssues(normalizedSteps), [normalizedSteps]);
+  const blockingIssues = useMemo(
+    () => buildBlockingIssues(normalizedSteps, apiBlockingIssues),
+    [normalizedSteps, apiBlockingIssues]
+  );
   const canProceed = useMemo(
-    () => canProceedSafetyValidation(normalizedSteps),
-    [normalizedSteps]
+    () => canProceedSafetyValidation(normalizedSteps) && blockingIssues.length === 0,
+    [normalizedSteps, blockingIssues]
   );
 
   const loadPage = useCallback(async () => {
@@ -78,6 +82,7 @@ export default function useSafetyValidation(patientId, rawSessionId) {
       if (safetyRes?.success && safetyRes.data) {
         const payload = safetyRes.data;
         setSteps(payload.per_step || []);
+        setApiBlockingIssues(Array.isArray(payload.blocking_issues) ? payload.blocking_issues : null);
         setItemsSkipped(payload.items_skipped || []);
         setStepSafety(payload.step_safety || 'pending');
         if (payload.validation?.notes) {
